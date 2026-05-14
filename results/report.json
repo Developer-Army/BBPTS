@@ -1,0 +1,194 @@
+{
+  "title": "BBPTS Security Assessment Report - 2026-05-13",
+  "description": "Comprehensive reconnaissance and vulnerability assessment report",
+  "generated_at": "2026-05-13T15:10:52.183897906+05:30",
+  "scan_duration": "",
+  "target_count": 6,
+  "finding_count": 6,
+  "critical_count": 0,
+  "high_count": 4,
+  "medium_count": 2,
+  "low_count": 0,
+  "findings": [
+    {
+      "id": "FINDING-1",
+      "title": "Reconnaissance finding on app.example.com",
+      "description": "Potential exposure of sensitive file: /admin; Administrative or Authentication interface identified; Application API endpoints discovered; Admin panel detected",
+      "severity": "high",
+      "score": 110,
+      "target": "app.example.com",
+      "evidence": "Found through: gau, katana, uro",
+      "impact": "",
+      "remediation": "Suggested security tests: Audit security headers (CSP, HSTS, XFO)\u0000Test for SQL injection on parameters\u0000Brute-force protection check and 2FA bypass testing\u0000Fuzz for unauthenticated endpoints and test for IDOR/BOLA\u0000Test for 2FA bypass and brute-force protection\u0000Check password reset token predictability\u0000Test BOLA/IDOR on object IDs\u0000Check mass assignment in JSON bodies",
+      "references": null,
+      "tags": [
+        "sensitive-asset",
+        "auth",
+        "api",
+        "admin-panel"
+      ],
+      "sources": [
+        "gau",
+        "katana",
+        "uro"
+      ],
+      "discovered_at": "2026-05-13T15:10:52.183871236+05:30",
+      "effort": "",
+      "priority": "high"
+    },
+    {
+      "id": "FINDING-2",
+      "title": "Reconnaissance finding on abc.app.example.com",
+      "description": "Corroborated by 1 tool signals",
+      "severity": "high",
+      "score": 64,
+      "target": "abc.app.example.com",
+      "evidence": "Found through: katana, subfinder",
+      "impact": "",
+      "remediation": "Suggested security tests: Audit security headers (CSP, HSTS, XFO)\u0000Test for SQL injection on parameters",
+      "references": null,
+      "tags": [
+        "discovery"
+      ],
+      "sources": [
+        "katana",
+        "subfinder"
+      ],
+      "discovered_at": "2026-05-13T15:10:52.183883592+05:30",
+      "effort": "",
+      "priority": "high"
+    },
+    {
+      "id": "FINDING-3",
+      "title": "Reconnaissance finding on masharef.app.example.com",
+      "description": "Corroborated by 1 tool signals",
+      "severity": "high",
+      "score": 64,
+      "target": "masharef.app.example.com",
+      "evidence": "Found through: katana, subfinder",
+      "impact": "",
+      "remediation": "Suggested security tests: Audit security headers (CSP, HSTS, XFO)\u0000Test for SQL injection on parameters",
+      "references": null,
+      "tags": [
+        "discovery"
+      ],
+      "sources": [
+        "katana",
+        "subfinder"
+      ],
+      "discovered_at": "2026-05-13T15:10:52.183886273+05:30",
+      "effort": "",
+      "priority": "high"
+    },
+    {
+      "id": "FINDING-4",
+      "title": "Reconnaissance finding on www.app.example.com",
+      "description": "Corroborated by 2 tool signals",
+      "severity": "high",
+      "score": 64,
+      "target": "www.app.example.com",
+      "evidence": "Found through: gau, katana, subfinder",
+      "impact": "",
+      "remediation": "Suggested security tests: Audit security headers (CSP, HSTS, XFO)\u0000Test for SQL injection on parameters",
+      "references": null,
+      "tags": [
+        "discovery"
+      ],
+      "sources": [
+        "gau",
+        "katana",
+        "subfinder"
+      ],
+      "discovered_at": "2026-05-13T15:10:52.183888097+05:30",
+      "effort": "",
+      "priority": "high"
+    },
+    {
+      "id": "FINDING-5",
+      "title": "Reconnaissance finding on tenant-67890.app.example.com",
+      "description": "Corroborated by 1 tool signals",
+      "severity": "medium",
+      "score": 56,
+      "target": "tenant-67890.app.example.com",
+      "evidence": "Found through: gau",
+      "impact": "",
+      "remediation": "Suggested security tests: Audit security headers (CSP, HSTS, XFO)\u0000Test for SQL injection on parameters",
+      "references": null,
+      "tags": [],
+      "sources": [
+        "gau"
+      ],
+      "discovered_at": "2026-05-13T15:10:52.183889278+05:30",
+      "effort": "",
+      "priority": "medium"
+    },
+    {
+      "id": "FINDING-6",
+      "title": "Reconnaissance finding on vault.app.example.com",
+      "description": "Corroborated by 1 tool signals",
+      "severity": "medium",
+      "score": 56,
+      "target": "vault.app.example.com",
+      "evidence": "Found through: gau",
+      "impact": "",
+      "remediation": "Suggested security tests: Audit security headers (CSP, HSTS, XFO)\u0000Test for SQL injection on parameters",
+      "references": null,
+      "tags": [],
+      "sources": [
+        "gau"
+      ],
+      "discovered_at": "2026-05-13T15:10:52.183890826+05:30",
+      "effort": "",
+      "priority": "medium"
+    }
+  ],
+  "statistics": {
+    "total_targets": 6,
+    "total_subdomains": 0,
+    "total_endpoints": 0,
+    "total_findings": 6,
+    "severity_breakdown": {
+      "high": 4,
+      "medium": 2
+    },
+    "top_tools": {
+      "gau": 4,
+      "subfinder": 3,
+      "uro": 1
+    },
+    "top_targets_by_findings": {},
+    "discovery_timeline": {}
+  },
+  "recommendations": [
+    "Prioritize remediation of critical severity findings immediately",
+    "Implement Web Application Firewall (WAF) for discovered endpoints",
+    "Conduct manual penetration testing on high-value targets",
+    "Establish continuous monitoring for new subdomain discoveries",
+    "Implement security headers on all discovered assets",
+    "Regular security patching and vulnerability management",
+    "Multi-factor authentication for administrative interfaces"
+  ],
+  "executive_summary": {
+    "overall_risk": "High",
+    "key_findings": [
+      "Identified 0 critical vulnerabilities requiring immediate attention",
+      "Discovered 4 high-severity issues",
+      "Multiple reconnaissance data points confirm active services"
+    ],
+    "immediate_actions": [
+      "Address critical findings within 24 hours",
+      "Notify security team of findings",
+      "Begin triage and impact assessment"
+    ],
+    "long_term_actions": [
+      "Establish continuous monitoring program",
+      "Implement infrastructure hardening",
+      "Develop incident response procedures"
+    ],
+    "compliance_status": {
+      "CVE": false,
+      "CWE": true,
+      "OWASP": true
+    }
+  }
+}

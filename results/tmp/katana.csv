@@ -1,0 +1,5 @@
+timestamp,tool,target,source,type,properties_json
+2026-05-13T09:39:31.762591708Z,katana,https://www.app.example.com,katana,discovery,"{""endpoint"":""https://www.app.example.com""}"
+2026-05-13T09:39:31.762591708Z,katana,https://abc.app.example.com,katana,discovery,"{""endpoint"":""https://abc.app.example.com""}"
+2026-05-13T09:39:31.762591708Z,katana,https://app.example.com,katana,discovery,"{""endpoint"":""https://app.example.com""}"
+2026-05-13T09:39:31.762591708Z,katana,https://masharef.app.example.com,katana,discovery,"{""endpoint"":""https://masharef.app.example.com""}"

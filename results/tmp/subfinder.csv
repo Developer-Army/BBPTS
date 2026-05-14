@@ -1,0 +1,4 @@
+timestamp,tool,target,source,type,properties_json
+2026-05-13T09:38:58.129742121Z,subfinder,abc.app.example.com,subfinder,discovery,"{""source_target"":""abc.app.example.com""}"
+2026-05-13T09:38:58.129742121Z,subfinder,www.app.example.com,subfinder,discovery,"{""source_target"":""www.app.example.com""}"
+2026-05-13T09:38:58.129742121Z,subfinder,masharef.app.example.com,subfinder,discovery,"{""source_target"":""masharef.app.example.com""}"

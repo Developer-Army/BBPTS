@@ -1,0 +1,4 @@
+abc.app.example.com
+app.example.com
+masharef.app.example.com
+www.app.example.com

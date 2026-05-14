@@ -1,0 +1,42 @@
+# Binaries
+bounty-analyzer
+*.o
+*.a
+*.so
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Test coverage
+*.out
+coverage/
+
+# Sample outputs (optional - uncomment to track)
+# samples/sample-report.md
+# samples/sample-summary.csv
+
+# Dependencies
+go.sum
+vendor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local testing files
+*.tmp
+*.test

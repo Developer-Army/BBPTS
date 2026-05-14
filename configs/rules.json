@@ -1,0 +1,213 @@
+{
+  "rules": [
+    {
+      "id": "exposed-env",
+      "description": "Exposed .env file — likely contains credentials",
+      "priority": "critical",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": ".env"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "exposed-secrets",
+        "message": "🔥 .env file found — check for DB creds, API keys"
+      }
+    },
+    {
+      "id": "exposed-git",
+      "description": "Exposed .git directory — source code disclosure",
+      "priority": "critical",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "/.git"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "source-disclosure",
+        "message": "🔥 .git directory exposed — attempt git-dumper"
+      }
+    },
+    {
+      "id": "exposed-backup",
+      "description": "Backup file found — common source of info disclosure",
+      "priority": "high",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": ".bak"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "backup-file",
+        "message": "⚠️ Backup file found — may contain source code or config"
+      }
+    },
+    {
+      "id": "api-v-endpoint",
+      "description": "Versioned API endpoint — common IDOR/auth bypass surface",
+      "priority": "high",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "/api/v"
+        }
+      ],
+      "action": {
+        "type": "trigger_tool",
+        "tool": "ffuf",
+        "message": "API version endpoint found — fuzzing for hidden routes"
+      }
+    },
+    {
+      "id": "graphql-endpoint",
+      "description": "GraphQL endpoint detected — introspection and IDOR risk",
+      "priority": "high",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "/graphql"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "graphql",
+        "message": "🔎 GraphQL endpoint found — test introspection and batching attacks"
+      }
+    },
+    {
+      "id": "admin-panel",
+      "description": "Admin panel detected",
+      "priority": "high",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "/admin"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "admin-panel",
+        "message": "⚠️ Admin panel detected — test for default creds and RBAC bypass"
+      }
+    },
+    {
+      "id": "jenkins-exposed",
+      "description": "Jenkins CI instance exposed",
+      "priority": "critical",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "jenkins"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "ci-exposure",
+        "message": "🔥 Jenkins exposed — test /script and /configure endpoints"
+      }
+    },
+    {
+      "id": "swagger-exposed",
+      "description": "Swagger/OpenAPI docs exposed — full API map",
+      "priority": "medium",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "swagger"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "api-docs",
+        "message": "📖 Swagger UI exposed — extract all API endpoints automatically"
+      }
+    },
+    {
+      "id": "phpmyadmin-exposed",
+      "description": "phpMyAdmin exposed — direct database access risk",
+      "priority": "critical",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "phpmyadmin"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "db-exposure",
+        "message": "🔥 phpMyAdmin exposed — attempt default credentials"
+      }
+    },
+    {
+      "id": "s3-bucket-reference",
+      "description": "AWS S3 bucket reference found — check for public access",
+      "priority": "high",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": ".s3.amazonaws.com"
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "cloud-storage",
+        "message": "☁️ S3 bucket URL found — test for public read/write access"
+      }
+    },
+    {
+      "id": "crtsh-wildcard",
+      "description": "Wildcard certificate found — large scope expansion opportunity",
+      "priority": "medium",
+      "conditions": [
+        {
+          "field": "source",
+          "operator": "equals",
+          "value": "crtsh"
+        },
+        {
+          "field": "target",
+          "operator": "starts_with",
+          "value": "*."
+        }
+      ],
+      "action": {
+        "type": "trigger_tool",
+        "tool": "subfinder",
+        "message": "Wildcard cert found — expand subdomain enumeration"
+      }
+    },
+    {
+      "id": "dev-staging-env",
+      "description": "Development or staging environment found",
+      "priority": "high",
+      "conditions": [
+        {
+          "field": "target",
+          "operator": "contains",
+          "value": "dev."
+        }
+      ],
+      "action": {
+        "type": "tag",
+        "tag": "dev-environment",
+        "message": "⚠️ Dev/staging environment found — often lacks prod-level security"
+      }
+    }
+  ]
+}

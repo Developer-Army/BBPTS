@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBPTS Security Assessment Report - 2026-05-13</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #4f46e5;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --critical: #ef4444;
+            --high: #f97316;
+            --medium: #f59e0b;
+            --low: #10b981;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.5; }
+        .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+        header { 
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%); 
+            color: white; 
+            padding: 60px 40px; 
+            border-radius: 16px; 
+            margin-bottom: 40px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 8px; }
+        .meta { display: flex; gap: 20px; font-size: 0.875rem; opacity: 0.8; }
+        
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+        .stat-card { 
+            background: var(--card-bg); 
+            padding: 24px; 
+            border-radius: 12px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-number { font-size: 1.875rem; font-weight: 700; margin-bottom: 4px; }
+        .stat-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-sub); }
+        
+        .finding { 
+            background: var(--card-bg); 
+            border-radius: 12px; 
+            padding: 32px; 
+            margin-bottom: 24px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s;
+        }
+        .finding:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .finding-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .severity-badge { 
+            padding: 4px 12px; 
+            border-radius: 9999px; 
+            font-size: 0.75rem; 
+            font-weight: 700; 
+            text-transform: uppercase;
+        }
+        
+        .badge-critical { background: #fee2e2; color: #991b1b; }
+        .badge-high { background: #ffedd5; color: #9a3412; }
+        .badge-medium { background: #fef3c7; color: #92400e; }
+        .badge-low { background: #d1fae5; color: #065f46; }
+        
+        .finding h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+        .finding-meta { font-size: 0.875rem; color: var(--text-sub); margin-bottom: 16px; }
+        .finding-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9; }
+        .section-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-sub); margin-bottom: 8px; }
+        
+        footer { text-align: center; margin-top: 60px; padding: 40px 0; border-top: 1px solid #e2e8f0; color: var(--text-sub); font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BBPTS Security Assessment Report - 2026-05-13</h1>
+            <div class="meta">
+                <p>Generated: 2026-05-13 15:10:52</p>
+                <p>Overall Risk: <strong>High</strong></p>
+            </div>
+        </header>
+
+        <section>
+            <h2>Statistics</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">6</div>
+                    <div class="stat-label">Targets Assessed</div>
+                </div>
+                <div class="stat-card critical">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Critical Findings</div>
+                </div>
+                <div class="stat-card high">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">High Findings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">2</div>
+                    <div class="stat-label">Medium Findings</div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Detailed Findings</h2>
+            
+        <div class="finding high">
+            <div class="finding-header">
+                <h3>Reconnaissance finding on app.example.com</h3>
+                <span class="severity-badge high">high</span>
+            </div>
+            <p><strong>Target:</strong> app.example.com</p>
+            <p><strong>Score:</strong> 110/100</p>
+            <p><strong>Description:</strong> Potential exposure of sensitive file: /admin; Administrative or Authentication interface identified; Application API endpoints discovered; Admin panel detected</p>
+            <p><strong>Evidence:</strong> Found through: gau, katana, uro</p>
+        </div>
+
+        <div class="finding high">
+            <div class="finding-header">
+                <h3>Reconnaissance finding on abc.app.example.com</h3>
+                <span class="severity-badge high">high</span>
+            </div>
+            <p><strong>Target:</strong> abc.app.example.com</p>
+            <p><strong>Score:</strong> 64/100</p>
+            <p><strong>Description:</strong> Corroborated by 1 tool signals</p>
+            <p><strong>Evidence:</strong> Found through: katana, subfinder</p>
+        </div>
+
+        <div class="finding high">
+            <div class="finding-header">
+                <h3>Reconnaissance finding on masharef.app.example.com</h3>
+                <span class="severity-badge high">high</span>
+            </div>
+            <p><strong>Target:</strong> masharef.app.example.com</p>
+            <p><strong>Score:</strong> 64/100</p>
+            <p><strong>Description:</strong> Corroborated by 1 tool signals</p>
+            <p><strong>Evidence:</strong> Found through: katana, subfinder</p>
+        </div>
+
+        <div class="finding high">
+            <div class="finding-header">
+                <h3>Reconnaissance finding on www.app.example.com</h3>
+                <span class="severity-badge high">high</span>
+            </div>
+            <p><strong>Target:</strong> www.app.example.com</p>
+            <p><strong>Score:</strong> 64/100</p>
+            <p><strong>Description:</strong> Corroborated by 2 tool signals</p>
+            <p><strong>Evidence:</strong> Found through: gau, katana, subfinder</p>
+        </div>
+
+        <div class="finding medium">
+            <div class="finding-header">
+                <h3>Reconnaissance finding on tenant-67890.app.example.com</h3>
+                <span class="severity-badge medium">medium</span>
+            </div>
+            <p><strong>Target:</strong> tenant-67890.app.example.com</p>
+            <p><strong>Score:</strong> 56/100</p>
+            <p><strong>Description:</strong> Corroborated by 1 tool signals</p>
+            <p><strong>Evidence:</strong> Found through: gau</p>
+        </div>
+
+        <div class="finding medium">
+            <div class="finding-header">
+                <h3>Reconnaissance finding on vault.app.example.com</h3>
+                <span class="severity-badge medium">medium</span>
+            </div>
+            <p><strong>Target:</strong> vault.app.example.com</p>
+            <p><strong>Score:</strong> 56/100</p>
+            <p><strong>Description:</strong> Corroborated by 1 tool signals</p>
+            <p><strong>Evidence:</strong> Found through: gau</p>
+        </div>
+
+        </section>
+
+        <footer>
+            <p>&copy; 2024 BBPTS - Bug Bounty Program Tool Set</p>
+        </footer>
+    </div>
+</body>
+</html>

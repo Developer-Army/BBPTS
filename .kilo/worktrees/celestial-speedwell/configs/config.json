@@ -1,0 +1,35 @@
+{
+  "api_keys": {
+    "shodan": "",
+    "censys": "",
+    "securitytrails": "",
+    "github": "",
+    "chaos": "",
+    "virustotal": "",
+    "passivetotal": "",
+    "binaryedge": ""
+  },
+  "proxies": [],
+  "rate_limit": 20,
+  "state_dir": "./results/state",
+  "wordlists_dir": "./wordlists",
+  "wordlists": {
+    "dns": "dns-5k.txt",
+    "directory": "raft-small-files.txt",
+    "subdomain": "subdomains-top1million-5000.txt",
+    "api": "api-endpoints.txt"
+  },
+  "threads": 32,
+  "notify": {
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
+    "discord_webhook": "",
+    "slack_webhook": ""
+  },
+  "fleet": {
+    "enabled": false,
+    "fleet_name": "bbpts-fleet",
+    "fleet_size": 10,
+    "delete_after": true
+  }
+}

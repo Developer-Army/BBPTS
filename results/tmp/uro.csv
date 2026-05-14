@@ -1,0 +1,2 @@
+timestamp,tool,target,source,type,properties_json
+2026-05-13T09:39:21.065013971Z,uro,https://app.example.com,uro,discovery,"{""type"":""cleaned_url""}"
