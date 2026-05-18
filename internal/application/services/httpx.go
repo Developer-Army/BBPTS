@@ -26,7 +26,18 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		return nil, nil
 	}
 
-	args := []string{"-silent", "-json", "-t", fmt.Sprintf("%d", threads)}
+	rateLimit := RateLimitFromCtx(ctx)
+
+	args := []string{
+		"-silent", "-json",
+		"-t", fmt.Sprintf("%d", threads),
+		"-timeout", "10",
+		"-retries", "1",
+	}
+
+	if rateLimit > 0 {
+		args = append(args, "-rate-limit", fmt.Sprintf("%d", rateLimit))
+	}
 
 	// Optimization: Pass targets via stdin instead of arguments to avoid ARG_MAX OS limits
 	input := strings.Join(targets, "\n")

@@ -5,43 +5,42 @@ import (
 	"strings"
 )
 
-type ToolDef struct {
-	Name  string
-	Stage int
-	Tool  Tool
-}
+type ToolFactory func() Tool
 
-var toolRegistry = map[string]ToolDef{
-	"amass":       {Name: "amass", Stage: 1, Tool: &AmassTool{}},
-	"assetfinder": {Name: "assetfinder", Stage: 1, Tool: &AssetfinderTool{}},
-	"crtsh":       {Name: "crtsh", Stage: 1, Tool: &CrtshTool{}},
-	"httpx":       {Name: "httpx", Stage: 2, Tool: &HTTPXTool{}},
-	"subfinder":   {Name: "subfinder", Stage: 1, Tool: &SubfinderTool{}},
-	"findomain":   {Name: "findomain", Stage: 1, Tool: &FindomainTool{}},
-	"massdns":     {Name: "massdns", Stage: 1, Tool: &MassdnsTool{}},
-	"whois":       {Name: "whois", Stage: 1, Tool: &WhoisTool{}},
-	"shodan":      {Name: "shodan", Stage: 2, Tool: &ShodanTool{}},
-	"wafw00f":     {Name: "wafw00f", Stage: 2, Tool: &Wafw00fTool{}},
-	"dnsx":        {Name: "dnsx", Stage: 2, Tool: &DNSXTool{}},
-	"puredns":     {Name: "puredns", Stage: 1, Tool: &PurednsTool{}},
-	"naabu":       {Name: "naabu", Stage: 2, Tool: &NaabuTool{}},
-	"katana":      {Name: "katana", Stage: 3, Tool: &KatanaTool{}},
-	"gau":         {Name: "gau", Stage: 3, Tool: &GauTool{}},
-	"hakrawler":   {Name: "hakrawler", Stage: 3, Tool: &HakrawlerTool{}},
-	"ffuf":        {Name: "ffuf", Stage: 4, Tool: &FFUFTool{}},
-	"gobuster":    {Name: "gobuster", Stage: 4, Tool: &GobusterTool{}},
-	"feroxbuster": {Name: "feroxbuster", Stage: 4, Tool: &FeroxbusterTool{}},
-	"chaos":       {Name: "chaos", Stage: 1, Tool: &ChaosTool{}},
-	"nuclei":      {Name: "nuclei", Stage: 5, Tool: &NucleiTool{}},
-	"dalfox":      {Name: "dalfox", Stage: 5, Tool: &DalfoxTool{}},
-	"trufflehog":  {Name: "trufflehog", Stage: 3, Tool: &TrufflehogTool{}},
-	"interactsh":  {Name: "interactsh", Stage: 5, Tool: &InteractshTool{}},
-	"uro":         {Name: "uro", Stage: 3, Tool: &UroTool{}},
-	"cloudenum":   {Name: "cloudenum", Stage: 1, Tool: &CloudEnumTool{}},
-	"graphql":     {Name: "graphql", Stage: 3, Tool: &GraphQLScanner{}},
-	"secrets":     {Name: "secrets", Stage: 5, Tool: &SecretsTool{}},
-	"browser":     {Name: "browser", Stage: 3, Tool: &BrowserRecon{}},
-	"js_analyzer": {Name: "js_analyzer", Stage: 4, Tool: &JSAnalyzer{}},
+var toolFactories = map[string]struct {
+	factory func() Tool
+	stage   int
+}{
+	"amass":       {factory: func() Tool { return &AmassTool{} }, stage: 1},
+	"assetfinder": {factory: func() Tool { return &AssetfinderTool{} }, stage: 1},
+	"crtsh":       {factory: func() Tool { return &CrtshTool{} }, stage: 1},
+	"httpx":       {factory: func() Tool { return &HTTPXTool{} }, stage: 2},
+	"subfinder":   {factory: func() Tool { return &SubfinderTool{} }, stage: 1},
+	"findomain":   {factory: func() Tool { return &FindomainTool{} }, stage: 1},
+	"massdns":     {factory: func() Tool { return &MassdnsTool{} }, stage: 1},
+	"whois":       {factory: func() Tool { return &WhoisTool{} }, stage: 1},
+	"shodan":      {factory: func() Tool { return &ShodanTool{} }, stage: 2},
+	"wafw00f":     {factory: func() Tool { return &Wafw00fTool{} }, stage: 2},
+	"dnsx":        {factory: func() Tool { return &DNSXTool{} }, stage: 2},
+	"puredns":     {factory: func() Tool { return &PurednsTool{} }, stage: 1},
+	"naabu":       {factory: func() Tool { return &NaabuTool{} }, stage: 2},
+	"katana":      {factory: func() Tool { return &KatanaTool{} }, stage: 3},
+	"gau":         {factory: func() Tool { return &GauTool{} }, stage: 3},
+	"hakrawler":   {factory: func() Tool { return &HakrawlerTool{} }, stage: 3},
+	"ffuf":        {factory: func() Tool { return &FFUFTool{} }, stage: 4},
+	"gobuster":    {factory: func() Tool { return &GobusterTool{} }, stage: 4},
+	"feroxbuster": {factory: func() Tool { return &FeroxbusterTool{} }, stage: 4},
+	"chaos":       {factory: func() Tool { return &ChaosTool{} }, stage: 1},
+	"nuclei":      {factory: func() Tool { return &NucleiTool{} }, stage: 5},
+	"dalfox":      {factory: func() Tool { return &DalfoxTool{} }, stage: 5},
+	"trufflehog":  {factory: func() Tool { return &TrufflehogTool{} }, stage: 3},
+	"interactsh":  {factory: func() Tool { return &InteractshTool{} }, stage: 5},
+	"uro":         {factory: func() Tool { return &UroTool{} }, stage: 3},
+	"cloudenum":   {factory: func() Tool { return &CloudEnumTool{} }, stage: 1},
+	"graphql":     {factory: func() Tool { return &GraphQLScanner{} }, stage: 3},
+	"secrets":     {factory: func() Tool { return &SecretsTool{} }, stage: 5},
+	"browser":     {factory: func() Tool { return &BrowserRecon{} }, stage: 3},
+	"js_analyzer": {factory: func() Tool { return &JSAnalyzer{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
@@ -71,8 +70,10 @@ func GetToolByName(name string) (Tool, bool) {
 	if alias, ok := toolAliases[key]; ok {
 		key = alias
 	}
-	def, ok := toolRegistry[key]
-	return def.Tool, ok
+	if def, ok := toolFactories[key]; ok {
+		return def.factory(), true
+	}
+	return nil, false
 }
 
 func GetToolStage(name string) int {
@@ -80,15 +81,15 @@ func GetToolStage(name string) int {
 	if alias, ok := toolAliases[key]; ok {
 		key = alias
 	}
-	if def, ok := toolRegistry[key]; ok {
-		return def.Stage
+	if def, ok := toolFactories[key]; ok {
+		return def.stage
 	}
 	return 3
 }
 
 func AvailableToolNames() []string {
-	names := make([]string, 0, len(toolRegistry))
-	for name := range toolRegistry {
+	names := make([]string, 0, len(toolFactories))
+	for name := range toolFactories {
 		names = append(names, name)
 	}
 	sort.Strings(names)

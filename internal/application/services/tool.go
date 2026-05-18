@@ -96,8 +96,10 @@ func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(str
 		}
 
 		// Skip ASCII art / banners (heuristic: high density of box-drawing or art characters)
-		if strings.Count(line, "/")+strings.Count(line, "_")+strings.Count(line, "\\")+strings.Count(line, "|") > 5 {
-			continue
+		if !strings.Contains(line, "://") {
+			if strings.Count(line, "/")+strings.Count(line, "_")+strings.Count(line, "\\")+strings.Count(line, "|") > 5 {
+				continue
+			}
 		}
 
 		if _, ok := seen[line]; ok {
@@ -118,6 +120,8 @@ const (
 	wordlistDirContextKey contextKey = "wordlist_dir"
 	tmpResultsDirKey      contextKey = "tmp_results_dir"
 	proxiesContextKey     contextKey = "proxies"
+	rateLimitContextKey   contextKey = "rate_limit"
+	lowResourceContextKey contextKey = "low_resource"
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -181,4 +185,26 @@ func GetProxies(ctx context.Context) []string {
 		return proxies
 	}
 	return nil
+}
+
+func WithRateLimit(ctx context.Context, limit int) context.Context {
+	return context.WithValue(ctx, rateLimitContextKey, limit)
+}
+
+func RateLimitFromCtx(ctx context.Context) int {
+	if limit, ok := ctx.Value(rateLimitContextKey).(int); ok {
+		return limit
+	}
+	return 0
+}
+
+func WithLowResource(ctx context.Context, low bool) context.Context {
+	return context.WithValue(ctx, lowResourceContextKey, low)
+}
+
+func LowResourceFromCtx(ctx context.Context) bool {
+	if low, ok := ctx.Value(lowResourceContextKey).(bool); ok {
+		return low
+	}
+	return false
 }

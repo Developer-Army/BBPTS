@@ -6,9 +6,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"strings"
 	"time"
 )
+
+func retryDelay(attempt int) time.Duration {
+	base := time.Duration(1<<uint(attempt)) * time.Second
+	jitter := time.Duration(rand.Int63n(int64(500 * time.Millisecond)))
+	return base + jitter
+}
 
 func runCommandStreamWithInput(ctx context.Context, stdin []byte, name string, args ...string) ([]string, error) {
 	cmd := prepareCommand(ctx, name, args...)
@@ -67,43 +74,9 @@ func runCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 }
 
 func RunCommandStream(ctx context.Context, name string, args ...string) ([]string, error) {
-	const maxRetries = 3
-	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(time.Duration(attempt) * time.Second):
-			}
-		}
-		lines, err := runCommandStreamWithInput(ctx, nil, name, args...)
-		if err == nil {
-			return lines, nil
-		}
-		lastErr = err
-		slog.Debug("Command failed, retrying", "attempt", attempt+1, "error", err)
-	}
-	return nil, fmt.Errorf("command failed after %d retries: %w", maxRetries, lastErr)
+	return runCommandStreamWithInput(ctx, nil, name, args...)
 }
 
 func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, args ...string) ([]string, error) {
-	const maxRetries = 3
-	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(time.Duration(attempt) * time.Second): // Exponential backoff
-			}
-		}
-		lines, err := runCommandStreamWithInput(ctx, stdin, name, args...)
-		if err == nil {
-			return lines, nil
-		}
-		lastErr = err
-		slog.Debug("Command failed, retrying", "attempt", attempt+1, "error", err)
-	}
-	return nil, fmt.Errorf("command failed after %d retries: %w", maxRetries, lastErr)
+	return runCommandStreamWithInput(ctx, stdin, name, args...)
 }

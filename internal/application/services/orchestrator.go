@@ -88,6 +88,9 @@ type Config struct {
 
 	// Timeout is the max duration to wait for a job.
 	Timeout time.Duration
+
+	// CacheEnabled toggles the result cache layer.
+	CacheEnabled bool
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -139,6 +142,12 @@ type Orchestrator struct {
 
 	// bus facilitates event distribution to listeners
 	bus queue.EventBus
+
+	// cache handles result caching to prevent redundant scans
+	cache *ResultCache
+
+	// circuitBreakers handles tool failure isolation
+	circuitBreakers *network.CircuitBreakerRegistry
 }
 
 type eventReporter interface {
@@ -196,6 +205,9 @@ func NewOrchestrator(config Config) *Orchestrator {
 		limiter:     limiter,
 		fleetRunner: fleetRunner,
 		bus:         eventBus,
+		circuitBreakers: network.NewCircuitBreakerRegistry(
+			network.DefaultCircuitBreakerConfig(),
+		),
 	}
 
 	if config.ProxyURL != "" {
@@ -204,6 +216,15 @@ func NewOrchestrator(config Config) *Orchestrator {
 			slog.Error("failed to initialize proxy feeder", "error", err)
 		} else {
 			o.proxyFeeder = feeder
+		}
+	}
+
+	if config.CacheEnabled {
+		cache, err := NewResultCache(DefaultCacheConfig())
+		if err != nil {
+			slog.Warn("result cache unavailable", "error", err)
+		} else {
+			o.cache = cache
 		}
 	}
 
@@ -229,6 +250,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = WithAPIKeys(ctx, o.config.APIKeys)
 	ctx = WithWordlistsDir(ctx, o.config.WordlistsDir)
 	ctx = WithTmpResultsDir(ctx, o.config.TmpResultsDir)
+	ctx = WithRateLimit(ctx, o.config.RateLimit)
 
 	if err := o.ensureTmpResultsDir(); err != nil {
 		slog.Warn("failed to initialize tmp results directory", "dir", o.config.TmpResultsDir, "error", err)
@@ -432,8 +454,31 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 					events = NewEventsFromLines(lines, tool.Name(), nil)
 				}
 			} else {
-				slog.Debug("executing tool locally", "tool", tool.Name(), "targets", len(toolTargets), "threads", toolThreads)
-				events, err = tool.Run(ctx, toolTargets, toolThreads)
+				if o.cache != nil {
+					if entry, ok := o.cache.Get(tool.Name(), toolTargets, toolThreads); ok {
+						slog.Debug("cache hit", "tool", tool.Name(), "events", len(entry.Events))
+						o.reportToolStatus(tool.Name(), "done", fmt.Sprintf("%d findings (cached)", len(entry.Events)))
+						for _, ev := range entry.Events {
+							o.reportEvent(ev.Source, ev.Target)
+						}
+						results <- toolResult{tool: tool.Name(), events: entry.Events}
+						return
+					}
+				}
+
+				slog.Debug("executing tool locally with retry/circuit-breaker", "tool", tool.Name(), "targets", len(toolTargets), "threads", toolThreads)
+				cb := o.circuitBreakers.Get(tool.Name())
+				cbErr := network.Execute(cb, func() error {
+					var e error
+					events, e = RunToolWithRetry(ctx, tool, toolTargets, toolThreads, ToolRetryConfig())
+					return e
+				})
+
+				if cbErr != nil {
+					err = cbErr
+				} else if o.cache != nil {
+					_ = o.cache.Put(tool.Name(), toolTargets, toolThreads, events)
+				}
 			}
 
 			if err != nil {
@@ -536,7 +581,8 @@ func appendEventsJSONL(path, tool, timestamp string, events []Event) error {
 	}
 	defer file.Close()
 
-	encoder := json.NewEncoder(file)
+	bw := bufio.NewWriterSize(file, 64*1024)
+	encoder := json.NewEncoder(bw)
 	for _, ev := range events {
 		record := struct {
 			Timestamp  string            `json:"timestamp"`
@@ -557,7 +603,7 @@ func appendEventsJSONL(path, tool, timestamp string, events []Event) error {
 			return fmt.Errorf("failed to append JSON event to %s: %w", path, err)
 		}
 	}
-	return nil
+	return bw.Flush()
 }
 
 func appendEventsCSV(path, tool, timestamp string, events []Event) error {
@@ -577,7 +623,8 @@ func appendEventsCSV(path, tool, timestamp string, events []Event) error {
 	}
 	defer file.Close()
 
-	writer := csv.NewWriter(file)
+	bw := bufio.NewWriterSize(file, 64*1024)
+	writer := csv.NewWriter(bw)
 	if writeHeader {
 		if err := writer.Write([]string{"timestamp", "tool", "target", "source", "type", "properties_json"}); err != nil {
 			return fmt.Errorf("failed to write CSV header to %s: %w", path, err)
@@ -598,7 +645,7 @@ func appendEventsCSV(path, tool, timestamp string, events []Event) error {
 	if err := writer.Error(); err != nil {
 		return fmt.Errorf("failed to flush CSV file %s: %w", path, err)
 	}
-	return nil
+	return bw.Flush()
 }
 
 func extractTargets(events []Event) []string {

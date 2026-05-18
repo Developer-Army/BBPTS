@@ -1,5 +1,4 @@
 # Binaries
-bounty-analyzer
 *.o
 *.a
 *.so

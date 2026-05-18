@@ -54,12 +54,35 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 		return nil, nil
 	}
 
+	rateLimit := RateLimitFromCtx(ctx)
+
+	bulkSize := threads
+	if bulkSize > 10 {
+		bulkSize = 10
+	}
+
 	args := []string{
 		"-silent",
 		"-jsonl",
 		"-no-color",
-		"-bulk-size", fmt.Sprintf("%d", threads*2),
+		"-bulk-size", fmt.Sprintf("%d", bulkSize),
 		"-concurrency", fmt.Sprintf("%d", threads),
+		"-timeout", "10",
+		"-retries", "1",
+		"-no-httpx",
+	}
+
+	if rateLimit > 0 {
+		args = append(args, "-rate-limit", fmt.Sprintf("%d", rateLimit), "-rate-limit-duration", "1s")
+	}
+
+	lowResource := LowResourceFromCtx(ctx)
+	if lowResource {
+		args = append(args,
+			"-headless-bulk-size", "1",
+			"-passive",
+			"-stats-interval", "30",
+		)
 	}
 
 	// Apply severity filter

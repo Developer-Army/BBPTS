@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // CacheEntry represents a cached tool result.
@@ -74,7 +74,7 @@ func NewResultCache(config CacheConfig) (*ResultCache, error) {
 		return nil, nil
 	}
 
-	db, err := sql.Open("sqlite3", config.DBPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	db, err := sql.Open("sqlite", config.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open cache database: %w", err)
 	}

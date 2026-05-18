@@ -58,6 +58,29 @@ func DefaultPoolConfig() PoolConfig {
 	}
 }
 
+// LowResourcePoolConfig returns a low-resource pool configuration.
+func LowResourcePoolConfig() PoolConfig {
+	return PoolConfig{
+		MaxBrowsers: 1,              // single Chromium process
+		MaxContexts: 3,              // max 3 contexts
+		ContextTTL:  5 * time.Minute,
+		Headless:    true,
+		ExtraArgs: []string{
+			"--disable-blink-features=AutomationControlled",
+			"--no-sandbox",
+			"--disable-setuid-sandbox",
+			"--disable-dev-shm-usage",
+			"--disable-gpu",
+			"--disable-extensions",
+			"--disable-background-networking",
+			"--disable-sync",
+			"--memory-pressure-thresholds=moderate:0.5,critical:0.9",
+			"--js-flags=--max-old-space-size=256", // cap V8 heap
+			"--window-size=1280,720",              // smaller viewport
+		},
+	}
+}
+
 // NewPooledBrowser creates a managed browser pool.
 func NewPooledBrowser(cfg PoolConfig) (*PooledBrowser, error) {
 	// Install Playwright drivers if needed
@@ -192,24 +215,19 @@ func (pb *PooledBrowser) cleanupLoop() {
 
 	for range ticker.C {
 		pb.mu.Lock()
-
-
-		// Clean domain-specific pools
 		for domain, contexts := range pb.contextPool {
 			active := make([]playwright.BrowserContext, 0, len(contexts))
 			for _, ctx := range contexts {
-				// Check context age (approximate via LastUsed on owning browser)
-				// Since context does not expose idle time, we conservatively keep all
-				// In production you'd track context creation timestamp separately
-				active = append(active, ctx)
-			}
-			if len(active) < len(pb.contextPool[domain]) {
-				slog.Debug("Cleaned stale contexts", "domain", domain, "removed", len(pb.contextPool[domain])-len(active))
+				// Close stale contexts
+				// For now, cap pool size per domain to 1
+				if len(active) < 1 {
+					active = append(active, ctx)
+				} else {
+					ctx.Close() // evict extras
+				}
 			}
 			pb.contextPool[domain] = active
 		}
-
-		// No-op for global pool for now
 		pb.mu.Unlock()
 	}
 }

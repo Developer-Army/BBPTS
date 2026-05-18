@@ -293,6 +293,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			defer cancel()
 		}
 
+		runCtx = services.WithLowResource(runCtx, opts.LowResource)
+
 		var eventBus queue.EventBus
 		if cfg.EventBus.Type == "nats" {
 			if cfg.EventBus.URL == "" {

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type SubfinderTool struct{}
@@ -16,11 +17,21 @@ func (t *SubfinderTool) Run(ctx context.Context, targets []string, threads int) 
 		return nil, nil
 	}
 
-	args := []string{"-silent", "-t", fmt.Sprintf("%d", threads)}
-	for _, target := range targets {
-		args = append(args, "-d", target)
+	rateLimit := RateLimitFromCtx(ctx)
+
+	args := []string{
+		"-silent",
+		"-t", fmt.Sprintf("%d", threads),
+		"-dL", "-",
+		"-timeout", "20",
 	}
-	lines, err := RunCommandLines(ctx, "subfinder", args...)
+
+	if rateLimit > 0 {
+		args = append(args, "-rl", fmt.Sprintf("%d", rateLimit))
+	}
+
+	input := strings.Join(targets, "\n")
+	lines, err := RunCommandWithInputLines(ctx, []byte(input), "subfinder", args...)
 	if err != nil {
 		return nil, fmt.Errorf("subfinder execution failed: %w", err)
 	}
