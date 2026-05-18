@@ -1,62 +1,15 @@
 {
   "findings": [
     {
-      "title": "Reconnaissance finding on app.example.com",
-      "target": "app.example.com",
+      "title": "Reconnaissance finding on 0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net",
+      "target": "0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net",
       "severity": "high",
-      "description": "Potential exposure of sensitive file: /admin; Administrative or Authentication interface identified; Application API endpoints discovered; Admin panel detected",
-      "evidence": "Found through: gau, katana, uro",
-      "tags": [
-        "sensitive-asset",
-        "auth",
-        "api",
-        "admin-panel"
-      ]
-    },
-    {
-      "title": "Reconnaissance finding on abc.app.example.com",
-      "target": "abc.app.example.com",
-      "severity": "high",
-      "description": "Corroborated by 1 tool signals",
-      "evidence": "Found through: katana, subfinder",
+      "description": "Discovered through httpx",
+      "evidence": "https://0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net | Discovered by: httpx",
       "tags": [
         "discovery"
       ]
-    },
-    {
-      "title": "Reconnaissance finding on masharef.app.example.com",
-      "target": "masharef.app.example.com",
-      "severity": "high",
-      "description": "Corroborated by 1 tool signals",
-      "evidence": "Found through: katana, subfinder",
-      "tags": [
-        "discovery"
-      ]
-    },
-    {
-      "title": "Reconnaissance finding on www.app.example.com",
-      "target": "www.app.example.com",
-      "severity": "high",
-      "description": "Corroborated by 2 tool signals",
-      "evidence": "Found through: gau, katana, subfinder",
-      "tags": [
-        "discovery"
-      ]
-    },
-    {
-      "title": "Reconnaissance finding on tenant-67890.app.example.com",
-      "target": "tenant-67890.app.example.com",
-      "severity": "medium",
-      "description": "Corroborated by 1 tool signals",
-      "evidence": "Found through: gau"
-    },
-    {
-      "title": "Reconnaissance finding on vault.app.example.com",
-      "target": "vault.app.example.com",
-      "severity": "medium",
-      "description": "Corroborated by 1 tool signals",
-      "evidence": "Found through: gau"
     }
   ],
-  "generated_at": "2026-05-13T09:40:52Z"
+  "generated_at": "2026-05-15T15:06:50Z"
 }

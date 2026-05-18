@@ -1,4 +1,4 @@
-# CSV Input Format - BBPTS v1.0
+# CSV Input Format - BBPTS v1.1
 
 BBPTS supports enhanced CSV input for organizing, prioritizing, and tagging reconnaissance targets with rich metadata.
 

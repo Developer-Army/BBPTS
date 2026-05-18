@@ -1,7 +1,7 @@
-# 🛡️ BBPTS Security Assessment Report - 2026-05-13
+# 🛡️ BBPTS Security Assessment Report - 2026-05-15
 
-> **Generated:** Wed, 13 May 2026 15:10:52 IST  
-> **Risk Level:** High | **Targets:** 6 | **Findings:** 6
+> **Generated:** Fri, 15 May 2026 20:36:50 IST  
+> **Risk Level:** High | **Targets:** 1 | **Findings:** 1
 
 ---
 
@@ -9,11 +9,11 @@
 
 | Critical | High | Medium | Low |
 | :---: | :---: | :---: | :---: |
-| 0 | 4 | 2 | 0 |
+| 0 | 1 | 0 | 0 |
 
 ### Key Highlights
 - Identified 0 critical vulnerabilities requiring immediate attention
-- Discovered 4 high-severity issues
+- Discovered 1 high-severity issues
 - Multiple reconnaissance data points confirm active services
 
 ---
@@ -21,97 +21,13 @@
 ## 🎯 Detailed Findings
 
 <details>
-<summary><b>🟠 app.example.com</b> (Score: 110)</summary>
+<summary><b>🟠 0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net</b> (Score: 100)</summary>
 
 ### 🔍 Security Analysis
-- Potential exposure of sensitive file: /admin
-- Administrative or Authentication interface identified
-- Application API endpoints discovered
-- Admin panel detected
+- Discovered through httpx
 
 ### 🔗 Discovery Context
-Found through: gau, katana, uro
-
-### 📝 Recommended Testing Checklist
-- [ ] Audit security headers (CSP, HSTS, XFO)
-- [ ] Test for SQL injection on parameters
-- [ ] Brute-force protection check and 2FA bypass testing
-- [ ] Fuzz for unauthenticated endpoints and test for IDOR/BOLA
-- [ ] Test for 2FA bypass and brute-force protection
-- [ ] Check password reset token predictability
-- [ ] Test BOLA/IDOR on object IDs
-- [ ] Check mass assignment in JSON bodies
-
-</details>
-
-<details>
-<summary><b>🟠 abc.app.example.com</b> (Score: 64)</summary>
-
-### 🔍 Security Analysis
-- Corroborated by 1 tool signals
-
-### 🔗 Discovery Context
-Found through: katana, subfinder
-
-### 📝 Recommended Testing Checklist
-- [ ] Audit security headers (CSP, HSTS, XFO)
-- [ ] Test for SQL injection on parameters
-
-</details>
-
-<details>
-<summary><b>🟠 masharef.app.example.com</b> (Score: 64)</summary>
-
-### 🔍 Security Analysis
-- Corroborated by 1 tool signals
-
-### 🔗 Discovery Context
-Found through: katana, subfinder
-
-### 📝 Recommended Testing Checklist
-- [ ] Audit security headers (CSP, HSTS, XFO)
-- [ ] Test for SQL injection on parameters
-
-</details>
-
-<details>
-<summary><b>🟠 www.app.example.com</b> (Score: 64)</summary>
-
-### 🔍 Security Analysis
-- Corroborated by 2 tool signals
-
-### 🔗 Discovery Context
-Found through: gau, katana, subfinder
-
-### 📝 Recommended Testing Checklist
-- [ ] Audit security headers (CSP, HSTS, XFO)
-- [ ] Test for SQL injection on parameters
-
-</details>
-
-<details>
-<summary><b>🟡 tenant-67890.app.example.com</b> (Score: 56)</summary>
-
-### 🔍 Security Analysis
-- Corroborated by 1 tool signals
-
-### 🔗 Discovery Context
-Found through: gau
-
-### 📝 Recommended Testing Checklist
-- [ ] Audit security headers (CSP, HSTS, XFO)
-- [ ] Test for SQL injection on parameters
-
-</details>
-
-<details>
-<summary><b>🟡 vault.app.example.com</b> (Score: 56)</summary>
-
-### 🔍 Security Analysis
-- Corroborated by 1 tool signals
-
-### 🔗 Discovery Context
-Found through: gau
+https://0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net | Discovered by: httpx
 
 ### 📝 Recommended Testing Checklist
 - [ ] Audit security headers (CSP, HSTS, XFO)

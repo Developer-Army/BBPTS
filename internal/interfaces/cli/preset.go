@@ -107,28 +107,27 @@ func ToolsetForMode(mode string) string {
 
 func LightModeTools() []string {
 	return []string{
-		"chaos", "subfinder", "tlsx", "crtsh",
-		"naabu", "httpx",
-		"gau", "arjun",
-		"uro", "anew",
+		"crtsh", "subfinder", "httpx",
 	}
 }
 
 func MediumModeTools() []string {
 	return []string{
-		"chaos", "subfinder", "tlsx", "crtsh", "puredns", "dnsx",
+		"crtsh", "subfinder", "puredns", "dnsx",
 		"naabu", "httpx",
 		"katana", "gau", "ffuf", "feroxbuster",
-		"uro", "qsreplace", "gxss", "dalfox", "nuclei", "anew",
+		"uro", "dalfox", "nuclei",
 	}
 }
 
 func FullModeTools() []string {
 	return []string{
-		"chaos", "subfinder", "tlsx", "crtsh", "gotator", "puredns", "dnsx",
-		"naabu", "httpx",
-		"katana", "gau", "ffuf", "feroxbuster", "arjun",
-		"uro", "qsreplace", "gxss", "dalfox", "nuclei", "interactsh", "gowitness", "anew",
+		"crtsh", "subfinder", "amass", "assetfinder", "findomain", "chaos",
+		"puredns", "dnsx", "massdns", "whois",
+		"naabu", "httpx", "wafw00f", "shodan",
+		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",
+		"uro", "dalfox", "nuclei", "interactsh", "secrets",
+		"trufflehog", "browser", "js_analyzer",
 	}
 }
 

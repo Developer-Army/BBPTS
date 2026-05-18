@@ -1,6 +1,7 @@
 package recon
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -55,12 +56,65 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 		result.Justification = append(result.Justification, "Large JSON payload detected (data leakage potential)")
 	}
 
+	// Sensitive file extensions — high value for direct access bugs
+	sensitiveExts := []string{".bak", ".sql", ".env", ".log", ".conf", ".config",
+		".old", ".orig", ".backup", ".dump", ".git", ".svn", ".htpasswd"}
+	for _, ext := range sensitiveExts {
+		if strings.HasSuffix(lowerURL, ext) || strings.Contains(lowerURL, ext+"?") {
+			result.Score += 50
+			result.Justification = append(result.Justification, fmt.Sprintf("Sensitive file extension detected (%s)", ext))
+			break
+		}
+	}
+
+	// High-value path patterns
+	highValuePaths := map[string]int{
+		"/internal/": 35, "/private/": 35, "/secret/": 35,
+		"/upload":    30, "/file":     25, "/download":  25,
+		"/config":    30, "/settings": 20, "/management": 30,
+		"/swagger":   40, "/openapi":  40, "/api-docs":  40,
+		"/phpinfo":   45, "/.git/":    55, "/.env":      55,
+		"/actuator":  40, "/metrics":  25, "/health":    15,
+		"/v3/api":    20, "/rest/":    15, "/_api/":     20,
+		"/rpc":       30, "/xmlrpc":   35, "/soap":      35,
+	}
+	for path, pts := range highValuePaths {
+		if strings.Contains(lowerURL, path) {
+			result.Score += pts
+			result.Justification = append(result.Justification, fmt.Sprintf("High-value path pattern (%s)", path))
+			break
+		}
+	}
+
+	// Query parameter count heuristic — more params = more attack surface
+	paramCount := strings.Count(url, "&") + strings.Count(url, "?")
+	if paramCount > 0 {
+		score := paramCount * 5
+		if score > 20 {
+			score = 20
+		}
+		result.Score += score
+		result.Justification = append(result.Justification, fmt.Sprintf("Parameterized URL (%d params)", paramCount))
+	}
+
+	// Sensitive parameter names
+	sensitiveParams := []string{"token", "key", "secret", "password", "passwd",
+		"auth", "api_key", "access_token", "redirect", "callback", "next",
+		"url", "file", "path", "id", "user", "username", "email"}
+	for _, param := range sensitiveParams {
+		if strings.Contains(lowerURL, param+"=") || strings.Contains(lowerURL, param+"[") {
+			result.Score += 15
+			result.Justification = append(result.Justification, fmt.Sprintf("Sensitive parameter name (%s)", param))
+			break
+		}
+	}
+
 	// Calculate severity tier
-	if result.Score >= 60 {
+	if result.Score >= 80 {
 		result.Severity = "CRITICAL"
-	} else if result.Score >= 40 {
+	} else if result.Score >= 50 {
 		result.Severity = "HIGH"
-	} else if result.Score >= 20 {
+	} else if result.Score >= 25 {
 		result.Severity = "MEDIUM"
 	} else {
 		result.Severity = "LOW"

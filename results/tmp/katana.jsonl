@@ -1,4 +1,0 @@
-{"timestamp":"2026-05-13T09:39:31.762591708Z","tool":"katana","target":"https://www.app.example.com","source":"katana","type":"discovery","properties":{"endpoint":"https://www.app.example.com"}}
-{"timestamp":"2026-05-13T09:39:31.762591708Z","tool":"katana","target":"https://abc.app.example.com","source":"katana","type":"discovery","properties":{"endpoint":"https://abc.app.example.com"}}
-{"timestamp":"2026-05-13T09:39:31.762591708Z","tool":"katana","target":"https://app.example.com","source":"katana","type":"discovery","properties":{"endpoint":"https://app.example.com"}}
-{"timestamp":"2026-05-13T09:39:31.762591708Z","tool":"katana","target":"https://masharef.app.example.com","source":"katana","type":"discovery","properties":{"endpoint":"https://masharef.app.example.com"}}

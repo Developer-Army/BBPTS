@@ -1,4 +1,1 @@
-abc.app.example.com
-app.example.com
-masharef.app.example.com
-www.app.example.com
+0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net

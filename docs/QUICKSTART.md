@@ -1,4 +1,4 @@
-# Quick Start Guide - BBPTS v1.0
+# Quick Start Guide - BBPTS v1.1
 
 Get up and running with BBPTS in minutes. This guide covers installation, basic usage, and common workflows.
 

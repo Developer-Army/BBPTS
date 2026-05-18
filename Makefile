@@ -28,6 +28,16 @@ build:
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
 	@echo "✅ Build complete: ./$(BINARY_NAME)$(BINARY_EXT)"
 
+build-full:
+	@echo "⚙️  Building with NATS + Redis support..."
+	go build -tags nats,redis -ldflags "$(LDFLAGS)" -o $(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
+	@echo "✅ Full build complete: ./$(BINARY_NAME)$(BINARY_EXT)"
+
+build-fleet:
+	@echo "⚙️  Building fleet-enabled binary (NATS + Redis + Playwright)..."
+	go build -tags nats,redis,playwright -ldflags "$(LDFLAGS)" -o $(BINARY_NAME)-fleet$(BINARY_EXT) $(CMD_PATH)
+	@echo "✅ Fleet build complete: ./$(BINARY_NAME)-fleet$(BINARY_EXT)"
+
 build-release:
 	@echo "📦 Building release binary with optimizations..."
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -trimpath -o $(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)

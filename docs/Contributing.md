@@ -1,4 +1,4 @@
-# Contributing to BBPTS v1.0
+# Contributing to BBPTS v1.1
 
 Thank you for your interest in contributing to BBPTS! This document provides guidelines and information for contributors.
 

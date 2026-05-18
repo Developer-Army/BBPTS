@@ -1,4 +1,4 @@
-# Testing Guide - BBPTS v1.0
+# Testing Guide - BBPTS v1.1
 
 This document covers the testing strategy, test organization, and running tests for BBPTS.
 

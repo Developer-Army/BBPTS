@@ -81,6 +81,9 @@ type Options struct {
 	RunWorker         bool
 	DryRun            bool
 	AutoSubmit        bool
+	ShowVersion       bool
+	EnableMetrics     bool
+	MetricsPort       int
 }
 
 // Run executes the BBPTS engine with the provided options.
@@ -186,38 +189,71 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 
 	// --- Reconnaissance Phase ---
 	if opts.InputPath != "" {
-		if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
+		// Accept a raw URL or hostname directly with -i, no file required.
+		if isDirectURL(opts.InputPath) {
+			normalized = []string{opts.InputPath}
+		} else if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
 			opts.OutputPath, opts.SummaryPath = defaultReportPaths(opts.InputPath)
 			slog.Info("no report paths provided; using defaults", "output", opts.OutputPath, "summary", opts.SummaryPath)
-		}
-		if bridge != nil {
-			bridge.ReportToolStatus("engine", "running", "parsing input targets")
-		}
-		parser := input.NewParser()
-		metadataTargets, err := parser.ParseFileWithMetadata(opts.InputPath)
-		if err != nil {
-			slog.Error("failed to parse input", "error", err)
 			if bridge != nil {
-				bridge.ReportFailure("engine", "failed to parse input")
+				bridge.ReportToolStatus("engine", "running", "parsing input targets")
 			}
-			return
-		}
+			parser := input.NewParser()
+			metadataTargets, err := parser.ParseFileWithMetadata(opts.InputPath)
+			if err != nil {
+				slog.Error("failed to parse input", "error", err)
+				if bridge != nil {
+					bridge.ReportFailure("engine", "failed to parse input")
+				}
+				return
+			}
 
-		rawTargets := make([]string, 0, len(metadataTargets))
-		for _, target := range metadataTargets {
-			if !target.IsInScope() {
-				continue
+			rawTargets := make([]string, 0, len(metadataTargets))
+			for _, target := range metadataTargets {
+				if !target.IsInScope() {
+					continue
+				}
+				rawTargets = append(rawTargets, target.URL)
 			}
-			rawTargets = append(rawTargets, target.URL)
-		}
-		// Preserve full URLs from input (including paths) for web probing.
-		normalized = normalize.DeduplicateAndPreserveURLs(rawTargets)
-		if len(normalized) == 0 {
-			slog.Warn("no in-scope targets were found in the input file")
+			// Preserve full URLs from input (including paths) for web probing.
+			normalized = normalize.DeduplicateAndPreserveURLs(rawTargets)
+			if len(normalized) == 0 {
+				slog.Warn("no in-scope targets were found in the input file")
+				if bridge != nil {
+					bridge.ReportFailure("engine", "no in-scope targets found")
+				}
+				return
+			}
+		} else {
 			if bridge != nil {
-				bridge.ReportFailure("engine", "no in-scope targets found")
+				bridge.ReportToolStatus("engine", "running", "parsing input targets")
 			}
-			return
+			parser := input.NewParser()
+			metadataTargets, err := parser.ParseFileWithMetadata(opts.InputPath)
+			if err != nil {
+				slog.Error("failed to parse input", "error", err)
+				if bridge != nil {
+					bridge.ReportFailure("engine", "failed to parse input")
+				}
+				return
+			}
+
+			rawTargets := make([]string, 0, len(metadataTargets))
+			for _, target := range metadataTargets {
+				if !target.IsInScope() {
+					continue
+				}
+				rawTargets = append(rawTargets, target.URL)
+			}
+			// Preserve full URLs from input (including paths) for web probing.
+			normalized = normalize.DeduplicateAndPreserveURLs(rawTargets)
+			if len(normalized) == 0 {
+				slog.Warn("no in-scope targets were found in the input file")
+				if bridge != nil {
+					bridge.ReportFailure("engine", "no in-scope targets found")
+				}
+				return
+			}
 		}
 
 		if opts.Profile != "" && cfg.ProgramProfiles != nil {
@@ -260,18 +296,24 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		var eventBus queue.EventBus
 		if cfg.EventBus.Type == "nats" {
 			if cfg.EventBus.URL == "" {
-				slog.Error("NATS event bus requires a URL")
-				return
+				slog.Warn("NATS event bus configured but no URL provided; falling back to in-memory bus")
+				eventBus = queue.New()
+			} else {
+				var err error
+				eventBus, err = queue.NewNatsBus(cfg.EventBus.URL)
+				if err != nil {
+					if cfg.Fleet.WorkerMesh {
+						slog.Error("NATS event bus required for worker mesh but unavailable", "error", err)
+						os.Exit(1)
+					}
+					slog.Warn("NATS event bus unavailable (not compiled or server unreachable); falling back to in-memory bus", "error", err)
+					eventBus = queue.New()
+				} else {
+					defer eventBus.Close()
+					slog.Info("NATS event bus enabled", "url", cfg.EventBus.URL)
+				}
 			}
-			var err error
-			eventBus, err = queue.NewNatsBus(cfg.EventBus.URL)
-			if err != nil {
-				slog.Error("Failed to initialize NATS bus", "error", err)
-				os.Exit(1)
-			}
-			defer eventBus.Close()
-			slog.Info("NATS event bus enabled", "url", cfg.EventBus.URL)
-		} else if cfg.EventBus.Type == "in-memory" {
+		} else if cfg.EventBus.Type == "in-memory" || cfg.EventBus.Type == "" {
 			eventBus = queue.New()
 		} else {
 			slog.Error("Invalid event bus type", "type", cfg.EventBus.Type)
@@ -827,6 +869,18 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		}
 	}
 
+	if opts.ReportH1 != "" {
+		if err := analyze.WriteHackerOneCSV(opts.ReportH1, insights); err != nil {
+			slog.Error("failed to write HackerOne csv", "path", opts.ReportH1, "error", err)
+		}
+	}
+
+	if opts.ReportBC != "" {
+		if err := analyze.WriteBugcrowdCSV(opts.ReportBC, insights); err != nil {
+			slog.Error("failed to write Bugcrowd csv", "path", opts.ReportBC, "error", err)
+		}
+	}
+
 	if opts.EvidencePath != "" {
 		n := opts.EvidenceTopN
 		if n <= 0 {
@@ -945,4 +999,39 @@ func convertServicesEventsToRecon(events []services.Event) []recon.Event {
 		}
 	}
 	return out
+}
+
+// isDirectURL reports whether the -i value looks like a URL or hostname
+// that should be used as a target directly, rather than treated as a file path.
+func isDirectURL(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	// Has a scheme (http://, https://) — treat as a URL target
+	if strings.Contains(s, "://") {
+		return true
+	}
+	// Bare hostname: contains at least one dot, no path separators,
+	// and does not look like a common plain-file extension.
+	if !strings.Contains(s, "/") && !strings.Contains(s, `\`) {
+		lower := strings.ToLower(s)
+		for _, ext := range fileExtsThatMightBeURLs {
+			if strings.HasSuffix(lower, ext) {
+				return false
+			}
+		}
+		if strings.Contains(s, ".") {
+			return true
+		}
+	}
+	return false
+}
+
+// fileExtsThatMightBeURLs lists file extensions that should NOT be treated as
+// bare URL targets. Used so that a hostname named "hostname.txt" (a file)
+// isn't mistaken for a target, while "example.com" still is.
+var fileExtsThatMightBeURLs = []string{
+	".txt", ".csv", ".json", ".yaml", ".yml", ".xml", ".toml", ".conf",
+	".log", ".jsonl", ".env", ".md", ".input",
 }

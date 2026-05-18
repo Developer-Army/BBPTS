@@ -1,4 +1,4 @@
-# BBPTS v1.0 (Bug Bounty Program Tool Set)
+# BBPTS v1.1 (Bug Bounty Program Tool Set)
 
 **Reconnaissance & Target Prioritization Toolkit**
 

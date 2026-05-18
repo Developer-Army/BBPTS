@@ -139,8 +139,19 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 
 // jarmHash generates a simplified JARM-inspired hash by performing multiple
 // TLS probes with different cipher/extension configurations.
-// Note: This is a simplified implementation. For production-grade JARM, use
-// the canonical Go JARM library (github.com/RumbleDiscovery/jarm-go).
+//
+// NOTE: This is a lightweight approximation, not a full JARM implementation.
+// True JARM (https://github.com/salesforce/jarm) sends 10 specially crafted
+// TLS ClientHello packets and hashes the server's TLS handshake responses.
+// That requires raw socket access and is outside the scope of this package.
+//
+// This implementation instead hashes observable TLS metadata (issuer, subject,
+// SANs) using FNV-128 to produce a stable per-host identifier suitable for
+// asset correlation and change detection. It is NOT interoperable with the
+// official JARM tool output.
+//
+// To get real JARM hashes, run `jarm` from https://github.com/hdm/jarm-go
+// and correlate results via the Shodan or Censys API integrations.
 func (f *Fingerprinter) jarmHash(ctx context.Context, hostPort string) string {
 	// Probe with different TLS versions to generate a distinguishing signature
 	versions := []uint16{

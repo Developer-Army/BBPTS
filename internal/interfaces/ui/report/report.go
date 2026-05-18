@@ -234,6 +234,16 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 		// Filter out internal "source: xxx" tokens from reasons before building the report.
 		cleanReasons := filterSourceReasons(insight.Reasons)
 
+		var evidenceParts []string
+		if len(insight.Evidence) > 0 {
+			for _, e := range insight.Evidence {
+				evidenceParts = append(evidenceParts, e)
+			}
+		}
+		if len(sourceList) > 0 {
+			evidenceParts = append(evidenceParts, fmt.Sprintf("Discovered by: %s", strings.Join(sourceList, ", ")))
+		}
+
 		finding := DetailedFinding{
 			ID:           fmt.Sprintf("FINDING-%d", len(findings)+1),
 			Title:        fmt.Sprintf("Reconnaissance finding on %s", insight.Host),
@@ -241,7 +251,7 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			Severity:     insight.Priority,
 			Score:        insight.Score,
 			Target:       insight.Host,
-			Evidence:     fmt.Sprintf("Found through: %s", strings.Join(sourceList, ", ")),
+			Evidence:     strings.Join(evidenceParts, " | "),
 			Tags:         insight.Tags,
 			Sources:      sourceList,
 			DiscoveredAt: time.Now(),

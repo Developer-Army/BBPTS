@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// UroTool wraps the Python tool for URL normalization and deduplication.
+// UroTool wraps the Golang tool for URL normalization and deduplication.
 type UroTool struct{}
 
 func (t *UroTool) Name() string {

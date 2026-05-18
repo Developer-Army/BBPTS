@@ -1,4 +1,4 @@
-# Configuration Guide - BBPTS v1.0
+# Configuration Guide - BBPTS v1.1
 
 This guide covers BBPTS configuration options, API keys, and customization.
 

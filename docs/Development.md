@@ -1,4 +1,4 @@
-# Development Guide - BBPTS v1.0
+# Development Guide - BBPTS v1.1
 
 This guide covers development setup, architecture, and contribution guidelines for BBPTS.
 
@@ -276,7 +276,7 @@ BBPTS follows [Semantic Versioning](https://semver.org/):
 2. **Update CHANGELOG.md** with changes
 3. **Run full test suite**
 4. **Create release branch**
-5. **Tag release**: `git tag v1.0.0`
+5. **Tag release**: `git tag v1.1.0`
 6. **Create GitHub release**
 7. **Update documentation**
 

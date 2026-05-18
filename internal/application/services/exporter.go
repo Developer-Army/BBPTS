@@ -1,45 +1,44 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 )
 
-// BurpScope represents a Burp Suite project configuration for target scope.
-type BurpScope struct {
-	Target struct {
-		Scope struct {
-			AdvancedMode bool `json:"advanced_mode"`
-			Include      []struct {
-				Enabled  bool   `json:"enabled"`
-				Host     string `json:"host"`
-				Protocol string `json:"protocol"`
-			} `json:"include"`
-		} `json:"scope"`
-	} `json:"target"`
-}
+// ExportToBurpXML generates a Burp Suite XML findings file for import into
+// Burp Scanner. Each host is exported as a Burp item with full scope coverage.
+func ExportToBurpXML(filename string, hosts []string) error {
+    f, err := os.Create(filename)
+    if err != nil {
+        return fmt.Errorf("creating burp xml file: %w", err)
+    }
+    defer f.Close()
 
-// ExportToBurpConfig generates a Burp Suite project configuration JSON file.
-func ExportToBurpConfig(filename string, hosts []string) error {
-	var scope BurpScope
-	scope.Target.Scope.AdvancedMode = true
-
-	for _, host := range hosts {
-		// Add both HTTP and HTTPS
-		scope.Target.Scope.Include = append(scope.Target.Scope.Include, struct {
-			Enabled  bool   `json:"enabled"`
-			Host     string `json:"host"`
-			Protocol string `json:"protocol"`
-		}{Enabled: true, Host: fmt.Sprintf("^%s$", host), Protocol: "any"})
-	}
-
-	data, err := json.MarshalIndent(scope, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filename, data, 0644)
+    if _, err := f.WriteString(`<?xml version="1.0"?>` + "\n<items burpVersion=\"2023.1\" exportTime=\"" + time.Now().UTC().Format(time.RFC3339) + "\">\n"); err != nil {
+        return err
+    }
+    for _, host := range hosts {
+        host = strings.TrimSpace(host)
+        if host == "" {
+            continue
+        }
+        protocol := "https"
+        if strings.HasPrefix(host, "http://") {
+            protocol = "http"
+            host = strings.TrimPrefix(host, "http://")
+        } else {
+            host = strings.TrimPrefix(host, "https://")
+        }
+        item := fmt.Sprintf("  <item>\n    <url>%s://%s/</url>\n    <host>%s</host>\n    <port>%s</port>\n    <protocol>%s</protocol>\n    <method>GET</method>\n    <path>/</path>\n    <extension/>\n    <request/>\n    <status/>\n    <responselength/>\n    <mimetype/>\n    <response/>\n    <comment>BBPTS recon target</comment>\n  </item>\n",
+            protocol, host, host, map[string]string{"https": "443", "http": "80"}[protocol], protocol)
+        if _, err := f.WriteString(item); err != nil {
+            return err
+        }
+    }
+    _, err = f.WriteString("</items>\n")
+    return err
 }
 
 // ExportToCaidoTarget generates a simple line-delimited file for Caido import.

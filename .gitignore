@@ -3,6 +3,8 @@ bounty-analyzer
 *.o
 *.a
 *.so
+bbpts
+bbpts.exe
 
 # Build artifacts
 dist/
@@ -15,7 +17,6 @@ bin/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Environment
 .env
@@ -24,10 +25,9 @@ bin/
 # Test coverage
 *.out
 coverage/
-
-# Sample outputs (optional - uncomment to track)
-# samples/sample-report.md
-# samples/sample-summary.csv
+*.test
+coverage.html
+benchmark.txt
 
 # Dependencies
 go.sum
@@ -39,4 +39,11 @@ Thumbs.db
 
 # Local testing files
 *.tmp
-*.test
+
+# AI Agent files
+.kilo/
+.codex/
+.agents/
+
+# Runtime output
+results/

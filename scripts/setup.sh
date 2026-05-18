@@ -26,6 +26,42 @@ echo "   • subdomains-top1million-5000.txt (subdomain brute-force)"
 echo "   • api-endpoints.txt (API endpoints)"
 echo ""
 
+# 0. PREREQUISITES CHECK
+echo "🔍 Checking core prerequisites..."
+if ! command -v go &> /dev/null; then
+    echo "⚠️ Go is not installed. Attempting to install Go 1.23.0..."
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        wget https://go.dev/dl/go1.23.0.linux-amd64.tar.gz -O /tmp/go.tar.gz
+        sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+        echo 'export PATH=$PATH:/usr/local/go/bin:~/go/bin' >> ~/.bashrc
+        export PATH=$PATH:/usr/local/go/bin:~/go/bin
+        rm /tmp/go.tar.gz
+        echo "✅ Go installed successfully for Linux."
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v brew &> /dev/null; then
+            brew install go
+            echo "✅ Go installed successfully via Homebrew."
+        else
+            echo "❌ Homebrew not found. Please install Homebrew or Go manually."
+            exit 1
+        fi
+    else
+        echo "❌ Unsupported OS for automatic Go installation. Please install Go manually."
+        exit 1
+    fi
+else
+    echo "✅ 'go' is installed."
+fi
+
+for cmd in git docker make gcc; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "⚠️  Warning: '$cmd' is not installed. Some advanced BBPTS features may require it."
+    else
+        echo "✅ '$cmd' is installed."
+    fi
+done
+echo ""
+
 # 1. GO-BASED ELITE TOOLS
 GO_TOOLS=(
     # --- Recon & Subdomains ---
@@ -34,7 +70,6 @@ GO_TOOLS=(
     "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"    # ADDED: Essential DNS toolkit
     "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"    # ADDED: TLS certificate parsing
     "github.com/d3mondev/puredns/v2@latest"
-    "github.com/JosueEncinar/gotator@latest"
     
     # --- Probing & Ports ---
     "github.com/projectdiscovery/httpx/cmd/httpx@latest"
@@ -49,7 +84,7 @@ GO_TOOLS=(
     "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
     "github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest" # ADDED: OOB testing
     "github.com/hahwul/dalfox/v2@latest"
-    "github.com/KathanP19/gxss@latest"                    # ADDED: Fast XSS reflection checker
+    "github.com/KathanP19/Gxss@latest"                    # ADDED: Fast XSS reflection checker (Capital G required)
     "github.com/sensepost/gowitness@latest"
     
     # --- Data Processing & Manipulation ---
@@ -74,13 +109,9 @@ for tool in "${GO_TOOLS[@]}"; do
     install_go_tool "$tool"
 done
 
-# 2. PYTHON-BASED TOOLS (uro)
-if command -v pip3 &> /dev/null; then
-    echo "Installing uro (Python)..."
-    pip3 install uro --quiet
-else
-    echo "⚠️ pip3 not found. Skipping uro."
-fi
+# 2. GO-BASED URO (Replaces Python dependency)
+echo "Installing uro (Golang port)..."
+go install github.com/smaranchand/uro@latest || echo "⚠️ Warning: Failed to install Go uro"
 
 # 3. RUST-BASED TOOLS (feroxbuster)
 if ! command -v feroxbuster &> /dev/null; then

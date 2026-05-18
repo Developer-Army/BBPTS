@@ -20,8 +20,19 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 func main() {
 	opts := parseFlags()
+
+	if opts.ShowVersion {
+		fmt.Printf("bbpts %s (commit: %s, built: %s)\n", version, commit, date)
+		os.Exit(0)
+	}
 
 	if opts.RunDoctor {
 		mode := app.ResolveMode(opts)
@@ -70,10 +81,13 @@ func main() {
 	}
 
 	// --- Start Telemetry ---
-	if opts.RunWorker {
-		telemetry.StartMetricsServer(":9091")
-	} else {
-		telemetry.StartMetricsServer(":9090")
+	if opts.EnableMetrics {
+		port := fmt.Sprintf(":%d", opts.MetricsPort)
+		if opts.RunWorker {
+			port = fmt.Sprintf(":%d", opts.MetricsPort+1)
+		}
+		telemetry.StartMetricsServer(port)
+		slog.Info("Prometheus metrics enabled", "addr", port)
 	}
 
 	// --- Run BBPTS ---
@@ -117,6 +131,8 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.RunDoctor, "doctor", false, "Run environment diagnostics")
 	flag.IntVar(&opts.CronInterval, "cron", 0, "Continuous monitoring interval (minutes)")
 	flag.StringVar(&opts.ExportBurp, "export-burp", "", "Export Burp Suite XML findings")
+	flag.StringVar(&opts.ReportH1, "export-h1", "", "Export HackerOne CSV format")
+	flag.StringVar(&opts.ReportBC, "export-bc", "", "Export Bugcrowd CSV format")
 
 	flag.StringVar(&opts.Preset, "preset", "", "Named tool preset from config tool_presets (used when -tools is omitted)")
 	flag.StringVar(&opts.Profile, "profile", "", "Named program profile from config program_profiles (exclusions + optional defaults)")
@@ -126,7 +142,18 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.DryRun, "dry-run", false, "Log actions that would be taken without submitting reports")
 	flag.BoolVar(&opts.AutoSubmit, "auto-submit", false, "Submit high-priority findings to the configured bug bounty platform")
 
+	var showVersion bool
+	flag.BoolVar(&showVersion, "version", false, "Print version information and exit")
+	flag.BoolVar(&showVersion, "v", false, "Short for -version")
+
+	flag.BoolVar(&opts.EnableMetrics, "metrics", false, "Enable Prometheus metrics endpoint")
+	flag.IntVar(&opts.MetricsPort, "metrics-port", 9090, "Prometheus metrics port")
+
 	flag.Parse()
+
+	if showVersion {
+		opts.ShowVersion = true
+	}
 
 	// Check if TUI was explicitly set
 	tuiExplicitlySet := false

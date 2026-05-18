@@ -14,7 +14,7 @@ func TestBurpExportIntegration(t *testing.T) {
 
 	hosts := []string{"example.com", "api.example.com", "admin.example.com"}
 
-	err := ExportToBurpConfig(outputPath, hosts)
+	err := ExportToBurpXML(outputPath, hosts)
 	if err != nil {
 		t.Fatalf("Failed to export to Burp config: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestMultipleToolExportIntegration(t *testing.T) {
 
 	// Export for Burp
 	burpPath := filepath.Join(tempDir, "burp.json")
-	if err := ExportToBurpConfig(burpPath, hosts); err != nil {
+	if err := ExportToBurpXML(burpPath, hosts); err != nil {
 		t.Fatalf("Burp export failed: %v", err)
 	}
 
@@ -164,7 +164,7 @@ func TestExportWorkflow(t *testing.T) {
 	done := make(chan error, 1)
 
 	go func() {
-		err := ExportToBurpConfig(filepath.Join(tempDir, "burp.json"), hosts)
+		err := ExportToBurpXML(filepath.Join(tempDir, "burp.xml"), hosts)
 		done <- err
 	}()
 

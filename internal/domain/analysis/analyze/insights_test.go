@@ -1,10 +1,9 @@
 package analyze
 
 import (
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 	"testing"
-
-	"github.com/Developer-Army/BBPTS/internal/application/services"
 )
 
 func TestDeriveInsights(t *testing.T) {

@@ -154,13 +154,7 @@ func filterInsightsForMarkdown(insights []Insight) []Insight {
 		if in.EvidenceCount == 0 {
 			continue
 		}
-		nonSourceReasons := 0
-		for _, r := range in.Reasons {
-			if !strings.HasPrefix(r, "source: ") {
-				nonSourceReasons++
-			}
-		}
-		if in.EvidenceCount < 2 && nonSourceReasons == 0 {
+		if in.EvidenceCount < 2 && len(in.Sources) == 0 {
 			continue
 		}
 		filtered = append(filtered, in)
@@ -254,6 +248,73 @@ func WriteCSVSummary(path string, insights []Insight) error {
 		return err
 	}
 	return nil
+}
+
+// WriteHackerOneCSV generates a CSV formatted for HackerOne bulk import.
+func WriteHackerOneCSV(path string, insights []Insight) error {
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return err
+		}
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	writer := csv.NewWriter(f)
+	if err := writer.Write([]string{"Title", "Target", "Severity", "Description", "Impact"}); err != nil {
+		return err
+	}
+	for _, in := range insights {
+		if err := writer.Write([]string{
+			fmt.Sprintf("Reconnaissance finding on %s", in.Host),
+			in.Host,
+			in.Priority,
+			strings.Join(in.Reasons, "; "),
+			"Information exposure or potential vulnerability based on recon data",
+		}); err != nil {
+			return err
+		}
+	}
+
+	writer.Flush()
+	return writer.Error()
+}
+
+// WriteBugcrowdCSV generates a CSV formatted for Bugcrowd bulk import.
+func WriteBugcrowdCSV(path string, insights []Insight) error {
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return err
+		}
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	writer := csv.NewWriter(f)
+	if err := writer.Write([]string{"vulnerability_name", "vulnerability_url", "vulnerability_description", "vulnerability_severity"}); err != nil {
+		return err
+	}
+	for _, in := range insights {
+		if err := writer.Write([]string{
+			fmt.Sprintf("Reconnaissance finding on %s", in.Host),
+			in.Host,
+			strings.Join(in.Reasons, "; "),
+			in.Priority,
+		}); err != nil {
+			return err
+		}
+	}
+
+	writer.Flush()
+	return writer.Error()
 }
 
 // ExportToObsidian creates individual notes in an Obsidian vault for each high-priority host.

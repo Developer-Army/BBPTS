@@ -135,8 +135,8 @@ func DefaultConfig() *Config {
 			DSN:  "", // Defaults to <TmpResultsDir>/bbpts.db in app.go
 		},
 		EventBus: EventBusConfig{
-			Type: "nats",
-			URL:  "nats://localhost:4222",
+			Type: "in-memory",
+			URL:  "",
 		},
 	}
 }
@@ -149,6 +149,7 @@ func LoadFromFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			_ = WriteDefault(path)
 			return cfg, nil // No config file is fine, use defaults
 		}
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)

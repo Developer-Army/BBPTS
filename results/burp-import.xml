@@ -1,62 +1,12 @@
 <issues>
   <issue>
-    <name>Reconnaissance finding on app.example.com</name>
-    <host>app.example.com</host>
-    <path>app.example.com</path>
-    <location>app.example.com</location>
+    <name>Reconnaissance finding on 0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net</name>
+    <host>0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net</host>
+    <path>0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net</path>
+    <location>0aa700e2036a91bb80dcf8fd006000e3.web-security-academy.net</location>
     <severity>High</severity>
     <confidence>Firm</confidence>
-    <issueBackground>Potential exposure of sensitive file: /admin; Administrative or Authentication interface identified; Application API endpoints discovered; Admin panel detected</issueBackground>
-    <remediationBackground></remediationBackground>
-  </issue>
-  <issue>
-    <name>Reconnaissance finding on abc.app.example.com</name>
-    <host>abc.app.example.com</host>
-    <path>abc.app.example.com</path>
-    <location>abc.app.example.com</location>
-    <severity>High</severity>
-    <confidence>Firm</confidence>
-    <issueBackground>Corroborated by 1 tool signals</issueBackground>
-    <remediationBackground></remediationBackground>
-  </issue>
-  <issue>
-    <name>Reconnaissance finding on masharef.app.example.com</name>
-    <host>masharef.app.example.com</host>
-    <path>masharef.app.example.com</path>
-    <location>masharef.app.example.com</location>
-    <severity>High</severity>
-    <confidence>Firm</confidence>
-    <issueBackground>Corroborated by 1 tool signals</issueBackground>
-    <remediationBackground></remediationBackground>
-  </issue>
-  <issue>
-    <name>Reconnaissance finding on www.app.example.com</name>
-    <host>www.app.example.com</host>
-    <path>www.app.example.com</path>
-    <location>www.app.example.com</location>
-    <severity>High</severity>
-    <confidence>Firm</confidence>
-    <issueBackground>Corroborated by 2 tool signals</issueBackground>
-    <remediationBackground></remediationBackground>
-  </issue>
-  <issue>
-    <name>Reconnaissance finding on tenant-67890.app.example.com</name>
-    <host>tenant-67890.app.example.com</host>
-    <path>tenant-67890.app.example.com</path>
-    <location>tenant-67890.app.example.com</location>
-    <severity>Medium</severity>
-    <confidence>Firm</confidence>
-    <issueBackground>Corroborated by 1 tool signals</issueBackground>
-    <remediationBackground></remediationBackground>
-  </issue>
-  <issue>
-    <name>Reconnaissance finding on vault.app.example.com</name>
-    <host>vault.app.example.com</host>
-    <path>vault.app.example.com</path>
-    <location>vault.app.example.com</location>
-    <severity>Medium</severity>
-    <confidence>Firm</confidence>
-    <issueBackground>Corroborated by 1 tool signals</issueBackground>
+    <issueBackground>Discovered through httpx</issueBackground>
     <remediationBackground></remediationBackground>
   </issue>
 </issues>
