@@ -1,0 +1,59 @@
+# Binaries
+*.o
+*.a
+*.so
+bbpts
+bbpts.exe
+verify
+verify.exe
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+
+# Test coverage
+*.out
+coverage/
+*.test
+coverage.html
+benchmark.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local testing files
+*.tmp
+scratch/
+
+# AI Agent files
+.kilo/
+.codex/
+.agents/
+
+# Runtime output
+results/
+*.storage
+*.storage-shm
+*.storage-wal
+gosec-report.json
+
+
+# Test Results
+tests/actual_output.txt
+tests/failed_tests.log
+tests/targets/
+tests/reports/
+tests/test_result.json

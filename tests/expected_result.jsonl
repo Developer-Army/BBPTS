@@ -1,0 +1,124 @@
+{"id": "001", "name": "Juice Shop", "test_no": "1", "difficulty": "easy", "test_name": "HTTP Service Probe", "test_target": ["http://127.0.0.1:3000", "httpx"]}
+{"id": "002", "name": "Juice Shop", "test_no": "2", "difficulty": "easy", "test_name": "Main JS Bundle Discovery", "test_target": ["/main.js", "katana"]}
+{"id": "003", "name": "Juice Shop", "test_no": "3", "difficulty": "easy", "test_name": "Polyfills JS Discovery", "test_target": ["/polyfills.js"]}
+{"id": "004", "name": "Juice Shop", "test_no": "4", "difficulty": "easy", "test_name": "Scripts JS Discovery", "test_target": ["/scripts.js"]}
+{"id": "005", "name": "Juice Shop", "test_no": "5", "difficulty": "easy", "test_name": "Styles CSS Discovery", "test_target": ["/styles.css"]}
+{"id": "006", "name": "Juice Shop", "test_no": "6", "difficulty": "easy", "test_name": "Robots TXT Discovery", "test_target": ["/robots.txt"]}
+{"id": "007", "name": "Juice Shop", "test_no": "7", "difficulty": "medium", "test_name": "Angular Template Leak", "test_target": ["%7B%7Bhref%7D%7D"]}
+{"id": "008", "name": "Juice Shop", "test_no": "8", "difficulty": "medium", "test_name": "JS Chunk File Enumeration", "test_target": ["chunk-", ".js"]}
+{"id": "009", "name": "Juice Shop", "test_no": "9", "difficulty": "medium", "test_name": "Katana Crawler Coverage", "test_target": ["katana", "discovery"]}
+{"id": "010", "name": "Juice Shop", "test_no": "10", "difficulty": "advanced", "test_name": "Multi-Source Correlation", "test_target": ["Discovered by:", "katana"]}
+{"id": "011", "name": "Juice Shop", "test_no": "11", "difficulty": "easy", "test_name": "Report Generation Check", "test_target": ["BBPTS Security Assessment Report", "Executive Summary"]}
+{"id": "012", "name": "Juice Shop", "test_no": "12", "difficulty": "medium", "test_name": "Severity Scoring Engine", "test_target": ["Score:", "high"]}
+{"id": "013", "name": "Juice Shop", "test_no": "13", "difficulty": "advanced", "test_name": "Security Header Audit Recommendation", "test_target": ["Audit security headers", "CSP"]}
+{"id": "014", "name": "Juice Shop", "test_no": "14", "difficulty": "advanced", "test_name": "SQLi Test Recommendation", "test_target": ["Test for SQL injection"]}
+{"id": "015", "name": "Juice Shop", "test_no": "15", "difficulty": "medium", "test_name": "Discovery Context Enumeration", "test_target": ["Discovery Context", "http://127.0.0.1:3000"]}
+{"id": "016", "name": "Juice Shop", "test_no": "16", "difficulty": "advanced", "test_name": "WAF Detection Analysis", "test_target": ["WAF Detection"]}
+{"id": "017", "name": "Juice Shop", "test_no": "17", "difficulty": "advanced", "test_name": "Technology Fingerprinting Analysis", "test_target": ["Technology Fingerprinting"]}
+{"id": "018", "name": "Juice Shop", "test_no": "18", "difficulty": "advanced", "test_name": "Redirect Chain Analysis", "test_target": ["Redirect Analysis"]}
+{"id": "019", "name": "DVWA", "test_no": "19", "difficulty": "easy", "test_name": "DVWA HTTP Service Probe", "test_target": ["http://127.0.0.1:8080", "httpx"]}
+{"id": "020", "name": "DVWA", "test_no": "20", "difficulty": "easy", "test_name": "DVWA Login Page Discovery", "test_target": ["/login.php"]}
+{"id": "021", "name": "DVWA", "test_no": "21", "difficulty": "easy", "test_name": "DVWA CSS Asset Discovery", "test_target": ["/dvwa/css/login.css"]}
+{"id": "022", "name": "DVWA", "test_no": "22", "difficulty": "medium", "test_name": "Admin Panel Detection", "test_target": ["Admin panel detected"]}
+{"id": "023", "name": "DVWA", "test_no": "23", "difficulty": "medium", "test_name": "Admin Interface Identification", "test_target": ["Administrative", "interface"]}
+{"id": "024", "name": "DVWA", "test_no": "24", "difficulty": "medium", "test_name": "Sensitive File Exposure Detection", "test_target": ["sensitive file", "/admin"]}
+{"id": "025", "name": "DVWA", "test_no": "25", "difficulty": "advanced", "test_name": "Active Parameter Detection", "test_target": ["Active parameters detected", "attack surface"]}
+{"id": "026", "name": "DVWA", "test_no": "26", "difficulty": "advanced", "test_name": "Complex Parameter Analysis", "test_target": ["Complex endpoint", "multiple parameters"]}
+{"id": "027", "name": "DVWA", "test_no": "27", "difficulty": "advanced", "test_name": "High-Risk DB Parameter Identification", "test_target": ["High-risk parameters", "database inputs"]}
+{"id": "028", "name": "DVWA", "test_no": "28", "difficulty": "advanced", "test_name": "Credential File Detection", "test_target": ["secret/credential file"]}
+{"id": "029", "name": "DVWA", "test_no": "29", "difficulty": "medium", "test_name": "Backup File Discovery", "test_target": ["Backup file", "found"]}
+{"id": "030", "name": "DVWA", "test_no": "30", "difficulty": "advanced", "test_name": "GAU Historical URL Mining", "test_target": ["gau", "Discovered"]}
+{"id": "031", "name": "DVWA", "test_no": "31", "difficulty": "advanced", "test_name": "Parameter Tampering Recommendation", "test_target": ["Parameter tampering", "XSS"]}
+{"id": "032", "name": "DVWA", "test_no": "32", "difficulty": "advanced", "test_name": "SQLi Probe Recommendation", "test_target": ["boolean", "time-based"]}
+{"id": "033", "name": "DVWA", "test_no": "33", "difficulty": "medium", "test_name": "Brute Force Check Recommendation", "test_target": ["Brute-force protection"]}
+{"id": "034", "name": "DVWA", "test_no": "34", "difficulty": "advanced", "test_name": "IDOR BOLA Testing Recommendation", "test_target": ["IDOR/BOLA", "cross-account"]}
+{"id": "035", "name": "DVWA", "test_no": "35", "difficulty": "advanced", "test_name": "UNION SQLi Recommendation", "test_target": ["UNION-based", "data exposure"]}
+{"id": "036", "name": "DVWA", "test_no": "36", "difficulty": "easy", "test_name": "DVWA Report Generation", "test_target": ["BBPTS Security Assessment Report"]}
+{"id": "037", "name": "DVWA", "test_no": "37", "difficulty": "advanced", "test_name": "High Evidence Count Scoring", "test_target": ["evidence_count", "127.0.0.1"]}
+{"id": "038", "name": "DVWA", "test_no": "38", "difficulty": "medium", "test_name": "Tool Recommendation Engine", "test_target": ["sqlmap", "nuclei"]}
+{"id": "039", "name": "DVWA", "test_no": "39", "difficulty": "medium", "test_name": "Katana DVWA Crawl", "test_target": ["katana", "http://127.0.0.1:8080"]}
+{"id": "040", "name": "DVWA", "test_no": "40", "difficulty": "advanced", "test_name": "Password Reset Token Check", "test_target": ["password reset token"]}
+{"id": "041", "name": "DVWA", "test_no": "41", "difficulty": "advanced", "test_name": "2FA Bypass Recommendation", "test_target": ["2FA bypass"]}
+{"id": "042", "name": "DVWA", "test_no": "42", "difficulty": "medium", "test_name": "DVWA Multi-Tool Correlation", "test_target": ["gau", "httpx", "katana"]}
+{"id": "043", "name": "vAPI", "test_no": "43", "difficulty": "easy", "test_name": "vAPI HTTP Service Probe", "test_target": ["http://127.0.0.1:8081", "httpx"]}
+{"id": "044", "name": "vAPI", "test_no": "44", "difficulty": "easy", "test_name": "vAPI Report Generation", "test_target": ["BBPTS Security Assessment Report"]}
+{"id": "045", "name": "vAPI", "test_no": "45", "difficulty": "medium", "test_name": "vAPI GAU Historical Mining", "test_target": ["gau", "Discovered"]}
+{"id": "046", "name": "vAPI", "test_no": "46", "difficulty": "medium", "test_name": "vAPI Severity Score", "test_target": ["Score:", "high"]}
+{"id": "047", "name": "vAPI", "test_no": "47", "difficulty": "advanced", "test_name": "vAPI Security Header Recommendation", "test_target": ["Audit security headers", "HSTS"]}
+{"id": "048", "name": "vAPI", "test_no": "48", "difficulty": "advanced", "test_name": "vAPI SQLi Recommendation", "test_target": ["Test for SQL injection"]}
+{"id": "049", "name": "vAPI", "test_no": "49", "difficulty": "easy", "test_name": "vAPI Katana Crawl", "test_target": ["katana", "http://127.0.0.1:8081"]}
+{"id": "050", "name": "vAPI", "test_no": "50", "difficulty": "medium", "test_name": "vAPI Tool Stack Detection", "test_target": ["httpx", "katana"]}
+{"id": "051", "name": "vAPI", "test_no": "51", "difficulty": "advanced", "test_name": "vAPI Penetration Testing Recommendation", "test_target": ["manual penetration testing"]}
+{"id": "052", "name": "vAPI", "test_no": "52", "difficulty": "advanced", "test_name": "vAPI Continuous Monitoring Recommendation", "test_target": ["continuous monitoring"]}
+{"id": "053", "name": "vAPI", "test_no": "53", "difficulty": "medium", "test_name": "vAPI Burp Export Generation", "test_target": ["<issues>"]}
+{"id": "054", "name": "vAPI", "test_no": "54", "difficulty": "medium", "test_name": "vAPI Caido Export Generation", "test_target": ["generated_at"]}
+{"id": "055", "name": "vAPI", "test_no": "55", "difficulty": "medium", "test_name": "vAPI ZAP Export Generation", "test_target": ["<OWASPZAPReport"]}
+{"id": "056", "name": "vAPI", "test_no": "56", "difficulty": "advanced", "test_name": "vAPI Attack Surface Graph", "test_target": ["Attack Surface Graph"]}
+{"id": "057", "name": "vAPI", "test_no": "57", "difficulty": "advanced", "test_name": "vAPI HTML Report Generation", "test_target": ["<!DOCTYPE html>"]}
+{"id": "058", "name": "vAPI", "test_no": "58", "difficulty": "advanced", "test_name": "vAPI JSON Report Generation", "test_target": ["executive_summary"]}
+{"id": "059", "name": "Vulhub-Nginx", "test_no": "59", "difficulty": "easy", "test_name": "Nginx HTTP Service Probe", "test_target": ["http://127.0.0.1:8082", "httpx"]}
+{"id": "060", "name": "Vulhub-Nginx", "test_no": "60", "difficulty": "easy", "test_name": "Nginx Report Generation", "test_target": ["BBPTS Security Assessment Report"]}
+{"id": "061", "name": "Vulhub-Nginx", "test_no": "61", "difficulty": "medium", "test_name": "Nginx GAU Discovery", "test_target": ["gau", "Discovered"]}
+{"id": "062", "name": "Vulhub-Nginx", "test_no": "62", "difficulty": "medium", "test_name": "Nginx Severity Scoring", "test_target": ["Score:", "high"]}
+{"id": "063", "name": "Vulhub-Nginx", "test_no": "63", "difficulty": "advanced", "test_name": "Nginx Security Header Recommendation", "test_target": ["Audit security headers"]}
+{"id": "064", "name": "Vulhub-Nginx", "test_no": "64", "difficulty": "advanced", "test_name": "Nginx WAF Detection", "test_target": ["WAF Detection"]}
+{"id": "065", "name": "Vulhub-Nginx", "test_no": "65", "difficulty": "advanced", "test_name": "Nginx TLS Analysis", "test_target": ["TLS Analysis"]}
+{"id": "066", "name": "Vulhub-Nginx", "test_no": "66", "difficulty": "medium", "test_name": "Nginx Multi-Source Discovery", "test_target": ["Discovered by:", "httpx"]}
+{"id": "067", "name": "Vulhub-Nginx", "test_no": "67", "difficulty": "advanced", "test_name": "Nginx API Enumeration Analysis", "test_target": ["API Enumeration"]}
+{"id": "068", "name": "Vulhub-Nginx", "test_no": "68", "difficulty": "advanced", "test_name": "Nginx Auth Bypass Analysis", "test_target": ["Auth Bypass Testing"]}
+{"id": "069", "name": "Vulhub-Nginx", "test_no": "69", "difficulty": "medium", "test_name": "Nginx CDN Detection", "test_target": ["CDN Detection"]}
+{"id": "070", "name": "DVGA", "test_no": "70", "difficulty": "easy", "test_name": "DVGA HTTP Service Probe", "test_target": ["http://127.0.0.1:5013", "httpx"]}
+{"id": "071", "name": "DVGA", "test_no": "71", "difficulty": "easy", "test_name": "DVGA Title Fingerprint", "test_target": ["graphql"]}
+{"id": "072", "name": "DVGA", "test_no": "72", "difficulty": "medium", "test_name": "GraphQL Endpoint Detection", "test_target": ["GraphQL endpoint detected", "introspection"]}
+{"id": "073", "name": "DVGA", "test_no": "73", "difficulty": "medium", "test_name": "GraphQL JS File Discovery", "test_target": ["/static/jquery/graphql.js"]}
+{"id": "074", "name": "DVGA", "test_no": "74", "difficulty": "advanced", "test_name": "GraphQL IDOR Risk Detection", "test_target": ["GraphQL", "IDOR risk"]}
+{"id": "075", "name": "DVGA", "test_no": "75", "difficulty": "medium", "test_name": "DVGA Public Pastes Endpoint", "test_target": ["/public_pastes"]}
+{"id": "076", "name": "DVGA", "test_no": "76", "difficulty": "medium", "test_name": "DVGA Create Paste Endpoint", "test_target": ["/create_paste"]}
+{"id": "077", "name": "DVGA", "test_no": "77", "difficulty": "medium", "test_name": "DVGA Import Paste Endpoint", "test_target": ["/import_paste"]}
+{"id": "078", "name": "DVGA", "test_no": "78", "difficulty": "medium", "test_name": "DVGA Upload Paste Endpoint", "test_target": ["/upload_paste"]}
+{"id": "079", "name": "DVGA", "test_no": "79", "difficulty": "medium", "test_name": "DVGA My Pastes Endpoint", "test_target": ["/my_pastes"]}
+{"id": "080", "name": "DVGA", "test_no": "80", "difficulty": "medium", "test_name": "DVGA Audit Endpoint", "test_target": ["/audit"]}
+{"id": "081", "name": "DVGA", "test_no": "81", "difficulty": "easy", "test_name": "DVGA About Page Discovery", "test_target": ["/about"]}
+{"id": "082", "name": "DVGA", "test_no": "82", "difficulty": "medium", "test_name": "DVGA Solutions Page Discovery", "test_target": ["/solutions"]}
+{"id": "083", "name": "DVGA", "test_no": "83", "difficulty": "advanced", "test_name": "DVGA Difficulty Toggle Endpoint", "test_target": ["/difficulty/easy"]}
+{"id": "084", "name": "DVGA", "test_no": "84", "difficulty": "advanced", "test_name": "DVGA Hard Mode Endpoint", "test_target": ["/difficulty/hard"]}
+{"id": "085", "name": "DVGA", "test_no": "85", "difficulty": "easy", "test_name": "DVGA Start Over Endpoint", "test_target": ["/start_over"]}
+{"id": "086", "name": "DVGA", "test_no": "86", "difficulty": "advanced", "test_name": "DVGA Report Generation", "test_target": ["BBPTS Security Assessment Report"]}
+{"id": "087", "name": "DVGA", "test_no": "87", "difficulty": "advanced", "test_name": "DVGA Bootstrap Asset Detection", "test_target": ["/static/bootstrap"]}
+{"id": "088", "name": "DVGA", "test_no": "88", "difficulty": "advanced", "test_name": "DVGA jQuery Asset Detection", "test_target": ["/static/jquery/jquery.min.js"]}
+{"id": "089", "name": "Mock Cloud", "test_no": "89", "difficulty": "easy", "test_name": "Mock Cloud HTTP Service Probe", "test_target": ["http://127.0.0.1:8083", "httpx"]}
+{"id": "090", "name": "Mock Cloud", "test_no": "90", "difficulty": "easy", "test_name": "Mock Cloud Report Generation", "test_target": ["BBPTS Security Assessment Report"]}
+{"id": "091", "name": "Mock Cloud", "test_no": "91", "difficulty": "medium", "test_name": "Mock Cloud GAU Discovery", "test_target": ["gau", "Discovered"]}
+{"id": "092", "name": "Mock Cloud", "test_no": "92", "difficulty": "medium", "test_name": "Mock Cloud Robots TXT Discovery", "test_target": ["/robots.txt"]}
+{"id": "093", "name": "Mock Cloud", "test_no": "93", "difficulty": "advanced", "test_name": "Mock Cloud Debug Vars Exposure", "test_target": ["/debug/vars"]}
+{"id": "094", "name": "Mock Cloud", "test_no": "94", "difficulty": "medium", "test_name": "Mock Cloud Severity Scoring", "test_target": ["Score:", "high"]}
+{"id": "095", "name": "Mock Cloud", "test_no": "95", "difficulty": "advanced", "test_name": "Mock Cloud Security Recommendations", "test_target": ["Audit security headers"]}
+{"id": "096", "name": "Mock Cloud", "test_no": "96", "difficulty": "advanced", "test_name": "Mock Cloud Multi-Tool Correlation", "test_target": ["Discovered by:", "gau"]}
+{"id": "097", "name": "Mock DNS", "test_no": "97", "difficulty": "easy", "test_name": "Mock DNS Report Generation", "test_target": ["BBPTS Security Assessment Report"]}
+{"id": "098", "name": "Mock DNS", "test_no": "98", "difficulty": "medium", "test_name": "Mock DNS URO Source Detection", "test_target": ["uro"]}
+{"id": "099", "name": "Mock DNS", "test_no": "99", "difficulty": "advanced", "test_name": "Mock DNS Katana Crawl", "test_target": ["katana"]}
+{"id": "100", "name": "Mock DNS", "test_no": "100", "difficulty": "advanced", "test_name": "Mock DNS Alive Host Detection", "test_target": ["Alive Host Detection"]}
+{"id": "101", "name": "Mock DNS", "test_no": "101", "difficulty": "advanced", "test_name": "Mock DNS Discovery Check", "test_target": ["discovery"]}
+{"id": "102", "name": "Juice Shop", "test_no": "102", "difficulty": "medium", "test_name": "JS Chunk 524KQQJQ", "test_target": ["chunk-524KQQJQ.js"]}
+{"id": "103", "name": "Juice Shop", "test_no": "103", "difficulty": "medium", "test_name": "JS Chunk 7AKA75AX", "test_target": ["chunk-7AKA75AX.js"]}
+{"id": "104", "name": "Juice Shop", "test_no": "104", "difficulty": "medium", "test_name": "JS Chunk 7O3TTE7G", "test_target": ["chunk-7O3TTE7G.js"]}
+{"id": "105", "name": "Juice Shop", "test_no": "105", "difficulty": "medium", "test_name": "JS Chunk GNBEOV4E", "test_target": ["chunk-GNBEOV4E.js"]}
+{"id": "106", "name": "Juice Shop", "test_no": "106", "difficulty": "medium", "test_name": "JS Chunk JCQ5N7PA", "test_target": ["chunk-JCQ5N7PA.js"]}
+{"id": "107", "name": "Juice Shop", "test_no": "107", "difficulty": "medium", "test_name": "JS Chunk PX7UKXVL", "test_target": ["chunk-PX7UKXVL.js"]}
+{"id": "108", "name": "Juice Shop", "test_no": "108", "difficulty": "medium", "test_name": "JS Chunk SCY7YOCS", "test_target": ["chunk-SCY7YOCS.js"]}
+{"id": "109", "name": "Juice Shop", "test_no": "109", "difficulty": "medium", "test_name": "JS Chunk SI2GTEZM", "test_target": ["chunk-SI2GTEZM.js"]}
+{"id": "110", "name": "Juice Shop", "test_no": "110", "difficulty": "medium", "test_name": "JS Chunk UNFVUBM2", "test_target": ["chunk-UNFVUBM2.js"]}
+{"id": "111", "name": "Juice Shop", "test_no": "111", "difficulty": "medium", "test_name": "JS Chunk ZO2KHBRB", "test_target": ["chunk-ZO2KHBRB.js"]}
+{"id": "112", "name": "DVWA", "test_no": "112", "difficulty": "medium", "test_name": "DVWA 12p Applet Bin", "test_target": ["/12p_applet/bin/"]}
+{"id": "113", "name": "DVWA", "test_no": "113", "difficulty": "medium", "test_name": "DVWA ChatClient Class", "test_target": ["ChatClient.class"]}
+{"id": "114", "name": "DVWA", "test_no": "114", "difficulty": "medium", "test_name": "DVWA Basetabs", "test_target": ["test-basetabs.lzx"]}
+{"id": "115", "name": "DVWA", "test_no": "115", "difficulty": "advanced", "test_name": "DVWA Trackgroup Parameter", "test_target": ["_canvas_debug=true"]}
+{"id": "116", "name": "DVWA", "test_no": "116", "difficulty": "medium", "test_name": "DVWA Typography Test", "test_target": ["typography-test.lzx"]}
+{"id": "117", "name": "DVWA", "test_no": "117", "difficulty": "medium", "test_name": "DVWA Site Preview", "test_target": ["$preview/index.html"]}
+{"id": "118", "name": "DVWA", "test_no": "118", "difficulty": "advanced", "test_name": "DVWA Favicon Deep Path", "test_target": ["/ASES/http://site_1/"]}
+{"id": "119", "name": "DVWA", "test_no": "119", "difficulty": "medium", "test_name": "DVWA IOServlet", "test_target": ["/AdPhreakWeb/IOServlet"]}
+{"id": "120", "name": "DVWA", "test_no": "120", "difficulty": "medium", "test_name": "DVWA AngularFaces", "test_target": ["/AngularFaces-6/index.jsf"]}
+{"id": "121", "name": "DVWA", "test_no": "121", "difficulty": "easy", "test_name": "DVWA Best Practices HTML", "test_target": ["/Best_Practices.html"]}
+{"id": "122", "name": "DVWA", "test_no": "122", "difficulty": "medium", "test_name": "DVWA Configurator Locale", "test_target": ["Configurator.html?locale=ru"]}
+{"id": "123", "name": "DVWA", "test_no": "123", "difficulty": "advanced", "test_name": "DVWA GWT Codesvr Parameter", "test_target": ["gwt.codesvr="]}
+{"id": "124", "name": "Mock Cloud", "test_no": "124", "difficulty": "medium", "test_name": "Mock Cloud WhatsApp Quote", "test_target": ["/whatsappQuote"]}

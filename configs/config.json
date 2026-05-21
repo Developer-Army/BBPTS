@@ -1,0 +1,58 @@
+{
+  "api_keys": {
+    "shodan": "",
+    "censys": "",
+    "securitytrails": "",
+    "github": "",
+    "chaos": "",
+    "virustotal": "",
+    "passivetotal": "",
+    "binaryedge": ""
+  },
+  "proxies": [],
+  "rate_limit": 20,
+  "state_dir": "./results/state",
+  "wordlists_dir": "./wordlists",
+  "wordlists": {
+    "dns": "dns-5k.txt",
+    "directory": "raft-small-files.txt",
+    "subdomain": "subdomains-top1million-5000.txt",
+    "api": "api-endpoints.txt"
+  },
+  "threads": 32,
+  "notify": {
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
+    "discord_webhook": "",
+    "slack_webhook": ""
+  },
+  "submit": {
+    "platform": ""
+  },
+  "fleet": {
+    "enabled": false,
+    "fleet_name": "bbpts-fleet",
+    "fleet_size": 10,
+    "delete_after": true
+  },
+  "tool_presets": {
+    "passive": {
+      "tools": "subfinder,crtsh,httpx,dnsx",
+      "timeout": "60s",
+      "rate_limit": 15
+    },
+    "deep": {
+      "tools": "subfinder,httpx,katana,nuclei,ffuf",
+      "timeout": "120s",
+      "rate_limit": 10
+    }
+  },
+  "program_profiles": {
+    "example_scope": {
+      "tools": "crtsh,subfinder,httpx",
+      "rate_limit": 12,
+      "exclude_hosts": [],
+      "exclude_suffix": []
+    }
+  }
+}
