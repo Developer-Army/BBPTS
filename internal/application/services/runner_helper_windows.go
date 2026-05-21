@@ -1,6 +1,6 @@
 //go:build windows
 
-package recon
+package services
 
 import (
 	"context"

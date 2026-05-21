@@ -2,10 +2,10 @@
 *.o
 *.a
 *.so
-bbpts
-bbpts.exe
-verify
-verify.exe
+/bbpts
+/bbpts.exe
+/verify
+/verify.exe
 
 # Build artifacts
 dist/
@@ -44,7 +44,8 @@ scratch/
 .agents/
 
 # Runtime output
-results/
+results/*
+!results/.gitkeep
 *.storage
 *.storage-shm
 *.storage-wal

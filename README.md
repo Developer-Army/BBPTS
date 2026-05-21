@@ -7,6 +7,8 @@ BBPTS is a Go application for automating the early phases of bug bounty reconnai
 [![Version](https://img.shields.io/badge/version-1.0-blue.svg)](https://github.com/Developer-Army/BBPTS)
 [![Go Version](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Coverage](https://img.shields.io/badge/coverage-35.2%25-yellow.svg)](https://github.com/Developer-Army/BBPTS)
+
 
 ---
 
