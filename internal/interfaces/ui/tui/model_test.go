@@ -71,15 +71,8 @@ func TestTargetValidationResultMsg_HandlesInvalid(t *testing.T) {
 	if !m.awaitingInput {
 		t.Errorf("expected to stay in awaitingInput state on invalid target validation")
 	}
-	hasError := false
-	for _, line := range m.cliHistory {
-		if strings.Contains(line, "Error") {
-			hasError = true
-			break
-		}
-	}
-	if !hasError {
-		t.Errorf("expected error message in cliHistory, got %v", m.cliHistory)
+	if !strings.Contains(m.inputErrorMessage, "Invalid") && !strings.Contains(m.inputErrorMessage, "resolve") {
+		t.Errorf("expected error message in inputErrorMessage, got %q", m.inputErrorMessage)
 	}
 	if cmd != nil {
 		t.Errorf("expected cmd to be nil, got %v", cmd)

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"math"
 	"os"
 	"os/exec"
 	"runtime"
@@ -11,28 +12,86 @@ import (
 	"log/slog"
 )
 
-// InitializeResourceGuard sets up CPU and memory limits to prevent system freeze/OOM.
+// InitializeResourceGuard sets up CPU and memory limits with default settings.
 func InitializeResourceGuard() {
-	// 1. Memory Guard: Set aggressive GC and a soft memory limit (e.g., 85% of total RAM)
-	debug.SetGCPercent(50)
+	ApplyResourceLimits(0, 0, 0, 0)
+}
 
-	totalMemory := getSystemTotalMemory()
-	if totalMemory > 0 {
-		// Limit Go memory usage to 85% of total system RAM
-		limitBytes := int64(float64(totalMemory) * 0.85)
-		debug.SetMemoryLimit(limitBytes)
-		slog.Info("Resource Guard: set Go soft memory limit", "limit_mb", limitBytes/(1024*1024))
-	} else {
-		// Fallback memory limit: 4GB
-		debug.SetMemoryLimit(4 * 1024 * 1024 * 1024)
-		slog.Info("Resource Guard: set fallback Go soft memory limit to 4GB")
+// ApplyResourceLimits dynamically configures the CPU, Memory, and GC limits,
+// taking environment variables as the highest precedence overrides.
+func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int) {
+	// 1. Environment overrides
+	if envCPU := os.Getenv("BBPTS_MAX_CPU_PERCENT"); envCPU != "" {
+		if val, err := strconv.Atoi(envCPU); err == nil && val > 0 && val <= 100 {
+			maxCPUPercent = val
+		}
+	}
+	if envCores := os.Getenv("BBPTS_MAX_CPU_CORES"); envCores != "" {
+		if val, err := strconv.Atoi(envCores); err == nil && val > 0 {
+			maxCPUCores = val
+		}
+	}
+	if envMem := os.Getenv("BBPTS_MAX_MEMORY_MB"); envMem != "" {
+		if val, err := strconv.Atoi(envMem); err == nil && val > 0 {
+			maxMemoryMB = val
+		}
+	}
+	if envGC := os.Getenv("BBPTS_GC_PERCENT"); envGC != "" {
+		if val, err := strconv.Atoi(envGC); err == nil && val > 0 {
+			gcPercent = val
+		}
 	}
 
-	// 2. CPU Guard: Cap CPU cores used to 90% (leaving at least 10% free for OS and UI rendering)
+	// 2. Memory Guard & GC Percent
+	totalMemory := getSystemTotalMemory()
+	finalGCPercent := 100 // Go default
+	if gcPercent > 0 {
+		finalGCPercent = gcPercent
+	} else if totalMemory > 0 && totalMemory < 4*1024*1024*1024 {
+		finalGCPercent = 50 // Keep GC aggressive for low memory systems (<4GB)
+	}
+	debug.SetGCPercent(finalGCPercent)
+
+	var limitBytes int64
+	if maxMemoryMB > 0 {
+		limitBytes = int64(maxMemoryMB) * 1024 * 1024
+		debug.SetMemoryLimit(limitBytes)
+		slog.Info("Resource Guard: set Go soft memory limit", "limit_mb", maxMemoryMB, "gc_percent", finalGCPercent)
+	} else if totalMemory > 0 {
+		// Cap memory limit at 2GB (or 85% of total system RAM, whichever is smaller) to protect low-end PCs
+		limitBytes = int64(float64(totalMemory) * 0.85)
+		twoGB := int64(2 * 1024 * 1024 * 1024)
+		if limitBytes > twoGB {
+			limitBytes = twoGB
+		}
+		debug.SetMemoryLimit(limitBytes)
+		slog.Info("Resource Guard: set Go soft memory limit", "limit_mb", limitBytes/(1024*1024), "gc_percent", finalGCPercent)
+	} else {
+		// Fallback memory limit: 2GB
+		limitBytes = 2 * 1024 * 1024 * 1024
+		debug.SetMemoryLimit(limitBytes)
+		slog.Info("Resource Guard: set fallback Go soft memory limit to 2GB", "gc_percent", finalGCPercent)
+	}
+
+	// 3. CPU Guard
 	numCPUs := runtime.NumCPU()
-	safeCPUs := int(float64(numCPUs) * 0.90)
+	safeCPUs := 0
+	if maxCPUCores > 0 {
+		safeCPUs = maxCPUCores
+	} else {
+		percent := 90
+		if maxCPUPercent > 0 {
+			percent = maxCPUPercent
+		}
+		// Rounding rather than truncation so that 90% of 2 cores = 2 cores
+		safeCPUs = int(math.Round(float64(numCPUs) * float64(percent) / 100.0))
+	}
+
 	if safeCPUs < 1 {
 		safeCPUs = 1
+	}
+	if safeCPUs > numCPUs {
+		safeCPUs = numCPUs
 	}
 	runtime.GOMAXPROCS(safeCPUs)
 	slog.Info("Resource Guard: set GOMAXPROCS CPU cap", "max_cores", safeCPUs, "total_cores", numCPUs)

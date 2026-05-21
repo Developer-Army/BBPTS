@@ -46,17 +46,17 @@ go build -o bbpts ./cmd/bbpts
 Create a `targets.txt` file with your domains:
 
 ```
-example.com
-api.example.com
-subdomain.example.com
+acme-corp.io
+api.acme-corp.io
+subdomain.acme-corp.io
 ```
 
 Or use CSV format for metadata:
 
 ```csv
 url,scope,priority,tags,notes
-example.com,in,high,web,Main target
-api.example.com,in,medium,api,REST API
+acme-corp.io,in,high,web,Main target
+api.acme-corp.io,in,medium,api,REST API
 ```
 
 ### 2. Run Basic Scan
@@ -124,14 +124,14 @@ The scan generates:
 
 | Host | Score | Priority | Tags | Suggested Tests |
 |------|-------|----------|------|-----------------|
-| example.com | 25 | medium | api,parameterized | Test for SQL injection; Parameter tampering |
+| acme-corp.io | 25 | medium | api,parameterized | Test for SQL injection; Parameter tampering |
 ```
 
 ### CSV Summary
 
 ```csv
 host,severity,score,tags,reasons,suggested_tests,evidence_count
-example.com,medium,25,api;parameterized,API surface detected; Query string detected,Test for SQL injection; Parameter tampering,3
+acme-corp.io,medium,25,api;parameterized,API surface detected; Query string detected,Test for SQL injection; Parameter tampering,3
 ```
 
 ## Configuration
@@ -245,11 +245,11 @@ Create a `targets.csv` with rich metadata:
 
 ```csv
 url,scope,priority,tags,notes
-example.com,in,high,api;critical,Main API target - high priority
-api.example.com,in,critical,api;internal,Critical internal API
-admin.example.com,in,high,admin,Administrative panel
-staging.example.com,out,low,staging;test,Staging environment - out of scope
-dev.example.com,out,medium,dev;internal,Development server
+acme-corp.io,in,high,api;critical,Main API target - high priority
+api.acme-corp.io,in,critical,api;internal,Critical internal API
+admin.acme-corp.io,in,high,admin,Administrative panel
+staging.acme-corp.io,out,low,staging;test,Staging environment - out of scope
+dev.acme-corp.io,out,medium,dev;internal,Development server
 ```
 
 **CSV Columns:**

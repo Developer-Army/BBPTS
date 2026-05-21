@@ -6,8 +6,7 @@ BBPTS is a Go application for automating the early phases of bug bounty reconnai
 
 [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Developer-Army/BBPTS)
 [![Go Version](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![codecov](https://codecov.io/gh/Developer-Army/BBPTS/graph/badge.svg?token=)](https://codecov.io/gh/Developer-Army/BBPTS)
+[![Build Status](https://github.com/Developer-Army/BBPTS/workflows/CI/badge.svg)](https://github.com/Developer-Army/BBPTS/actions)
 
 ![BBPTS TUI Demo](docs/demo.png)
 
@@ -57,8 +56,10 @@ go build -o bbpts ./cmd/bbpts
 
 # Install globally (for all users - requires sudo)
 sudo cp bbpts /usr/local/bin/
+
 # OR user-only install (no sudo needed)
 mkdir -p ~/.local/bin && cp bbpts ~/.local/bin/
+
 # Make sure ' ~/.local/bin ' is in your PATH
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
@@ -107,45 +108,6 @@ echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 
 bbpts -doctor
 ```
-
-### Windows Installation
-
-```batch
-# Clone the repository
-git clone https://github.com/Developer-Army/BBPTS.git
-cd BBPTS
-
-# Run the Windows setup (installs deps, tools, and wordlists)
-scripts\setup.bat
-
-# Build the binary
-go build -o bbpts.exe .\cmd\bbpts
-
-# Run diagnostics to verify your environment
-.\bbpts.exe -doctor
-```
-
-**Windows Prerequisites:**
-- **Go 1.22+** (add to PATH)
-- **Git Bash** or **PowerShell** for running scripts
-- **Npcap/WinPcap** for network scanning tools (naabu, etc.)
-
-**Note:** Ensure `%USERPROFILE%\go\bin` is in your PATH to access installed tools.
-
-### Docker Installation
-
-```bash
-# Build the Docker image
-docker build -t bbpts .
-
-# Run BBPTS in Docker
-docker run --rm \\
- -v $(pwd)/targets.example.txt:/app/targets.txt:ro \\
- -v $(pwd)/results:/app/results \\
- bbpts -i /app/targets.txt
-```
-
----
 
 ## Quick Start
 
@@ -207,27 +169,6 @@ docker run --rm \
  -v $(pwd)/results:/app/results \
  bbpts -i /app/targets.txt
 ```
-
----
-
-## Quick Start
-
-1. **Prepare your targets**: Copy `targets.example.txt` and replace the `example.com` entries with domains or URLs you are authorized to test.
-
-2. **Run reconnaissance**:
- ```bash
- ./bbpts -i targets.txt
- ```
-
-3. **Generate reports**:
- ```bash
- ./bbpts -i targets.txt -output report.md -summary summary.csv
- ```
-
-4. **Continuous monitoring**:
- ```bash
- ./bbpts -i targets.txt -scope my-program -cron 60
- ```
 
 ---
 
@@ -311,13 +252,13 @@ BBPTS supports multiple input formats:
 ./bbpts -i targets.txt -tools subfinder,httpx,nuclei
 
 # Continuous monitoring
-./bbpts -i targets.txt -scope example-com -cron 60
+./bbpts -i targets.txt -scope acme-corp -cron 60
 
 # Preview platform submissions without sending
-./bbpts -i targets.txt -scope example-com -dry-run
+./bbpts -i targets.txt -scope acme-corp -dry-run
 
 # Explicit platform submission for high-priority findings only
-./bbpts -i targets.txt -scope example-com -auto-submit
+./bbpts -i targets.txt -scope acme-corp -auto-submit
 
 # Export to Burp Suite
 ./bbpts -i targets.txt -export-burp burp-import.xml
@@ -452,7 +393,7 @@ Generated: Mon, 01 Jan 2024 12:00:00 UTC
 
 | Host | Score | Priority | Tags | Suggested Tests |
 |------|-------|----------|------|-----------------|
-| example.com | 45 | high | api,parameterized | Test for SQL injection; Parameter tampering |
+| acme-corp.io | 45 | high | api,parameterized | Test for SQL injection; Parameter tampering |
 ```
 
 ## Compared to Alternatives

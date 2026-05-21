@@ -88,8 +88,8 @@ func DeriveInsights(targets []string, events []recon.Event) []Insight {
 		insight := ensureInsight(host, insights)
 		insight.EvidenceCount++
 
-		// Collect unique evidence samples (max 25)
-		if ev.Target != "" && len(insight.Evidence) < 25 {
+		// Collect unique evidence samples (max 1000)
+		if ev.Target != "" && len(insight.Evidence) < 1000 {
 			if evidencePerHost[host] == nil {
 				evidencePerHost[host] = make(map[string]struct{})
 			}
@@ -278,7 +278,7 @@ func (p *ParameterAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 	}
 	targetLower := strings.ToLower(ev.Target)
 	addTag(insight, "parameterized")
-	addReason(insight, "Active parameters detected (increases attack surface)")
+	addReason(insight, "Active parameters detected attack surface")
 
 	// Generic SQL injection coverage for any query-bearing endpoint.
 	addTag(insight, "sqli-candidate")
@@ -522,7 +522,7 @@ func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		parts := strings.Split(ev.Target, "&")
 		if len(parts) >= 3 {
 			addTag(insight, "complex-params")
-			addReason(insight, "Complex endpoint with multiple parameters (High attack surface)")
+			addReason(insight, "Complex endpoint multiple parameters")
 			addSuggestedTest(insight, "Perform deep parameter tampering and logic flaw testing")
 			insight.Score += 10
 		}
@@ -614,7 +614,7 @@ func enrichSuggestedTests(insight *Insight) {
 			"Check mass assignment in JSON bodies",
 		},
 		"sqli-candidate": {
-			"Run boolean/time/error-based SQLi probes",
+			"Run boolean, time-based, and error-based SQLi probes",
 			"Check UNION-based data exposure",
 		},
 		"ssrf-candidate": {
@@ -752,7 +752,7 @@ func consolidateParamReasons(insight *Insight) {
 	}
 
 	if len(paramNames) > 0 {
-		summary := fmt.Sprintf("High-risk parameters detected (likely database inputs): %s", strings.Join(paramNames, ", "))
+		summary := fmt.Sprintf("High-risk parameters database inputs: %s", strings.Join(paramNames, ", "))
 		cleaned = append(cleaned, summary)
 	}
 	insight.Reasons = cleaned

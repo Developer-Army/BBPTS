@@ -41,6 +41,7 @@ type StealthClient struct {
 	requestCount   int
 	mu             sync.RWMutex
 	humanTimer     *HumanTimer // optional; if nil, uses fixed jitter
+	customHeaders  map[string]string
 }
 
 // NewStealthClient creates a new stealth HTTP client with TLS fingerprinting.
@@ -180,6 +181,14 @@ func (sc *StealthClient) Post(url string, contentType string, body []byte) (*htt
 
 // applyProfileHeaders applies browser-specific headers to the request.
 func (sc *StealthClient) applyProfileHeaders(req *http.Request, profile BrowserProfile) {
+	// Apply custom headers first
+	sc.mu.RLock()
+	customHeaders := sc.customHeaders
+	sc.mu.RUnlock()
+	for k, v := range customHeaders {
+		req.Header.Set(k, v)
+	}
+
 	// Set User-Agent
 	if profile.UserAgent != "" {
 		req.Header.Set("User-Agent", profile.UserAgent)
@@ -263,6 +272,13 @@ func (sc *StealthClient) reorderHeaders(req *http.Request, order []string) {
 // GetProfile returns the current browser profile.
 func (sc *StealthClient) GetProfile() BrowserProfile {
 	return sc.profile
+}
+
+// SetCustomHeaders sets the custom headers to inject into requests.
+func (sc *StealthClient) SetCustomHeaders(headers map[string]string) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.customHeaders = headers
 }
 
 // GetRequestCount returns the total number of requests made.

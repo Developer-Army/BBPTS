@@ -4,6 +4,24 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] — 2026-06-04
+
+### Added
+- **TUI Settings Editor**: Interactive configuration menu accessible via `/configure` (or `/setup` / `/keys`) to update API keys and notification webhooks.
+- **TUI Command Listing Hotkey**: Typing `/` inside an empty target input box immediately outputs all available commands.
+- **Beginner Quick Start Guide**: Added a step-by-step setup and testing guide at the top of the HTML report.
+- **Clickable Target & Evidence Links**: Target domains and all evidence URLs in the HTML report are now clickable links.
+- **Interactive Checklists**: Recommended testing checklist is now rendered with interactive checkboxes.
+- **Action Steps by Severity**: Context-aware "Next Action" guide added to findings based on risk level.
+- **Sleek Dark Mode**: Designed a premium, modern dark mode theme for the HTML report.
+- **Global Asset Copying**: `make install` and `make install-user` targets copy configs and wordlists to `~/.bbpts` for global out-of-the-box execution.
+- **Verify Command**: Introduced `cmd/verify/main.go` and validation framework test suite.
+
+### Changed
+- **Config & Rules Fallbacks**: Wordlists and rules path fallbacks automatically redirect search path to `~/.bbpts` if missing locally.
+- **Parallel Recon Optimization**: Redesigned Gobuster, Ffuf, and Dalfox runners with worker pool concurrency and dynamic timeout limits under low-resource environments.
+- **Resource Limit Controls**: Enforce CPU and memory limits inside resource_guard.
+
 ## [1.1.0] — 2026-05-24
 
 ### Added

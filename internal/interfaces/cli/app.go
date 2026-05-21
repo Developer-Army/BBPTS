@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
@@ -85,6 +86,11 @@ type Options struct {
 	EnableMetrics     bool
 	MetricsPort       int
 	LogFilePath       string
+	Headers           string
+	MaxCPUPercent     int
+	MaxCPUCores       int
+	MaxMemoryMB       int
+	GCPercent         int
 }
 
 // Run executes the BBPTS engine with the provided options.
@@ -242,6 +248,9 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 				return
 			}
 		}
+		if bridge != nil {
+			bridge.SendInitialTargets(normalized)
+		}
 	} else if bridge != nil {
 		bridge.PromptForTarget()
 		select {
@@ -267,7 +276,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	}
 
 	if len(normalized) > 0 {
-		normalized = validateTargetsWithHTTPX(abortCtx, normalized)
+		normalized = validateTargetsWithHTTPX(abortCtx, normalized, reconThreads)
 		if len(normalized) == 0 {
 			slog.Warn("No valid targets active or resolved via httpx validation. Aborting run.")
 			if bridge != nil {
@@ -317,6 +326,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 
 		runCtx = services.WithLowResource(runCtx, opts.LowResource)
 		runCtx = services.WithScanMode(runCtx, opts.Mode)
+		runCtx = services.WithHeaders(runCtx, cfg.Headers)
 
 		var eventBus queue.EventBus
 		if cfg.EventBus.Type == "nats" {
@@ -357,6 +367,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			Notifier:      utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify))),
 			EventBus:      eventBus,
 			Timeout:       scanTimeout(opts.Timeout, len(toolNames)),
+			CacheEnabled:  true,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
 				WorkerMesh:  cfg.Fleet.WorkerMesh,
@@ -398,6 +409,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		}
 
 		if bridge != nil {
+			bridge.SendThreadCount(reconThreads, cfg.Threads)
+			bridge.SendRateLimit(reconRateLimit)
 			bridge.ReportToolStatus("engine", "running", "starting recon pipeline")
 		}
 
@@ -1095,49 +1108,75 @@ var fileExtsThatMightBeURLs = []string{
 	".log", ".jsonl", ".env", ".md", ".input",
 }
 
-func validateTargetsWithHTTPX(ctx context.Context, targets []string) []string {
+func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int) []string {
 	slog.Info("Probing input targets to verify active hosts...", "count", len(targets))
 	
 	var alive []string
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	
+	// Create a semaphore to cap parallel lookups to 50
+	sem := make(chan struct{}, 50)
+	
 	for _, target := range targets {
-		cleanHost := target
-		if strings.Contains(cleanHost, "://") {
-			parts := strings.SplitN(cleanHost, "://", 2)
-			cleanHost = parts[1]
-		}
-		if idx := strings.Index(cleanHost, "/"); idx != -1 {
-			cleanHost = cleanHost[:idx]
-		}
-		if idx := strings.LastIndex(cleanHost, ":"); idx != -1 {
-			if !(strings.Count(cleanHost, ":") > 1 && !strings.Contains(cleanHost, "]")) {
-				cleanHost = cleanHost[:idx]
-				cleanHost = strings.TrimPrefix(cleanHost, "[")
-				cleanHost = strings.TrimSuffix(cleanHost, "]")
+		wg.Add(1)
+		go func(target string) {
+			defer wg.Done()
+			
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return
 			}
-		}
-		
-		// If it's a direct IP, it's alive
-		if net.ParseIP(cleanHost) != nil {
-			alive = append(alive, target)
-			continue
-		}
-		
-		// Try DNS lookup to see if it resolves
-		ips, err := net.LookupIP(cleanHost)
-		if err == nil && len(ips) > 0 {
-			alive = append(alive, target)
-		} else {
-			slog.Warn("Target failed DNS resolution", "target", cleanHost)
-		}
+			
+			cleanHost := target
+			if strings.Contains(cleanHost, "://") {
+				parts := strings.SplitN(cleanHost, "://", 2)
+				cleanHost = parts[1]
+			}
+			if idx := strings.Index(cleanHost, "/"); idx != -1 {
+				cleanHost = cleanHost[:idx]
+			}
+			if idx := strings.LastIndex(cleanHost, ":"); idx != -1 {
+				if !(strings.Count(cleanHost, ":") > 1 && !strings.Contains(cleanHost, "]")) {
+					cleanHost = cleanHost[:idx]
+					cleanHost = strings.TrimPrefix(cleanHost, "[")
+					cleanHost = strings.TrimSuffix(cleanHost, "]")
+				}
+			}
+			
+			// If it's a direct IP, it's alive
+			if net.ParseIP(cleanHost) != nil {
+				mu.Lock()
+				alive = append(alive, target)
+				mu.Unlock()
+				return
+			}
+			
+			// Try DNS lookup to see if it resolves
+			ips, err := net.LookupIP(cleanHost)
+			if err == nil && len(ips) > 0 {
+				mu.Lock()
+				alive = append(alive, target)
+				mu.Unlock()
+			} else {
+				slog.Warn("Target failed DNS resolution", "target", cleanHost)
+			}
+		}(target)
 	}
+	wg.Wait()
 	
 	if len(alive) == 0 {
 		slog.Warn("No targets resolved via DNS lookup.")
 		return nil
 	}
 	
+	// Sort alive list to keep deterministic order
+	sort.Strings(alive)
+	
 	httpxTool := &services.HTTPXTool{}
-	events, err := httpxTool.Run(ctx, alive, 10)
+	events, err := httpxTool.Run(ctx, alive, threads)
 	if err != nil {
 		slog.Warn("Target validation via httpx failed or skipped; proceeding with DNS-resolved targets", "error", err)
 		return alive

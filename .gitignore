@@ -58,5 +58,7 @@ tests/failed_tests.log
 tests/targets/
 tests/reports/
 tests/test_result.json
+tests/test_report.md
 
 bbpts.log
+*.csv

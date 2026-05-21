@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	version = "v1.1.0"
+	version = "v1.1.1"
 	commit  = "unknown"
 	date    = "unknown"
 )
@@ -57,7 +57,41 @@ func main() {
 		os.Exit(1)
 	}
 	cfg.LoadFromEnv()
+	if opts.Headers != "" {
+		if cfg.Headers == nil {
+			cfg.Headers = make(map[string]string)
+		}
+		pairs := strings.Split(opts.Headers, ",")
+		for _, pair := range pairs {
+			parts := strings.SplitN(pair, ":", 2)
+			if len(parts) == 2 {
+				cfg.Headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+			}
+		}
+	}
 	app.ApplyPresetAndProfileDefaults(&opts, cfg)
+
+	// Apply CLI overrides to configuration
+	if opts.MaxCPUPercent > 0 {
+		cfg.ResourceLimits.MaxCPUPercent = opts.MaxCPUPercent
+	}
+	if opts.MaxCPUCores > 0 {
+		cfg.ResourceLimits.MaxCPUCores = opts.MaxCPUCores
+	}
+	if opts.MaxMemoryMB > 0 {
+		cfg.ResourceLimits.MaxMemoryMB = opts.MaxMemoryMB
+	}
+	if opts.GCPercent > 0 {
+		cfg.ResourceLimits.GCPercent = opts.GCPercent
+	}
+
+	// Apply the resource limits
+	utils.ApplyResourceLimits(
+		cfg.ResourceLimits.MaxCPUPercent,
+		cfg.ResourceLimits.MaxCPUCores,
+		cfg.ResourceLimits.MaxMemoryMB,
+		cfg.ResourceLimits.GCPercent,
+	)
 
 	// --- Logger Setup ---
 	var logFile *os.File
@@ -97,7 +131,8 @@ func main() {
 	var bridge *tui.Bridge
 	var tuiProgram *tea.Program
 	if opts.UseTUI {
-		model := tui.NewModel()
+		initialMode := app.ResolveMode(opts)
+		model := tui.NewModel(initialMode, opts.ConfigPath, cfg)
 		tuiProgram = tea.NewProgram(model, tea.WithAltScreen())
 		bridge = tui.NewBridge(tuiProgram)
 
@@ -162,6 +197,13 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.ExportBurp, "export-burp", "", "Export Burp Suite XML findings")
 	flag.StringVar(&opts.ReportH1, "export-h1", "", "Export HackerOne CSV format")
 	flag.StringVar(&opts.ReportBC, "export-bc", "", "Export Bugcrowd CSV format")
+	flag.StringVar(&opts.Headers, "H", "", "Custom HTTP headers (comma-separated, e.g. 'Key: Value, Key2: Value2')")
+	flag.StringVar(&opts.Headers, "header", "", "Custom HTTP headers (comma-separated)")
+
+	flag.IntVar(&opts.MaxCPUPercent, "max-cpu-percent", 0, "Max CPU percentage to use")
+	flag.IntVar(&opts.MaxCPUCores, "max-cpu-cores", 0, "Max CPU cores to use (overrides percentage limit)")
+	flag.IntVar(&opts.MaxMemoryMB, "max-memory-mb", 0, "Max memory limit in MB")
+	flag.IntVar(&opts.GCPercent, "gc-percent", 0, "Garbage collection target percentage")
 
 	flag.StringVar(&opts.Preset, "preset", "", "Named tool preset from config tool_presets (used when -tools is omitted)")
 	flag.StringVar(&opts.Profile, "profile", "", "Named program profile from config program_profiles (exclusions + optional defaults)")
@@ -178,7 +220,12 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.EnableMetrics, "metrics", false, "Enable Prometheus metrics endpoint")
 	flag.IntVar(&opts.MetricsPort, "metrics-port", 9090, "Prometheus metrics port")
 
-	flag.Parse()
+	reordered := reorderArgs(os.Args[1:])
+	_ = flag.CommandLine.Parse(reordered)
+
+	if opts.InputPath == "" && flag.NArg() > 0 {
+		opts.InputPath = flag.Arg(0)
+	}
 
 	if showVersion {
 		opts.ShowVersion = true
@@ -213,6 +260,9 @@ func parseFlags() app.Options {
 	if opts.RulesPath == "" {
 		if _, err := os.Stat(filepath.Join("configs", "rules.json")); err == nil {
 			opts.RulesPath = filepath.Join("configs", "rules.json")
+		} else {
+			home, _ := os.UserHomeDir()
+			opts.RulesPath = filepath.Join(home, ".bbpts", "rules.json")
 		}
 	}
 
@@ -232,4 +282,58 @@ func parseFlags() app.Options {
 	}
 
 	return opts
+}
+
+// reorderArgs moves all defined flags (and their values) to the front,
+// followed by positional arguments. This allows Go's flag package to parse
+// flags that are placed after positional arguments.
+func reorderArgs(args []string) []string {
+	var flags []string
+	var posArgs []string
+
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+		if arg == "--" {
+			posArgs = append(posArgs, args[i:]...)
+			break
+		}
+		if strings.HasPrefix(arg, "-") {
+			// It is a flag
+			if strings.Contains(arg, "=") {
+				flags = append(flags, arg)
+				i++
+				continue
+			}
+
+			name := strings.TrimLeft(arg, "-")
+			f := flag.Lookup(name)
+			if f != nil {
+				// Check if it is a boolean flag
+				if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && bf.IsBoolFlag() {
+					flags = append(flags, arg)
+					i++
+				} else {
+					// Non-boolean flag, consumes next argument if available
+					flags = append(flags, arg)
+					if i+1 < len(args) {
+						flags = append(flags, args[i+1])
+						i += 2
+					} else {
+						i++
+					}
+				}
+			} else {
+				// Unknown flag, keep it in flags to let flag.Parse handle/fail on it
+				flags = append(flags, arg)
+				i++
+			}
+		} else {
+			// Positional argument
+			posArgs = append(posArgs, arg)
+			i++
+		}
+	}
+
+	return append(flags, posArgs...)
 }

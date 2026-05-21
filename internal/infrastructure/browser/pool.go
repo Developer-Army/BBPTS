@@ -127,7 +127,7 @@ func NewPooledBrowser(cfg PoolConfig) (*PooledBrowser, error) {
 }
 
 // GetContext obtains a browser context for a domain, reusing existing if available.
-func (pb *PooledBrowser) GetContext(domain string) (playwright.BrowserContext, error) {
+func (pb *PooledBrowser) GetContext(domain string, headers map[string]string) (playwright.BrowserContext, error) {
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
 
@@ -155,10 +155,14 @@ func (pb *PooledBrowser) GetContext(domain string) (playwright.BrowserContext, e
 	}
 
 	browserInst := pb.browsers[browserIdx]
-	ctx, err := browserInst.browser.NewContext(playwright.BrowserNewContextOptions{
+	opts := playwright.BrowserNewContextOptions{
 		Viewport:  &playwright.Size{Width: 1920, Height: 1080},
 		UserAgent: playwright.String("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
-	})
+	}
+	if len(headers) > 0 {
+		opts.ExtraHttpHeaders = headers
+	}
+	ctx, err := browserInst.browser.NewContext(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create browser context: %w", err)
 	}

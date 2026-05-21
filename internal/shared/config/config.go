@@ -17,6 +17,9 @@ type Config struct {
 	// Supported providers: shodan, censys, securitytrails, github, chaos, virustotal, passivetotal, binaryedge
 	APIKeys map[string]string `json:"api_keys"`
 
+	// Headers holds custom HTTP headers to pass to active scanners.
+	Headers map[string]string `json:"headers"`
+
 	// Proxies is a list of proxy URLs for rotating traffic.
 	// Supports HTTP, HTTPS, and SOCKS5 (e.g., "socks5://127.0.0.1:9050").
 	Proxies []string `json:"proxies"`
@@ -61,6 +64,9 @@ type Config struct {
 
 	// EventBus holds connection settings for the event-driven core.
 	EventBus EventBusConfig `json:"event_bus"`
+
+	// ResourceLimits holds resource limits to configure CPU and memory usage
+	ResourceLimits ResourceLimitsConfig `json:"resource_limits"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -97,6 +103,14 @@ type FleetConfig struct {
 	DeleteAfter bool   `json:"delete_after"`
 }
 
+// ResourceLimitsConfig holds configuration for CPU, memory, and GC limits.
+type ResourceLimitsConfig struct {
+	MaxCPUPercent int `json:"max_cpu_percent"`
+	MaxCPUCores   int `json:"max_cpu_cores"`
+	MaxMemoryMB   int `json:"max_memory_mb"`
+	GCPercent     int `json:"gc_percent"`
+}
+
 // WordlistConfig holds tool-specific wordlist configurations.
 type WordlistConfig struct {
 	// DNS wordlist for subdomain enumeration tools (amass, subfinder, etc.)
@@ -114,6 +128,7 @@ func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	return &Config{
 		APIKeys:      make(map[string]string),
+		Headers:      make(map[string]string),
 		Proxies:      []string{},
 		RateLimit:    50,
 		StateDir:     filepath.Join(home, ".bbpts", "state"),
@@ -138,6 +153,12 @@ func DefaultConfig() *Config {
 			Type: "in-memory",
 			URL:  "",
 		},
+		ResourceLimits: ResourceLimitsConfig{
+			MaxCPUPercent: 90,
+			MaxCPUCores:   0,
+			MaxMemoryMB:   0,
+			GCPercent:     0,
+		},
 	}
 }
 
@@ -158,6 +179,17 @@ func LoadFromFile(path string) (*Config, error) {
 
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
+	}
+
+	// Fallback to ~/.bbpts/wordlists if local doesn't exist
+	if cfg.WordlistsDir == "./wordlists" || cfg.WordlistsDir == "wordlists" {
+		if _, err := os.Stat(cfg.WordlistsDir); os.IsNotExist(err) {
+			home, _ := os.UserHomeDir()
+			globalWordlists := filepath.Join(home, ".bbpts", "wordlists")
+			if _, err := os.Stat(globalWordlists); err == nil {
+				cfg.WordlistsDir = globalWordlists
+			}
+		}
 	}
 
 	return cfg, nil
@@ -207,6 +239,44 @@ func (c *Config) LoadFromEnv() {
 	if val := os.Getenv("BBPTS_TMP_RESULTS_DIR"); val != "" {
 		c.TmpResultsDir = val
 	}
+
+	if val := os.Getenv("BBPTS_HEADERS"); val != "" {
+		if c.Headers == nil {
+			c.Headers = make(map[string]string)
+		}
+		pairs := strings.Split(val, ",")
+		for _, pair := range pairs {
+			parts := strings.SplitN(pair, ":", 2)
+			if len(parts) == 2 {
+				c.Headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+			}
+		}
+	}
+
+	if val := os.Getenv("BBPTS_MAX_CPU_PERCENT"); val != "" {
+		var percent int
+		if _, err := fmt.Sscanf(val, "%d", &percent); err == nil && percent > 0 && percent <= 100 {
+			c.ResourceLimits.MaxCPUPercent = percent
+		}
+	}
+	if val := os.Getenv("BBPTS_MAX_CPU_CORES"); val != "" {
+		var cores int
+		if _, err := fmt.Sscanf(val, "%d", &cores); err == nil && cores > 0 {
+			c.ResourceLimits.MaxCPUCores = cores
+		}
+	}
+	if val := os.Getenv("BBPTS_MAX_MEMORY_MB"); val != "" {
+		var mem int
+		if _, err := fmt.Sscanf(val, "%d", &mem); err == nil && mem > 0 {
+			c.ResourceLimits.MaxMemoryMB = mem
+		}
+	}
+	if val := os.Getenv("BBPTS_GC_PERCENT"); val != "" {
+		var gc int
+		if _, err := fmt.Sscanf(val, "%d", &gc); err == nil && gc > 0 {
+			c.ResourceLimits.GCPercent = gc
+		}
+	}
 }
 
 // GetAPIKey returns the API key for a given provider, or empty string if not set.
@@ -233,6 +303,7 @@ func WriteDefault(path string) error {
 		"binaryedge":     "",
 	}
 	cfg.Proxies = []string{"socks5://127.0.0.1:9050"}
+	cfg.Headers = map[string]string{}
 	cfg.RateLimit = 50
 
 	dir := filepath.Dir(path)

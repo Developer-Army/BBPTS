@@ -35,6 +35,9 @@ func (j *JSAnalyzer) Run(ctx context.Context, targets []string, threads int) ([]
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
 	client, _ := network.NewStealthClient(profile, proxy)
+	if client != nil {
+		client.SetCustomHeaders(HeadersFromCtx(ctx))
+	}
 
 	var allEvents []Event
 	var mu sync.Mutex

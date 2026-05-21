@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 )
@@ -38,6 +39,10 @@ func (t *Wafw00fTool) Run(ctx context.Context, targets []string, threads int) ([
 
 		// Run wafw00f
 		args := []string{"-a", target}
+		headers := HeadersFromCtx(ctx)
+		for k, v := range headers {
+			args = append(args, "-H", fmt.Sprintf("%s: %s", k, v))
+		}
 		lines, err := RunCommandLines(ctx, "wafw00f", args...)
 		if err != nil {
 			slog.Debug("wafw00f execution warning", "target", target, "error", err)

@@ -17,6 +17,7 @@ import (
 // and runtime JS endpoint extraction with session pooling and network interception.
 type BrowserRecon struct {
 	pool *browser.PooledBrowser
+	mu   sync.Mutex
 }
 
 func (b *BrowserRecon) Name() string {
@@ -26,8 +27,8 @@ func (b *BrowserRecon) Name() string {
 // NewBrowserRecon creates a new advanced browser recon with pool.
 func NewBrowserRecon() (*BrowserRecon, error) {
 	cfg := browser.DefaultPoolConfig()
-	cfg.MaxBrowsers = 3
-	cfg.MaxContexts = 15
+	cfg.MaxBrowsers = 5
+	cfg.MaxContexts = 50
 	cfg.ContextTTL = 5 * time.Minute
 
 	pool, err := browser.NewPooledBrowser(cfg)
@@ -38,6 +39,8 @@ func NewBrowserRecon() (*BrowserRecon, error) {
 }
 
 func (b *BrowserRecon) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.pool != nil {
 		return b.pool.Close()
 	}
@@ -48,6 +51,22 @@ func (b *BrowserRecon) Run(ctx context.Context, targets []string, threads int) (
 	if len(targets) == 0 {
 		return nil, nil
 	}
+
+	b.mu.Lock()
+	if b.pool == nil {
+		cfg := browser.DefaultPoolConfig()
+		cfg.MaxBrowsers = 5
+		cfg.MaxContexts = 50
+		cfg.ContextTTL = 5 * time.Minute
+
+		pool, err := browser.NewPooledBrowser(cfg)
+		if err != nil {
+			b.mu.Unlock()
+			return nil, fmt.Errorf("failed to initialize browser pool: %w", err)
+		}
+		b.pool = pool
+	}
+	b.mu.Unlock()
 
 	var httpTargets []string
 	for _, t := range targets {
@@ -96,7 +115,8 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, targetURL string) ([]Eve
 	domain := extractDomain(targetURL)
 
 	// Get context from pool
-	ctxBrowser, err := b.pool.GetContext(domain)
+	headers := HeadersFromCtx(ctx)
+	ctxBrowser, err := b.pool.GetContext(domain, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get browser context: %w", err)
 	}

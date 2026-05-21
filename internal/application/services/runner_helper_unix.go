@@ -5,9 +5,11 @@ package services
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"syscall"
 )
 
@@ -34,9 +36,20 @@ func prepareCommand(ctx context.Context, name string, args ...string) commandHan
 		}
 	}
 
+	// Calculate safe CPU cores for sub-tools: 90% of total cores
+	numCPUs := runtime.NumCPU()
+	safeCPUs := int(math.Round(float64(numCPUs) * 0.9))
+	if safeCPUs < 1 {
+		safeCPUs = 1
+	}
+
 	cmd := exec.CommandContext(ctx, binaryPath, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Env = append(os.Environ(), "PATH="+newPath)
+	cmd.Env = append(os.Environ(),
+		"PATH="+newPath,
+		"GOMEMLIMIT=2GiB",
+		fmt.Sprintf("GOMAXPROCS=%d", safeCPUs),
+	)
 
 	return cmd
 }

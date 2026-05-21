@@ -23,7 +23,6 @@ func (t *SubfinderTool) Run(ctx context.Context, targets []string, threads int) 
 	args := []string{
 		"-silent",
 		"-t", fmt.Sprintf("%d", threads),
-		"-dL", "-",
 		"-timeout", "20",
 	}
 

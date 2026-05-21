@@ -11,6 +11,23 @@ import (
 // Scenario 3: Adversarial Edge-Case Injection (Scale/Blob Test)
 // Ensures the database does not bloat when fed massive 2MB response payloads.
 func TestChaos_AdversarialBlobInjection(t *testing.T) {
+	// Save current working directory and use a temp dir to support read-only filesystems
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+	tempDir, err := os.MkdirTemp("", "bbpts-storage-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change working directory: %v", err)
+	}
+	defer func() {
+		os.Chdir(oldWD)
+		os.RemoveAll(tempDir)
+	}()
+
 	// Setup in-memory sqlite for test
 	s, err := NewStorage("sqlite3", ":memory:")
 	if err != nil {

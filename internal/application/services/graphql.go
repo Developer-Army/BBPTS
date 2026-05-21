@@ -91,6 +91,8 @@ func (g *GraphQLScanner) Run(ctx context.Context, targets []string, threads int)
 	g.client, errClient = network.NewStealthClient(profile, proxy)
 	if errClient != nil {
 		slog.Warn("Failed to recreate stealth client with proxy", "proxy", proxy, "error", errClient)
+	} else if g.client != nil {
+		g.client.SetCustomHeaders(HeadersFromCtx(ctx))
 	}
 
 	for _, target := range targets {

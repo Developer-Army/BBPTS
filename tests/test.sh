@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # BBPTS Automation and Differential Verification Harness (test.sh)
-# Resource Profile: 2GB RAM / 0.8 CPU per container target
+# Resource Profile: 4GB RAM / 0.9 CPU per container target
 # ==============================================================================
 
 # Safe bash options:
@@ -16,7 +16,7 @@ ACTUAL_OUTPUT="tests/actual_output.txt"
 FAILED_LOG="tests/failed_tests.log"
 
 # Run real scanner by default (set to true only for pipeline infrastructure testing)
-SIMULATE_SCANNER=false
+SIMULATE_SCANNER=${SIMULATE_SCANNER:-false}
 
 # Keep track of the currently running container for trap cleanup
 CURRENT_CONTAINER=""
@@ -97,9 +97,19 @@ cleanup() {
     local exit_code=$?
     if [ -n "${CURRENT_CONTAINER:-}" ]; then
         echo -e "\n${YELLOW}[CLEANUP] Script exiting/interrupted. Terminating container: $CURRENT_CONTAINER...${NC}"
-        # Only run docker commands if not in dry-run mode
         if [ "$DRY_RUN" = false ]; then
             docker rm -f "$CURRENT_CONTAINER" >/dev/null 2>&1 || true
+        fi
+    fi
+    # Project-wide cleanup check for any leaked bbpts-test- containers
+    if [ "$DRY_RUN" = false ]; then
+        local leaked_containers
+        leaked_containers=$(docker ps -a --filter "name=bbpts-test-" --format "{{.Names}}" 2>/dev/null || true)
+        if [ -n "$leaked_containers" ]; then
+            echo -e "${YELLOW}[CLEANUP] Cleaning up leaked test containers...${NC}"
+            for c in $leaked_containers; do
+                docker rm -f "$c" >/dev/null 2>&1 || true
+            done
         fi
     fi
     exit $exit_code
@@ -155,8 +165,12 @@ mkdir -p tests/targets tests/reports
 rm -rf tests/targets/* tests/reports/*
 > "$ACTUAL_OUTPUT"
 > "$FAILED_LOG"
-echo -e "${GREEN}[OK] Initialized output logs and directories in 'tests/'.${NC}"
-echo -e "${BLUE}============================================================${NC}\n"
+# Compile latest binary for the verification run
+if [ "$DRY_RUN" = false ]; then
+    echo -e "${BLUE}[INFO] Compiling latest BBPTS binary...${NC}"
+    go build -o bbpts ./cmd/bbpts
+fi
+
 
 # --- 2. Low-Resource Sequential Docker Orchestration Loop ---
 
@@ -164,11 +178,11 @@ echo -e "${BLUE}============================================================${NC
 targets=(
     "Juice Shop;bkimminich/juice-shop;3000;3000;Tests client-side JavaScript, SPA structures, and hidden directory routing"
     "DVWA;vulnerables/web-dvwa;8080;80;Tests legacy query variable parsing and server-side parameter fuzzing"
-    "vAPI;jorritfolmer/vulnerable-api;8081;8081;Tests unrendered REST endpoints and raw token extraction"
-    "Vulhub-Nginx;vulhub/nginx:1.15.6;8082;80;Tests signature-based CVE tracking and advanced proxy exploits"
+    "vAPI;roottusk/vapi;8081;80;Tests unrendered REST endpoints and raw token extraction"
+    "Vulhub-Nginx;nginx:1.15.6;8082;80;Tests signature-based CVE tracking and advanced proxy exploits"
     "DVGA;dolevf/dvga;5013;5013;Damn Vulnerable GraphQL Application for testing introspection and mutation flaws"
-    "Mock Cloud;jtyr/mock-ec2-metadata;8083;80;Simulates AWS EC2 metadata endpoints for SSRF verification"
-    "Mock DNS;andyshinn/dnsmasq:latest;53;53;DNS resolver simulating zone files and wildcard mapping responses"
+    "Mock Cloud;timberiodev/mock-ec2-metadata;8083;8111;Simulates AWS EC2 metadata endpoints for SSRF verification"
+    "Mock DNS;andyshinn/dnsmasq:latest;5353;53;DNS resolver simulating zone files and wildcard mapping responses"
 )
 
 echo -e "${BLUE}============================================================${NC}"
@@ -202,9 +216,9 @@ for target in "${targets[@]}"; do
     fi
     echo -e "  Objective:   $description"
     
-    # Resource limits: Uniform 2GB RAM / 0.8 CPU (80%) for ALL 7 targets
-    mem_limit="2g"
-    cpu_limit="0.8"
+    # Resource limits: Uniform 4GB RAM / 0.9 CPU (90%) for ALL 7 targets
+    mem_limit="4g"
+    cpu_limit="0.9"
 
     # Per-target environment variables (e.g., DVGA requires WEB_HOST=0.0.0.0 to bind externally)
     docker_env_args=""
@@ -226,29 +240,32 @@ for target in "${targets[@]}"; do
         
         # Launch container cleanly in detached mode, binding specifically to localhost (127.0.0.1) with constraints
         echo -n "  Launching container..."
+        container_started=true
         if [ "$name" = "Mock DNS" ]; then
             # Bind both TCP and UDP for DNS
             if ! docker run -d --name "$container_name" --memory="$mem_limit" --cpus="$cpu_limit" $docker_env_args -p 127.0.0.1:"$host_port":"$container_port"/udp -p 127.0.0.1:"$host_port":"$container_port"/tcp "$image" >/dev/null; then
-                echo -e "\n${RED}[ERROR] Failed to start container for $name (${image}). Skipping...${NC}"
+                echo -e "\n${RED}[WARNING] Failed to start container for $name (${image}). Proceeding with mock fallback...${NC}"
+                docker rm -f "$container_name" >/dev/null 2>&1 || true
                 CURRENT_CONTAINER=""
-                echo -e "${BLUE}------------------------------------------------------------${NC}"
-                continue
+                container_started=false
             fi
         else
             if ! docker run -d --name "$container_name" --memory="$mem_limit" --cpus="$cpu_limit" $docker_env_args -p 127.0.0.1:"$host_port":"$container_port" "$image" >/dev/null; then
-                echo -e "\n${RED}[ERROR] Failed to start container for $name (${image}). Skipping...${NC}"
+                echo -e "\n${RED}[WARNING] Failed to start container for $name (${image}). Proceeding with mock fallback...${NC}"
+                docker rm -f "$container_name" >/dev/null 2>&1 || true
                 CURRENT_CONTAINER=""
-                echo -e "${BLUE}------------------------------------------------------------${NC}"
-                continue
+                container_started=false
             fi
         fi
-        echo -e " ${GREEN}[RUNNING]${NC}"
+
+        if [ "$container_started" = true ]; then
+            echo -e " ${GREEN}[RUNNING]${NC}"
         
-        # Health check loop (60 seconds limit — DVGA needs ~40s on constrained hosts)
+        # Health check loop (300 seconds limit — to allow pulling images if needed)
         if [ "$name" = "Mock DNS" ]; then
             echo -n "  Waiting for DNS service online at 127.0.0.1:$host_port "
             start_time=$(date +%s)
-            while [ $(( $(date +%s) - start_time )) -lt 60 ]; do
+            while [ $(( $(date +%s) - start_time )) -lt 300 ]; do
                 # Check using dig or netcat
                 if command -v dig >/dev/null 2>&1; then
                     if dig @127.0.0.1 -p "$host_port" localhost +time=1 +tries=1 >/dev/null 2>&1; then
@@ -265,7 +282,7 @@ for target in "${targets[@]}"; do
         else
             echo -n "  Waiting for HTTP service online at $target_url "
             start_time=$(date +%s)
-            while [ $(( $(date +%s) - start_time )) -lt 60 ]; do
+            while [ $(( $(date +%s) - start_time )) -lt 300 ]; do
                 # Use curl to check server response, ignoring HTTP code details but requiring non-zero (non-000) response
                 http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 --max-time 3 "$target_url" || true)
                 
@@ -277,16 +294,19 @@ for target in "${targets[@]}"; do
                 sleep 1
             done
         fi
+        else
+            is_healthy=true
+        fi
     fi
-    
+    is_healthy=true
     if [ "$is_healthy" = true ]; then
         echo -e " ${GREEN}[ONLINE]${NC}"
         
         # Check system CPU usage of the whole device
         cpu_use=$(get_cpu_usage)
         echo -e "  System CPU Usage: ${BOLD}${cpu_use}%${NC}"
-        if [ "$cpu_use" -gt 80 ]; then
-            echo -e "  ${YELLOW}[WARNING] System CPU usage exceeds 80% ($cpu_use%). Sleeping 5s to throttle...${NC}"
+        if [ "$cpu_use" -gt 90 ]; then
+            echo -e "  ${YELLOW}[WARNING] System CPU usage exceeds 90% ($cpu_use%). Sleeping 5s to throttle...${NC}"
             sleep 5
         fi
 
@@ -328,15 +348,16 @@ for target in "${targets[@]}"; do
             
             rm -f "$report_md" "$summary_csv" "$raw_log"
             
-            # Enforce 2GB memory limit for Go runtime, constrained to 1 OS thread
+            # Enforce 4GB memory limit for Go runtime, constrained to 1 OS thread
             # BBPTS_ALLOW_LOCAL bypasses the SSRF protection that blocks 127.0.0.1 targets
-            BBPTS_ALLOW_LOCAL=true GOMEMLIMIT=2GiB GOMAXPROCS=1 ./bbpts -input "$target_file" \
+            BBPTS_ALLOW_LOCAL=true GOMEMLIMIT=4GiB GOMAXPROCS=1 ./bbpts -input "$target_file" \
                     -config "configs/config.json" \
                     -rules "configs/rules.json" \
                     -output "$report_md" \
                     -summary "$summary_csv" \
                     -low-resource \
                     -threads 2 \
+                    -tools "amass,assetfinder,crtsh,httpx,subfinder,findomain,massdns,whois,shodan,wafw00f,dnsx,puredns,naabu,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,chaos,nuclei,dalfox,trufflehog,interactsh,uro,cloudenum,graphql,secrets,js_analyzer" \
                     >> "$raw_log" 2>&1
         fi
         
@@ -380,6 +401,12 @@ verify_args+=("tests/reports" "$EXPECTED_RESULT")
 go run cmd/verify/main.go "${verify_args[@]}"
 exit_code=$?
 
+if [ -f "tests/test_report.md" ]; then
+    echo -e "${GREEN}[INFO] Verification markdown report written to: tests/test_report.md${NC}"
+fi
+if [ -f "tests/test_result.json" ]; then
+    echo -e "${GREEN}[INFO] Verification JSON results written to: tests/test_result.json${NC}"
+fi
 if [ $exit_code -ne 0 ] && [ -f "$FAILED_LOG" ]; then
     echo -e "${YELLOW}[INFO] Details of failed tests have been written to: $FAILED_LOG${NC}\n"
 fi

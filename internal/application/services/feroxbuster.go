@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // FeroxbusterTool wraps the Rust-based fuzzer for directory discovery.
@@ -37,8 +38,24 @@ func (t *FeroxbusterTool) Run(ctx context.Context, targets []string, threads int
 		"--no-recursion", // For performance on weak PCs, recursion is handled by BBPTS logic
 	}
 
+	if LowResourceFromCtx(ctx) {
+		args = append(args, "--time-limit", "15s")
+	}
+
+	headers := HeadersFromCtx(ctx)
+	for k, v := range headers {
+		args = append(args, "-H", fmt.Sprintf("%s: %s", k, v))
+	}
+
 	input := strings.Join(targets, "\n")
-	lines, err := RunCommandWithInputLines(ctx, []byte(input), "feroxbuster", args...)
+	timeoutDuration := 120 * time.Second
+	if LowResourceFromCtx(ctx) {
+		timeoutDuration = 30 * time.Second
+	}
+	targetCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
+	defer cancel()
+
+	lines, err := RunCommandWithInputLines(targetCtx, []byte(input), "feroxbuster", args...)
 	if err != nil {
 		return nil, fmt.Errorf("feroxbuster execution failed: %w", err)
 	}

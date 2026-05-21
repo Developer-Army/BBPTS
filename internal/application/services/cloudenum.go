@@ -37,6 +37,9 @@ func (t *CloudEnumTool) Run(ctx context.Context, targets []string, threads int) 
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
 	client, _ := network.NewStealthClient(profile, proxy)
+	if client != nil {
+		client.SetCustomHeaders(HeadersFromCtx(ctx))
+	}
 
 	platforms := []string{
 		"s3.amazonaws.com",

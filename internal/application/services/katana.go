@@ -24,6 +24,11 @@ func (t *KatanaTool) Run(ctx context.Context, targets []string, threads int) ([]
 		args = append(args, "-rl", fmt.Sprintf("%d", rateLimit))
 	}
 
+	headers := HeadersFromCtx(ctx)
+	for k, v := range headers {
+		args = append(args, "-header", fmt.Sprintf("%s: %s", k, v))
+	}
+
 	input := strings.Join(targets, "\n")
 	lines, err := RunCommandWithInputLines(ctx, []byte(input), "katana", args...)
 	if err != nil {

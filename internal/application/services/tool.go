@@ -123,6 +123,7 @@ const (
 	rateLimitContextKey   contextKey = "rate_limit"
 	lowResourceContextKey contextKey = "low_resource"
 	scanModeContextKey    contextKey = "scan_mode"
+	headersContextKey     contextKey = "headers"
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -212,4 +213,15 @@ func GetScanMode(ctx context.Context) string {
 		return mode
 	}
 	return "normal"
+}
+
+func WithHeaders(ctx context.Context, headers map[string]string) context.Context {
+	return context.WithValue(ctx, headersContextKey, headers)
+}
+
+func HeadersFromCtx(ctx context.Context) map[string]string {
+	if headers, ok := ctx.Value(headersContextKey).(map[string]string); ok {
+		return headers
+	}
+	return nil
 }

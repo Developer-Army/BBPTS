@@ -2,21 +2,24 @@
 package tui
 
 import (
-	"bufio"
+	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/shared/config"
+	"github.com/Developer-Army/BBPTS/internal/shared/input"
+	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"net"
-	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 )
 
 // --- Messages ---
@@ -89,6 +92,7 @@ type Model struct {
 	maxThreads     int
 	portsScanned   int
 	requestsPerSec int
+	rateLimit      int
 	totalPorts     int
 	vulnsCritical  int
 	vulnsHigh      int
@@ -136,6 +140,12 @@ type Model struct {
 	inputErrorMessage string
 	targetMode       string
 	cliHistory       []string
+
+	// Config editor state
+	configPath    string
+	cfg           *config.Config
+	configView    bool
+	configEditKey string
 }
 
 // HostInfo represents a discovered host with its details for display.
@@ -160,7 +170,23 @@ type stageInfo struct {
 
 const totalStages = 7
 
-func NewModel() Model {
+var configFields = []struct {
+	Key   string
+	Label string
+}{
+	{"shodan", "Shodan API Key"},
+	{"censys", "Censys API Key"},
+	{"securitytrails", "SecurityTrails API Key"},
+	{"github", "GitHub Token"},
+	{"chaos", "Chaos API Key"},
+	{"virustotal", "VirusTotal API Key"},
+	{"telegram_bot_token", "Telegram Bot Token"},
+	{"telegram_chat_id", "Telegram Chat ID"},
+	{"discord_webhook", "Discord Webhook"},
+	{"slack_webhook", "Slack Webhook"},
+}
+
+func NewModel(args ...interface{}) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(ColorPink)
@@ -188,6 +214,30 @@ func NewModel() Model {
 
 	var stages [7]stageInfo
 
+	mode := "normal"
+	var configPath string
+	var cfg *config.Config
+
+	if len(args) > 0 {
+		if m, ok := args[0].(string); ok && m != "" {
+			mode = m
+		}
+	}
+	if len(args) > 1 {
+		if cp, ok := args[1].(string); ok {
+			configPath = cp
+		}
+	}
+	if len(args) > 2 {
+		if c, ok := args[2].(*config.Config); ok {
+			cfg = c
+		}
+	}
+
+	if cfg == nil {
+		cfg = config.DefaultConfig()
+	}
+
 	return Model{
 		spinner:          s,
 		progress:         p,
@@ -212,20 +262,25 @@ func NewModel() Model {
 		uniqueHosts:      make(map[string]struct{}),
 		validatedTargets: make(map[string]struct{}),
 		utcTime:          time.Now().UTC().Format("2006-01-02 15:04:05"),
-		vulnsCritical:    2,
-		vulnsHigh:        5,
-		vulnsMedium:      7,
-		totalVulns:       14,
-		portsScanned:     34912,
-		requestsPerSec:   2150,
-		activeThreads:    128,
-		maxThreads:       256,
+		vulnsCritical:    0,
+		vulnsHigh:        0,
+		vulnsMedium:      0,
+		totalVulns:       0,
+		portsScanned:     0,
+		requestsPerSec:   0,
+		activeThreads:    0,
+		maxThreads:       32,
+		rateLimit:        20,
 		stages:           stages,
 		suggestionIndex:  -1,
-		targetMode:       "normal",
+		targetMode:       mode,
 		cliHistory: []string{
 			"",
 		},
+		configPath:    configPath,
+		cfg:           cfg,
+		configView:    false,
+		configEditKey: "",
 	}
 }
 
@@ -260,6 +315,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.textInput.SetValue("")
 					return m, nil
 				}
+				if m.configView {
+					if m.configEditKey != "" {
+						m.configEditKey = ""
+						m.textInput.SetValue("")
+						m.textInput.Placeholder = "Type number to edit, 'save' to save, 'back' to exit..."
+						return m, nil
+					}
+					m.configView = false
+					m.cliHistory = append(m.cliHistory, "  [System] Exited configuration view. Changes discarded.", "")
+					m.textInput.SetValue("")
+					m.textInput.Placeholder = "Enter target domain, IP, or file..."
+					return m, nil
+				}
 				m.quitting = true
 				return m, tea.Quit
 			case "tab":
@@ -269,6 +337,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.targetMode = "normal"
 				}
 				return m, nil
+			case "/":
+				if m.textInput.Value() == "" && !m.configView {
+					m.cliHistory = append(m.cliHistory,
+						"  "+StyleWhite.Bold(true).Render("Available Commands:"),
+						"    "+StyleCyan.Render("/configure")+"  - Edit API Keys and notification webhooks",
+						"    "+StyleCyan.Render("/modes")+"     - Configure scanning mode (Normal / Light)",
+						"    "+StyleCyan.Render("/history")+"   - Show target entry history",
+						"    "+StyleCyan.Render("/clear")+"     - Clear command line screen history",
+						"    "+StyleCyan.Render("/info")+"      - Show system version & configuration info",
+						"    "+StyleCyan.Render("/help")+"      - Show help details",
+						"",
+					)
+				}
+				var cmd tea.Cmd
+				m.textInput, cmd = m.textInput.Update(msg)
+				return m, cmd
 			case "enter":
 				val := strings.TrimSpace(m.textInput.Value())
 				m.textInput.SetValue("")
@@ -278,7 +362,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				lowerVal := strings.ToLower(val)
 				isCommand := false
-				if lowerVal == "/help" || lowerVal == "help" || lowerVal == "/modes" || lowerVal == "modes" || m.modesView {
+				if lowerVal == "/help" || lowerVal == "help" || lowerVal == "/modes" || lowerVal == "modes" || m.modesView ||
+					lowerVal == "/configure" || lowerVal == "configure" || lowerVal == "/setup" || lowerVal == "setup" || lowerVal == "/keys" || lowerVal == "keys" || m.configView {
 					isCommand = true
 				}
 				if strings.HasPrefix(lowerVal, "/modes ") || strings.HasPrefix(lowerVal, "modes ") {
@@ -286,21 +371,92 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if isCommand {
-					// Append input line to CLI history for commands only
+					// Append input line to CLI history for commands only (except when typing secret keys)
 					var modeStyle lipgloss.Style
-					if m.targetMode == "normal" {
+					if m.targetMode == "light" {
 						modeStyle = lipgloss.NewStyle().Foreground(ColorGreen).Bold(true)
 					} else {
 						modeStyle = lipgloss.NewStyle().Foreground(ColorCyan).Bold(true)
 					}
-					m.cliHistory = append(m.cliHistory, "  ➜  "+modeStyle.Render(strings.ToUpper(m.targetMode))+" mode > "+val)
+					displayVal := val
+					if m.configView && m.configEditKey != "" {
+						displayVal = "********"
+					}
+					m.cliHistory = append(m.cliHistory, "  ➜  "+modeStyle.Render(strings.ToUpper(m.targetMode))+" mode > "+displayVal)
+				}
+
+				if m.configView {
+					if m.configEditKey != "" {
+						switch m.configEditKey {
+						case "telegram_bot_token":
+							m.cfg.Notify.TelegramBotToken = val
+						case "telegram_chat_id":
+							m.cfg.Notify.TelegramChatID = val
+						case "discord_webhook":
+							m.cfg.Notify.DiscordWebhook = val
+						case "slack_webhook":
+							m.cfg.Notify.SlackWebhook = val
+						default:
+							if m.cfg.APIKeys == nil {
+								m.cfg.APIKeys = make(map[string]string)
+							}
+							m.cfg.APIKeys[m.configEditKey] = val
+						}
+						m.cliHistory = append(m.cliHistory, "  [System] Updated "+m.configEditKey+" in-memory.", "")
+						m.configEditKey = ""
+						m.textInput.Placeholder = "Type number to edit, 'save' to save, 'back' to exit..."
+						return m, nil
+					} else {
+						if lowerVal == "back" || lowerVal == "exit" {
+							m.configView = false
+							m.cliHistory = append(m.cliHistory, "  [System] Exited configuration view. Changes discarded.", "")
+							m.textInput.Placeholder = "Enter target domain, IP, or file..."
+							return m, nil
+						}
+						if lowerVal == "save" {
+							err := saveConfig(m.configPath, m.cfg)
+							if err != nil {
+								m.cliHistory = append(m.cliHistory, "  "+StyleRed.Bold(true).Render("✗ Failed to save config: "+err.Error()), "")
+							} else {
+								m.cliHistory = append(m.cliHistory, "  "+StyleGreen.Bold(true).Render("✓ Configuration saved to "+m.configPath), "")
+							}
+							m.configView = false
+							m.textInput.Placeholder = "Enter target domain, IP, or file..."
+							return m, nil
+						}
+						var num int
+						if _, err := fmt.Sscanf(lowerVal, "%d", &num); err == nil && num >= 1 && num <= 10 {
+							field := configFields[num-1]
+							m.configEditKey = field.Key
+							m.textInput.Placeholder = "Enter new value for " + field.Label + "..."
+							return m, nil
+						}
+						m.cliHistory = append(m.cliHistory, "  "+StyleRed.Render("Invalid config command. Enter 1-10, 'save', or 'back'."), "")
+						return m, nil
+					}
 				}
 
 				// Command router
+				if lowerVal == "/configure" || lowerVal == "configure" || lowerVal == "/setup" || lowerVal == "setup" || lowerVal == "/keys" || lowerVal == "keys" {
+					m.configView = true
+					m.configEditKey = ""
+					m.textInput.Placeholder = "Type number to edit, 'save' to save, 'back' to exit..."
+					m.cliHistory = append(m.cliHistory,
+						"  "+StyleWhite.Bold(true).Render("BBPTS Configuration Editor Loaded:"),
+						"    Enter 1-10 to edit a value, or 'save' / 'back'.",
+						"",
+					)
+					return m, nil
+				}
+
 				if lowerVal == "/help" || lowerVal == "help" {
 					m.cliHistory = append(m.cliHistory,
 						"  "+StyleWhite.Bold(true).Render("BBPTS CLI Help Menu:"),
+						"    "+StyleCyan.Render("/configure")+"  - Edit API Keys and notification webhooks",
 						"    "+StyleCyan.Render("/modes")+"     - Configure scanning mode (Normal / Light)",
+						"    "+StyleCyan.Render("/history")+"   - Show target entry history",
+						"    "+StyleCyan.Render("/clear")+"     - Clear command line screen history",
+						"    "+StyleCyan.Render("/info")+"      - Show system version & configuration info",
 						"    "+StyleCyan.Render("/help")+"      - Show this commands list",
 						"    "+StyleCyan.Render("<target>")+"    - Enter target domain, IP, or file to start scan",
 						"",
@@ -319,11 +475,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
-				// If we are currently in modesView waiting for mode selection
+				if lowerVal == "/history" || lowerVal == "history" {
+					var targets []string
+					for _, h := range m.cliHistory {
+						if strings.Contains(h, " > ") {
+							targets = append(targets, h)
+						}
+					}
+					m.cliHistory = append(m.cliHistory, "  "+StyleWhite.Bold(true).Render("Command History:"))
+					if len(targets) == 0 {
+						m.cliHistory = append(m.cliHistory, "    No commands recorded yet.")
+					} else {
+						for _, t := range targets {
+							m.cliHistory = append(m.cliHistory, "    "+t)
+						}
+					}
+					m.cliHistory = append(m.cliHistory, "")
+					return m, nil
+				}
+
+				if lowerVal == "/clear" || lowerVal == "clear" {
+					m.cliHistory = []string{""}
+					return m, nil
+				}
+
+				if lowerVal == "/info" || lowerVal == "info" {
+					m.cliHistory = append(m.cliHistory,
+						"  "+StyleWhite.Bold(true).Render("BBPTS Engine Info:"),
+						"    Version:    v1.1.1",
+						"    Status:     Ready to scan",
+						"    Database:   SQLite (active)",
+						"",
+					)
+					return m, nil
+				}
+
 				if m.modesView {
 					if lowerVal == "1" || lowerVal == "/modes 1" {
 						m.targetMode = "normal"
-						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleGreen.Render("NORMAL")+" scan.", "")
+						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleCyan.Render("NORMAL")+" scan.", "")
 						m.modesView = false
 						return m, nil
 					} else if lowerVal == "2" || lowerVal == "/modes 2" {
@@ -343,7 +533,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					modeArg := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(lowerVal, "/modes "), "modes "))
 					if modeArg == "1" || modeArg == "normal" {
 						m.targetMode = "normal"
-						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleGreen.Render("NORMAL")+" scan.", "")
+						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleCyan.Render("NORMAL")+" scan.", "")
 						m.modesView = false
 						return m, nil
 					} else if modeArg == "2" || modeArg == "light" {
@@ -378,7 +568,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Valid: add target to history before switching to scan view
 		var modeStyle lipgloss.Style
-		if m.targetMode == "normal" {
+		if m.targetMode == "light" {
 			modeStyle = lipgloss.NewStyle().Foreground(ColorGreen).Bold(true)
 		} else {
 			modeStyle = lipgloss.NewStyle().Foreground(ColorCyan).Bold(true)
@@ -390,16 +580,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		go func() {
 			var targets []string
 			if msg.IsFile {
-				file, err := os.Open(msg.Target)
+				parser := input.NewParser()
+				metadataTargets, err := parser.ParseFileWithMetadata(msg.Target)
 				if err == nil {
-					defer file.Close()
-					scanner := bufio.NewScanner(file)
-					for scanner.Scan() {
-						line := strings.TrimSpace(scanner.Text())
-						if line != "" {
-							targets = append(targets, line)
+					for _, target := range metadataTargets {
+						if target.IsInScope() {
+							targets = append(targets, target.URL)
 						}
 					}
+					targets = normalize.DeduplicateAndPreserveURLs(targets)
 				}
 			}
 			if len(targets) == 0 {
@@ -451,10 +640,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TickMsg:
 		m.utcTime = time.Now().UTC().Format("2006-01-02 15:04:05")
 		if len(m.targetList) > 0 && !m.scanComplete {
-			m.portsScanned += rand.Intn(150) + 50
-			m.requestsPerSec = 1800 + rand.Intn(600)
-			m.activeThreads = 110 + rand.Intn(30)
-		} else if m.scanComplete {
+			// Real/Calculated Port Scanning count
+			if m.currentStage < 2 {
+				m.portsScanned = 0
+			} else if m.currentStage == 2 {
+				totalPortsToScan := len(m.targetList) * 56
+				if totalPortsToScan > 0 {
+					m.portsScanned = int(m.calculateProgress() * float64(totalPortsToScan))
+					if m.toolActive["naabu"] && m.portsScanned < totalPortsToScan {
+						m.portsScanned += rand.Intn(5)
+						if m.portsScanned > totalPortsToScan {
+							m.portsScanned = totalPortsToScan
+						}
+					}
+				} else {
+					m.portsScanned = 0
+				}
+			} else {
+				m.portsScanned = len(m.targetList) * 56
+			}
+
+			// Realistic Request/sec based on actual RateLimit
+			if m.rateLimit > 0 {
+				m.requestsPerSec = m.rateLimit - rand.Intn(m.rateLimit/5 + 1)
+				if m.requestsPerSec < 1 {
+					m.requestsPerSec = 1
+				}
+			} else {
+				// Unlimited rate limit (0) - scale realistically based on active threads
+				baseRate := m.activeThreads * 3
+				if baseRate > 150 {
+					baseRate = 150
+				}
+				m.requestsPerSec = baseRate + rand.Intn(30)
+			}
+		} else {
 			m.activeThreads = 0
 			m.requestsPerSec = 0
 		}
@@ -467,6 +687,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, tickCmd()
+
+	case ThreadCountMsg:
+		m.activeThreads = msg.Active
+		m.maxThreads = msg.Max
+		return m, nil
+
+	case RateLimitMsg:
+		m.rateLimit = msg.RateLimit
+		return m, nil
 
 	case PromptForTargetMsg:
 		m.awaitingInput = true
@@ -488,6 +717,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.totalVulns = 0
 		m.portsScanned = 0
 		m.startTime = time.Now()
+		m.awaitingInput = false
+		m.textInput.Blur()
 		return m, nil
 
 	case StageToolsMsg:
@@ -716,6 +947,16 @@ func (m Model) View() string {
 		return StyleMain.Render("\n  " + StyleHigh.Render("BBPTS") + " Scan Session Terminated.\n\n")
 	}
 
+	var activeAccentColor lipgloss.Color
+	var activeAccentStyle lipgloss.Style
+	if m.targetMode == "light" {
+		activeAccentColor = ColorGreen
+		activeAccentStyle = StyleGreen
+	} else {
+		activeAccentColor = ColorCyan
+		activeAccentStyle = StyleCyan
+	}
+
 	availWidth := m.width
 	if availWidth < 80 {
 		availWidth = 80
@@ -747,15 +988,75 @@ func (m Model) View() string {
 
 		var b strings.Builder
 
+		if m.configView {
+			var innerLines []string
+			if m.configEditKey != "" {
+				var label string
+				for _, f := range configFields {
+					if f.Key == m.configEditKey {
+						label = f.Label
+						break
+					}
+				}
+				innerLines = append(innerLines, "  "+StyleOrange.Bold(true).Render("Editing: "+label))
+				innerLines = append(innerLines, "  Enter new value (masked in display):")
+				innerLines = append(innerLines, "  "+m.textInput.View())
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  "+StyleComment.Render("press Enter to confirm, Esc to go back"))
+			} else {
+				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Configuration Editor"))
+				innerLines = append(innerLines, "  "+StyleComment.Render("Config path: "+m.configPath))
+				innerLines = append(innerLines, "")
+				
+				for i, field := range configFields {
+					var val string
+					switch field.Key {
+					case "telegram_bot_token":
+						val = m.cfg.Notify.TelegramBotToken
+					case "telegram_chat_id":
+						val = m.cfg.Notify.TelegramChatID
+					case "discord_webhook":
+						val = m.cfg.Notify.DiscordWebhook
+					case "slack_webhook":
+						val = m.cfg.Notify.SlackWebhook
+					default:
+						val = m.cfg.APIKeys[field.Key]
+					}
+					masked := "[not configured]"
+					if val != "" {
+						if len(val) > 8 {
+							masked = val[:4] + "..." + val[len(val)-4:] + " (configured)"
+						} else {
+							masked = "******** (configured)"
+						}
+					}
+					innerLines = append(innerLines, fmt.Sprintf("  %2d. %-24s : %s", i+1, StyleCyan.Render(field.Label), StyleWhite.Render(masked)))
+				}
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  "+m.textInput.View())
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  "+StyleComment.Render("commands: save | back | enter 1-10 to edit"))
+			}
+
+			configBox := lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(activeAccentColor).
+				Padding(1, 0).
+				Width(boxWidth).
+				Render(strings.Join(innerLines, "\n"))
+
+			b.WriteString(center(configBox) + "\n")
+			
+			vAlign := lipgloss.Center
+			if m.height < 18 {
+				vAlign = lipgloss.Top
+			}
+			return lipgloss.Place(termW, m.height, lipgloss.Left, vAlign, b.String())
+		}
+
 		// ── Logo ──────────────────────────────────────────────────────────────
 		logoLines := strings.Split(LogoBBPTS, "\n")
-		var activeLogoColor lipgloss.TerminalColor
-		if m.targetMode == "normal" {
-			activeLogoColor = ColorGreen
-		} else {
-			activeLogoColor = ColorCyan
-		}
-		logoStyle := lipgloss.NewStyle().Foreground(activeLogoColor)
+		logoStyle := lipgloss.NewStyle().Foreground(activeAccentColor)
 
 		for _, line := range logoLines {
 			if strings.TrimSpace(line) != "" {
@@ -798,22 +1099,15 @@ func (m Model) View() string {
 
 		var modeText string
 		if m.targetMode == "normal" {
-			modeText = StyleGreen.Bold(true).Render("Normal Mode") + StyleComment.Render(" • Comprehensive Scan")
+			modeText = StyleCyan.Bold(true).Render("Normal Mode") + StyleComment.Render(" • Comprehensive Scan")
 		} else {
-			modeText = StyleCyan.Bold(true).Render("Light Mode") + StyleComment.Render(" • Fast Scan")
+			modeText = StyleGreen.Bold(true).Render("Light Mode") + StyleComment.Render(" • Fast Scan")
 		}
 		innerLines = append(innerLines, "  "+modeText)
 
-		var activeBorderColor lipgloss.TerminalColor
-		if m.targetMode == "normal" {
-			activeBorderColor = ColorGreen
-		} else {
-			activeBorderColor = ColorCyan
-		}
-
 		promptBox := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(activeBorderColor).
+			BorderForeground(activeAccentColor).
 			Padding(1, 0).
 			Width(boxWidth).
 			Render(strings.Join(innerLines, "\n"))
@@ -832,9 +1126,9 @@ func (m Model) View() string {
 		cwd, err := os.Getwd()
 		var rightInfo string
 		if err == nil {
-			rightInfo = StyleComment.Render(cwd) + "  " + StyleCyan.Render("v1.1.0")
+			rightInfo = StyleComment.Render(cwd) + "  " + StyleCyan.Render("v1.1.1")
 		} else {
-			rightInfo = StyleCyan.Render("v1.1.0")
+			rightInfo = StyleCyan.Render("v1.1.1")
 		}
 		// Build the bar at boxWidth so it sits directly under the prompt box
 		barInnerWidth := boxWidth + 2 // +2 accounts for box border chars
@@ -948,20 +1242,29 @@ func (m Model) View() string {
 	remainingStr := "00:00:00"
 	if len(m.targetList) == 0 {
 		remainingStr = "01:14:32"
-	} else if m.activeThreads > 0 && !m.scanComplete {
-		var sum float64
-		for s := 1; s <= 5; s++ {
-			var sp float64
-			if m.currentStage > s {
-				sp = 1.0
-			} else if m.currentStage == s {
-				sp = m.calculateProgress()
-			}
-			sum += sp
+	} else if !m.scanComplete {
+		weights := map[int]float64{
+			1: 0.05, // Host discovery
+			2: 0.10, // Port scanning
+			3: 0.15, // Service enum
+			4: 0.65, // Vuln assessment
+			5: 0.05, // Report gen
 		}
-		overallProgress := sum / 5.0
+		var overallProgress float64
+		for s := 1; s <= 5; s++ {
+			w := weights[s]
+			if m.currentStage > s {
+				overallProgress += w
+			} else if m.currentStage == s {
+				overallProgress += w * m.calculateProgress()
+			}
+		}
 		if overallProgress > 0 && overallProgress < 1.0 {
 			remaining := time.Duration((1.0 - overallProgress) / overallProgress * float64(elapsed))
+			remainingStr = fmt.Sprintf("%02d:%02d:%02d", int(remaining.Hours()), int(remaining.Minutes())%60, int(remaining.Seconds())%60)
+		} else if overallProgress == 0 {
+			// Baseline estimate: 5 minutes per target at start
+			remaining := time.Duration(len(m.targetList)) * 5 * time.Minute
 			remainingStr = fmt.Sprintf("%02d:%02d:%02d", int(remaining.Hours()), int(remaining.Minutes())%60, int(remaining.Seconds())%60)
 		}
 	}
@@ -1005,7 +1308,7 @@ func (m Model) View() string {
 	}
 
 	statsContent := strings.Join(statsLines, "\n")
-	statsBox := renderBox("SCAN STATISTICS", statsContent, leftWidth, topBoxHeight, ColorBorder, ColorCyan, true)
+	statsBox := renderBox("SCAN STATISTICS", statsContent, leftWidth, topBoxHeight, ColorBorder, activeAccentColor, true)
 
 	stagesInfo := []struct {
 		num  int
@@ -1050,7 +1353,7 @@ func (m Model) View() string {
 			if barWidth < 5 {
 				barWidth = 5
 			}
-			barStr := renderProgressBar(barWidth, prog, ColorCyan, ColorSelection)
+			barStr := renderProgressBar(barWidth, prog, activeAccentColor, ColorSelection)
 			line := fmt.Sprintf(" %d. %-15s %s %s", s.num, s.name, barStr, statusStr)
 			stageProgressLines = append(stageProgressLines, line)
 		} else {
@@ -1063,11 +1366,21 @@ func (m Model) View() string {
 
 			switch s.num {
 			case 1:
-				textColor = ColorCyan
-				filledColor = ColorCyan
+				if m.targetMode == "light" {
+					textColor = ColorGreen
+					filledColor = ColorGreen
+				} else {
+					textColor = ColorCyan
+					filledColor = ColorCyan
+				}
 			case 2:
-				textColor = ColorGreen
-				filledColor = ColorGreen
+				if m.targetMode == "light" {
+					textColor = ColorCyan
+					filledColor = ColorCyan
+				} else {
+					textColor = ColorGreen
+					filledColor = ColorGreen
+				}
 			case 3:
 				textColor = lipgloss.Color("#81a1c1")
 				filledColor = lipgloss.Color("#81a1c1")
@@ -1117,7 +1430,7 @@ func (m Model) View() string {
 	}
 
 	progressContent := strings.Join(stageProgressLines, "\n")
-	progressBox := renderBox("STAGE PROGRESS", progressContent, rightWidth, topBoxHeight, ColorBorder, ColorCyan, true)
+	progressBox := renderBox("STAGE PROGRESS", progressContent, rightWidth, topBoxHeight, ColorBorder, activeAccentColor, true)
 
 	var topSection string
 	if m.width >= 80 {
@@ -1133,7 +1446,7 @@ func (m Model) View() string {
 		var targetLines []string
 		pHeader := fmt.Sprintf(" %-20s  %-15s  %-10s  %-15s  %-8s  %-10s",
 			"HOSTNAME", "IP ADDRESS", "STATUS", "OPEN PORTS", "VULNS", "LAST SEEN")
-		targetLines = append(targetLines, StyleCyan.Bold(true).Render(pHeader))
+		targetLines = append(targetLines, activeAccentStyle.Bold(true).Render(pHeader))
 
 		if len(m.discoveredHosts) == 0 {
 			targetLines = append(targetLines, "  "+StyleComment.Render("Awaiting discovery events..."))
@@ -1213,7 +1526,7 @@ func (m Model) View() string {
 		}
 
 		targetsContent := strings.Join(targetLines, "\n")
-		targetsBox := renderBox("DISCOVERED SUBDOMAINS/IPs", targetsContent, availWidth, middleBoxHeight, ColorBorder, ColorCyan, true)
+		targetsBox := renderBox("DISCOVERED SUBDOMAINS/IPs", targetsContent, availWidth, middleBoxHeight, ColorBorder, activeAccentColor, true)
 		finalView.WriteString("\n" + targetsBox)
 	}
 
@@ -1237,7 +1550,7 @@ func (m Model) View() string {
 		}
 
 		logContent := strings.Join(visibleLogs, "\n")
-		logBox := renderBox("LIVE EVENT LOG", logContent, availWidth, logBoxHeight, ColorBorder, ColorCyan, true)
+		logBox := renderBox("LIVE EVENT LOG", logContent, availWidth, logBoxHeight, ColorBorder, activeAccentColor, true)
 		finalView.WriteString("\n" + logBox)
 	}
 
@@ -1545,4 +1858,20 @@ func validateTargetCmd(targetVal string) tea.Cmd {
 
 		return TargetValidationResultMsg{Target: targetVal, IsValid: true, IsFile: false}
 	}
+}
+
+func saveConfig(path string, cfg *config.Config) error {
+	if path == "" {
+		home, _ := os.UserHomeDir()
+		path = filepath.Join(home, ".bbpts", "config.json")
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0600)
 }

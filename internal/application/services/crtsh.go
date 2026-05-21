@@ -41,6 +41,9 @@ func (t *CrtshTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
 	client, _ := network.NewStealthClient(profile, proxy)
+	if client != nil {
+		client.SetCustomHeaders(HeadersFromCtx(ctx))
+	}
 	var hadAttempt bool
 	var lastErr error
 	for _, target := range targets {

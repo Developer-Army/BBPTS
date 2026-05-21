@@ -45,6 +45,11 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		args = append(args, "-rate-limit", fmt.Sprintf("%d", rateLimit))
 	}
 
+	headers := HeadersFromCtx(ctx)
+	for k, v := range headers {
+		args = append(args, "-header", fmt.Sprintf("%s: %s", k, v))
+	}
+
 	// Optimization: Pass targets via stdin instead of arguments to avoid ARG_MAX OS limits
 	input := strings.Join(targets, "\n")
 	lines, err := RunCommandWithInputLines(ctx, []byte(input), "httpx", args...)

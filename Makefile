@@ -13,9 +13,9 @@ else
  BINARY_EXT=
 endif
 
-.PHONY: all build build-release test test-short test-race bench lint vet fmt \
- security doctor validate validate-framework clean install uninstall setup help \
- coverage docker
+.PHONY: all build build-full build-fleet build-release dist test test-short test-race bench \
+	lint vet fmt security doctor validate validate-framework clean install \
+	install-user uninstall uninstall-user setup help coverage docker
 
 all: build
 
@@ -41,6 +41,26 @@ build-fleet:
 build-release:
 	@echo " Building release binary with optimizations..."
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -trimpath -o $(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
+
+# Cross-compile for all platforms → dist/
+dist:
+	@echo " Building all platform binaries → dist/"
+	@mkdir -p dist
+	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_linux_amd64          $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=linux   GOARCH=arm64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_linux_arm64          $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=linux   GOARCH=386    go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_linux_386            $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_darwin_amd64         $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_darwin_arm64         $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_windows_amd64.exe   $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_windows_arm64.exe   $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_freebsd_amd64       $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=freebsd GOARCH=arm64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_freebsd_arm64       $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=freebsd GOARCH=386    go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_freebsd_386         $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_openbsd_amd64       $(CMD_PATH)
+	CGO_ENABLED=0 GOOS=openbsd GOARCH=arm64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_openbsd_arm64       $(CMD_PATH)
+	@echo " All binaries written to ./dist/"
+	@ls -lh dist/
+
 
 # ─────────────────────────────────────────
 # Test Targets
@@ -126,7 +146,12 @@ install: build
 		echo " Failed to install to $(INSTALL_PATH). Trying $(HOME)/.local/bin..."; \
 		mkdir -p $(HOME)/.local/bin && cp $(BINARY_NAME) $(HOME)/.local/bin/; \
 		echo " Installed to $(HOME)/.local/bin"; \
- fi
+	fi
+	@echo " Setting up global configurations in $(HOME)/.bbpts..."
+	@mkdir -p $(HOME)/.bbpts/wordlists $(HOME)/.bbpts/state
+	@cp -n configs/config.json $(HOME)/.bbpts/ 2>/dev/null || true
+	@cp -n configs/rules.json $(HOME)/.bbpts/ 2>/dev/null || true
+	@cp -r wordlists/* $(HOME)/.bbpts/wordlists/
  endif
 
 install-user: build
@@ -134,6 +159,11 @@ install-user: build
 	@mkdir -p $(HOME)/.local/bin
 	@cp $(BINARY_NAME) $(HOME)/.local/bin/
 	@echo " Installed to $(HOME)/.local/bin"
+	@echo " Setting up global configurations in $(HOME)/.bbpts..."
+	@mkdir -p $(HOME)/.bbpts/wordlists $(HOME)/.bbpts/state
+	@cp -n configs/config.json $(HOME)/.bbpts/ 2>/dev/null || true
+	@cp -n configs/rules.json $(HOME)/.bbpts/ 2>/dev/null || true
+	@cp -r wordlists/* $(HOME)/.bbpts/wordlists/
 	@echo " Make sure '$(HOME)/.local/bin' is in your PATH to use '$(BINARY_NAME)' globally."
 
 uninstall-user:
@@ -184,9 +214,12 @@ help:
 	@echo "╚══════════════════════════════════════════════╝"
 	@echo ""
 	@echo " Build:"
-	@echo " build Build the binary (debug)"
-	@echo " build-release Build optimized release binary"
-	@echo " docker Build Docker image"
+	@echo " build          Build the binary (debug)"
+	@echo " build-full     Build with NATS + Redis support"
+	@echo " build-fleet    Build with NATS + Redis + Playwright"
+	@echo " build-release  Build optimized release binary (current platform)"
+	@echo " dist           Cross-compile for Linux/macOS/Windows → dist/"
+	@echo " docker         Build Docker image"
 	@echo ""
 	@echo " Test:"
 	@echo " test Run all tests with verbose output"

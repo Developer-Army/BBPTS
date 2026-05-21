@@ -322,8 +322,8 @@ docker run -it \
 ```json
 {
   "proxies": [
-    "http://proxy1.example.com:8080",
-    "http://proxy2.example.com:8080"
+    "http://proxy1.acme-corp.io:8080",
+    "http://proxy2.acme-corp.io:8080"
   ]
 }
 ```
@@ -354,7 +354,7 @@ Example fragment:
     "acme_scope": {
       "tools": "crtsh,subfinder,httpx",
       "rate_limit": 12,
-      "exclude_hosts": ["legacy-out-of-scope.example.com"],
+      "exclude_hosts": ["legacy-out-of-scope.acme-corp.io"],
       "exclude_suffix": [".corp.internal"]
     }
   }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 type DalfoxTool struct{}
@@ -27,46 +28,91 @@ func (t *DalfoxTool) Run(ctx context.Context, targets []string, threads int) ([]
 		return nil, nil
 	}
 
-	events := make([]Event, 0)
+	var validTargets []string
 	for _, target := range targets {
-		args := []string{"url", target, "--json"}
-		lines, err := RunCommandLines(ctx, "dalfox", args...)
-		if err != nil {
-			return nil, fmt.Errorf("dalfox execution failed for %s: %w", target, err)
-		}
-
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			var out dalfoxOutput
-			if err := json.Unmarshal([]byte(line), &out); err != nil {
-				continue
-			}
-
-			if out.URL == "" {
-				continue
-			}
-
-			props := map[string]string{}
-			if out.Severity != "" {
-				props["severity"] = out.Severity
-			}
-			if out.Payload != "" {
-				props["payload"] = out.Payload
-			}
-			if out.Parameter != "" {
-				props["parameter"] = out.Parameter
-			}
-			if out.Evidence != "" {
-				props["evidence"] = out.Evidence
-			}
-
-			events = append(events, NewEvent(out.URL, t.Name(), "vulnerability", props))
+		if strings.HasPrefix(target, "http") {
+			validTargets = append(validTargets, target)
 		}
 	}
+	if len(validTargets) == 0 {
+		return nil, nil
+	}
 
+	maxWorkers := threads
+	if maxWorkers > 5 {
+		maxWorkers = 5
+	}
+	if maxWorkers < 1 {
+		maxWorkers = 1
+	}
+
+	events := make([]Event, 0)
+	var mu sync.Mutex
+	sem := make(chan struct{}, maxWorkers)
+	var wg sync.WaitGroup
+
+	for _, target := range validTargets {
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return
+			}
+
+			args := []string{"url", url, "--json"}
+			headers := HeadersFromCtx(ctx)
+			for k, v := range headers {
+				args = append(args, "-H", fmt.Sprintf("%s: %s", k, v))
+			}
+			lines, err := RunCommandLines(ctx, "dalfox", args...)
+			if err != nil {
+				return
+			}
+
+			var targetEvents []Event
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+
+				var out dalfoxOutput
+				if err := json.Unmarshal([]byte(line), &out); err != nil {
+					continue
+				}
+
+				if out.URL == "" {
+					continue
+				}
+
+				props := map[string]string{}
+				if out.Severity != "" {
+					props["severity"] = out.Severity
+				}
+				if out.Payload != "" {
+					props["payload"] = out.Payload
+				}
+				if out.Parameter != "" {
+					props["parameter"] = out.Parameter
+				}
+				if out.Evidence != "" {
+					props["evidence"] = out.Evidence
+				}
+
+				targetEvents = append(targetEvents, NewEvent(out.URL, t.Name(), "vulnerability", props))
+			}
+
+			if len(targetEvents) > 0 {
+				mu.Lock()
+				events = append(events, targetEvents...)
+				mu.Unlock()
+			}
+		}(target)
+	}
+
+	wg.Wait()
 	return events, nil
 }

@@ -31,6 +31,17 @@ type StageToolsMsg struct {
 	Tools []string
 }
 
+// ThreadCountMsg notifies the TUI of the thread configuration.
+type ThreadCountMsg struct {
+	Active int
+	Max    int
+}
+
+// RateLimitMsg notifies the TUI of the requests per second rate limit.
+type RateLimitMsg struct {
+	RateLimit int
+}
+
 // Bridge acts as a connector between the CLI logic and the TUI.
 type Bridge struct {
 	Program *tea.Program
@@ -148,6 +159,27 @@ func (b *Bridge) ReportFailure(tool, detail string) {
 	b.Program.Send(FailureMsg{
 		Tool:   tool,
 		Detail: detail,
+	})
+}
+
+// SendThreadCount sends the actual active and max threads to the TUI.
+func (b *Bridge) SendThreadCount(active, max int) {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(ThreadCountMsg{
+		Active: active,
+		Max:    max,
+	})
+}
+
+// SendRateLimit sends the configured rate limit to the TUI.
+func (b *Bridge) SendRateLimit(rateLimit int) {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(RateLimitMsg{
+		RateLimit: rateLimit,
 	})
 }
 

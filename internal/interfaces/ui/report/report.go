@@ -372,6 +372,11 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 	content += fmt.Sprintf("> **Risk Level:** %s | **Targets:** %d | **Findings:** %d\n\n",
 		report.Executive.OverallRisk, report.TargetCount, report.FindingCount)
 
+	content += "---\n\n## 🚀 Quick Start Guide for Beginners\n\n"
+	content += "1. **Import Configs**: Load `burp-import.xml` in Burp Suite (`Project` > `Import scan items`) or `caido-import.json` in Caido (`Workspaces` > `Import`).\n"
+	content += "2. **Open Target**: Click target domain links or evidence URLs below to open targets in your browser configured with your proxy.\n"
+	content += "3. **Run Checklists**: Follow step-by-step checklists under each finding. Check them off as you test.\n\n"
+
 	content += "---\n\n## 📊 Executive Summary\n\n"
 	content += fmt.Sprintf("| Critical | High | Medium | Low |\n| :---: | :---: | :---: | :---: |\n| %d | %d | %d | %d |\n\n",
 		report.CriticalCount, report.HighCount, report.MediumCount, report.LowCount)
@@ -396,8 +401,9 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 			severityEmoji = "🔵"
 		}
 
-		content += fmt.Sprintf("<details>\n<summary><b>%s %s</b> (Score: %d)</summary>\n\n",
-			severityEmoji, finding.Target, finding.Score)
+		targetURL := makeURL(finding.Target)
+		content += fmt.Sprintf("<details>\n<summary><b>%s <a href=\"%s\">%s</a></b> (Score: %d)</summary>\n\n",
+			severityEmoji, targetURL, finding.Target, finding.Score)
 
 		content += "###  Security Analysis\n"
 		for _, reason := range strings.Split(finding.Description, "; ") {
@@ -406,15 +412,31 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 		content += "\n"
 
 		if finding.Evidence != "" {
-			content += "### 🔗 Discovery Context\n"
-			content += finding.Evidence + "\n\n"
+			content += "### 🔗 Discovery Context / Evidence URLs\n"
+			parts := strings.Split(finding.Evidence, " | ")
+			var urls []string
+			discoveredBy := ""
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if strings.HasPrefix(p, "Discovered by:") {
+					discoveredBy = p
+				} else if p != "" {
+					urls = append(urls, p)
+				}
+			}
+			if discoveredBy != "" {
+				content += fmt.Sprintf("*%s*\n", discoveredBy)
+			}
+			for _, u := range urls {
+				content += fmt.Sprintf("- [%s](%s)\n", u, makeURL(u))
+			}
+			content += "\n"
 		}
 
 		if finding.Remediation != "" {
 			content += "### 📝 Recommended Testing Checklist\n"
 			if strings.HasPrefix(finding.Remediation, "Suggested security tests: ") {
 				tests := strings.TrimPrefix(finding.Remediation, "Suggested security tests: ")
-				// Each test is separated by NUL; this preserves commas/parens inside test names.
 				for _, test := range strings.Split(tests, "\x00") {
 					test = strings.TrimSpace(test)
 					if test != "" {
@@ -425,6 +447,16 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 				content += finding.Remediation + "\n"
 			}
 			content += "\n"
+		}
+
+		content += "### 🎯 Next Steps\n"
+		switch strings.ToLower(finding.Severity) {
+		case "critical", "high":
+			content += "> **🔴 Next Action:** High risk target. Open Burp/Caido proxy. Fuzz the parameters listed in the findings with payloads (SQLi probes, SSRF endpoints, XSS scripts). Pay close attention to database-related input fields.\n\n"
+		case "medium":
+			content += "> **🟡 Next Action:** Active endpoints found. Verify authentication bypass mechanisms, look for IDOR vulnerabilities on object IDs in paths, or check CORS parameters for wildcards.\n\n"
+		default:
+			content += "> **🔵 Next Action:** Low priority/recon data. Check for directory listings or sensitive technology disclosures. Verify if security headers like CSP/HSTS are correctly set.\n\n"
 		}
 
 		content += "</details>\n\n"
@@ -475,6 +507,14 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 	return os.WriteFile(outputPath, []byte(content), 0644)
 }
 
+func makeURL(target string) string {
+	target = strings.TrimSpace(target)
+	if strings.Contains(target, "://") {
+		return target
+	}
+	return "https://" + target
+}
+
 // generateHTMLReport exports report as HTML
 func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 	outputPath := filepath.Join(rg.config.OutputPath, "report.html")
@@ -487,72 +527,130 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
     <title>%s</title>
     <style>
         :root {
+            --bg: #0b0f19;
+            --card-bg: #161b26;
+            --border: #242b3d;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
             --primary: #6366f1;
-            --secondary: #4f46e5;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-sub: #64748b;
+            --primary-hover: #4f46e5;
+            --accent: #38bdf8;
             --critical: #ef4444;
-            --high: #f97316;
-            --medium: #f59e0b;
-            --low: #10b981;
+            --high: #fb923c;
+            --medium: #fbbf24;
+            --low: #34d399;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.5; }
-        .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text-main); line-height: 1.6; }
+        .container { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
         header { 
-            background: linear-gradient(135deg, #1e293b 0%%, #334155 100%%); 
-            color: white; 
-            padding: 60px 40px; 
+            background: linear-gradient(135deg, #1e1b4b 0%%, #0f172a 100%%); 
+            border: 1px solid var(--border);
+            padding: 40px; 
             border-radius: 16px; 
-            margin-bottom: 40px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
         }
-        h1 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 8px; }
-        .meta { display: flex; gap: 20px; font-size: 0.875rem; opacity: 0.8; }
-        
-        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+        h1 { font-size: 2.25rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 12px; color: var(--text-main); }
+        .meta { display: flex; flex-wrap: wrap; gap: 24px; font-size: 0.9rem; color: var(--text-sub); }
+        .meta strong { color: var(--accent); }
+        .quick-start-guide {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px dashed var(--primary);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+        }
+        .quick-start-guide h2 { font-size: 1.5rem; margin-bottom: 20px; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .guide-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .step-card { background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid var(--border); position: relative; }
+        .step-num { position: absolute; top: -10px; left: -10px; width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; box-shadow: 0 0 10px var(--primary); }
+        .step-card h3 { font-size: 1.1rem; margin: 5px 0 10px 0; color: var(--text-main); }
+        .step-card p { font-size: 0.875rem; color: var(--text-sub); margin-bottom: 10px; }
+        .step-card ul { list-style: none; padding-left: 0; font-size: 0.825rem; color: var(--text-sub); }
+        .step-card li { margin-bottom: 6px; }
+        .step-card code { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .stats-section { margin-bottom: 40px; }
+        .stats-section h2 { font-size: 1.5rem; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
         .stat-card { 
             background: var(--card-bg); 
             padding: 24px; 
             border-radius: 12px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
             text-align: center;
+            transition: all 0.3s ease;
         }
-        .stat-number { font-size: 1.875rem; font-weight: 700; margin-bottom: 4px; }
-        .stat-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-sub); }
-        
+        .stat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .stat-number { font-size: 2.25rem; font-weight: 800; margin-bottom: 4px; color: var(--text-main); }
+        .stat-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-sub); letter-spacing: 0.05em; }
+        .stat-card.critical .stat-number { color: var(--critical); }
+        .stat-card.high .stat-number { color: var(--high); }
+        .findings-section h2 { font-size: 1.75rem; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
         .finding { 
             background: var(--card-bg); 
             border-radius: 12px; 
-            padding: 32px; 
+            padding: 28px; 
             margin-bottom: 24px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
-            transition: transform 0.2s;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .finding:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .finding-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .finding:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.4); border-color: #3b4252; }
+        .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+        .finding-title { font-size: 1.35rem; font-weight: 700; color: var(--text-main); }
+        .finding-title a { color: var(--text-main); text-decoration: none; border-bottom: 1px dashed var(--accent); transition: color 0.2s; }
+        .finding-title a:hover { color: var(--accent); }
         .severity-badge { 
-            padding: 4px 12px; 
+            padding: 6px 14px; 
             border-radius: 9999px; 
             font-size: 0.75rem; 
-            font-weight: 700; 
+            font-weight: 800; 
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 1px solid transparent;
         }
-        
-        .badge-critical { background: #fee2e2; color: #991b1b; }
-        .badge-high { background: #ffedd5; color: #9a3412; }
-        .badge-medium { background: #fef3c7; color: #92400e; }
-        .badge-low { background: #d1fae5; color: #065f46; }
-        
-        .finding h3 { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
-        .finding-meta { font-size: 0.875rem; color: var(--text-sub); margin-bottom: 16px; }
-        .finding-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9; }
-        .section-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-sub); margin-bottom: 8px; }
-        
-        footer { text-align: center; margin-top: 60px; padding: 40px 0; border-top: 1px solid #e2e8f0; color: var(--text-sub); font-size: 0.875rem; }
+        .badge-critical { background: rgba(239, 68, 68, 0.15); color: var(--critical); border-color: rgba(239, 68, 68, 0.3); }
+        .badge-high { background: rgba(249, 115, 22, 0.15); color: var(--high); border-color: rgba(249, 115, 22, 0.3); }
+        .badge-medium { background: rgba(245, 158, 11, 0.15); color: var(--medium); border-color: rgba(245, 158, 11, 0.3); }
+        .badge-low { background: rgba(52, 211, 153, 0.15); color: var(--low); border-color: rgba(52, 211, 153, 0.3); }
+        .finding-meta { font-size: 0.875rem; color: var(--text-sub); margin-bottom: 20px; display: flex; gap: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+        .finding-meta strong { color: var(--accent); }
+        .finding-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .section-label { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+        .analysis-list { list-style: none; padding-left: 0; }
+        .analysis-list li { position: relative; padding-left: 20px; margin-bottom: 8px; font-size: 0.95rem; color: #cbd5e1; }
+        .analysis-list li::before { content: "•"; position: absolute; left: 0; color: var(--primary); font-size: 1.2rem; line-height: 1; }
+        .evidence-list { list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 8px; }
+        .evidence-list li { font-size: 0.875rem; }
+        .evidence-link { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; word-break: break-all; font-family: monospace; }
+        .evidence-link:hover { border-bottom-color: var(--accent); }
+        .discovered-by { font-size: 0.825rem; color: var(--text-sub); margin-bottom: 10px; font-style: italic; }
+        .checklist { list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 10px; }
+        .checklist li label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; color: #cbd5e1; font-size: 0.925rem; transition: color 0.2s; }
+        .checklist li label:hover { color: var(--text-main); }
+        .checklist li input[type="checkbox"] { width: 1.15em; height: 1.15em; accent-color: var(--primary); cursor: pointer; margin-top: 2px; flex-shrink: 0; }
+        .checklist li input[type="checkbox"]:checked + span { text-decoration: line-through; color: var(--text-sub); opacity: 0.6; }
+        .next-action-box {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-left: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            font-size: 0.9rem;
+            color: #e2e8f0;
+        }
+        .next-action-box.critical, .next-action-box.high { border-left-color: var(--high); }
+        .next-action-box.medium { border-left-color: var(--medium); }
+        .next-action-box.low { border-left-color: var(--low); }
+        .recommendations { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 30px; margin-bottom: 40px; }
+        .recommendations h2 { font-size: 1.5rem; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+        .recommendations-list { padding-left: 20px; color: #cbd5e1; }
+        .recommendations-list li { margin-bottom: 12px; font-size: 0.95rem; }
+        footer { text-align: center; margin-top: 60px; padding: 40px 0; border-top: 1px solid var(--border); color: var(--text-sub); font-size: 0.875rem; }
     </style>
 </head>
 <body>
@@ -560,12 +658,38 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
         <header>
             <h1>%s</h1>
             <div class="meta">
-                <p>Generated: %s</p>
+                <p>Generated: <strong>%s</strong></p>
                 <p>Overall Risk: <strong>%s</strong></p>
             </div>
         </header>
 
-        <section>
+        <div class="quick-start-guide">
+            <h2>🚀 Quick Start Guide for Beginners</h2>
+            <div class="guide-steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <h3>Import Configs</h3>
+                    <p>Load provided files in your proxy tool to view target structure:</p>
+                    <ul>
+                        <li><strong>Burp Suite</strong>: <code>Project</code> &gt; <code>Import scan items</code> (use <code>burp-import.xml</code>)</li>
+                        <li><strong>Caido</strong>: <code>Workspaces</code> &gt; <code>Import</code> (use <code>caido-import.json</code>)</li>
+                        <li><strong>OWASP ZAP</strong>: Import <code>zap-import.xml</code></li>
+                    </ul>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <h3>Open Target Links</h3>
+                    <p>Click any <strong>Target Domain</strong> or <strong>Evidence URL</strong> link in report cards to open target page.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <h3>Perform Checklist</h3>
+                    <p>Follow recommended security testing checklist under each finding. Check them off as you test.</p>
+                </div>
+            </div>
+        </div>
+
+        <section class="stats-section">
             <h2>Statistics</h2>
             <div class="stats">
                 <div class="stat-card">
@@ -587,13 +711,20 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
             </div>
         </section>
 
-        <section>
+        <section class="findings-section">
             <h2>Detailed Findings</h2>
             %s
         </section>
 
+        <section class="recommendations">
+            <h2>Strategic Recommendations</h2>
+            <ul class="recommendations-list">
+                %s
+            </ul>
+        </section>
+
         <footer>
-            <p>&copy; 2024 BBPTS - Bug Bounty Program Tool Set</p>
+            <p>&copy; 2026 BBPTS - Bug Bounty Program Tool Set</p>
         </footer>
     </div>
 </body>
@@ -606,34 +737,120 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 		report.CriticalCount,
 		report.HighCount,
 		report.MediumCount,
-		rg.generateFindingsHTML(report.Findings))
+		rg.generateFindingsHTML(report.Findings),
+		rg.generateRecommendationsHTML(report.Recommendations))
 
 	return os.WriteFile(outputPath, []byte(htmlContent), 0644)
 }
 
-// generateFindingsHTML creates HTML for findings
-func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) string {
-	html := ""
-	for _, finding := range findings {
-		severity := strings.ToLower(finding.Severity)
-		html += fmt.Sprintf(`
-        <div class="finding %s">
-            <div class="finding-header">
-                <h3>%s</h3>
-                <span class="severity-badge %s">%s</span>
-            </div>
-            <p><strong>Target:</strong> %s</p>
-            <p><strong>Score:</strong> %d/100</p>
-            <p><strong>Description:</strong> %s</p>
-            <p><strong>Evidence:</strong> %s</p>
-        </div>
-`, severity, finding.Title, severity, finding.Severity, finding.Target, finding.Score,
-			finding.Description, finding.Evidence)
+// generateRecommendationsHTML formatting helper
+func (rg *ReportGenerator) generateRecommendationsHTML(recs []string) string {
+	var sb strings.Builder
+	for _, rec := range recs {
+		sb.WriteString(fmt.Sprintf("<li>%s</li>", rec))
 	}
-	return html
+	return sb.String()
 }
 
-// exportForBurp exports findings for Burp Suite import
+// generateFindingsHTML creates HTML for findings
+func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) string {
+	var sb strings.Builder
+	for _, finding := range findings {
+		severity := strings.ToLower(finding.Severity)
+		targetURL := makeURL(finding.Target)
+		
+		sb.WriteString(fmt.Sprintf(`<div class="finding %s">`, severity))
+		sb.WriteString(`  <div class="finding-header">`)
+		sb.WriteString(fmt.Sprintf(`    <h3 class="finding-title"><a href="%s" target="_blank">%s</a></h3>`, targetURL, finding.Target))
+		sb.WriteString(fmt.Sprintf(`    <span class="severity-badge badge-%s">%s</span>`, severity, finding.Severity))
+		sb.WriteString(`  </div>`)
+		
+		sb.WriteString(`  <div class="finding-meta">`)
+		sb.WriteString(fmt.Sprintf(`    <span>Score: <strong>%d/100</strong></span>`, finding.Score))
+		if len(finding.Sources) > 0 {
+			sb.WriteString(fmt.Sprintf(`    <span>Sources: <strong>%s</strong></span>`, strings.Join(finding.Sources, ", ")))
+		}
+		sb.WriteString(`  </div>`)
+		
+		sb.WriteString(`  <div class="finding-section">`)
+		sb.WriteString(`    <div class="section-label">🔍 Security Analysis</div>`)
+		sb.WriteString(`    <ul class="analysis-list">`)
+		for _, reason := range strings.Split(finding.Description, "; ") {
+			reason = strings.TrimSpace(reason)
+			if reason != "" {
+				sb.WriteString(fmt.Sprintf(`      <li>%s</li>`, reason))
+			}
+		}
+		sb.WriteString(`    </ul>`)
+		sb.WriteString(`  </div>`)
+		
+		if finding.Evidence != "" {
+			parts := strings.Split(finding.Evidence, " | ")
+			var urls []string
+			discoveredBy := ""
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if strings.HasPrefix(p, "Discovered by:") {
+					discoveredBy = p
+				} else if p != "" {
+					urls = append(urls, p)
+				}
+			}
+
+			sb.WriteString(`  <div class="finding-section">`)
+			sb.WriteString(`    <div class="section-label">🔗 Evidence / Discovered URLs</div>`)
+			if discoveredBy != "" {
+				sb.WriteString(fmt.Sprintf(`    <div class="discovered-by">%s</div>`, discoveredBy))
+			}
+			if len(urls) > 0 {
+				sb.WriteString(`    <ul class="evidence-list">`)
+				for _, u := range urls {
+					sb.WriteString(fmt.Sprintf(`      <li><a href="%s" target="_blank" class="evidence-link">%s</a></li>`, makeURL(u), u))
+				}
+				sb.WriteString(`    </ul>`)
+			}
+			sb.WriteString(`  </div>`)
+		}
+
+		if finding.Remediation != "" {
+			sb.WriteString(`  <div class="finding-section">`)
+			sb.WriteString(`    <div class="section-label">📝 Recommended Testing Checklist</div>`)
+			sb.WriteString(`    <ul class="checklist">`)
+			if strings.HasPrefix(finding.Remediation, "Suggested security tests: ") {
+				tests := strings.TrimPrefix(finding.Remediation, "Suggested security tests: ")
+				for _, test := range strings.Split(tests, "\x00") {
+					test = strings.TrimSpace(test)
+					if test != "" {
+						sb.WriteString(fmt.Sprintf(`      <li>
+                            <label>
+                                <input type="checkbox">
+                                <span>%s</span>
+                            </label>
+                        </li>`, test))
+					}
+				}
+			} else {
+				sb.WriteString(fmt.Sprintf(`      <li>%s</li>`, finding.Remediation))
+			}
+			sb.WriteString(`    </ul>`)
+			sb.WriteString(`  </div>`)
+		}
+
+		sb.WriteString(fmt.Sprintf(`  <div class="next-action-box %s">`, severity))
+		switch severity {
+		case "critical", "high":
+			sb.WriteString(`<strong>🔴 Next Step:</strong> High risk target. Open Burp/Caido proxy. Fuzz the parameters listed in the findings with payloads (SQLi probes, SSRF endpoints, XSS scripts). Pay close attention to database-related input fields.`)
+		case "medium":
+			sb.WriteString(`<strong>🟡 Next Step:</strong> Active endpoints found. Verify authentication bypass mechanisms, look for IDOR vulnerabilities on object IDs in paths, or check CORS parameters for wildcards.`)
+		default:
+			sb.WriteString(`<strong>🔵 Next Step:</strong> Low priority/recon data. Check for directory listings or sensitive technology disclosures. Verify if security headers like CSP/HSTS are correctly set.`)
+		}
+		sb.WriteString(`  </div>`)
+		
+		sb.WriteString(`</div>`)
+	}
+	return sb.String()
+}
 func (rg *ReportGenerator) exportForBurp(report *Report) error {
 	outputPath := filepath.Join(rg.config.OutputPath, "burp-import.xml")
 	issues := BurpIssues{Issues: make([]BurpIssue, 0, len(report.Findings))}
