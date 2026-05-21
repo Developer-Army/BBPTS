@@ -29,11 +29,11 @@ func NewEventSubscriber(storage *Storage, b queue.EventBus) *EventSubscriber {
 func (s *EventSubscriber) Start(ctx context.Context, eventTypes []string) {
 	for _, t := range eventTypes {
 		sub := s.bus.Subscribe(t)
-		go s.consume(ctx, sub, t)
+		go s.consume(ctx, sub)
 	}
 }
 
-func (s *EventSubscriber) consume(ctx context.Context, sub queue.Subscriber, eventType string) {
+func (s *EventSubscriber) consume(ctx context.Context, sub queue.Subscriber) {
 	for {
 		select {
 		case <-ctx.Done():

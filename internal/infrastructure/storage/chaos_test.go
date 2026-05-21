@@ -24,7 +24,7 @@ func TestChaos_AdversarialBlobInjection(t *testing.T) {
 		t.Fatalf("Failed to change working directory: %v", err)
 	}
 	defer func() {
-		os.Chdir(oldWD)
+		_ = os.Chdir(oldWD)
 		os.RemoveAll(tempDir)
 	}()
 

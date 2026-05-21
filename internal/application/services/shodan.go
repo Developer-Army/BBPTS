@@ -91,7 +91,7 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 
 		if resp.StatusCode != 200 {
 			// safe to ignore: clearing response body on non-200 status is best-effort
-			io.Copy(io.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 			continue
 		}
 

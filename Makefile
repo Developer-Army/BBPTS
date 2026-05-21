@@ -1,6 +1,7 @@
 BINARY_NAME=bbpts
 CMD_PATH=./cmd/bbpts
 INSTALL_PATH=/usr/local/bin
+BINARY_DIR=bin
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
@@ -25,22 +26,26 @@ all: build
 
 build:
 	@echo " Building $(BINARY_NAME)$(BINARY_EXT)..."
-	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
-	@echo " Build complete: ./$(BINARY_NAME)$(BINARY_EXT)"
+	@mkdir -p $(BINARY_DIR)
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
+	@echo " Build complete: ./$(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT)"
 
 build-full:
 	@echo " Building with NATS + Redis support..."
-	go build -tags nats,redis -ldflags "$(LDFLAGS)" -o $(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
-	@echo " Full build complete: ./$(BINARY_NAME)$(BINARY_EXT)"
+	@mkdir -p $(BINARY_DIR)
+	go build -tags nats,redis -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
+	@echo " Full build complete: ./$(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT)"
 
 build-fleet:
 	@echo " Building fleet-enabled binary (NATS + Redis + Playwright)..."
-	go build -tags nats,redis,playwright -ldflags "$(LDFLAGS)" -o $(BINARY_NAME)-fleet$(BINARY_EXT) $(CMD_PATH)
-	@echo " Fleet build complete: ./$(BINARY_NAME)-fleet$(BINARY_EXT)"
+	@mkdir -p $(BINARY_DIR)
+	go build -tags nats,redis,playwright -ldflags "$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)-fleet$(BINARY_EXT) $(CMD_PATH)
+	@echo " Fleet build complete: ./$(BINARY_DIR)/$(BINARY_NAME)-fleet$(BINARY_EXT)"
 
 build-release:
 	@echo " Building release binary with optimizations..."
-	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -trimpath -o $(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
+	@mkdir -p $(BINARY_DIR)
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -trimpath -o $(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
 
 # Cross-compile for all platforms → dist/
 dist:
@@ -60,6 +65,8 @@ dist:
 	CGO_ENABLED=0 GOOS=openbsd GOARCH=arm64  go build -ldflags "$(LDFLAGS)" -trimpath -o dist/bbpts_openbsd_arm64       $(CMD_PATH)
 	@echo " All binaries written to ./dist/"
 	@ls -lh dist/
+
+
 
 
 # ─────────────────────────────────────────
@@ -121,11 +128,11 @@ security:
 
 doctor: build
 	@echo " Running environment diagnostics..."
-	./$(BINARY_NAME)$(BINARY_EXT) -doctor
+	./$(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT) -doctor
 
 validate: build
 	@echo " Validating configuration..."
-	./$(BINARY_NAME)$(BINARY_EXT) -validate-config
+	./$(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT) -validate-config
 
 validate-framework: build
 	@echo " Running full deterministic validation framework..."
@@ -137,14 +144,14 @@ validate-framework: build
 
 install: build
  ifeq ($(OS),Windows_NT)
-	@echo "Install target not fully supported on Windows via Makefile. Please copy $(BINARY_NAME).exe to your PATH."
+	@echo "Install target not fully supported on Windows via Makefile. Please copy $(BINARY_DIR)/$(BINARY_NAME).exe to your PATH."
  else
 	@echo " Installing $(BINARY_NAME) to $(INSTALL_PATH)..."
-	@if [ -w $(INSTALL_PATH) ] || sudo cp $(BINARY_NAME) $(INSTALL_PATH); then \
+	@if [ -w $(INSTALL_PATH) ] || sudo cp $(BINARY_DIR)/$(BINARY_NAME) $(INSTALL_PATH); then \
 		echo " Installed to $(INSTALL_PATH)"; \
 	else \
 		echo " Failed to install to $(INSTALL_PATH). Trying $(HOME)/.local/bin..."; \
-		mkdir -p $(HOME)/.local/bin && cp $(BINARY_NAME) $(HOME)/.local/bin/; \
+		mkdir -p $(HOME)/.local/bin && cp $(BINARY_DIR)/$(BINARY_NAME) $(HOME)/.local/bin/; \
 		echo " Installed to $(HOME)/.local/bin"; \
 	fi
 	@echo " Setting up global configurations in $(HOME)/.bbpts..."
@@ -157,7 +164,7 @@ install: build
 install-user: build
 	@echo " Installing $(BINARY_NAME) to $(HOME)/.local/bin..."
 	@mkdir -p $(HOME)/.local/bin
-	@cp $(BINARY_NAME) $(HOME)/.local/bin/
+	@cp $(BINARY_DIR)/$(BINARY_NAME) $(HOME)/.local/bin/
 	@echo " Installed to $(HOME)/.local/bin"
 	@echo " Setting up global configurations in $(HOME)/.bbpts..."
 	@mkdir -p $(HOME)/.bbpts/wordlists $(HOME)/.bbpts/state
@@ -199,7 +206,7 @@ docker:
 
 clean:
 	@echo " Cleaning up..."
-	rm -f $(BINARY_NAME)$(BINARY_EXT) coverage.out coverage.html benchmark.txt gosec-report.json
+	rm -rf $(BINARY_DIR) coverage.out coverage.html benchmark.txt gosec-report.json
 	go clean
 	@echo " Clean"
 

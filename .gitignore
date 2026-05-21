@@ -62,3 +62,7 @@ tests/test_report.md
 
 bbpts.log
 *.csv
+
+# Wordlists
+/wordlists/*
+!/wordlists/.gitkeep

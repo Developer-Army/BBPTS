@@ -171,7 +171,7 @@ func LoadFromFile(path string) (*Config, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// safe to ignore: writing default config helper is non-critical for running with defaults
-			WriteDefault(path)
+			_ = WriteDefault(path)
 			return cfg, nil // No config file is fine, use defaults
 		}
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)

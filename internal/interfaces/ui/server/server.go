@@ -99,7 +99,7 @@ const DashboardHTML = `
             <div class="flex items-center gap-3 px-2">
                 <div class="w-8 h-8 rounded-full bg-accent-purple/20 flex items-center justify-center text-accent-purple text-xs font-bold">DA</div>
                 <div>
-                    <p class="text-xs font-semibold">Dev Army</p>
+                    <p class="text-xs font-semibold">Developer-Army</p>
                     <p class="text-[10px] text-slate-500">Security Operator</p>
                 </div>
             </div>

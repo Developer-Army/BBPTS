@@ -216,9 +216,10 @@ func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 		var threadID string
 		var toolName string
 		r.Attrs(func(a slog.Attr) bool {
-			if a.Key == "thread" || a.Key == "thread_id" {
+			switch a.Key {
+			case "thread", "thread_id":
 				threadID = fmt.Sprintf("Thread-%v", a.Value)
-			} else if a.Key == "tool" || a.Key == "tool_name" {
+			case "tool", "tool_name":
 				toolName = fmt.Sprintf("%v", a.Value)
 			}
 			return true

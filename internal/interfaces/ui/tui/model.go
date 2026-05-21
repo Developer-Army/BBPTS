@@ -93,7 +93,6 @@ type Model struct {
 	portsScanned   int
 	requestsPerSec int
 	rateLimit      int
-	totalPorts     int
 	vulnsCritical  int
 	vulnsHigh      int
 	vulnsMedium    int
@@ -134,8 +133,6 @@ type Model struct {
 	uniqueHosts      map[string]struct{}
 	validatedTargets map[string]struct{}
 	modesView        bool
-	grillView        bool
-	helpView         bool
 	suggestionIndex  int
 	inputErrorMessage string
 	targetMode       string
@@ -511,17 +508,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if m.modesView {
-					if lowerVal == "1" || lowerVal == "/modes 1" {
+					switch lowerVal {
+					case "1", "/modes 1":
 						m.targetMode = "normal"
 						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleCyan.Render("NORMAL")+" scan.", "")
 						m.modesView = false
 						return m, nil
-					} else if lowerVal == "2" || lowerVal == "/modes 2" {
+					case "2", "/modes 2":
 						m.targetMode = "light"
 						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleGreen.Render("LIGHT")+" scan.", "")
 						m.modesView = false
 						return m, nil
-					} else if lowerVal == "back" {
+					case "back":
 						m.modesView = false
 						m.cliHistory = append(m.cliHistory, "  Returned to main prompt.", "")
 						return m, nil
@@ -531,12 +529,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Check direct arguments like "/modes 1" or "/modes 2"
 				if strings.HasPrefix(lowerVal, "/modes ") || strings.HasPrefix(lowerVal, "modes ") {
 					modeArg := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(lowerVal, "/modes "), "modes "))
-					if modeArg == "1" || modeArg == "normal" {
+					switch modeArg {
+					case "1", "normal":
 						m.targetMode = "normal"
 						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleCyan.Render("NORMAL")+" scan.", "")
 						m.modesView = false
 						return m, nil
-					} else if modeArg == "2" || modeArg == "light" {
+					case "2", "light":
 						m.targetMode = "light"
 						m.cliHistory = append(m.cliHistory, "  [System] Mode set to "+StyleGreen.Render("LIGHT")+" scan.", "")
 						m.modesView = false
@@ -780,7 +779,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.Source == "naabu" {
 				parts := strings.Split(msg.Target, ":")
 				if len(parts) == 2 {
-					fmt.Sscanf(parts[1], "%d", &portVal)
+					_, _ = fmt.Sscanf(parts[1], "%d", &portVal)
 				}
 			} else if strings.Contains(msg.Target, ":") {
 				parts := strings.Split(msg.Target, ":")
@@ -788,7 +787,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if slashIdx := strings.Index(lastPart, "/"); slashIdx != -1 {
 					lastPart = lastPart[:slashIdx]
 				}
-				fmt.Sscanf(lastPart, "%d", &portVal)
+				_, _ = fmt.Sscanf(lastPart, "%d", &portVal)
 			}
 
 			// Parse Vulnerability
@@ -897,7 +896,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ToolStatusMsg:
 		m.lastTool = msg
 		toolKey := strings.ToLower(strings.TrimSpace(msg.Tool))
-		if msg.Status == "running" {
+		switch msg.Status {
+		case "running":
 			m.toolActive[toolKey] = true
 			if m.toolProgress[toolKey] < 0.1 {
 				m.toolProgress[toolKey] = 0.1
@@ -911,7 +911,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-		} else if msg.Status == "done" {
+		case "done":
 			m.toolActive[toolKey] = false
 			m.toolProgress[toolKey] = 1.0
 			m.toolDetail[toolKey] = msg.Detail
@@ -955,11 +955,6 @@ func (m Model) View() string {
 	} else {
 		activeAccentColor = ColorCyan
 		activeAccentStyle = StyleCyan
-	}
-
-	availWidth := m.width
-	if availWidth < 80 {
-		availWidth = 80
 	}
 
 	if m.awaitingInput {
@@ -1045,7 +1040,8 @@ func (m Model) View() string {
 				Width(boxWidth).
 				Render(strings.Join(innerLines, "\n"))
 
-			b.WriteString(center(configBox) + "\n")
+			b.WriteString(center(configBox))
+			b.WriteString("\n")
 			
 			vAlign := lipgloss.Center
 			if m.height < 18 {
@@ -1060,7 +1056,8 @@ func (m Model) View() string {
 
 		for _, line := range logoLines {
 			if strings.TrimSpace(line) != "" {
-				b.WriteString(center(logoStyle.Render(line)) + "\n")
+				b.WriteString(center(logoStyle.Render(line)))
+				b.WriteString("\n")
 			}
 		}
 
@@ -1086,7 +1083,8 @@ func (m Model) View() string {
 			}
 			for i := startIdx; i < len(m.cliHistory); i++ {
 				if strings.TrimSpace(m.cliHistory[i]) != "" {
-					b.WriteString(center(m.cliHistory[i]) + "\n")
+					b.WriteString(center(m.cliHistory[i]))
+					b.WriteString("\n")
 				}
 			}
 			b.WriteString("\n")
@@ -1112,12 +1110,14 @@ func (m Model) View() string {
 			Width(boxWidth).
 			Render(strings.Join(innerLines, "\n"))
 
-		b.WriteString(center(promptBox) + "\n")
+		b.WriteString(center(promptBox))
+		b.WriteString("\n")
 
 		// ── Inline Error ──────────────────────────────────────────────────────
 		if m.inputErrorMessage != "" {
 			errStr := lipgloss.NewStyle().Foreground(ColorRed).Bold(true).Render(m.inputErrorMessage)
-			b.WriteString(center(errStr) + "\n")
+			b.WriteString(center(errStr))
+			b.WriteString("\n")
 		}
 		b.WriteString("\n")
 
@@ -1137,7 +1137,8 @@ func (m Model) View() string {
 			gap = 1
 		}
 		statusBar := leftHints + strings.Repeat(" ", gap) + rightInfo
-		b.WriteString(center(statusBar) + "\n")
+		b.WriteString(center(statusBar))
+		b.WriteString("\n")
 
 		// Vertical centering only — horizontal already handled per-line
 		vAlign := lipgloss.Center
@@ -1148,7 +1149,7 @@ func (m Model) View() string {
 	}
 
 	// Subtract 2 to account for StyleMain Padding(0, 1) on left and right sides
-	availWidth = m.width - 2
+	availWidth := m.width - 2
 	if availWidth < 80 {
 		availWidth = 80
 	}
@@ -1527,7 +1528,8 @@ func (m Model) View() string {
 
 		targetsContent := strings.Join(targetLines, "\n")
 		targetsBox := renderBox("DISCOVERED SUBDOMAINS/IPs", targetsContent, availWidth, middleBoxHeight, ColorBorder, activeAccentColor, true)
-		finalView.WriteString("\n" + targetsBox)
+		finalView.WriteString("\n")
+		finalView.WriteString(targetsBox)
 	}
 
 	if showLogs {
@@ -1551,7 +1553,8 @@ func (m Model) View() string {
 
 		logContent := strings.Join(visibleLogs, "\n")
 		logBox := renderBox("LIVE EVENT LOG", logContent, availWidth, logBoxHeight, ColorBorder, activeAccentColor, true)
-		finalView.WriteString("\n" + logBox)
+		finalView.WriteString("\n")
+		finalView.WriteString(logBox)
 	}
 
 	return StyleMain.Render(finalView.String())
@@ -1660,7 +1663,8 @@ func renderBox(title string, content string, width int, height int, borderColor 
 	}
 	
 	var b strings.Builder
-	b.WriteString(topBorder + "\n")
+	b.WriteString(topBorder)
+	b.WriteString("\n")
 	
 	innerWidth := width - 2
 	
@@ -1680,7 +1684,10 @@ func renderBox(title string, content string, width int, height int, borderColor 
 			padded += strings.Repeat(" ", innerWidth - visibleWidth)
 		}
 		
-		b.WriteString(borderStyle.Render("│") + padded + borderStyle.Render("│") + "\n")
+		b.WriteString(borderStyle.Render("│"))
+		b.WriteString(padded)
+		b.WriteString(borderStyle.Render("│"))
+		b.WriteString("\n")
 	}
 	
 	bottomBorder := borderStyle.Render("╰" + strings.Repeat("─", innerWidth) + "╯")

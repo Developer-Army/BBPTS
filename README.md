@@ -1,14 +1,14 @@
-# BBPTS v1.1.0 (Bug Bounty Program Tool Set)
+# BBPTS v1.1.1 (Bug Bounty Program Tool Set)
 
 **Reconnaissance & Target Prioritization Toolkit**
 
 BBPTS is a Go application for automating the early phases of bug bounty reconnaissance. It focuses on structured target ingestion, staged tool orchestration, prioritization, and export into manual testing workflows like Burp Suite.
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Developer-Army/BBPTS)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/Developer-Army/BBPTS)
 [![Go Version](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![Build Status](https://github.com/Developer-Army/BBPTS/workflows/CI/badge.svg)](https://github.com/Developer-Army/BBPTS/actions)
 
-![BBPTS TUI Demo](docs/demo.png)
+![BBPTS TUI Demo](docs/terminal.png)
 
 ---
 
@@ -400,7 +400,7 @@ Generated: Mon, 01 Jan 2024 12:00:00 UTC
 
 BBPTS is designed to bridge the gap between simple passive subdomain gatherers and heavy, complex scanning frameworks:
 
-| Feature / Metric | BBPTS v1.1.0 | OWASP Amass | ProjectDiscovery Suite | Osmedeus |
+| Feature / Metric | BBPTS v1.1.1 | OWASP Amass | ProjectDiscovery Suite | Osmedeus |
 |------------------|------------|-------------|-------------------------|----------|
 | **Primary Goal** | Prioritized workflow orchestration | Graph-based asset mapping | Single-purpose modular tools | Automated scan pipeline |
 | **Speed & Overhead** | **Medium-Fast** (concurrent Go core) | **Slow** (heavy memory graph DB) | **Fast** (focused utility command) | **Slow** (python/bash runner wrapper) |

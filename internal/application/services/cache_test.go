@@ -153,8 +153,8 @@ func TestCacheInvalidateAll(t *testing.T) {
 	}
 	defer cache.Close()
 
-	cache.Put("tool1", []string{"a.com"}, 5, []Event{{Target: "a.com"}})
-	cache.Put("tool2", []string{"b.com"}, 5, []Event{{Target: "b.com"}})
+	_ = cache.Put("tool1", []string{"a.com"}, 5, []Event{{Target: "a.com"}})
+	_ = cache.Put("tool2", []string{"b.com"}, 5, []Event{{Target: "b.com"}})
 
 	err = cache.InvalidateAll()
 	if err != nil {
@@ -185,7 +185,7 @@ func TestCacheStats(t *testing.T) {
 		t.Error("Expected cache enabled")
 	}
 
-	cache.Put("test", []string{"acme-corp.io"}, 5, []Event{{Target: "acme-corp.io"}})
+	_ = cache.Put("test", []string{"acme-corp.io"}, 5, []Event{{Target: "acme-corp.io"}})
 
 	stats = cache.Stats()
 	total := stats["total_entries"].(int)

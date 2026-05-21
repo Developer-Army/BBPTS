@@ -229,8 +229,8 @@ func TestDashboardHTMLContainsAccentColor(t *testing.T) {
 }
 
 func TestDashboardHTMLContainsFooter(t *testing.T) {
-	if !containsSubstring(DashboardHTML, "Dev Army") {
-		t.Error("Expected DashboardHTML to contain Dev Army footer")
+	if !containsSubstring(DashboardHTML, "Developer-Army") {
+		t.Error("Expected DashboardHTML to contain Developer-Army footer")
 	}
 }
 

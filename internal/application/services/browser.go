@@ -150,7 +150,7 @@ func (sb *StealthBrowser) EmulateHuman(page playwright.Page) error {
 	// Simulate curved mouse movements (pseudo-Bezier)
 	startX, startY := float64(rand.Intn(200)), float64(rand.Intn(200))
 	// safe to ignore: initial mouse move is best-effort simulation
-	page.Mouse().Move(startX, startY)
+	_ = page.Mouse().Move(startX, startY)
 
 	for i := 0; i < 3; i++ {
 		endX := float64(100 + rand.Intn(800))
@@ -168,7 +168,7 @@ func (sb *StealthBrowser) EmulateHuman(page playwright.Page) error {
 			y := (1-t)*(1-t)*startY + 2*(1-t)*t*ctrlY + t*t*endY
 
 			// safe to ignore: intermediate mouse move step is best-effort simulation
-			page.Mouse().Move(x, y)
+			_ = page.Mouse().Move(x, y)
 			// Micro-hesitations
 			time.Sleep(time.Duration(2+rand.Intn(8)) * time.Millisecond)
 		}
@@ -184,7 +184,7 @@ func (sb *StealthBrowser) EmulateHuman(page playwright.Page) error {
 		// Add variance for human-like imperfect scrolling
 		stepAmount += float64(rand.Intn(20) - 10)
 		// safe to ignore: mouse scroll step is best-effort simulation
-		page.Mouse().Wheel(0, stepAmount)
+		_ = page.Mouse().Wheel(0, stepAmount)
 		time.Sleep(time.Duration(10+rand.Intn(40)) * time.Millisecond)
 	}
 

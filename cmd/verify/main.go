@@ -102,6 +102,10 @@ func main() {
 		}
 		tests = append(tests, tc)
 	}
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("%s[ERROR] Failed to read expected results: %v%s\n", Red, err, Reset)
+		os.Exit(1)
+	}
 
 	totalTests := len(tests)
 	passed := 0
@@ -159,9 +163,10 @@ func main() {
 
 		targetKey := strings.ToLower(strings.ReplaceAll(tc.Name, " ", ""))
 		targetKey = strings.ReplaceAll(targetKey, "-", "")
-		if tc.Name == "Mock DNS" {
+		switch tc.Name {
+		case "Mock DNS":
 			targetKey = "mockdns"
-		} else if tc.Name == "Mock Cloud" {
+		case "Mock Cloud":
 			targetKey = "mockcloud"
 		}
 
@@ -358,7 +363,7 @@ func main() {
 				mdBuilder.WriteString(fmt.Sprintf("- **Layer 1 Failure**: Test name `%s` not found in report.\n", f.TestName))
 			}
 			if !f.Layer2Passed {
-				mdBuilder.WriteString(fmt.Sprintf("- **Layer 2 Failure**: Expected target/evidence substring(s) not found:\n"))
+				mdBuilder.WriteString("- **Layer 2 Failure**: Expected target/evidence substring(s) not found:\n")
 				for _, m := range f.MissingTargets {
 					mdBuilder.WriteString(fmt.Sprintf("  - `%s` (expected from: `%v`)\n", m, f.ExpectedTargets))
 				}

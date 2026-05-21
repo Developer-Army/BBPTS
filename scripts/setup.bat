@@ -87,6 +87,9 @@ powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/d
 echo Downloading directory wordlist (small)...
 powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-small-files.txt' -OutFile '%WORDLISTS_DIR%\raft-small-files.txt'" 2>nul
 
+echo Downloading subdomain wordlist...
+powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt' -OutFile '%WORDLISTS_DIR%\subdomains-top1million-5000.txt'" 2>nul
+
 echo Downloading API endpoints wordlist...
 powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt' -OutFile '%WORDLISTS_DIR%\api-endpoints.txt'" 2>nul
 

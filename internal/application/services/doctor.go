@@ -391,9 +391,10 @@ func FormatHealthReport(health *SystemHealth) string {
 	b.WriteString("  Diagnostics:\n")
 	for _, d := range health.Diagnostics {
 		icon := "✓"
-		if d.Status == "warn" {
+		switch d.Status {
+		case "warn":
 			icon = ""
-		} else if d.Status == "fail" {
+		case "fail":
 			icon = "✗"
 		}
 		b.WriteString(fmt.Sprintf("    %s %s: %s\n", icon, d.Name, d.Message))
