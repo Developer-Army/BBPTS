@@ -142,7 +142,7 @@ validate-framework: build
 # Setup & Install
 # ─────────────────────────────────────────
 
-install: build
+install: build setup
  ifeq ($(OS),Windows_NT)
 	@echo "Install target not fully supported on Windows via Makefile. Please copy $(BINARY_DIR)/$(BINARY_NAME).exe to your PATH."
  else
@@ -161,7 +161,7 @@ install: build
 	@cp -r wordlists/* $(HOME)/.bbpts/wordlists/
  endif
 
-install-user: build
+install-user: build setup
 	@echo " Installing $(BINARY_NAME) to $(HOME)/.local/bin..."
 	@mkdir -p $(HOME)/.local/bin
 	@cp $(BINARY_DIR)/$(BINARY_NAME) $(HOME)/.local/bin/

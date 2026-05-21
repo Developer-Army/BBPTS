@@ -51,6 +51,9 @@ BBPTS is cross-platform and supports **Linux (Debian/RPM), macOS, and Windows**.
 git clone https://github.com/Developer-Army/BBPTS.git
 cd BBPTS
 
+# Run setup script to install dependencies and tools
+bash scripts/setup.sh
+
 # Build from source
 go build -o bbpts ./cmd/bbpts
 
@@ -106,6 +109,12 @@ go install github.com/Developer-Army/BBPTS/cmd/bbpts@latest
 # Make sure $GOPATH/bin is in PATH
 echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
 
+# Clone and run setup script to install external tools
+git clone https://github.com/Developer-Army/BBPTS.git
+cd BBPTS
+bash scripts/setup.sh
+
+# Verify global installation
 bbpts -doctor
 ```
 

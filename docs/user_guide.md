@@ -1,4 +1,4 @@
-# Quick Start Guide - BBPTS v1.0
+# Quick Start Guide - BBPTS v1.1.1
 
 Get up and running with BBPTS in minutes. This guide covers installation, basic usage, and common workflows.
 
@@ -192,17 +192,17 @@ Add API keys for enhanced reconnaissance:
 
 ### Getting Help
 
-- Check the [full documentation](README.md)
+- Check the [full documentation](../README.md)
 - Run `./bbpts -help` for all options
 - Open an issue on GitHub
 - Join our community Discord
 
 ## Next Steps
 
-- Read the [full README](README.md) for advanced features
-- Explore [configuration options](docs/CONFIG.md)
-- Learn about [supported tools](docs/TOOLS.md)
-- Check [development guide](docs/DEVELOPMENT.md) for contributions
+- Read the [full README](../README.md) for advanced features
+- Explore [configuration options](configuration.md)
+- Learn about [supported tools](tools.md)
+- Check [development guide](developer_guide.md) for contributions
 ```
 
 **Report Generation:**
@@ -614,11 +614,10 @@ go run ./cmd/bbpts -test-tool subfinder
 
 ```
 docs/
-├── tools.md              # Individual tool documentation
-├── Burp_integration.md   # Burp Suite integration guide
-├── QUICKSTART.md         # This file
-├── ARCHITECTURE.md       # System architecture
-└── API.md               # API documentation
+├── configuration.md      # Configuration options, API keys, and custom rules
+├── developer_guide.md    # Development setup, architecture, and testing
+├── tools.md              # Supported external tools and integration details
+└── user_guide.md         # Quick start, workflows, and troubleshooting (this file)
 ```
 
 ---

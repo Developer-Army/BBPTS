@@ -1,4 +1,4 @@
-# Development Guide - BBPTS v1.0
+# Development Guide - BBPTS v1.1.1
 
 This guide covers development setup, architecture, and contribution guidelines for BBPTS.
 
@@ -814,10 +814,10 @@ make release
 
 ## Related Documentation
 
-- [QUICKSTART.md](QUICKSTART.md) - User guide
-- [CSV_FORMAT.md](CSV_FORMAT.md) - Input format guide
-- [CHANGELOG.md](CHANGELOG.md) - Version history
-- [README.md](README.md) - Project overview
+- [user_guide.md](user_guide.md) - User guide
+- [user_guide.md#enhanced-csv-format](user_guide.md#enhanced-csv-format) - Input format guide
+- [CHANGELOG.md](../CHANGELOG.md) - Version history
+- [README.md](../README.md) - Project overview
 
 ---
 
