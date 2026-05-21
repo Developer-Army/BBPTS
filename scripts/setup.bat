@@ -54,7 +54,12 @@ github.com/KathanP19/Gxss@latest ^
 github.com/sensepost/gowitness@latest ^
 github.com/tomnomnom/anew@latest ^
 github.com/tomnomnom/unfurl@latest ^
-github.com/tomnomnom/qsreplace@latest
+github.com/tomnomnom/qsreplace@latest ^
+github.com/OWASP/Amass/v3/...@latest ^
+github.com/tomnomnom/assetfinder@latest ^
+github.com/hakluke/hakrawler@latest ^
+github.com/OJ/gobuster/v3@latest ^
+github.com/trufflesecurity/trufflehog/v3@latest
 
 for %%T in (%TOOLS%) do (
     set "TOOL_PATH=%%T"
@@ -75,6 +80,26 @@ for %%T in (%TOOLS%) do (
 echo.
 echo [3/3] Installing Go-based uro...
 go install github.com/smaranchand/uro@latest
+
+echo.
+echo Installing additional tools...
+
+where findomain >nul 2>nul
+if !errorlevel! neq 0 (
+    echo Installing findomain...
+    powershell -Command "Invoke-WebRequest -Uri 'https://github.com/Findomain/Findomain/releases/latest/download/findomain-windows.exe' -OutFile '%USERPROFILE%\go\bin\findomain.exe'"
+)
+
+where wafw00f >nul 2>nul
+if !errorlevel! neq 0 (
+    echo Installing wafw00f...
+    pip install wafw00f || pip3 install wafw00f
+)
+
+where whois >nul 2>nul
+if !errorlevel! neq 0 (
+    echo [WARNING] 'whois' not found. Please install whois manually or ignore on Windows.
+)
 
 echo.
 echo Installing wordlists...

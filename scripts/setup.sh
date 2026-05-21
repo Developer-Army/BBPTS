@@ -12,12 +12,12 @@ echo ""
 echo "📦 Installing the following Go-based tools:"
 echo "   • Subdomain & DNS: subfinder, amass, assetfinder, puredns"
 echo "   • Probing & Ports: httpx, dnsx, naabu"
-echo "   • Discovery & Crawling: katana, gau, hakrawler"
+echo "   • Discovery & Crawling: katana, gau, hakrawler, gobuster"
 echo "   • Vulnerability Scanning: nuclei, dalfox, interactsh-client"
-echo "   • Data Processing & Fuzzing: anew, gf, ffuf"
+echo "   • Data Processing & Fuzzing: anew, gf, ffuf, trufflehog"
 echo ""
 echo "🐍 Installing Python-based tools:"
-echo "   • uro (URL deduplication)"
+echo "   • uro (URL deduplication), wafw00f"
 echo ""
 echo "📚 Installing wordlists:"
 echo "   • dns-5k.txt (5k DNS entries)"
@@ -71,6 +71,8 @@ GO_TOOLS=(
     "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"    # ADDED: TLS certificate parsing
     "github.com/d3mondev/puredns/v2@latest"
     "github.com/blechschmidt/massdns/cmd/massdns@latest"  # ADDED: Required by puredns
+    "github.com/OWASP/Amass/v3/...@latest"                # ADDED: Missing core tool
+    "github.com/tomnomnom/assetfinder@latest"             # ADDED: Missing core tool
     
     # --- Probing & Ports ---
     "github.com/projectdiscovery/httpx/cmd/httpx@latest"
@@ -80,6 +82,8 @@ GO_TOOLS=(
     "github.com/projectdiscovery/katana/cmd/katana@latest"
     "github.com/lc/gau/v2/cmd/gau@latest"
     "github.com/ffuf/ffuf/v2@latest"                      # ADDED: Essential for VHOST/Param fuzzing
+    "github.com/hakluke/hakrawler@latest"                 # ADDED: Missing core tool
+    "github.com/OJ/gobuster/v3@latest"                    # ADDED: Missing core tool
     
     # --- Vulnerability, XSS & OOB ---
     "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
@@ -112,12 +116,58 @@ done
 
 # 2. GO-BASED URO (Replaces Python dependency)
 echo "Installing uro (Golang port)..."
-go install github.com/smaranchand/uro@latest || echo "️ Warning: Failed to install Go uro"
+go install github.com/smaranchand/uro@latest || echo "⚠️ Warning: Failed to install Go uro"
 
 # 3. RUST-BASED TOOLS (feroxbuster)
 if ! command -v feroxbuster &> /dev/null; then
     echo "Installing feroxbuster (Rust binary)..."
     curl -sL https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh | bash -s -- --to /usr/local/bin || true
+fi
+
+# 4. ADDITIONAL NON-GO TOOLS
+# --- Install findomain ---
+if ! command -v findomain &> /dev/null; then
+    echo "Installing findomain..."
+    curl -LO https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux.zip || true
+    if [ -f findomain-linux.zip ]; then
+        unzip -o findomain-linux.zip || true
+        chmod +x findomain || true
+        if [ -w /usr/local/bin ]; then
+            mv findomain /usr/local/bin/ || true
+        else
+            mkdir -p ~/.local/bin && mv findomain ~/.local/bin/ || true
+        fi
+        rm -f findomain-linux.zip || true
+    fi
+fi
+
+# --- Install trufflehog ---
+if ! command -v trufflehog &> /dev/null; then
+    echo "Installing trufflehog..."
+    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/truffhog/main/scripts/install.sh 2>/dev/null | sh -s -- -b ~/.local/bin || \
+    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b ~/.local/bin || true
+fi
+
+# --- Install whois ---
+if ! command -v whois &> /dev/null; then
+    echo "Installing whois..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y whois || true
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y whois || true
+    fi
+fi
+
+# --- Install wafw00f ---
+if ! command -v wafw00f &> /dev/null; then
+    echo "Installing wafw00f..."
+    if command -v pip &> /dev/null; then
+        pip install wafw00f || true
+    elif command -v pip3 &> /dev/null; then
+        pip3 install wafw00f || true
+    else
+        python3 -m pip install wafw00f 2>/dev/null || true
+    fi
 fi
 
 echo -e "\n BBPTS ELITE TOOLS INSTALLED!"
