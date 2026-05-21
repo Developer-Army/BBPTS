@@ -100,10 +100,14 @@ func (sm *StreamManager) SubscribeWorker(ctx context.Context, subject, queueGrou
 		err := handler(msg.Data)
 		if err != nil {
 			slog.Warn("Worker task failed, NAKing for retry", "subject", subject, "error", err)
-			msg.NakWithDelay(10 * time.Second) // Deterministic retry
+			if errNak := msg.NakWithDelay(10 * time.Second); errNak != nil {
+				slog.Warn("Failed to NAK message", "error", errNak)
+			}
 			return
 		}
-		msg.AckSync() // Fully acknowledge completion
+		if errAck := msg.AckSync(); errAck != nil {
+			slog.Warn("Failed to ACK message", "error", errAck)
+		}
 	}
 
 	_, err := sm.js.QueueSubscribe(subject, queueGroup, cb, nats.ManualAck(), nats.MaxDeliver(3), nats.AckExplicit())
@@ -118,7 +122,9 @@ func (sm *StreamManager) SubscribeWorker(ctx context.Context, subject, queueGrou
 // Close disconnects the stream manager gracefully.
 func (sm *StreamManager) Close() error {
 	if sm.nc != nil {
-		sm.nc.Drain()
+		if errDrain := sm.nc.Drain(); errDrain != nil {
+			slog.Warn("Failed to drain NATS connection", "error", errDrain)
+		}
 		sm.nc.Close()
 	}
 	return nil

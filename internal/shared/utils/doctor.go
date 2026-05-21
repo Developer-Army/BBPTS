@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"io"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -38,6 +39,7 @@ func CheckEnvironment() []ToolStatus {
 			if err != nil && t == "httpx" {
 				// Try Python httpx version check as fallback/detection
 				cmd = exec.Command(t, "--version")
+				// safe to ignore: fallback command error check is best-effort version extraction
 				out, _ = cmd.CombinedOutput()
 			}
 
@@ -59,10 +61,10 @@ func CheckEnvironment() []ToolStatus {
 	return results
 }
 
-func PrintReport(results []ToolStatus) {
-	fmt.Printf("BBPTS Doctor - Environment Diagnostics\n")
-	fmt.Printf("OS: %s | Arch: %s\n", runtime.GOOS, runtime.GOARCH)
-	fmt.Printf("--------------------------------------------------\n")
+func PrintReport(w io.Writer, results []ToolStatus) {
+	fmt.Fprintf(w, "BBPTS Doctor - Environment Diagnostics\n")
+	fmt.Fprintf(w, "OS: %s | Arch: %s\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Fprintf(w, "--------------------------------------------------\n")
 
 	missing := 0
 	for _, s := range results {
@@ -72,27 +74,27 @@ func PrintReport(results []ToolStatus) {
 			missing++
 		}
 
-		fmt.Printf("[%s] %-12s ", icon, s.Name)
+		fmt.Fprintf(w, "[%s] %-12s ", icon, s.Name)
 		if s.Installed {
 			if s.Version != "" {
 				if strings.Contains(s.Version, "CONFLICT") {
-					fmt.Printf("(%s)", s.Version)
+					fmt.Fprintf(w, "(%s)", s.Version)
 				} else {
-					fmt.Printf("(v%s at %s)", s.Version, s.Path)
+					fmt.Fprintf(w, "(v%s at %s)", s.Version, s.Path)
 				}
 			} else {
-				fmt.Printf("(Installed at %s)", s.Path)
+				fmt.Fprintf(w, "(Installed at %s)", s.Path)
 			}
 		} else {
-			fmt.Printf("(NOT FOUND)")
+			fmt.Fprintf(w, "(NOT FOUND)")
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 
-	fmt.Printf("--------------------------------------------------\n")
+	fmt.Fprintf(w, "--------------------------------------------------\n")
 	if missing == 0 {
-		fmt.Println("All systems go! Your BBPTS environment is healthy.")
+		fmt.Fprintln(w, "All systems go! Your BBPTS environment is healthy.")
 	} else {
-		fmt.Printf("Diagnostic complete: %d tool(s) missing. Run 'scripts/setup.sh' to fix.\n", missing)
+		fmt.Fprintf(w, "Diagnostic complete: %d tool(s) missing. Run 'scripts/setup.sh' to fix.\n", missing)
 	}
 }

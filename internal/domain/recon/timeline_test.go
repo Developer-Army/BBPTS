@@ -49,11 +49,11 @@ func TestFingerprintTimeline_Record(t *testing.T) {
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	result := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 		TLSIssuer:   "Let's Encrypt",
-		TLSSubject:  "example.com",
+		TLSSubject:  "acme-corp.io",
 	}
 
 	err := ft.Record("session1", result)
@@ -66,15 +66,15 @@ func TestFingerprintTimeline_Record(t *testing.T) {
 
 	// Check that record was added to history
 	ft.mu.RLock()
-	history := ft.history["example.com"]
+	history := ft.history["acme-corp.io"]
 	ft.mu.RUnlock()
 
 	if len(history) != 1 {
 		t.Errorf("expected 1 record in history, got %d", len(history))
 	}
 
-	if history[0].Host != "example.com" {
-		t.Errorf("expected host 'example.com', got '%s'", history[0].Host)
+	if history[0].Host != "acme-corp.io" {
+		t.Errorf("expected host 'acme-corp.io', got '%s'", history[0].Host)
 	}
 }
 
@@ -83,7 +83,7 @@ func TestFingerprintTimeline_Record_Prune(t *testing.T) {
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	result := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 	}
@@ -98,7 +98,7 @@ func TestFingerprintTimeline_Record_Prune(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	ft.mu.RLock()
-	history := ft.history["example.com"]
+	history := ft.history["acme-corp.io"]
 	ft.mu.RUnlock()
 
 	if len(history) != 30 {
@@ -111,7 +111,7 @@ func TestFingerprintTimeline_GetHistory(t *testing.T) {
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	result := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 	}
@@ -121,7 +121,7 @@ func TestFingerprintTimeline_GetHistory(t *testing.T) {
 	_ = ft.Record("session2", result)
 	time.Sleep(50 * time.Millisecond)
 
-	history := ft.GetHistory("example.com", 0)
+	history := ft.GetHistory("acme-corp.io", 0)
 
 	if len(history) != 2 {
 		t.Errorf("expected 2 records, got %d", len(history))
@@ -136,7 +136,7 @@ func TestFingerprintTimeline_GetHistory_WithLimit(t *testing.T) {
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	result := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 	}
@@ -148,7 +148,7 @@ func TestFingerprintTimeline_GetHistory_WithLimit(t *testing.T) {
 	_ = ft.Record("session3", result)
 	time.Sleep(50 * time.Millisecond)
 
-	history := ft.GetHistory("example.com", 2)
+	history := ft.GetHistory("acme-corp.io", 2)
 
 	if len(history) != 2 {
 		t.Errorf("expected 2 records with limit, got %d", len(history))
@@ -175,7 +175,7 @@ func TestFingerprintTimeline_GetChanges(t *testing.T) {
 
 	// Record first fingerprint
 	result1 := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 		TLSIssuer:   "Issuer1",
@@ -185,7 +185,7 @@ func TestFingerprintTimeline_GetChanges(t *testing.T) {
 
 	// Record changed fingerprint
 	result2 := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm789", // changed
 		FaviconHash: "fav456",
 		TLSIssuer:   "Issuer1",
@@ -208,7 +208,7 @@ func TestFingerprintTimeline_GetChanges_NoChange(t *testing.T) {
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	result := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 	}
@@ -230,7 +230,7 @@ func TestFingerprintTimeline_GetChanges_InsufficientHistory(t *testing.T) {
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	result := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 	}
@@ -251,7 +251,7 @@ func TestFingerprintTimeline_ClusterByInfrastructure(t *testing.T) {
 
 	// Add hosts with identical fingerprints
 	result1 := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 	}
@@ -288,7 +288,7 @@ func TestFingerprintTimeline_ClusterByInfrastructure_EmptyFingerprints(t *testin
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	result := Result{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "",
 		FaviconHash: "",
 	}
@@ -312,12 +312,12 @@ func TestSanitizeHost(t *testing.T) {
 		host     string
 		expected string
 	}{
-		{"with port", "example.com:443", "example.com"},
-		{"with path", "example.com/test", "example.com"},
-		{"uppercase", "EXAMPLE.COM", "example.com"},
-		{"mixed case", "ExAmPlE.CoM", "example.com"},
-		{"simple", "example.com", "example.com"},
-		{"with port and path", "example.com:443/test", "example.com"},
+		{"with port", "acme-corp.io:443", "acme-corp.io"},
+		{"with path", "acme-corp.io/test", "acme-corp.io"},
+		{"uppercase", "ACME-CORP.IO", "acme-corp.io"},
+		{"mixed case", "AcMe-CoRp.Io", "acme-corp.io"},
+		{"simple", "acme-corp.io", "acme-corp.io"},
+		{"with port and path", "acme-corp.io:443/test", "acme-corp.io"},
 	}
 
 	for _, tt := range tests {
@@ -357,7 +357,7 @@ func TestFingerprintTimeline_computeRecordChecksum(t *testing.T) {
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
 	rec := FingerprintRecord{
-		Host:        "example.com",
+		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
 		FaviconHash: "fav456",
 		TLSIssuer:   "Issuer1",

@@ -75,16 +75,34 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 	switch ev.Source {
 	case "httpx", "naabu":
 		// Linking service to target
-		serviceID, _ := s.storage.SaveNode("service", ev.Target, ev.Properties)
-		s.storage.SaveEdge(targetID, serviceID, "exposes_service")
+		serviceID, err := s.storage.SaveNode("service", ev.Target, ev.Properties)
+		if err != nil {
+			slog.Warn("Failed to save service node", "error", err)
+			return
+		}
+		if err := s.storage.SaveEdge(targetID, serviceID, "exposes_service"); err != nil {
+			slog.Warn("Failed to link target to service", "error", err)
+		}
 	case "nuclei", "dalfox":
 		// Linking vulnerability to target
-		vulnID, _ := s.storage.SaveNode("vulnerability", ev.Type, ev.Properties)
-		s.storage.SaveEdge(targetID, vulnID, "is_vulnerable_to")
+		vulnID, err := s.storage.SaveNode("vulnerability", ev.Type, ev.Properties)
+		if err != nil {
+			slog.Warn("Failed to save vulnerability node", "error", err)
+			return
+		}
+		if err := s.storage.SaveEdge(targetID, vulnID, "is_vulnerable_to"); err != nil {
+			slog.Warn("Failed to link target to vulnerability", "error", err)
+		}
 	case "graphql", "katana", "gau":
 		// Linking endpoint to target
-		endpointID, _ := s.storage.SaveNode("endpoint", ev.Target, nil)
-		s.storage.SaveEdge(targetID, endpointID, "has_endpoint")
+		endpointID, err := s.storage.SaveNode("endpoint", ev.Target, nil)
+		if err != nil {
+			slog.Warn("Failed to save endpoint node", "error", err)
+			return
+		}
+		if err := s.storage.SaveEdge(targetID, endpointID, "has_endpoint"); err != nil {
+			slog.Warn("Failed to link target to endpoint", "error", err)
+		}
 	}
 }
 

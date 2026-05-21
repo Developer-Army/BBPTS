@@ -43,6 +43,7 @@ func prepareCommand(ctx context.Context, name string, args ...string) commandHan
 
 func terminateCommand(cmd commandHandle) {
 	if cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		// safe to ignore: killing process group is best-effort during cleanup
+		syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 }

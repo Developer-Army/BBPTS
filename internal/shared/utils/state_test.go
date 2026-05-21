@@ -26,9 +26,9 @@ func TestStoreSaveAndLoadLatest(t *testing.T) {
 	}
 	defer store.Close()
 
-	targets := []string{"example.com", "api.example.com"}
+	targets := []string{"acme-corp.io", "api.acme-corp.io"}
 	events := []recon.Event{
-		{Target: "https://example.com", Source: "httpx", Type: "service"},
+		{Target: "https://acme-corp.io", Source: "httpx", Type: "service"},
 	}
 
 	if err := store.Save("program-a", targets, events); err != nil {
@@ -54,18 +54,18 @@ func TestStoreComputeDiff(t *testing.T) {
 	}
 	defer store.Close()
 
-	initialTargets := []string{"api.example.com"}
+	initialTargets := []string{"api.acme-corp.io"}
 	initialEvents := []recon.Event{
-		{Target: "api.example.com", Source: "subfinder", Type: "discovery"},
+		{Target: "api.acme-corp.io", Source: "subfinder", Type: "discovery"},
 	}
 	if err := store.Save("program-b", initialTargets, initialEvents); err != nil {
 		t.Fatalf("failed to save initial snapshot: %v", err)
 	}
 
-	updatedTargets := []string{"api.example.com", "dev.example.com"}
+	updatedTargets := []string{"api.acme-corp.io", "dev.acme-corp.io"}
 	updatedEvents := []recon.Event{
-		{Target: "api.example.com", Source: "subfinder", Type: "discovery"},
-		{Target: "dev.example.com", Source: "subfinder", Type: "discovery"},
+		{Target: "api.acme-corp.io", Source: "subfinder", Type: "discovery"},
+		{Target: "dev.acme-corp.io", Source: "subfinder", Type: "discovery"},
 	}
 	if err := store.Save("program-b", updatedTargets, updatedEvents); err != nil {
 		t.Fatalf("failed to save updated snapshot: %v", err)
@@ -78,8 +78,8 @@ func TestStoreComputeDiff(t *testing.T) {
 	if diff == nil {
 		t.Fatal("expected diff result")
 	}
-	if len(diff.NewTargets) != 1 || diff.NewTargets[0] != "dev.example.com" {
-		t.Fatalf("expected dev.example.com as the only new target, got %#v", diff.NewTargets)
+	if len(diff.NewTargets) != 1 || diff.NewTargets[0] != "dev.acme-corp.io" {
+		t.Fatalf("expected dev.acme-corp.io as the only new target, got %#v", diff.NewTargets)
 	}
 }
 

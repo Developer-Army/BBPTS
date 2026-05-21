@@ -84,7 +84,9 @@ func (lm *LeaseManager) KeepAlive(ctx context.Context, key, workerID string) {
 	for {
 		select {
 		case <-ctx.Done():
-			lm.Release(key)
+			if err := lm.Release(key); err != nil {
+				slog.Warn("Failed to release lease on context completion", "key", key, "error", err)
+			}
 			return
 		case <-ticker.C:
 			if err := lm.Renew(key, workerID); err != nil {

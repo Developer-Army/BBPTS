@@ -278,7 +278,9 @@ func (pb *PooledBrowser) Close() error {
 		pb.browsers = nil
 
 		if pb.pw != nil {
-			pb.pw.Stop()
+			if err := pb.pw.Stop(); err != nil {
+				slog.Warn("Failed to stop Playwright in pool close", "error", err)
+			}
 		}
 	})
 	return nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -16,17 +17,19 @@ import (
 	app "github.com/Developer-Army/BBPTS/internal/interfaces/cli"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
+	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mattn/go-isatty"
 )
 
 var (
-	version = "dev"
+	version = "v1.1.0"
 	commit  = "unknown"
 	date    = "unknown"
 )
 
 func main() {
+	utils.InitializeResourceGuard()
 	opts := parseFlags()
 
 	if opts.ShowVersion {
@@ -47,11 +50,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// --- Logger Setup ---
-	if opts.Debug {
-		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))
-	}
-
 	// --- Load Config ---
 	cfg, err := config.LoadFromFile(opts.ConfigPath)
 	if err != nil {
@@ -60,6 +58,40 @@ func main() {
 	}
 	cfg.LoadFromEnv()
 	app.ApplyPresetAndProfileDefaults(&opts, cfg)
+
+	// --- Logger Setup ---
+	var logFile *os.File
+	if opts.LogFilePath != "" {
+		var err error
+		logFile, err = os.OpenFile(opts.LogFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to open log file %s: %v\n", opts.LogFilePath, err)
+		} else {
+			defer logFile.Close()
+		}
+	}
+
+	var logWriter io.Writer
+	if opts.UseTUI {
+		if logFile != nil {
+			logWriter = logFile
+		} else {
+			logWriter = io.Discard
+		}
+	} else {
+		if logFile != nil {
+			logWriter = io.MultiWriter(os.Stderr, logFile)
+		} else {
+			logWriter = os.Stderr
+		}
+	}
+
+	level := slog.LevelInfo
+	if opts.Debug {
+		level = slog.LevelDebug
+	}
+	baseHandler := slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: level})
+	slog.SetDefault(slog.New(baseHandler))
 
 	// --- TUI Setup ---
 	var bridge *tui.Bridge
@@ -70,10 +102,6 @@ func main() {
 		bridge = tui.NewBridge(tuiProgram)
 
 		// Redirect logs to TUI
-		baseHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
-		if opts.Debug {
-			baseHandler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})
-		}
 		slog.SetDefault(slog.New(&tui.LogHandler{
 			Handler: baseHandler,
 			Program: tuiProgram,
@@ -127,7 +155,8 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.Mode, "mode", "", "Scan mode: light, medium, or full (default medium)")
 	flag.BoolVar(&opts.LightMode, "light", false, "Light mode: fast and low-noise core recon")
 	flag.BoolVar(&opts.FullMode, "full", false, "Full mode: maximum coverage and heavier optional tools")
-	flag.BoolVar(&opts.UseTUI, "tui", false, "Enable interactive TUI dashboard")
+	flag.BoolVar(&opts.UseTUI, "tui", true, "Enable interactive TUI dashboard")
+	flag.StringVar(&opts.LogFilePath, "log-file", "bbpts.log", "Path to log file")
 	flag.BoolVar(&opts.RunDoctor, "doctor", false, "Run environment diagnostics")
 	flag.IntVar(&opts.CronInterval, "cron", 0, "Continuous monitoring interval (minutes)")
 	flag.StringVar(&opts.ExportBurp, "export-burp", "", "Export Burp Suite XML findings")
@@ -188,7 +217,9 @@ func parseFlags() app.Options {
 	}
 
 	if opts.InputPath == "" && !opts.EnableDashboard && !opts.RunWorker {
-		if !opts.UseTUI && tuiExplicitlySet {
+		if opts.UseTUI {
+			// Run in TUI mode and prompt inside TUI
+		} else if tuiExplicitlySet {
 			// --tui=false passed with no input -> Default to Worker Mode
 			fmt.Println("No input and --tui=false provided. Defaulting to Worker Mode...")
 			opts.RunWorker = true

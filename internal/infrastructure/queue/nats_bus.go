@@ -17,9 +17,12 @@ type NatsBus struct {
 	nc          *nats.Conn
 	js          nats.JetStreamContext
 	mu          sync.Mutex
-	subscribers map[string][]*nats.Subscription
-	channels    []Subscriber // To close on exit
+	subscribers  map[string][]*nats.Subscription
+	channels    []Subscriber
+	chToSub     map[Subscriber]*nats.Subscription
 }
+
+var _ func(string) (EventBus, error) = NewNatsBus
 
 // NewNatsBus creates a new NatsBus connecting to the given URL and initializes JetStream.
 func NewNatsBus(url string) (EventBus, error) {
@@ -55,6 +58,7 @@ func NewNatsBus(url string) (EventBus, error) {
 		nc:          nc,
 		js:          js,
 		subscribers: make(map[string][]*nats.Subscription),
+		chToSub:     make(map[Subscriber]*nats.Subscription),
 	}, nil
 }
 
@@ -77,15 +81,18 @@ func (b *NatsBus) subscribeInternal(eventType, queue string) Subscriber {
 		var ev Event
 		if err := json.Unmarshal(m.Data, &ev); err != nil {
 			slog.Warn("failed to unmarshal NATS event", "error", err)
-			m.Nak() // Negative Acknowledge
+			m.Nak()
 			return
 		}
 
 		select {
 		case ch <- ev:
-			m.Ack() // Acknowledge successful processing
+			m.Ack()
 		default:
-			// Drop if full, and NAK so it redelivers
+			slog.Warn("event dropped: NATS subscriber channel full",
+				"event_type", ev.Type,
+				"target", ev.Target,
+			)
 			m.Nak()
 		}
 	}
@@ -105,7 +112,39 @@ func (b *NatsBus) subscribeInternal(eventType, queue string) Subscriber {
 
 	b.subscribers[eventType] = append(b.subscribers[eventType], sub)
 	b.channels = append(b.channels, ch)
+	b.chToSub[ch] = sub
 	return ch
+}
+
+// Unsubscribe removes a subscriber channel and unsubscribes the NATS subscription.
+func (b *NatsBus) Unsubscribe(ch Subscriber) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	sub, ok := b.chToSub[ch]
+	if ok {
+		_ = sub.Unsubscribe()
+		delete(b.chToSub, ch)
+
+		// Remove from event type map
+		for eventType, subs := range b.subscribers {
+			for i, s := range subs {
+				if s == sub {
+					b.subscribers[eventType] = append(subs[:i], subs[i+1:]...)
+					break
+				}
+			}
+		}
+	}
+
+	// Remove from channels list and close
+	for i, c := range b.channels {
+		if c == ch {
+			b.channels = append(b.channels[:i], b.channels[i+1:]...)
+			close(ch)
+			return
+		}
+	}
 }
 
 // Publish publishes an event to NATS JetStream.

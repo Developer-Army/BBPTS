@@ -59,6 +59,40 @@ func DeduplicateAndPreserveURLs(inputs []string) []string {
 	return normalized
 }
 
+func IsValidDomain(host string) bool {
+	if host == "" || len(host) > 255 {
+		return false
+	}
+	// Basic syntax validation
+	parts := strings.Split(host, ".")
+	if len(parts) < 2 {
+		return false
+	}
+	for _, part := range parts {
+		if len(part) == 0 || len(part) > 63 {
+			return false
+		}
+		for _, char := range part {
+			if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-') {
+				return false
+			}
+		}
+	}
+	// The last part (TLD) must not be purely numeric and must be at least 2 chars
+	lastPart := parts[len(parts)-1]
+	if len(lastPart) < 2 {
+		return false
+	}
+	allNumeric := true
+	for _, char := range lastPart {
+		if char < '0' || char > '9' {
+			allNumeric = false
+			break
+		}
+	}
+	return !allNumeric
+}
+
 func normalizeTarget(target string) string {
 	target = strings.TrimSpace(target)
 
@@ -86,8 +120,28 @@ func normalizeTarget(target string) string {
 		}
 	}
 
-	if ip := net.ParseIP(target); ip != nil {
-		return ip.String()
+	// Handle host + port
+	hostPart := target
+	if idx := strings.LastIndex(target, ":"); idx != -1 {
+		// Check if it's an IPv6 address with port or just a normal IPv6 address
+		if !strings.Contains(target, "]") && strings.Count(target, ":") > 1 {
+			// Plain IPv6 without brackets
+		} else {
+			hostPart = target[:idx]
+			// remove brackets for IPv6
+			hostPart = strings.TrimPrefix(hostPart, "[")
+			hostPart = strings.TrimSuffix(hostPart, "]")
+		}
+	}
+
+	// Try parsing as IP address (both IPv4 and IPv6)
+	if ip := net.ParseIP(hostPart); ip != nil {
+		return target
+	}
+
+	// Reject invalid targets/domains
+	if !IsValidDomain(hostPart) {
+		return ""
 	}
 
 	return strings.ToLower(strings.TrimSpace(target))

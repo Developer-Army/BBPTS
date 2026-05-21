@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -245,8 +246,8 @@ func Validate(cfg *Config) *ValidationResult {
 
 // ValidateAndPrint validates the config and prints the report.
 // Returns true if the config is valid.
-func ValidateAndPrint(cfg *Config) bool {
+func ValidateAndPrint(w io.Writer, cfg *Config) bool {
 	result := Validate(cfg)
-	fmt.Print(result.FormatReport())
+	fmt.Fprint(w, result.FormatReport())
 	return result.IsValid()
 }

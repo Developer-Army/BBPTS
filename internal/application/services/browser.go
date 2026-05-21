@@ -52,7 +52,9 @@ func NewStealthBrowser(proxy string) (*StealthBrowser, error) {
 
 	browser, err := pw.Chromium.Launch(options)
 	if err != nil {
-		pw.Stop()
+		if errStop := pw.Stop(); errStop != nil {
+			slog.Warn("Failed to stop playwright", "error", errStop)
+		}
 		return nil, fmt.Errorf("could not launch chromium: %w", err)
 	}
 
@@ -147,7 +149,8 @@ func (sb *StealthBrowser) NewPage() (playwright.Page, playwright.BrowserContext,
 func (sb *StealthBrowser) EmulateHuman(page playwright.Page) error {
 	// Simulate curved mouse movements (pseudo-Bezier)
 	startX, startY := float64(rand.Intn(200)), float64(rand.Intn(200))
-	_ = page.Mouse().Move(startX, startY)
+	// safe to ignore: initial mouse move is best-effort simulation
+	page.Mouse().Move(startX, startY)
 
 	for i := 0; i < 3; i++ {
 		endX := float64(100 + rand.Intn(800))
@@ -164,7 +167,8 @@ func (sb *StealthBrowser) EmulateHuman(page playwright.Page) error {
 			x := (1-t)*(1-t)*startX + 2*(1-t)*t*ctrlX + t*t*endX
 			y := (1-t)*(1-t)*startY + 2*(1-t)*t*ctrlY + t*t*endY
 
-			_ = page.Mouse().Move(x, y)
+			// safe to ignore: intermediate mouse move step is best-effort simulation
+			page.Mouse().Move(x, y)
 			// Micro-hesitations
 			time.Sleep(time.Duration(2+rand.Intn(8)) * time.Millisecond)
 		}
@@ -179,7 +183,8 @@ func (sb *StealthBrowser) EmulateHuman(page playwright.Page) error {
 		stepAmount := scrollAmount / float64(scrollSteps)
 		// Add variance for human-like imperfect scrolling
 		stepAmount += float64(rand.Intn(20) - 10)
-		_ = page.Mouse().Wheel(0, stepAmount)
+		// safe to ignore: mouse scroll step is best-effort simulation
+		page.Mouse().Wheel(0, stepAmount)
 		time.Sleep(time.Duration(10+rand.Intn(40)) * time.Millisecond)
 	}
 

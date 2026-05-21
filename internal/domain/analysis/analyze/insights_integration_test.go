@@ -8,18 +8,18 @@ import (
 
 // TestInsightsGenerationBasic tests basic insight generation from events.
 func TestInsightsGenerationBasic(t *testing.T) {
-	targets := []string{"example.com", "api.example.com"}
+	targets := []string{"acme-corp.io", "api.acme-corp.io"}
 
 	events := []recon.Event{
 		{
 			Type:       "domain_found",
-			Target:     "example.com",
+			Target:     "acme-corp.io",
 			Source:     "subfinder",
 			Properties: map[string]string{"severity": "high"},
 		},
 		{
 			Type:       "endpoint_found",
-			Target:     "api.example.com",
+			Target:     "api.acme-corp.io",
 			Source:     "httpx",
 			Properties: map[string]string{"severity": "medium"},
 		},
@@ -45,19 +45,19 @@ func TestInsightsGenerationBasic(t *testing.T) {
 
 // TestInsightsPriorityLevels tests that priority levels are correctly assigned.
 func TestInsightsPriorityLevels(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 
 	// Create events with varying severity
 	events := []recon.Event{
 		{
 			Type:       "sql_injection",
-			Target:     "example.com",
+			Target:     "acme-corp.io",
 			Source:     "nuclei",
 			Properties: map[string]string{"severity": "critical"},
 		},
 		{
 			Type:       "open_redirect",
-			Target:     "example.com",
+			Target:     "acme-corp.io",
 			Source:     "nuclei",
 			Properties: map[string]string{"severity": "medium"},
 		},
@@ -78,18 +78,18 @@ func TestInsightsPriorityLevels(t *testing.T) {
 
 // TestInsightsTagging tests that insights are properly tagged.
 func TestInsightsTagging(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 
 	events := []recon.Event{
 		{
 			Type:       "api_endpoint",
-			Target:     "api.example.com",
+			Target:     "api.acme-corp.io",
 			Source:     "ffuf",
 			Properties: map[string]string{"type": "api"},
 		},
 		{
 			Type:       "admin_panel",
-			Target:     "admin.example.com",
+			Target:     "admin.acme-corp.io",
 			Source:     "hakrawler",
 			Properties: map[string]string{"type": "admin"},
 		},
@@ -117,12 +117,12 @@ func TestInsightsTagging(t *testing.T) {
 
 // TestInsightsSuggestedTests tests that suggested tests are provided.
 func TestInsightsSuggestedTests(t *testing.T) {
-	targets := []string{"api.example.com"}
+	targets := []string{"api.acme-corp.io"}
 
 	events := []recon.Event{
 		{
 			Type:       "api_endpoint",
-			Target:     "api.example.com",
+			Target:     "api.acme-corp.io",
 			Source:     "nuclei",
 			Properties: map[string]string{"endpoint": "/api/v1/users"},
 		},
@@ -144,12 +144,12 @@ func TestInsightsSuggestedTests(t *testing.T) {
 }
 
 func TestInsightsSuggestSQLInjectionForCategoryEndpoints(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 
 	events := []recon.Event{
 		{
 			Type:   "endpoint_found",
-			Target: "https://example.com/filter?category=Pets",
+			Target: "https://acme-corp.io/filter?category=Pets",
 			Source: "katana",
 			Properties: map[string]string{
 				"title": "All products",
@@ -188,12 +188,12 @@ func TestInsightsEmptyTargets(t *testing.T) {
 
 // TestInsightsEvidenceAccumulation tests that evidence count increases with events.
 func TestInsightsEvidenceAccumulation(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 
 	events := []recon.Event{
-		{Type: "domain_found", Target: "example.com", Source: "subfinder"},
-		{Type: "dns_record", Target: "example.com", Source: "dnsx"},
-		{Type: "http_response", Target: "example.com", Source: "httpx"},
+		{Type: "domain_found", Target: "acme-corp.io", Source: "subfinder"},
+		{Type: "dns_record", Target: "acme-corp.io", Source: "dnsx"},
+		{Type: "http_response", Target: "acme-corp.io", Source: "httpx"},
 	}
 
 	insights := DeriveInsights(targets, events)

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,12 +39,16 @@ func NewStorage(dbType, dbSource string) (*Storage, error) {
 		db.SetMaxIdleConns(1)
 	}
 	if err := db.Ping(); err != nil {
-		_ = db.Close()
+		if errClose := db.Close(); errClose != nil {
+			slog.Warn("failed to close database on initialization error", "error", errClose)
+		}
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 	if dbType == "sqlite" || dbType == "sqlite3" {
 		if _, err := db.Exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;`); err != nil {
-			_ = db.Close()
+			if errClose := db.Close(); errClose != nil {
+				slog.Warn("failed to close database on initialization error", "error", errClose)
+			}
 			return nil, fmt.Errorf("failed to configure sqlite pragmas: %w", err)
 		}
 	}
@@ -123,7 +128,9 @@ func (s *Storage) SaveEvent(ev recon.Event) error {
 		blobID := fmt.Sprintf("%x", hash[:16])
 
 		blobDir := filepath.Join("results", "blobs")
-		_ = os.MkdirAll(blobDir, 0700)
+		if errMkdir := os.MkdirAll(blobDir, 0700); errMkdir != nil {
+			slog.Warn("failed to create blob directory", "dir", blobDir, "error", errMkdir)
+		}
 		blobPath := filepath.Join(blobDir, blobID)
 
 		if err := os.WriteFile(blobPath, []byte(body), 0644); err == nil {

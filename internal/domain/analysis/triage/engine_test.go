@@ -48,7 +48,7 @@ func TestAnalyzeFinding(t *testing.T) {
 			name: "subdomain finding",
 			finding: &Finding{
 				Type:   "subdomain",
-				Target: "api.example.com",
+				Target: "api.acme-corp.io",
 			},
 			wantInfo: false,
 		},
@@ -56,7 +56,7 @@ func TestAnalyzeFinding(t *testing.T) {
 			name: "port finding",
 			finding: &Finding{
 				Type:   "port",
-				Target: "example.com:8080",
+				Target: "acme-corp.io:8080",
 			},
 			wantInfo: false,
 		},
@@ -64,7 +64,7 @@ func TestAnalyzeFinding(t *testing.T) {
 			name: "endpoint finding",
 			finding: &Finding{
 				Type:   "endpoint",
-				Target: "https://example.com/api/users",
+				Target: "https://acme-corp.io/api/users",
 			},
 			wantInfo: false,
 		},
@@ -129,46 +129,46 @@ func TestAnalyzeSubdomain(t *testing.T) {
 	}{
 		{
 			name:      "normal subdomain",
-			target:    "api.example.com",
+			target:    "api.acme-corp.io",
 			wantNoise: false,
 			wantSev:   "medium",
 			wantConf:  0.8,
 		},
 		{
 			name:      "test subdomain",
-			target:    "test.example.com",
+			target:    "test.acme-corp.io",
 			wantNoise: true,
 			wantSev:   "info",
 		},
 		{
 			name:      "staging subdomain",
-			target:    "staging.example.com",
+			target:    "staging.acme-corp.io",
 			wantNoise: true,
 			wantSev:   "info",
 		},
 		{
 			name:      "dev subdomain",
-			target:    "dev.example.com",
+			target:    "dev.acme-corp.io",
 			wantNoise: true,
 			wantSev:   "info",
 		},
 		{
 			name:      "cdn subdomain",
-			target:    "cdn.example.com",
+			target:    "cdn.acme-corp.io",
 			wantNoise: true,
 			wantSev:   "low",
 			wantConf:  0.4,
 		},
 		{
 			name:      "cloudflare subdomain",
-			target:    "cloudflare.example.com",
+			target:    "cloudflare.acme-corp.io",
 			wantNoise: true,
 			wantSev:   "low",
 			wantConf:  0.4,
 		},
 		{
 			name:      "static subdomain",
-			target:    "static.example.com",
+			target:    "static.acme-corp.io",
 			wantNoise: true,
 			wantSev:   "info",
 		},
@@ -209,49 +209,49 @@ func TestAnalyzePort(t *testing.T) {
 	}{
 		{
 			name:      "SSH port",
-			target:    "example.com:22",
+			target:    "acme-corp.io:22",
 			wantNoise: true,
 			wantSev:   "low",
 			wantConf:  0.5,
 		},
 		{
 			name:      "SMTP port",
-			target:    "example.com:25",
+			target:    "acme-corp.io:25",
 			wantNoise: true,
 			wantSev:   "low",
 			wantConf:  0.5,
 		},
 		{
 			name:      "DNS port",
-			target:    "example.com:53",
+			target:    "acme-corp.io:53",
 			wantNoise: true,
 			wantSev:   "low",
 			wantConf:  0.5,
 		},
 		{
 			name:      "HTTP port",
-			target:    "example.com:80",
+			target:    "acme-corp.io:80",
 			wantNoise: false,
 			wantSev:   "high",
 			wantConf:  0.9,
 		},
 		{
 			name:      "HTTPS port",
-			target:    "example.com:443",
+			target:    "acme-corp.io:443",
 			wantNoise: false,
 			wantSev:   "high",
 			wantConf:  0.9,
 		},
 		{
 			name:      "HTTP alt port",
-			target:    "example.com:8080",
+			target:    "acme-corp.io:8080",
 			wantNoise: false,
 			wantSev:   "high",
 			wantConf:  0.9,
 		},
 		{
 			name:      "unknown port",
-			target:    "example.com:9999",
+			target:    "acme-corp.io:9999",
 			wantNoise: false,
 			wantSev:   "medium",
 			wantConf:  0.7,
@@ -293,61 +293,61 @@ func TestAnalyzeEndpoint(t *testing.T) {
 	}{
 		{
 			name:      "favicon",
-			target:    "https://example.com/favicon.ico",
+			target:    "https://acme-corp.io/favicon.ico",
 			wantNoise: true,
 			wantSev:   "info",
 		},
 		{
 			name:      "robots.txt",
-			target:    "https://example.com/robots.txt",
+			target:    "https://acme-corp.io/robots.txt",
 			wantNoise: true,
 			wantSev:   "info",
 		},
 		{
 			name:      "admin endpoint",
-			target:    "https://example.com/admin",
+			target:    "https://acme-corp.io/admin",
 			wantNoise: false,
 			wantSev:   "high",
 			wantConf:  0.85,
 		},
 		{
 			name:      "api endpoint",
-			target:    "https://example.com/api/users",
+			target:    "https://acme-corp.io/api/users",
 			wantNoise: false,
 			wantSev:   "high",
 			wantConf:  0.85,
 		},
 		{
 			name:      "config endpoint",
-			target:    "https://example.com/config",
+			target:    "https://acme-corp.io/config",
 			wantNoise: false,
 			wantSev:   "high",
 			wantConf:  0.85,
 		},
 		{
 			name:      "backup endpoint",
-			target:    "https://example.com/backup",
+			target:    "https://acme-corp.io/backup",
 			wantNoise: false,
 			wantSev:   "high",
 			wantConf:  0.85,
 		},
 		{
 			name:      "endpoint with params",
-			target:    "https://example.com/search?q=test",
+			target:    "https://acme-corp.io/search?q=test",
 			wantNoise: false,
 			wantSev:   "medium",
 			wantConf:  0.7,
 		},
 		{
 			name:      "generic endpoint",
-			target:    "https://example.com/page",
+			target:    "https://acme-corp.io/page",
 			wantNoise: false,
 			wantSev:   "low",
 			wantConf:  0.5,
 		},
 		{
 			name:      "cdn path",
-			target:    "https://example.com/cdn/static.js",
+			target:    "https://acme-corp.io/cdn/static.js",
 			wantNoise: true,
 			wantSev:   "info",
 		},
@@ -618,9 +618,9 @@ func TestPrioritizeFindings(t *testing.T) {
 	te := NewTriageEngine()
 
 	findings := []*Finding{
-		{Type: "subdomain", Target: "test.example.com"},
-		{Type: "port", Target: "example.com:80"},
-		{Type: "endpoint", Target: "https://example.com/admin"},
+		{Type: "subdomain", Target: "test.acme-corp.io"},
+		{Type: "port", Target: "acme-corp.io:80"},
+		{Type: "endpoint", Target: "https://acme-corp.io/admin"},
 		{Type: "vulnerability", Target: "CVE-2024-1234 critical"},
 	}
 
@@ -640,10 +640,10 @@ func TestFilterNoise(t *testing.T) {
 	te := NewTriageEngine()
 
 	findings := []*Finding{
-		{Type: "subdomain", Target: "test.example.com"},
-		{Type: "port", Target: "example.com:80"},
-		{Type: "endpoint", Target: "https://example.com/favicon.ico"},
-		{Type: "endpoint", Target: "https://example.com/admin"},
+		{Type: "subdomain", Target: "test.acme-corp.io"},
+		{Type: "port", Target: "acme-corp.io:80"},
+		{Type: "endpoint", Target: "https://acme-corp.io/favicon.ico"},
+		{Type: "endpoint", Target: "https://acme-corp.io/admin"},
 	}
 
 	actionable := te.FilterNoise(findings)
@@ -664,10 +664,10 @@ func TestGetStats(t *testing.T) {
 	te := NewTriageEngine()
 
 	findings := []*Finding{
-		{Type: "subdomain", Target: "test.example.com"},
-		{Type: "subdomain", Target: "api.example.com"},
-		{Type: "port", Target: "example.com:80"},
-		{Type: "endpoint", Target: "https://example.com/favicon.ico"},
+		{Type: "subdomain", Target: "test.acme-corp.io"},
+		{Type: "subdomain", Target: "api.acme-corp.io"},
+		{Type: "port", Target: "acme-corp.io:80"},
+		{Type: "endpoint", Target: "https://acme-corp.io/favicon.ico"},
 	}
 
 	stats := te.GetStats(findings)

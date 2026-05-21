@@ -2,6 +2,7 @@
 package queue
 
 import (
+	"log/slog"
 	"sync"
 )
 
@@ -22,6 +23,7 @@ type Subscriber chan Event
 type EventBus interface {
 	Subscribe(eventType string) Subscriber
 	QueueSubscribe(eventType, queue string) Subscriber
+	Unsubscribe(ch Subscriber)
 	Publish(ev Event)
 	Close()
 }
@@ -50,15 +52,30 @@ func (b *InMemoryBus) QueueSubscribe(eventType, queue string) Subscriber {
 }
 
 func (b *InMemoryBus) subscribeInternal(eventType string) Subscriber {
-	ch := make(Subscriber, 128) // buffered to avoid blocking publishers
+	ch := make(Subscriber, 128)
 	b.mu.Lock()
 	b.subscribers[eventType] = append(b.subscribers[eventType], ch)
 	b.mu.Unlock()
 	return ch
 }
 
+// Unsubscribe removes a subscriber channel from the bus and closes it.
+func (b *InMemoryBus) Unsubscribe(ch Subscriber) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for eventType, subs := range b.subscribers {
+		for i, sub := range subs {
+			if sub == ch {
+				b.subscribers[eventType] = append(subs[:i], subs[i+1:]...)
+				close(ch)
+				return
+			}
+		}
+	}
+}
+
 // Publish sends an event to all matching subscribers. If a subscriber's channel is full,
-// the event is dropped for that subscriber to keep the pipeline flowing.
+// the event is dropped for that subscriber and a warning is logged.
 func (b *InMemoryBus) Publish(ev Event) {
 	b.mu.RLock()
 	subs, ok := b.subscribers[ev.Type]
@@ -70,7 +87,10 @@ func (b *InMemoryBus) Publish(ev Event) {
 		select {
 		case sub <- ev:
 		default:
-			// drop if subscriber is lagging – better to keep throughput high.
+			slog.Warn("event dropped: subscriber channel full",
+				"event_type", ev.Type,
+				"target", ev.Target,
+			)
 		}
 	}
 }

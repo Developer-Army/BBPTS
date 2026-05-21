@@ -15,7 +15,7 @@ func TestReporting(t *testing.T) {
 
 	insights := []Insight{
 		{
-			Host:           "example.com",
+			Host:           "acme-corp.io",
 			Score:          50,
 			Priority:       "high",
 			Tags:           []string{"api", "auth"},
@@ -23,7 +23,7 @@ func TestReporting(t *testing.T) {
 			SuggestedTests: []string{"Review API auth", "Access control review"},
 		},
 		{
-			Host:     "test.example.com",
+			Host:     "test.acme-corp.io",
 			Score:    20,
 			Priority: "medium",
 			Tags:     []string{"subdomain"},
@@ -54,13 +54,13 @@ func TestReporting(t *testing.T) {
 	if err := ExportToObsidian(obsDir, insights); err != nil {
 		t.Errorf("ExportToObsidian failed: %v", err)
 	}
-	// Only example.com should have a note because of priority/score
-	notePath := filepath.Join(obsDir, "example.com.md")
+	// Only acme-corp.io should have a note because of priority/score
+	notePath := filepath.Join(obsDir, "acme-corp.io.md")
 	if _, err := os.Stat(notePath); os.IsNotExist(err) {
-		t.Errorf("Obsidian note for example.com not created")
+		t.Errorf("Obsidian note for acme-corp.io not created")
 	}
 
-	lowPriorityNotePath := filepath.Join(obsDir, "test.example.com.md")
+	lowPriorityNotePath := filepath.Join(obsDir, "test.acme-corp.io.md")
 	if _, err := os.Stat(lowPriorityNotePath); err == nil {
 		t.Errorf("Obsidian note for low priority host should not have been created")
 	}

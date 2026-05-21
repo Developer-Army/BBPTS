@@ -19,7 +19,7 @@ func TestCheckpointStructure(t *testing.T) {
 	cp := &Checkpoint{
 		SessionID:   "session-123",
 		Stage:       "subdomain_enum",
-		Target:      "example.com",
+		Target:      "acme-corp.io",
 		Status:      "in_progress",
 		Progress:    0.5,
 		Data:        map[string]interface{}{"count": 10},
@@ -38,8 +38,8 @@ func TestCheckpointStructure(t *testing.T) {
 		t.Errorf("Expected Stage 'subdomain_enum', got '%s'", cp.Stage)
 	}
 
-	if cp.Target != "example.com" {
-		t.Errorf("Expected Target 'example.com', got '%s'", cp.Target)
+	if cp.Target != "acme-corp.io" {
+		t.Errorf("Expected Target 'acme-corp.io', got '%s'", cp.Target)
 	}
 
 	if cp.Status != "in_progress" {
@@ -67,9 +67,9 @@ func TestCheckpointManagerStructure(t *testing.T) {
 func TestCheckpointKeyFormat(t *testing.T) {
 	sessionID := "session-123"
 	stage := "subdomain_enum"
-	target := "example.com"
+	target := "acme-corp.io"
 
-	expectedKey := "checkpoint:session-123:subdomain_enum:example.com"
+	expectedKey := "checkpoint:session-123:subdomain_enum:acme-corp.io"
 	actualKey := formatCheckpointKey(sessionID, stage, target)
 
 	if actualKey != expectedKey {
@@ -84,10 +84,10 @@ func formatCheckpointKey(sessionID, stage, target string) string {
 func TestResumePlanStructure(t *testing.T) {
 	rp := &ResumePlan{
 		SessionID:  "session-123",
-		Completed:  map[string][]string{"subdomain_enum": {"example.com"}},
-		InProgress: map[string][]string{"port_scan": {"example.com:80"}},
-		Pending:    map[string][]string{"crawl": {"https://example.com"}},
-		Failed:     map[string][]string{"js_diff": {"https://example.com/app.js"}},
+		Completed:  map[string][]string{"subdomain_enum": {"acme-corp.io"}},
+		InProgress: map[string][]string{"port_scan": {"acme-corp.io:80"}},
+		Pending:    map[string][]string{"crawl": {"https://acme-corp.io"}},
+		Failed:     map[string][]string{"js_diff": {"https://acme-corp.io/app.js"}},
 	}
 
 	if rp.SessionID != "session-123" {

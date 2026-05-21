@@ -10,8 +10,7 @@ import (
 
 const (
 	ModeLight  = "light"
-	ModeMedium = "medium"
-	ModeFull   = "full"
+	ModeNormal = "normal"
 )
 
 // ApplyPresetAndProfileDefaults sets opts.Tools (and optional rate/timeout) when the
@@ -67,26 +66,24 @@ func ApplyPresetAndProfileDefaults(opts *Options, cfg *config.Config) {
 		}
 	}
 
-	opts.Tools = ToolsetForMode(ModeMedium)
+	opts.Tools = ToolsetForMode(ModeNormal)
 	applyProfileRateOnly(opts, cfg)
 }
 
 func ResolveMode(opts Options) string {
-	if opts.FullMode {
-		return ModeFull
-	}
 	if opts.LightMode {
 		return ModeLight
+	}
+	if opts.FullMode {
+		return ModeNormal
 	}
 	switch strings.ToLower(strings.TrimSpace(opts.Mode)) {
 	case ModeLight:
 		return ModeLight
-	case ModeFull:
-		return ModeFull
-	case ModeMedium, "":
-		return ModeMedium
+	case ModeNormal, "full", "":
+		return ModeNormal
 	default:
-		return ModeMedium
+		return ModeNormal
 	}
 }
 
@@ -98,29 +95,22 @@ func ToolsetForMode(mode string) string {
 	switch mode {
 	case ModeLight:
 		return strings.Join(LightModeTools(), ",")
-	case ModeFull:
-		return strings.Join(FullModeTools(), ",")
 	default:
-		return strings.Join(MediumModeTools(), ",")
+		return strings.Join(NormalModeTools(), ",")
 	}
 }
 
 func LightModeTools() []string {
 	return []string{
-		"crtsh", "subfinder", "httpx",
+		"crtsh", "subfinder", "amass", "assetfinder", "findomain", "chaos",
+		"puredns", "dnsx", "whois",
+		"naabu", "httpx", "wafw00f", "shodan",
+		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",
+		"uro", "dalfox",
 	}
 }
 
-func MediumModeTools() []string {
-	return []string{
-		"crtsh", "subfinder", "puredns", "dnsx",
-		"naabu", "httpx",
-		"katana", "gau", "ffuf", "feroxbuster",
-		"uro", "dalfox", "nuclei",
-	}
-}
-
-func FullModeTools() []string {
+func NormalModeTools() []string {
 	return []string{
 		"crtsh", "subfinder", "amass", "assetfinder", "findomain", "chaos",
 		"puredns", "dnsx", "massdns", "whois",
@@ -132,7 +122,7 @@ func FullModeTools() []string {
 }
 
 func OptionalToolNamesForDoctor(mode string) []string {
-	if mode != ModeFull {
+	if mode != ModeNormal && mode != "full" {
 		return nil
 	}
 	required := map[string]struct{}{}

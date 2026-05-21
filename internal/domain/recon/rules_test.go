@@ -16,14 +16,14 @@ func TestRuleSet_Evaluate(t *testing.T) {
 		{
 			name: "match exposed env",
 			events: []Event{
-				{Target: "https://example.com/.env", Source: "httpx"},
+				{Target: "https://acme-corp.io/.env", Source: "httpx"},
 			},
 			wantMatchIDs: []string{"exposed-env"},
 		},
 		{
 			name: "match wildcard and trigger tool",
 			events: []Event{
-				{Target: "*.example.com", Source: "crtsh"},
+				{Target: "*.acme-corp.io", Source: "crtsh"},
 			},
 			wantMatchIDs:  []string{"crtsh-wildcard"},
 			wantToolNames: []string{"subfinder"},
@@ -31,7 +31,7 @@ func TestRuleSet_Evaluate(t *testing.T) {
 		{
 			name: "no match",
 			events: []Event{
-				{Target: "https://example.com/index.html", Source: "httpx"},
+				{Target: "https://acme-corp.io/index.html", Source: "httpx"},
 			},
 			wantMatchIDs: []string{},
 		},

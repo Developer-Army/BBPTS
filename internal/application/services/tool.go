@@ -122,6 +122,7 @@ const (
 	proxiesContextKey     contextKey = "proxies"
 	rateLimitContextKey   contextKey = "rate_limit"
 	lowResourceContextKey contextKey = "low_resource"
+	scanModeContextKey    contextKey = "scan_mode"
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -200,4 +201,15 @@ func LowResourceFromCtx(ctx context.Context) bool {
 		return low
 	}
 	return false
+}
+
+func WithScanMode(ctx context.Context, mode string) context.Context {
+	return context.WithValue(ctx, scanModeContextKey, mode)
+}
+
+func GetScanMode(ctx context.Context) string {
+	if mode, ok := ctx.Value(scanModeContextKey).(string); ok {
+		return mode
+	}
+	return "normal"
 }

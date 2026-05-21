@@ -24,7 +24,10 @@ func NewGraphQLScanner() Tool {
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
-	client, _ := network.NewStealthClient(profile, "")
+	client, err := network.NewStealthClient(profile, "")
+	if err != nil {
+		slog.Warn("Failed to create stealth client in graphql constructor", "error", err)
+	}
 	return &GraphQLScanner{client: client}
 }
 
@@ -84,7 +87,11 @@ func (g *GraphQLScanner) Run(ctx context.Context, targets []string, threads int)
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
-	g.client, _ = network.NewStealthClient(profile, proxy)
+	var errClient error
+	g.client, errClient = network.NewStealthClient(profile, proxy)
+	if errClient != nil {
+		slog.Warn("Failed to recreate stealth client with proxy", "proxy", proxy, "error", errClient)
+	}
 
 	for _, target := range targets {
 		if !strings.HasPrefix(target, "http") {

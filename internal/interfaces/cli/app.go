@@ -84,6 +84,7 @@ type Options struct {
 	ShowVersion       bool
 	EnableMetrics     bool
 	MetricsPort       int
+	LogFilePath       string
 }
 
 // Run executes the BBPTS engine with the provided options.
@@ -173,6 +174,18 @@ func runWorkerNode(ctx context.Context, opts Options, cfg *config.Config) {
 }
 
 func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Bridge) {
+	abortCtx, cancelAbort := context.WithCancel(ctx)
+	defer cancelAbort()
+
+	// Monitor ScanAbortChan to cancel abortCtx
+	go func() {
+		select {
+		case <-tui.ScanAbortChan:
+			cancelAbort()
+		case <-abortCtx.Done():
+		}
+	}()
+
 	var normalized []string
 	var events []recon.Event
 	var matches []recon.Match
@@ -184,7 +197,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	}
 
 	// Create a default context for reporting if scan is skipped
-	runCtx, cancel := context.WithCancel(ctx)
+	runCtx, cancel := context.WithCancel(abortCtx)
 	defer cancel()
 
 	// --- Reconnaissance Phase ---
@@ -229,7 +242,42 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 				return
 			}
 		}
+	} else if bridge != nil {
+		bridge.PromptForTarget()
+		select {
+		case targets := <-tui.TargetInputChan:
+			select {
+			case selectedMode := <-tui.TargetModeChan:
+				opts.Mode = selectedMode
+				opts.LightMode = (selectedMode == "light")
+				opts.FullMode = (selectedMode == "normal")
+			default:
+				opts.Mode = "normal"
+			}
+			opts.Tools = ToolsetForMode(opts.Mode)
+			normalized = targets
+			if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
+				opts.OutputPath, opts.SummaryPath = defaultReportPaths(targets[0])
+				slog.Info("no report paths provided; using defaults", "output", opts.OutputPath, "summary", opts.SummaryPath)
+			}
+			bridge.SendInitialTargets(normalized)
+		case <-ctx.Done():
+			return
+		}
+	}
 
+	if len(normalized) > 0 {
+		normalized = validateTargetsWithHTTPX(abortCtx, normalized)
+		if len(normalized) == 0 {
+			slog.Warn("No valid targets active or resolved via httpx validation. Aborting run.")
+			if bridge != nil {
+				bridge.ReportFailure("engine", "all targets failed validation")
+			}
+			return
+		}
+	}
+
+	if len(normalized) > 0 {
 		if opts.Profile != "" && cfg.ProgramProfiles != nil {
 			if prof, ok := cfg.ProgramProfiles[opts.Profile]; ok {
 				before := len(normalized)
@@ -260,14 +308,15 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		// Re-initialize context with proper timeout for tools
 		cancel()
 		if opts.Timeout > 0 {
-			runCtx, cancel = context.WithTimeout(ctx, opts.Timeout*time.Duration(len(toolNames)))
+			runCtx, cancel = context.WithTimeout(abortCtx, opts.Timeout*time.Duration(len(toolNames)))
 			defer cancel()
 		} else {
-			runCtx, cancel = context.WithCancel(ctx)
+			runCtx, cancel = context.WithCancel(abortCtx)
 			defer cancel()
 		}
 
 		runCtx = services.WithLowResource(runCtx, opts.LowResource)
+		runCtx = services.WithScanMode(runCtx, opts.Mode)
 
 		var eventBus queue.EventBus
 		if cfg.EventBus.Type == "nats" {
@@ -329,8 +378,9 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			dbType = "sqlite3"
 		}
 		dbSource := cfg.Database.DSN
-		if dbSource == "" && dbType == "sqlite3" {
-			dbSource = filepath.Join(reconConfig.TmpResultsDir, "bbpts.storage")
+		if dbSource == "" && (dbType == "sqlite3" || dbType == "sqlite") {
+			home, _ := os.UserHomeDir()
+			dbSource = filepath.Join(home, ".bbpts", "bbpts.db")
 		}
 
 		store, err := storage.NewStorage(dbType, dbSource)
@@ -425,7 +475,6 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			// Re-evaluate recon on the diff
 			matches, triggeredTools = ruleSet.Evaluate(events)
 		}
-
 	} else {
 		slog.Info("no input provided; skipping reconnaissance scan")
 		if bridge != nil {
@@ -828,9 +877,24 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		}
 	}
 
+	// Setup global reports directory
+	var globalReportDir string
+	home, err := os.UserHomeDir()
+	if err == nil {
+		globalReportDir = filepath.Join(home, ".bbpts", "results")
+		if err := os.MkdirAll(globalReportDir, 0700); err != nil {
+			slog.Warn("failed to create global report directory", "dir", globalReportDir, "error", err)
+		}
+	}
+
 	if opts.SummaryPath != "" {
 		if err := analyze.WriteCSVSummary(opts.SummaryPath, insights); err != nil {
 			slog.Error("failed to write csv summary", "path", opts.SummaryPath, "error", err)
+		}
+		if globalReportDir != "" {
+			if err := analyze.WriteCSVSummary(filepath.Join(globalReportDir, filepath.Base(opts.SummaryPath)), insights); err != nil {
+				slog.Warn("failed to write global csv summary", "error", err)
+			}
 		}
 	}
 
@@ -838,11 +902,21 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		if err := analyze.WriteHackerOneCSV(opts.ReportH1, insights); err != nil {
 			slog.Error("failed to write HackerOne csv", "path", opts.ReportH1, "error", err)
 		}
+		if globalReportDir != "" {
+			if err := analyze.WriteHackerOneCSV(filepath.Join(globalReportDir, filepath.Base(opts.ReportH1)), insights); err != nil {
+				slog.Warn("failed to write global HackerOne csv", "error", err)
+			}
+		}
 	}
 
 	if opts.ReportBC != "" {
 		if err := analyze.WriteBugcrowdCSV(opts.ReportBC, insights); err != nil {
 			slog.Error("failed to write Bugcrowd csv", "path", opts.ReportBC, "error", err)
+		}
+		if globalReportDir != "" {
+			if err := analyze.WriteBugcrowdCSV(filepath.Join(globalReportDir, filepath.Base(opts.ReportBC)), insights); err != nil {
+				slog.Warn("failed to write global Bugcrowd csv", "error", err)
+			}
 		}
 	}
 
@@ -854,6 +928,11 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		if err := analyze.WriteEvidenceBundle(opts.EvidencePath, insights, n); err != nil {
 			slog.Error("failed to write evidence bundle", "path", opts.EvidencePath, "error", err)
 		}
+		if globalReportDir != "" {
+			if err := analyze.WriteEvidenceBundle(filepath.Join(globalReportDir, filepath.Base(opts.EvidencePath)), insights, n); err != nil {
+				slog.Warn("failed to write global evidence bundle", "error", err)
+			}
+		}
 	}
 
 	if opts.ObsidianDir != "" {
@@ -862,7 +941,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		}
 	}
 
-	// Generate a detailed multi-format report bundle in the results directory.
+	// Generate a detailed multi-format report bundle in the local results directory.
 	reportDir := "results"
 	if strings.TrimSpace(opts.OutputPath) != "" {
 		reportDir = filepath.Dir(opts.OutputPath)
@@ -882,6 +961,21 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 	})
 	if err := gen.GenerateFullReport(insights, events); err != nil {
 		slog.Warn("failed to generate detailed report bundle", "dir", reportDir, "error", err)
+	}
+
+	if globalReportDir != "" {
+		genGlobal := ui.NewReportGenerator(ui.ReportConfig{
+			OutputPath:   globalReportDir,
+			IncludeHTML:  true,
+			IncludeJSON:  true,
+			IncludeBurp:  true,
+			IncludeCaido: true,
+			IncludeZAP:   true,
+			MinimumScore: 0,
+		})
+		if err := genGlobal.GenerateFullReport(insights, events); err != nil {
+			slog.Warn("failed to generate global detailed report bundle", "dir", globalReportDir, "error", err)
+		}
 	}
 }
 
@@ -995,8 +1089,75 @@ func isDirectURL(s string) bool {
 
 // fileExtsThatMightBeURLs lists file extensions that should NOT be treated as
 // bare URL targets. Used so that a hostname named "hostname.txt" (a file)
-// isn't mistaken for a target, while "example.com" still is.
+// isn't mistaken for a target, while "acme-corp.io" still is.
 var fileExtsThatMightBeURLs = []string{
 	".txt", ".csv", ".json", ".yaml", ".yml", ".xml", ".toml", ".conf",
 	".log", ".jsonl", ".env", ".md", ".input",
+}
+
+func validateTargetsWithHTTPX(ctx context.Context, targets []string) []string {
+	slog.Info("Probing input targets to verify active hosts...", "count", len(targets))
+	
+	var alive []string
+	for _, target := range targets {
+		cleanHost := target
+		if strings.Contains(cleanHost, "://") {
+			parts := strings.SplitN(cleanHost, "://", 2)
+			cleanHost = parts[1]
+		}
+		if idx := strings.Index(cleanHost, "/"); idx != -1 {
+			cleanHost = cleanHost[:idx]
+		}
+		if idx := strings.LastIndex(cleanHost, ":"); idx != -1 {
+			if !(strings.Count(cleanHost, ":") > 1 && !strings.Contains(cleanHost, "]")) {
+				cleanHost = cleanHost[:idx]
+				cleanHost = strings.TrimPrefix(cleanHost, "[")
+				cleanHost = strings.TrimSuffix(cleanHost, "]")
+			}
+		}
+		
+		// If it's a direct IP, it's alive
+		if net.ParseIP(cleanHost) != nil {
+			alive = append(alive, target)
+			continue
+		}
+		
+		// Try DNS lookup to see if it resolves
+		ips, err := net.LookupIP(cleanHost)
+		if err == nil && len(ips) > 0 {
+			alive = append(alive, target)
+		} else {
+			slog.Warn("Target failed DNS resolution", "target", cleanHost)
+		}
+	}
+	
+	if len(alive) == 0 {
+		slog.Warn("No targets resolved via DNS lookup.")
+		return nil
+	}
+	
+	httpxTool := &services.HTTPXTool{}
+	events, err := httpxTool.Run(ctx, alive, 10)
+	if err != nil {
+		slog.Warn("Target validation via httpx failed or skipped; proceeding with DNS-resolved targets", "error", err)
+		return alive
+	}
+	if len(events) == 0 {
+		slog.Warn("No targets returned active status via httpx; proceeding with DNS-resolved targets")
+		return alive
+	}
+	
+	var validated []string
+	seen := make(map[string]struct{})
+	for _, ev := range events {
+		targetVal := strings.TrimSpace(ev.Target)
+		if targetVal != "" {
+			if _, ok := seen[targetVal]; !ok {
+				seen[targetVal] = struct{}{}
+				validated = append(validated, targetVal)
+			}
+		}
+	}
+	slog.Info("Target validation completed successfully", "active_targets", len(validated))
+	return validated
 }

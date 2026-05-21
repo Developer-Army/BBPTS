@@ -18,13 +18,13 @@ func TestDeduplicateAndNormalize(t *testing.T) {
 		},
 		{
 			name:     "basic domains with whitespace",
-			inputs:   []string{" example.com ", "test.com\n", "example.com"},
-			expected: []string{"example.com", "test.com"},
+			inputs:   []string{" acme-corp.io ", "test.com\n", "acme-corp.io"},
+			expected: []string{"acme-corp.io", "test.com"},
 		},
 		{
 			name:     "urls to domains",
-			inputs:   []string{"https://example.com/", "http://test.com/path", "https://example.com:443"},
-			expected: []string{"example.com", "test.com"},
+			inputs:   []string{"https://acme-corp.io/", "http://test.com/path", "https://acme-corp.io:443"},
+			expected: []string{"acme-corp.io", "test.com"},
 		},
 		{
 			name:     "IPs and CIDR",
@@ -33,8 +33,13 @@ func TestDeduplicateAndNormalize(t *testing.T) {
 		},
 		{
 			name:     "host with port",
-			inputs:   []string{"example.com:8080", "test.com:80"},
-			expected: []string{"example.com:8080", "test.com:80"},
+			inputs:   []string{"acme-corp.io:8080", "test.com:80"},
+			expected: []string{"acme-corp.io:8080", "test.com:80"},
+		},
+		{
+			name:     "invalid IP addresses and invalid domains",
+			inputs:   []string{"256.256.256.256", "invalid_domain", "hello...world", "123.456.789.0"},
+			expected: []string{},
 		},
 	}
 
@@ -53,20 +58,20 @@ func TestDeduplicateAndNormalize(t *testing.T) {
 
 func TestDeduplicateAndPreserveURLs(t *testing.T) {
 	inputs := []string{
-		"https://example.com/",
-		"https://example.com",
-		"https://example.com:443/path#frag",
+		"https://acme-corp.io/",
+		"https://acme-corp.io",
+		"https://acme-corp.io:443/path#frag",
 		"http://test.com:80/a",
 		"http://test.com/a",
-		"api.example.com",
-		"api.example.com",
+		"api.acme-corp.io",
+		"api.acme-corp.io",
 	}
 
 	expected := []string{
-		"https://example.com",
-		"https://example.com/path",
+		"https://acme-corp.io",
+		"https://acme-corp.io/path",
 		"http://test.com/a",
-		"api.example.com",
+		"api.acme-corp.io",
 	}
 
 	got := DeduplicateAndPreserveURLs(inputs)

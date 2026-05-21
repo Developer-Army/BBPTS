@@ -108,9 +108,9 @@ func TestEventDeduperStructure(t *testing.T) {
 func TestEventDeduperKeyFormat(t *testing.T) {
 	eventType := "subdomain"
 	source := "subfinder"
-	target := "example.com"
+	target := "acme-corp.io"
 
-	expectedKey := "event:subdomain:subfinder:example.com"
+	expectedKey := "event:subdomain:subfinder:acme-corp.io"
 	actualKey := formatEventKey(eventType, source, target)
 
 	if actualKey != expectedKey {
@@ -158,8 +158,8 @@ func TestTaskResultTimestamp(t *testing.T) {
 func TestTaskResultEvents(t *testing.T) {
 	tr := &TaskResult{
 		Events: []map[string]interface{}{
-			{"type": "subdomain", "target": "example.com"},
-			{"type": "port", "target": "example.com:80"},
+			{"type": "subdomain", "target": "acme-corp.io"},
+			{"type": "port", "target": "acme-corp.io:80"},
 		},
 	}
 
@@ -263,13 +263,13 @@ func TestEventDeduperWithMockKV(t *testing.T) {
 	}
 
 	// Test RecordEvent
-	err := ed.RecordEvent("example.com", "subfinder", "subdomain")
+	err := ed.RecordEvent("acme-corp.io", "subfinder", "subdomain")
 	if err != nil {
 		t.Errorf("RecordEvent failed: %v", err)
 	}
 
 	// Test IsDuplicate
-	isDup, err := ed.IsDuplicate("example.com", "subfinder", "subdomain")
+	isDup, err := ed.IsDuplicate("acme-corp.io", "subfinder", "subdomain")
 	if err != nil {
 		t.Errorf("IsDuplicate failed: %v", err)
 	}

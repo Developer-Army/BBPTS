@@ -50,7 +50,8 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 		}
 		if err == nil {
 			lastErr = fmt.Errorf("server returned %s", resp.Status)
-			_ = resp.Body.Close()
+			// safe to ignore: closing response body during error/retry path is best-effort
+			resp.Body.Close()
 		} else {
 			lastErr = err
 		}

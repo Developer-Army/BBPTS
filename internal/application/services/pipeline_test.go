@@ -17,7 +17,7 @@ func TestMockToolInterface(t *testing.T) {
 // TestMockToolReturnsEvents verifies mock tools return configured events.
 func TestMockToolReturnsEvents(t *testing.T) {
 	tool := GetMockTool("subfinder")
-	events, err := tool.Run(context.Background(), []string{"example.com"}, 10)
+	events, err := tool.Run(context.Background(), []string{"acme-corp.io"}, 10)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -33,7 +33,7 @@ func TestMockToolReturnsEvents(t *testing.T) {
 func TestFailingMockTool(t *testing.T) {
 	expectedErr := errors.New("tool binary not found")
 	tool := NewFailingMockTool("broken-tool", expectedErr)
-	_, err := tool.Run(context.Background(), []string{"example.com"}, 5)
+	_, err := tool.Run(context.Background(), []string{"acme-corp.io"}, 5)
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error %v, got %v", expectedErr, err)
 	}
@@ -41,7 +41,7 @@ func TestFailingMockTool(t *testing.T) {
 
 // TestMockPipelineFullFlow verifies NewMockPipeline produces realistic results.
 func TestMockPipelineFullFlow(t *testing.T) {
-	events := NewMockPipeline("example.com")
+	events := NewMockPipeline("acme-corp.io")
 	if len(events) == 0 {
 		t.Fatal("expected pipeline events, got none")
 	}
@@ -67,7 +67,7 @@ func TestBatchProcessorSplit(t *testing.T) {
 	// Generate 10 targets
 	targets := make([]string, 10)
 	for i := range targets {
-		targets[i] = fmt.Sprintf("target-%d.example.com", i)
+		targets[i] = fmt.Sprintf("target-%d.acme-corp.io", i)
 	}
 
 	batches := bp.split(targets)
@@ -89,7 +89,7 @@ func TestBatchProcessorProcess(t *testing.T) {
 
 	targets := make([]string, 12)
 	for i := range targets {
-		targets[i] = fmt.Sprintf("host-%d.example.com", i)
+		targets[i] = fmt.Sprintf("host-%d.acme-corp.io", i)
 	}
 
 	var callCount int32 = 0
@@ -186,7 +186,7 @@ func TestGetAllMockTools(t *testing.T) {
 func TestMockToolTracksTargets(t *testing.T) {
 	tool := GetMockTool("httpx")
 	targets := []string{"a.com", "b.com"}
-	tool.Run(context.Background(), targets, 5)
+	_, _ = tool.Run(context.Background(), targets, 5)
 
 	if len(tool.LastTargets) != 2 {
 		t.Fatalf("expected 2 recorded targets, got %d", len(tool.LastTargets))

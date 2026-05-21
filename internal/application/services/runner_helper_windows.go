@@ -20,6 +20,7 @@ func terminateCommand(cmd commandHandle) {
 	}
 
 	// Best effort: terminate the whole process tree when available.
-	_ = exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
-	_ = cmd.Process.Kill()
+	// safe to ignore: killing process tree is best-effort during cleanup
+	exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+	cmd.Process.Kill()
 }

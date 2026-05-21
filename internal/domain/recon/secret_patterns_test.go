@@ -209,7 +209,7 @@ func TestSecretPatterns_Database(t *testing.T) {
 		{"PostgreSQL", "postgres://user:pass@localhost:5432/db", true},
 		{"MySQL", "mysql://user:pass@localhost:3306/db", true},
 		{"Redis", "redis://localhost:6379", true},
-		{"Not a DB string", "http://example.com", false},
+		{"Not a DB string", "http://acme-corp.io", false},
 	}
 
 	for _, tt := range tests {

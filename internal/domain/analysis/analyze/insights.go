@@ -688,7 +688,7 @@ func extractHost(raw string) string {
 		}
 	}
 
-	// Fallback for scheme-less like example.com or example.com:8080
+	// Fallback for scheme-less like acme-corp.io or acme-corp.io:8080
 	if strings.Contains(raw, ":") {
 		host, _, err := net.SplitHostPort(raw)
 		if err == nil {

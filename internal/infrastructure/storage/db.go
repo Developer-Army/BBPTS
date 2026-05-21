@@ -215,7 +215,7 @@ func (db *DB) GetScans(ctx context.Context) ([]ScanRecord, error) {
 
 // GetTargets returns all targets for a given scan.
 func (db *DB) GetTargets(ctx context.Context, scanID int64) ([]string, error) {
-	rows, err := db.conn.QueryContext(ctx, "SELECT host FROM targets WHERE scan_id = ?", scanID)
+	rows, err := db.conn.QueryContext(ctx, "SELECT host FROM targets WHERE scan_id = ? ORDER BY id", scanID)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (db *DB) GetEvents(ctx context.Context, scanID int64) ([]EventRecord, error
 // GetLastScanID returns the ID of the most recent completed scan for a scope.
 func (db *DB) GetLastScanID(ctx context.Context, scope string) (int64, error) {
 	var id int64
-	err := db.conn.QueryRowContext(ctx, "SELECT id FROM scans WHERE scope = ? AND status = 'completed' ORDER BY start_time DESC LIMIT 1", scope).Scan(&id)
+	err := db.conn.QueryRowContext(ctx, "SELECT id FROM scans WHERE scope = ? AND status = 'completed' ORDER BY start_time DESC, id DESC LIMIT 1", scope).Scan(&id)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}
@@ -271,14 +271,18 @@ type ScanDiff struct {
 	NewEvents  []EventRecord
 }
 
-// GetScanDiff compares two scans and returns the differences.
+// GetScanDiff compares the current scan against the most recent previous completed scan
+// in the same scope.
 func (db *DB) GetScanDiff(ctx context.Context, scope string, currentScanID int64) (*ScanDiff, error) {
-	lastID, err := db.GetLastScanID(ctx, scope)
+	var previousID int64
+	err := db.conn.QueryRowContext(ctx,
+		"SELECT id FROM scans WHERE scope = ? AND status = 'completed' AND id < ? ORDER BY start_time DESC, id DESC LIMIT 1",
+		scope, currentScanID).Scan(&previousID)
+	if err == sql.ErrNoRows {
+		return nil, nil // No previous scan to diff against
+	}
 	if err != nil {
 		return nil, err
-	}
-	if lastID == 0 {
-		return nil, nil // No previous scan to diff against
 	}
 
 	diff := &ScanDiff{}
@@ -289,7 +293,7 @@ func (db *DB) GetScanDiff(ctx context.Context, scope string, currentScanID int64
 		FROM targets t1
 		LEFT JOIN targets t2 ON t2.host = t1.host AND t2.scan_id = ?
 		WHERE t1.scan_id = ? AND t2.host IS NULL`,
-		lastID, currentScanID)
+		previousID, currentScanID)
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -311,9 +315,15 @@ func (db *DB) GetScanDiff(ctx context.Context, scope string, currentScanID int64
 
 // GetNewFindings returns events from a scan that were not present in the previous scan.
 func (db *DB) GetNewFindings(ctx context.Context, scope string, scanID int64) ([]EventRecord, error) {
-	lastID, err := db.GetLastScanID(ctx, scope)
-	if err != nil || lastID == 0 {
+	var previousID int64
+	err := db.conn.QueryRowContext(ctx,
+		"SELECT id FROM scans WHERE scope = ? AND status = 'completed' AND id < ? ORDER BY start_time DESC, id DESC LIMIT 1",
+		scope, scanID).Scan(&previousID)
+	if err == sql.ErrNoRows || previousID == 0 {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	query := `
@@ -322,7 +332,7 @@ func (db *DB) GetNewFindings(ctx context.Context, scope string, scanID int64) ([
 		LEFT JOIN events e2 ON e2.target = e1.target AND e2.scan_id = ?
 		WHERE e1.scan_id = ? AND e2.target IS NULL
 	`
-	rows, err := db.conn.QueryContext(ctx, query, lastID, scanID)
+	rows, err := db.conn.QueryContext(ctx, query, previousID, scanID)
 	if err != nil {
 		return nil, err
 	}

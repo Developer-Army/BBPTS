@@ -223,22 +223,22 @@ func TestValidateURL(t *testing.T) {
 	}{
 		{
 			name:    "valid https URL",
-			input:   "https://example.com",
+			input:   "https://acme-corp.io",
 			wantErr: false,
 		},
 		{
 			name:    "valid http URL",
-			input:   "http://example.com",
+			input:   "http://acme-corp.io",
 			wantErr: false,
 		},
 		{
 			name:    "valid URL with path",
-			input:   "https://example.com/path/to/resource",
+			input:   "https://acme-corp.io/path/to/resource",
 			wantErr: false,
 		},
 		{
 			name:    "valid URL with query",
-			input:   "https://example.com?param=value",
+			input:   "https://acme-corp.io?param=value",
 			wantErr: false,
 		},
 		{
@@ -248,7 +248,7 @@ func TestValidateURL(t *testing.T) {
 		},
 		{
 			name:    "no scheme",
-			input:   "example.com",
+			input:   "acme-corp.io",
 			wantErr: true,
 		},
 		{
@@ -278,7 +278,7 @@ func TestValidateURL(t *testing.T) {
 		},
 		{
 			name:    "with shell metacharacter",
-			input:   "https://example.com;rm -rf",
+			input:   "https://acme-corp.io;rm -rf",
 			wantErr: true,
 		},
 		{
@@ -724,12 +724,12 @@ func TestIsInternalURL(t *testing.T) {
 	}{
 		{
 			name:     "public https",
-			input:    "https://example.com",
+			input:    "https://acme-corp.io",
 			expected: false,
 		},
 		{
 			name:     "public http",
-			input:    "http://example.com",
+			input:    "http://acme-corp.io",
 			expected: false,
 		},
 		{

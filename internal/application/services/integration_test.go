@@ -2,7 +2,11 @@ package services
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -12,7 +16,7 @@ func TestBurpExportIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "burp-export.xml")
 
-	hosts := []string{"example.com", "api.example.com", "admin.example.com"}
+	hosts := []string{"acme-corp.io", "api.acme-corp.io", "admin.acme-corp.io"}
 
 	err := ExportToBurpXML(outputPath, hosts)
 	if err != nil {
@@ -28,10 +32,10 @@ func TestCaidoExportIntegration(t *testing.T) {
 	outputPath := filepath.Join(tempDir, "caido-targets.txt")
 
 	hosts := []string{
-		"example.com",
-		"api.example.com",
-		"admin.example.com",
-		"staging.example.com",
+		"acme-corp.io",
+		"api.acme-corp.io",
+		"admin.acme-corp.io",
+		"staging.acme-corp.io",
 	}
 
 	err := ExportToCaidoTarget(outputPath, hosts)
@@ -73,9 +77,9 @@ func TestZAPExportIntegration(t *testing.T) {
 // TestProxyFeederRotation tests proxy rotation functionality
 func TestProxyFeederRotation(t *testing.T) {
 	proxies := []string{
-		"http://proxy1.example.com:8080",
-		"http://proxy2.example.com:8080",
-		"http://proxy3.example.com:8080",
+		"http://proxy1.acme-corp.io:8080",
+		"http://proxy2.acme-corp.io:8080",
+		"http://proxy3.acme-corp.io:8080",
 	}
 
 	feeder := NewProxyRotator(proxies)
@@ -105,18 +109,37 @@ func TestProxyFeederEmpty(t *testing.T) {
 
 // TestWebhookNotifier tests webhook notification
 func TestWebhookNotifier(t *testing.T) {
-	notifier := NewWebhookNotifier("https://hooks.example.com/findings", "token123")
+	var receivedBody string
+	var receivedAuth string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	notifier := NewWebhookNotifier(server.URL, "token123")
 
 	finding := map[string]interface{}{
 		"title":       "Test Finding",
 		"severity":    "high",
-		"target":      "example.com",
+		"target":      "acme-corp.io",
 		"description": "This is a test finding",
 	}
 
 	err := notifier.NotifyFinding(finding)
 	if err != nil {
 		t.Fatalf("Failed to notify finding: %v", err)
+	}
+
+	if receivedAuth != "Bearer token123" {
+		t.Errorf("Expected Auth header 'Bearer token123', got '%s'", receivedAuth)
+	}
+
+	if !strings.Contains(receivedBody, `"title":"Test Finding"`) {
+		t.Errorf("Expected body to contain finding JSON, got '%s'", receivedBody)
 	}
 
 	t.Log("Webhook notification sent successfully")
@@ -126,7 +149,7 @@ func TestWebhookNotifier(t *testing.T) {
 func TestMultipleToolExportIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 
-	hosts := []string{"example.com", "api.example.com", "admin.example.com"}
+	hosts := []string{"acme-corp.io", "api.acme-corp.io", "admin.acme-corp.io"}
 
 	// Export for Burp
 	burpPath := filepath.Join(tempDir, "burp.json")
@@ -158,7 +181,7 @@ func TestExportWorkflow(t *testing.T) {
 	defer cancel()
 
 	tempDir := t.TempDir()
-	hosts := []string{"example.com", "api.example.com"}
+	hosts := []string{"acme-corp.io", "api.acme-corp.io"}
 
 	// Simulate export workflow
 	done := make(chan error, 1)

@@ -44,8 +44,7 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 
 	events := make([]Event, 0)
 
-	for _, target := range targets {
-		// Parse target (domain or IP)
+	for i, target := range targets {
 		select {
 		case <-ctx.Done():
 			return events, ctx.Err()
@@ -53,11 +52,28 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 		}
 
 		host := strings.TrimSpace(target)
+		if idx := strings.Index(host, "://"); idx != -1 {
+			host = host[idx+3:]
+		}
+		if idx := strings.Index(host, "/"); idx != -1 {
+			host = host[:idx]
+		}
+		if idx := strings.Index(host, ":"); idx != -1 {
+			host = host[:idx]
+		}
 		if host == "" {
 			continue
 		}
 
-		// Call Shodan host search API
+		if i > 0 {
+			// Rate limit: Shodan API allows 1 query per second on basic/academic plans
+			select {
+			case <-ctx.Done():
+				return events, ctx.Err()
+			case <-time.After(1 * time.Second):
+			}
+		}
+
 		url := fmt.Sprintf("https://api.shodan.io/shodan/host/search?query=%s&key=%s&limit=10", host, apiKey)
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
@@ -74,7 +90,8 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			_, _ = io.Copy(io.Discard, resp.Body)
+			// safe to ignore: clearing response body on non-200 status is best-effort
+			io.Copy(io.Discard, resp.Body)
 			continue
 		}
 

@@ -23,11 +23,11 @@ func TestDefaultReportPaths_EmptyNameFallback(t *testing.T) {
 }
 
 func TestExtractSeedDomainsRejectsSingleLabelJunk(t *testing.T) {
-	got := extractSeedDomains([]string{"deposit", "https://app.example.com/path", "127.0.0.1"})
+	got := extractSeedDomains([]string{"deposit", "https://app.acme-corp.io/path", "127.0.0.1"})
 	if len(got) != 2 {
 		t.Fatalf("expected 2 valid seed domains, got %v", got)
 	}
-	if got[0] != "app.example.com" || got[1] != "127.0.0.1" {
+	if got[0] != "app.acme-corp.io" || got[1] != "127.0.0.1" {
 		t.Fatalf("unexpected seed domains: %v", got)
 	}
 }

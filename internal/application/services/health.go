@@ -35,6 +35,7 @@ func (h *HealthMonitor) Start() {
 	ch := h.bus.Subscribe("worker.heartbeat")
 
 	go func() {
+		defer h.bus.Unsubscribe(ch)
 		for {
 			select {
 			case <-h.ctx.Done():

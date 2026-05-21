@@ -64,7 +64,9 @@ func NewInstrumenter(idPool *IdentityPool, config InstrumenterConfig) (*Instrume
 		Args:     args,
 	})
 	if err != nil {
-		pw.Stop()
+		if errStop := pw.Stop(); errStop != nil {
+			slog.Warn("Failed to stop playwright", "error", errStop)
+		}
 		return nil, fmt.Errorf("could not launch browser: %w", err)
 	}
 
@@ -360,7 +362,11 @@ func (i *Instrumenter) Close() {
 	defer i.mu.Unlock()
 	if !i.isClosed {
 		i.isClosed = true
-		i.browser.Close()
-		i.pw.Stop()
+		if errClose := i.browser.Close(); errClose != nil {
+			slog.Warn("Failed to close browser", "error", errClose)
+		}
+		if errStop := i.pw.Stop(); errStop != nil {
+			slog.Warn("Failed to stop playwright", "error", errStop)
+		}
 	}
 }

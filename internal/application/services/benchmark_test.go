@@ -13,7 +13,7 @@ func BenchmarkBatchProcessorSmall(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bp.Process(context.Background(), targets, func(ctx context.Context, batch []string) ([]Event, error) {
+		_, _ = bp.Process(context.Background(), targets, func(ctx context.Context, batch []string) ([]Event, error) {
 			events := make([]Event, len(batch))
 			for j, t := range batch {
 				events[j] = NewEvent(t, "bench", "discovery", nil)
@@ -30,7 +30,7 @@ func BenchmarkBatchProcessorLarge(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bp.Process(context.Background(), targets, func(ctx context.Context, batch []string) ([]Event, error) {
+		_, _ = bp.Process(context.Background(), targets, func(ctx context.Context, batch []string) ([]Event, error) {
 			events := make([]Event, len(batch))
 			for j, t := range batch {
 				events[j] = NewEvent(t, "bench", "discovery", nil)
@@ -63,7 +63,7 @@ func BenchmarkParseOutputLines(b *testing.B) {
 	// Generate output with duplicates
 	lines := make([]string, 2000)
 	for i := range lines {
-		lines[i] = fmt.Sprintf("target-%d.example.com", i%500)
+		lines[i] = fmt.Sprintf("target-%d.acme-corp.io", i%500)
 	}
 	rawOutput := []byte("")
 	for _, l := range lines {
@@ -80,14 +80,14 @@ func BenchmarkParseOutputLines(b *testing.B) {
 func BenchmarkMockPipeline(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		NewMockPipeline("example.com")
+		NewMockPipeline("acme-corp.io")
 	}
 }
 
 func makeTargets(n int) []string {
 	targets := make([]string, n)
 	for i := range targets {
-		targets[i] = fmt.Sprintf("host-%d.example.com", i)
+		targets[i] = fmt.Sprintf("host-%d.acme-corp.io", i)
 	}
 	return targets
 }

@@ -31,16 +31,17 @@ func (t *WhoisTool) Run(ctx context.Context, targets []string, threads int) ([]E
 			continue
 		}
 
-		// Extract domain from target (remove port, scheme)
 		domain := target
-		if strings.Contains(domain, "://") {
-			domain = strings.Split(domain, "://")[1]
+		if idx := strings.Index(domain, "://"); idx != -1 {
+			domain = domain[idx+3:]
 		}
-		if strings.Contains(domain, ":") {
-			domain = strings.Split(domain, ":")[0]
+		if idx := strings.Index(domain, "/"); idx != -1 {
+			domain = domain[:idx]
+		}
+		if idx := strings.Index(domain, ":"); idx != -1 {
+			domain = domain[:idx]
 		}
 
-		// Run whois
 		lines, err := RunCommandLines(ctx, "whois", domain)
 		if err != nil {
 			slog.Debug("whois execution warning", "domain", domain, "error", err)
@@ -53,19 +54,26 @@ func (t *WhoisTool) Run(ctx context.Context, targets []string, threads int) ([]E
 
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "Registrar:") {
-				registrar = strings.TrimPrefix(line, "Registrar:")
-				registrar = strings.TrimSpace(registrar)
-			} else if strings.HasPrefix(line, "Registrant Name:") {
-				registrant = strings.TrimPrefix(line, "Registrant Name:")
-				registrant = strings.TrimSpace(registrant)
-			} else if strings.HasPrefix(line, "Admin Name:") {
-				admin = strings.TrimPrefix(line, "Admin Name:")
-				admin = strings.TrimSpace(admin)
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			key := strings.ToLower(strings.TrimSpace(parts[0]))
+			val := strings.TrimSpace(parts[1])
+			if val == "" {
+				continue
+			}
+
+			switch key {
+			case "registrar", "registrar name", "sponsoring registrar":
+				registrar = val
+			case "registrant", "registrant name", "registrant organization":
+				registrant = val
+			case "admin", "admin name", "admin organization":
+				admin = val
 			}
 		}
 
-		// Only emit event if we found registrar info
 		if registrar != "" || registrant != "" {
 			props := map[string]string{
 				"domain":    domain,

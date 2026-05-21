@@ -27,9 +27,9 @@ func TestFingerprinter_Fingerprint(t *testing.T) {
 		name   string
 		target string
 	}{
-		{"with scheme", "https://example.com"},
-		{"without scheme", "example.com"},
-		{"with path", "https://example.com/test"},
+		{"with scheme", "https://acme-corp.io"},
+		{"without scheme", "acme-corp.io"},
+		{"with path", "https://acme-corp.io/test"},
 	}
 
 	for _, tt := range tests {
@@ -51,7 +51,7 @@ func TestFingerprinter_FingerprintAll(t *testing.T) {
 	fp := New()
 	ctx := context.Background()
 
-	targets := []string{"example.com", "test.com", "demo.com"}
+	targets := []string{"acme-corp.io", "test.com", "demo.com"}
 	results := fp.FingerprintAll(ctx, targets, 2)
 
 	if len(results) != len(targets) {
@@ -75,7 +75,7 @@ func TestFingerprinter_FingerprintAll_ZeroConcurrency(t *testing.T) {
 	fp := New()
 	ctx := context.Background()
 
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 	results := fp.FingerprintAll(ctx, targets, 0)
 
 	if len(results) != 1 {

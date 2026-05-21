@@ -19,8 +19,8 @@ func TestDiffStore_AnalyzeChanges_NewTargets(t *testing.T) {
 	store := NewDiffStore()
 
 	currentWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash1"},
-		{Type: "subdomain", Value: "api.example.com", Hash: "hash2"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash1"},
+		{Type: "subdomain", Value: "api.acme-corp.io", Hash: "hash2"},
 	}
 
 	result := store.AnalyzeChanges(currentWave)
@@ -39,13 +39,13 @@ func TestDiffStore_AnalyzeChanges_ExistingUnchanged(t *testing.T) {
 
 	// First wave
 	firstWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash1"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash1"},
 	}
 	store.AnalyzeChanges(firstWave)
 
 	// Second wave with same hash
 	secondWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash1"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash1"},
 	}
 	result := store.AnalyzeChanges(secondWave)
 
@@ -63,13 +63,13 @@ func TestDiffStore_AnalyzeChanges_Changed(t *testing.T) {
 
 	// First wave
 	firstWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash1"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash1"},
 	}
 	store.AnalyzeChanges(firstWave)
 
 	// Second wave with different hash
 	secondWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash2"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash2"},
 	}
 	result := store.AnalyzeChanges(secondWave)
 
@@ -87,13 +87,13 @@ func TestDiffStore_AnalyzeChanges_EmptyHash(t *testing.T) {
 
 	// First wave with hash
 	firstWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash1"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash1"},
 	}
 	store.AnalyzeChanges(firstWave)
 
 	// Second wave with empty hash (should not be detected as change)
 	secondWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: ""},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: ""},
 	}
 	result := store.AnalyzeChanges(secondWave)
 
@@ -107,16 +107,16 @@ func TestDiffStore_AnalyzeChanges_Mixed(t *testing.T) {
 
 	// First wave
 	firstWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash1"},
-		{Type: "subdomain", Value: "api.example.com", Hash: "hash2"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash1"},
+		{Type: "subdomain", Value: "api.acme-corp.io", Hash: "hash2"},
 	}
 	store.AnalyzeChanges(firstWave)
 
 	// Second wave with new and changed
 	secondWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash3"},   // changed
-		{Type: "subdomain", Value: "api.example.com", Hash: "hash2"},          // unchanged
-		{Type: "endpoint", Value: "https://example.com/admin", Hash: "hash4"}, // new
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash3"},   // changed
+		{Type: "subdomain", Value: "api.acme-corp.io", Hash: "hash2"},          // unchanged
+		{Type: "endpoint", Value: "https://acme-corp.io/admin", Hash: "hash4"}, // new
 	}
 	result := store.AnalyzeChanges(secondWave)
 
@@ -169,7 +169,7 @@ func TestArtifact_Timestamps(t *testing.T) {
 
 	before := time.Now()
 	currentWave := []Artifact{
-		{Type: "endpoint", Value: "https://example.com/api", Hash: "hash1"},
+		{Type: "endpoint", Value: "https://acme-corp.io/api", Hash: "hash1"},
 	}
 	result := store.AnalyzeChanges(currentWave)
 	after := time.Now()

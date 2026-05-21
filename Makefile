@@ -115,26 +115,44 @@ validate-framework: build
 # Setup & Install
 # ─────────────────────────────────────────
 
-setup:
-	@echo " Running cross-platform setup..."
-	bash scripts/setup.sh
-
 install: build
-ifeq ($(OS),Windows_NT)
+ ifeq ($(OS),Windows_NT)
 	@echo "Install target not fully supported on Windows via Makefile. Please copy $(BINARY_NAME).exe to your PATH."
-else
+ else
 	@echo " Installing $(BINARY_NAME) to $(INSTALL_PATH)..."
-	sudo cp $(BINARY_NAME) $(INSTALL_PATH)
-	@echo " Installed"
-endif
+	@if [ -w $(INSTALL_PATH) ] || sudo cp $(BINARY_NAME) $(INSTALL_PATH); then \
+		echo " Installed to $(INSTALL_PATH)"; \
+	else \
+		echo " Failed to install to $(INSTALL_PATH). Trying $(HOME)/.local/bin..."; \
+		mkdir -p $(HOME)/.local/bin && cp $(BINARY_NAME) $(HOME)/.local/bin/; \
+		echo " Installed to $(HOME)/.local/bin"; \
+ fi
+ endif
+
+install-user: build
+	@echo " Installing $(BINARY_NAME) to $(HOME)/.local/bin..."
+	@mkdir -p $(HOME)/.local/bin
+	@cp $(BINARY_NAME) $(HOME)/.local/bin/
+	@echo " Installed to $(HOME)/.local/bin"
+	@echo " Make sure '$(HOME)/.local/bin' is in your PATH to use '$(BINARY_NAME)' globally."
+
+uninstall-user:
+	@echo " Removing $(BINARY_NAME) from $(HOME)/.local/bin..."
+	@rm -f $(HOME)/.local/bin/$(BINARY_NAME)
+	@echo " Removed"
 
 uninstall:
 ifeq ($(OS),Windows_NT)
 	@echo "Uninstall target not supported on Windows via Makefile."
 else
 	@echo " Removing $(BINARY_NAME) from $(INSTALL_PATH)..."
-	sudo rm -f $(INSTALL_PATH)/$(BINARY_NAME)
+	@sudo rm -f $(INSTALL_PATH)/$(BINARY_NAME)
+	@echo " Removed from $(INSTALL_PATH)"
 endif
+
+setup:
+	@echo " Running cross-platform setup..."
+	bash scripts/setup.sh
 
 # ─────────────────────────────────────────
 # Docker

@@ -38,6 +38,8 @@ func extractClusterHost(raw string) string {
 	return strings.ToLower(raw)
 }
 
+var _ Analyzer = (*ClusterAnalyzer)(nil)
+
 // ClusterAnalyzer evaluates endpoint clusters for attack surface density and novelty.
 type ClusterAnalyzer struct {
 	clusterer *cluster.TFIDFClustering
@@ -51,10 +53,9 @@ func NewClusterAnalyzer() *ClusterAnalyzer {
 	}
 }
 
-// Analyze computes cluster-based features.
+// Analyze is a no-op because cluster evaluation requires the complete set of
+// events across all targets, which is processed in PostProcess rather than per-event.
 func (ca *ClusterAnalyzer) Analyze(ev recon.Event, insight *Insight) {
-	// Deferred: clustering is run after all events collected, not per-event.
-	// This analyzer is a placeholder for post-processing scoring boost.
 }
 
 // PostProcess runs after insights are built; boosts scores based on endpoint clusters.

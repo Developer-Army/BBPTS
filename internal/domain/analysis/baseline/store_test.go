@@ -36,7 +36,7 @@ func TestAddFinding(t *testing.T) {
 	defer store.Close()
 
 	// Test adding a new finding
-	isNew, fp, err := store.AddFinding("subfinder", "subdomain", "example.com")
+	isNew, fp, err := store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	if err != nil {
 		t.Fatalf("AddFinding failed: %v", err)
 	}
@@ -57,8 +57,8 @@ func TestAddFinding(t *testing.T) {
 		t.Errorf("Expected type 'subdomain', got '%s'", fp.Type)
 	}
 
-	if fp.Target != "example.com" {
-		t.Errorf("Expected target 'example.com', got '%s'", fp.Target)
+	if fp.Target != "acme-corp.io" {
+		t.Errorf("Expected target 'acme-corp.io', got '%s'", fp.Target)
 	}
 
 	if fp.Count != 1 {
@@ -75,7 +75,7 @@ func TestAddFindingDuplicate(t *testing.T) {
 	defer store.Close()
 
 	// Add finding first time
-	isNew1, _, err := store.AddFinding("subfinder", "subdomain", "example.com")
+	isNew1, _, err := store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	if err != nil {
 		t.Fatalf("First AddFinding failed: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestAddFindingDuplicate(t *testing.T) {
 	}
 
 	// Add same finding again
-	isNew2, fp2, err := store.AddFinding("subfinder", "subdomain", "example.com")
+	isNew2, fp2, err := store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	if err != nil {
 		t.Fatalf("Second AddFinding failed: %v", err)
 	}
@@ -107,8 +107,8 @@ func TestHashFinding(t *testing.T) {
 	}
 	defer store.Close()
 
-	hash1 := store.hashFinding("subfinder", "subdomain", "example.com")
-	hash2 := store.hashFinding("subfinder", "subdomain", "example.com")
+	hash1 := store.hashFinding("subfinder", "subdomain", "acme-corp.io")
+	hash2 := store.hashFinding("subfinder", "subdomain", "acme-corp.io")
 
 	if hash1 != hash2 {
 		t.Error("Expected same hash for same input")
@@ -129,7 +129,7 @@ func TestGetDiff(t *testing.T) {
 	defer store.Close()
 
 	// Add a finding (should be considered new within the hour)
-	store.AddFinding("subfinder", "subdomain", "example.com")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 
 	diff := store.GetDiff()
 
@@ -137,8 +137,8 @@ func TestGetDiff(t *testing.T) {
 		t.Errorf("Expected 1 new finding, got %d", len(diff))
 	}
 
-	if diff[0].Target != "example.com" {
-		t.Errorf("Expected target 'example.com', got '%s'", diff[0].Target)
+	if diff[0].Target != "acme-corp.io" {
+		t.Errorf("Expected target 'acme-corp.io', got '%s'", diff[0].Target)
 	}
 }
 
@@ -151,9 +151,9 @@ func TestGetNewByType(t *testing.T) {
 	defer store.Close()
 
 	// Add findings of different types
-	store.AddFinding("subfinder", "subdomain", "example.com")
-	store.AddFinding("subfinder", "subdomain", "test.com")
-	store.AddFinding("naabu", "port", "example.com:80")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "test.com")
+	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
 
 	byType := store.GetNewByType()
 
@@ -174,8 +174,8 @@ func TestSaveBaseline(t *testing.T) {
 	}
 
 	// Add some findings
-	store.AddFinding("subfinder", "subdomain", "example.com")
-	store.AddFinding("naabu", "port", "example.com:80")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
+	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
 
 	// Save baseline
 	err = store.SaveBaseline()
@@ -279,8 +279,8 @@ func TestSaveSessionDiff(t *testing.T) {
 	defer store.Close()
 
 	// Add findings
-	store.AddFinding("subfinder", "subdomain", "example.com")
-	store.AddFinding("naabu", "port", "example.com:80")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
+	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
 
 	// Save session diff
 	err = store.SaveSessionDiff()
@@ -319,9 +319,9 @@ func TestGetStats(t *testing.T) {
 	defer store.Close()
 
 	// Add findings
-	store.AddFinding("subfinder", "subdomain", "example.com")
-	store.AddFinding("subfinder", "subdomain", "test.com")
-	store.AddFinding("naabu", "port", "example.com:80")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "test.com")
+	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
 
 	stats := store.GetStats()
 
@@ -361,7 +361,7 @@ func TestClose(t *testing.T) {
 	}
 
 	// Add findings
-	store.AddFinding("subfinder", "subdomain", "example.com")
+	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 
 	// Close should save baseline
 	err = store.Close()

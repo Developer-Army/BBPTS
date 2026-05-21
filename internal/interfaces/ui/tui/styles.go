@@ -18,18 +18,21 @@ var (
 	ColorPurple     = lipgloss.Color("#cba6f7")
 	ColorRed        = lipgloss.Color("#f38ba8")
 	ColorYellow     = lipgloss.Color("#f9e2af")
+	ColorBorder     = lipgloss.Color("#444c56")
 
 	// --- Styles ---
 	StyleMain = lipgloss.NewStyle().
 			Padding(0, 1).
-			Foreground(ColorForeground).
-			Background(ColorBackground)
+			Foreground(ColorForeground)
 
 	StyleHeader = lipgloss.NewStyle().
 			Foreground(ColorForeground).
 			Background(ColorSelection).
 			Padding(0, 1).
 			Bold(true)
+
+	StyleWhite = lipgloss.NewStyle().
+			Foreground(ColorForeground)
 
 	StyleTitle = lipgloss.NewStyle().
 			Foreground(ColorCyan).
@@ -111,6 +114,18 @@ var (
 	StylePurple = lipgloss.NewStyle().
 			Foreground(ColorPurple)
 
+	StyleRed = lipgloss.NewStyle().
+			Foreground(ColorRed)
+
+	StyleCyan = lipgloss.NewStyle().
+			Foreground(ColorCyan)
+
+	StyleYellow = lipgloss.NewStyle().
+			Foreground(ColorYellow)
+
+	StyleOrange = lipgloss.NewStyle().
+			Foreground(ColorOrange)
+
 	StylePulse = lipgloss.NewStyle().
 			Foreground(ColorPink).
 			Bold(true)
@@ -125,14 +140,12 @@ var (
 			Foreground(ColorRed).
 			Bold(true)
 
-	// --- ASCII Art ---
-	LogoBBPTS = `
-  ____  ____  ____ _____ _____ 
- |  _ \| __ )|  _ \_   _/ _ \ 
- | | | |  _ \| |_) || || | | |
- | |_| | |_) |  __/ | || |_| |
- |____/|____/|_|    |_| \___/  v2.0
-`
+	LogoBBPTS = `██████╗ ██████╗ ██████╗ ████████╗███████╗
+██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔════╝
+██████╔╝██████╔╝██████╔╝   ██║   ███████╗
+██╔══██╗██╔══██╗██╔═══╝    ██║   ╚════██║
+██████╔╝██████╔╝██║        ██║   ███████║
+╚══════╝╚══════╝╚═╝        ╚═╝   ╚══════╝`
 )
 
 // GetPriorityStyle returns a Lip Gloss style based on finding priority.

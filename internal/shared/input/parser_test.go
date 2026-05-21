@@ -12,7 +12,7 @@ func TestParserCSVBasic(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "targets.csv")
 
-	csvContent := `example.com,api.example.com,admin.example.com
+	csvContent := `acme-corp.io,api.acme-corp.io,admin.acme-corp.io
 test.io,dev.test.io`
 
 	if err := os.WriteFile(csvPath, []byte(csvContent), 0644); err != nil {
@@ -30,7 +30,7 @@ test.io,dev.test.io`
 		t.Fatalf("Expected %d targets, got %d", expectedCount, len(targets))
 	}
 
-	expected := []string{"example.com", "api.example.com", "admin.example.com", "test.io", "dev.test.io"}
+	expected := []string{"acme-corp.io", "api.acme-corp.io", "admin.acme-corp.io", "test.io", "dev.test.io"}
 	for i, exp := range expected {
 		if targets[i] != exp {
 			t.Fatalf("Expected '%s', got '%s'", exp, targets[i])
@@ -43,9 +43,9 @@ func TestParserNewlineFormat(t *testing.T) {
 	tempDir := t.TempDir()
 	txtPath := filepath.Join(tempDir, "targets.txt")
 
-	content := `example.com
-api.example.com
-admin.example.com`
+	content := `acme-corp.io
+api.acme-corp.io
+admin.acme-corp.io`
 
 	if err := os.WriteFile(txtPath, []byte(content), 0644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
@@ -68,7 +68,7 @@ func TestParserComments(t *testing.T) {
 	csvPath := filepath.Join(tempDir, "targets_comments.csv")
 
 	csvContent := `# This is a comment
-example.com,api.example.com
+acme-corp.io,api.acme-corp.io
 # Another comment
 test.io`
 
@@ -82,7 +82,7 @@ test.io`
 		t.Fatalf("Failed to parse CSV: %v", err)
 	}
 
-	// Should be 3: example.com, api.example.com, test.io (comments excluded)
+	// Should be 3: acme-corp.io, api.acme-corp.io, test.io (comments excluded)
 	if len(targets) != 3 {
 		t.Fatalf("Expected 3 targets (excluding comments), got %d", len(targets))
 	}
@@ -99,7 +99,7 @@ func TestParserWhitespaceHandling(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "targets_whitespace.csv")
 
-	csvContent := `  example.com  ,  api.example.com  
+	csvContent := `  acme-corp.io  ,  api.acme-corp.io  
 	test.io	,	dev.test.io	`
 
 	if err := os.WriteFile(csvPath, []byte(csvContent), 0644); err != nil {
@@ -154,7 +154,7 @@ func TestParserQuotedCSVFields(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "targets_quoted.csv")
 
-	csvContent := `"example.com","api.example.com","admin.example.com"`
+	csvContent := `"acme-corp.io","api.acme-corp.io","admin.acme-corp.io"`
 
 	if err := os.WriteFile(csvPath, []byte(csvContent), 0644); err != nil {
 		t.Fatalf("Failed to write test CSV: %v", err)

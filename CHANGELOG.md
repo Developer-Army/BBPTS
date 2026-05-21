@@ -4,6 +4,46 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-05-24
+
+### Added
+- **TUI overhaul** (`tui/model.go`): Interactive target-input wizard, real-time scan-abort via `ScanAbortChan`, per-stage tool-list display, scrollable event feed with type/properties, rich progress panels, and animated status indicators.
+- **TUI bridge** (`tui/bridge.go`): `PromptForTarget`, `SendInitialTargets`, `ReportStageTools`, and enriched `SendEvent(source, target, eventType, properties)` for full bidirectional orchestrator↔TUI communication.
+- **Target pre-validation** (`cli/app.go`): `validateTargetsWithHTTPX` — DNS resolution + httpx liveness probe before any scan stage begins.
+- **Global results directory** (`cli/app.go`): All reports (CSV, HackerOne, Bugcrowd, evidence bundle, HTML/JSON/Burp/Caido/ZAP) mirrored to `~/.bbpts/results/` in addition to the local run directory.
+- **Persistent SQLite database** moved to `~/.bbpts/bbpts.db` for cross-run persistence.
+- **`ProxyInsecure` config field** (`services/orchestrator.go`): Disables TLS verification for intercepting proxies (Burp Suite, mitmproxy).
+- **`ReportStageTools` interface method** (`services/orchestrator.go`): Orchestrator now reports tool names per stage to any `ProgressReporter`.
+- **Stage-4 mock port-scan events** (`services/mock_tools.go`): Mock pipeline now emits naabu `port_open` events for `api.*` and `mail.*` subdomains.
+- **`resource_guard.go`** (`shared/utils/`): New utility for resource lifecycle management.
+- **`cache_test.go`** (`application/services/`): Test coverage for the service cache layer.
+- **`db_test.go`** (`infrastructure/storage/`): Test coverage for the storage database layer.
+- Rate limiting for Shodan queries to prevent API request throttling.
+- Unified target normalization for host-based stage-2 tools (dnsx, naabu, shodan).
+
+### Changed
+- **Mock data sanitized**: All `example.com` / `Example Inc.` placeholders replaced with `acme-corp.io` / `Acme Corp Ltd.` across mock tools, command outputs, and ~60 test files.
+- **`reportEvent` signature** (`services/orchestrator.go`): Now passes full `Event` struct instead of loose `source, target` strings, enabling downstream property enrichment.
+- **Target normalization** (`services/orchestrator.go`): `prepareTargetsForTool` refactored — `dnsx`, `naabu`, and `shodan` always receive host-normalised targets regardless of stage number.
+- **Context propagation** (`cli/app.go`): `runCtx` now derived from `abortCtx` (abort-signal aware); scan mode injected via `services.WithScanMode`.
+- **Timeout scaling** (`cli/app.go`): Scan timeout now multiplied by number of tools in the preset.
+- **`--db-type`** now accepts both `"sqlite3"` and `"sqlite"` as valid values.
+- **Cache write errors** (`services/orchestrator.go`): Previously silenced `cache.Put` errors now emit `slog.Warn`.
+- **Naabu port comment** (`services/naabu.go`): Hardcoded port list is now explicitly documented as a known limitation pending config migration.
+- **NATS bus, checkpoint, lease, stream, storage** refactored for internal consistency.
+- **Normalizer** (`shared/normalize/normalizer.go`): Improved scope guard and host normalisation logic.
+- Improved target WHOIS normalization to strip protocol, path, and port suffixes.
+- Enhanced WHOIS parser to handle case-insensitive outputs and registrar key aliases.
+- Removed unused stub types and fields from queue stubs and UI model.
+
+### Fixed
+- `ims.Store` / `de.StoreResult` return values in `diff_engine_test.go` were silently discarded — now handled with `_ =`.
+- `ReportEvent` interface mismatch between bridge and orchestrator resolved — both now use the 4-argument enriched signature.
+- Bus, checkpoint, lease, and queue stubs updated to match the new API surface.
+- Resolved unhandled error return linter warnings across queue, lease, browser, cache, and test suites.
+
+---
+
 ## [1.0.0] — 2026-05-15
 
 ### Added
@@ -28,17 +68,3 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - Binary (`bbpts`) and result files were committed to the repository
 - `ExportToBurpConfig` generated JSON instead of Burp-compatible XML
 - `--version` flag was wired in ldflags but not exposed as a CLI flag
-
-## [0.9.0-beta] — Initial Release
-
-- Staged recon pipeline with 21+ tool adapters
-- Event bus architecture with SQLite-backed state tracking
-- Differential scanning (new findings across runs)
-- Rules engine with configurable `rules.json`
-- Multi-format export: Markdown, CSV, JSON, Burp Suite, Caido, Obsidian
-- Alerting: Discord, Slack, Telegram
-- Optional platform submission: HackerOne, Bugcrowd
-- Distributed fleet support via Axiom + NATS worker mesh
-- Circuit breaker and exponential backoff retry in network layer
-- Bubbletea TUI + local web dashboard
-- Docker, Linux, macOS, and Windows support

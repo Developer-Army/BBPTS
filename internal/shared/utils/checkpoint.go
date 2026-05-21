@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -75,7 +76,9 @@ func (c *Checkpoint) Save() {
 func (c *Checkpoint) saveInternal() {
 	data, err := json.Marshal(c)
 	if err == nil {
-		_ = os.WriteFile(c.FilePath, data, 0600)
+		if errWrite := os.WriteFile(c.FilePath, data, 0600); errWrite != nil {
+			slog.Warn("Failed to write checkpoint file", "path", c.FilePath, "error", errWrite)
+		}
 	}
 }
 
@@ -83,5 +86,7 @@ func (c *Checkpoint) saveInternal() {
 func (c *Checkpoint) Clear() {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
-	_ = os.Remove(c.FilePath)
+	if err := os.Remove(c.FilePath); err != nil && !os.IsNotExist(err) {
+		slog.Warn("Failed to remove checkpoint file", "path", c.FilePath, "error", err)
+	}
 }

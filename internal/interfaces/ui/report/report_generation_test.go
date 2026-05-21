@@ -47,7 +47,7 @@ func TestJSONReportGeneration(t *testing.T) {
 
 	insights := []analyze.Insight{
 		{
-			Host:           "example.com",
+			Host:           "acme-corp.io",
 			Score:          75,
 			Priority:       "high",
 			Tags:           []string{"api", "critical"},
@@ -60,7 +60,7 @@ func TestJSONReportGeneration(t *testing.T) {
 	events := []recon.Event{
 		{
 			Type:       "domain_found",
-			Target:     "example.com",
+			Target:     "acme-corp.io",
 			Source:     "subfinder",
 			Properties: map[string]string{"severity": "high"},
 		},
@@ -90,7 +90,7 @@ func TestMarkdownReportGeneration(t *testing.T) {
 
 	insights := []analyze.Insight{
 		{
-			Host:          "api.example.com",
+			Host:          "api.acme-corp.io",
 			Score:         85,
 			Priority:      "critical",
 			Tags:          []string{"api"},
@@ -133,7 +133,7 @@ func TestHTMLReportGeneration(t *testing.T) {
 
 	insights := []analyze.Insight{
 		{
-			Host:     "example.com",
+			Host:     "acme-corp.io",
 			Score:    70,
 			Priority: "medium",
 		},
@@ -163,7 +163,7 @@ func TestZAPReportGeneration(t *testing.T) {
 
 	insights := []analyze.Insight{
 		{
-			Host:     "example.com",
+			Host:     "acme-corp.io",
 			Score:    70,
 			Priority: "high",
 			Tags:     []string{"api"},
@@ -194,22 +194,22 @@ func TestReportWithMultipleSeverities(t *testing.T) {
 
 	insights := []analyze.Insight{
 		{
-			Host:     "critical.example.com",
+			Host:     "critical.acme-corp.io",
 			Score:    95,
 			Priority: "critical",
 		},
 		{
-			Host:     "high.example.com",
+			Host:     "high.acme-corp.io",
 			Score:    80,
 			Priority: "high",
 		},
 		{
-			Host:     "medium.example.com",
+			Host:     "medium.acme-corp.io",
 			Score:    60,
 			Priority: "medium",
 		},
 		{
-			Host:     "low.example.com",
+			Host:     "low.acme-corp.io",
 			Score:    30,
 			Priority: "low",
 		},
@@ -252,12 +252,12 @@ func TestReportFiltering(t *testing.T) {
 
 	insights := []analyze.Insight{
 		{
-			Host:     "high.example.com",
+			Host:     "high.acme-corp.io",
 			Score:    80,
 			Priority: "high",
 		},
 		{
-			Host:     "low.example.com",
+			Host:     "low.acme-corp.io",
 			Score:    30,
 			Priority: "low",
 		},
@@ -282,9 +282,9 @@ func TestReportStatistics(t *testing.T) {
 	generator := NewReportGenerator(config)
 
 	insights := []analyze.Insight{
-		{Host: "example.com", Score: 80, Priority: "high"},
-		{Host: "api.example.com", Score: 75, Priority: "high"},
-		{Host: "admin.example.com", Score: 60, Priority: "medium"},
+		{Host: "acme-corp.io", Score: 80, Priority: "high"},
+		{Host: "api.acme-corp.io", Score: 75, Priority: "high"},
+		{Host: "admin.acme-corp.io", Score: 60, Priority: "medium"},
 	}
 
 	report := generator.buildReport(insights, []recon.Event{})
@@ -314,7 +314,7 @@ func TestReportTimestamp(t *testing.T) {
 
 	before := time.Now()
 	insights := []analyze.Insight{
-		{Host: "example.com", Score: 70, Priority: "medium"},
+		{Host: "acme-corp.io", Score: 70, Priority: "medium"},
 	}
 
 	err := generator.GenerateFullReport(insights, []recon.Event{})
@@ -348,7 +348,7 @@ func TestToolSpecificExports(t *testing.T) {
 
 	insights := []analyze.Insight{
 		{
-			Host:     "https://api.example.com",
+			Host:     "https://api.acme-corp.io",
 			Score:    90,
 			Priority: "critical",
 			Tags:     []string{"api", "auth"},
@@ -358,7 +358,7 @@ func TestToolSpecificExports(t *testing.T) {
 	events := []recon.Event{
 		{
 			Type:       "discovery",
-			Target:     "https://api.example.com",
+			Target:     "https://api.acme-corp.io",
 			Source:     "httpx",
 			Properties: map[string]string{"severity": "critical"},
 		},

@@ -11,8 +11,8 @@ func TestWriteEvidenceBundle(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "evidence.json")
 	insights := []Insight{
-		{Host: "a.example.com", Score: 50, Confidence: 80, Priority: "high"},
-		{Host: "b.example.com", Score: 40, Confidence: 70, Priority: "medium"},
+		{Host: "a.acme-corp.io", Score: 50, Confidence: 80, Priority: "high"},
+		{Host: "b.acme-corp.io", Score: 40, Confidence: 70, Priority: "medium"},
 	}
 	if err := WriteEvidenceBundle(path, insights, 10); err != nil {
 		t.Fatal(err)

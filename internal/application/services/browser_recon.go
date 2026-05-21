@@ -208,7 +208,7 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, targetURL string) ([]Eve
 	return events, nil
 }
 
-// extractDomain extracts registered domain from URL (e.g., "example.com" from "https://app.example.com/path").
+// extractDomain extracts registered domain from URL (e.g., "acme-corp.io" from "https://app.acme-corp.io/path").
 func extractDomain(urlStr string) string {
 	// Strip scheme
 	if strings.HasPrefix(urlStr, "http://") {

@@ -24,20 +24,20 @@ func TestChaos_WAFSimulation(t *testing.T) {
 		if requestCount == 1 {
 			w.Header().Set("cf-ray", "123456789")
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(`{"error": "access denied", "cf-browser-verification": true}`))
+			_, _ = w.Write([]byte(`{"error": "access denied", "cf-browser-verification": true}`))
 			return
 		}
 
 		// 2nd request: Rate Limit
 		if requestCount == 2 {
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`Rate Limited`))
+			_, _ = w.Write([]byte(`Rate Limited`))
 			return
 		}
 
 		// 3rd request: Success
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": "success"}`))
+		_, _ = w.Write([]byte(`{"data": "success"}`))
 	}))
 	defer ts.Close()
 

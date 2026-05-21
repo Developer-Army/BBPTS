@@ -133,7 +133,7 @@ func (cm *CheckpointManager) GetSessionCheckpoints(sessionID string) ([]*Checkpo
 	if err != nil {
 		return nil, fmt.Errorf("failed to create key watcher: %w", err)
 	}
-	defer watcher.Stop()
+	defer func() { _ = watcher.Stop() }()
 
 	var checkpoints []*Checkpoint
 	for entry := range watcher.Updates() {
@@ -180,7 +180,7 @@ func (cm *CheckpointManager) DeleteSession(sessionID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create key watcher: %w", err)
 	}
-	defer watcher.Stop()
+	defer func() { _ = watcher.Stop() }()
 
 	for entry := range watcher.Updates() {
 		if entry == nil {
@@ -232,7 +232,9 @@ func (cm *CheckpointManager) AcquireStageLease(ctx context.Context, sessionID, s
 
 	if err := cm.SaveCheckpoint(cp); err != nil {
 		// Rollback lease if checkpoint save fails
-		cm.leases.Release(leaseKey)
+		if errRelease := cm.leases.Release(leaseKey); errRelease != nil {
+			slog.Warn("Failed to release lease on rollback", "key", leaseKey, "error", errRelease)
+		}
 		return err
 	}
 
@@ -254,7 +256,9 @@ func (cm *CheckpointManager) ReleaseStageLease(sessionID, stage, target string) 
 	cp, err := cm.GetCheckpoint(sessionID, stage, target)
 	if err == nil && cp != nil {
 		cp.LeaseExpiry = 0
-		_ = cm.SaveCheckpoint(cp)
+		if errSave := cm.SaveCheckpoint(cp); errSave != nil {
+			slog.Warn("Failed to save checkpoint on lease release", "error", errSave)
+		}
 	}
 
 	return nil
@@ -326,7 +330,9 @@ func (cm *CheckpointManager) MarkCompleted(sessionID, stage, target string, data
 	}
 
 	// Release lease
-	_ = cm.ReleaseStageLease(sessionID, stage, target)
+	if errRelease := cm.ReleaseStageLease(sessionID, stage, target); errRelease != nil {
+		slog.Warn("Failed to release stage lease on completion", "error", errRelease)
+	}
 
 	return nil
 }
@@ -356,7 +362,9 @@ func (cm *CheckpointManager) MarkFailed(sessionID, stage, target string, errorMs
 	}
 
 	// Release lease
-	_ = cm.ReleaseStageLease(sessionID, stage, target)
+	if errRelease := cm.ReleaseStageLease(sessionID, stage, target); errRelease != nil {
+		slog.Warn("Failed to release stage lease on failure", "error", errRelease)
+	}
 
 	return nil
 }

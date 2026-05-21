@@ -20,7 +20,8 @@ type ProxyFeeder struct {
 }
 
 // NewProxyFeeder creates a ProxyFeeder.
-func NewProxyFeeder(proxyURL string) (*ProxyFeeder, error) {
+// If insecure is true, TLS certificate verification is skipped (useful for intercepting proxies).
+func NewProxyFeeder(proxyURL string, insecure bool) (*ProxyFeeder, error) {
 	if proxyURL == "" {
 		return nil, fmt.Errorf("proxy URL cannot be empty")
 	}
@@ -31,8 +32,10 @@ func NewProxyFeeder(proxyURL string) (*ProxyFeeder, error) {
 	}
 
 	transport := &http.Transport{
-		Proxy:           http.ProxyURL(u),
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		Proxy: http.ProxyURL(u),
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: insecure, //nolint:gosec
+		},
 		DialContext: (&net.Dialer{
 			Timeout: 5 * time.Second,
 		}).DialContext,

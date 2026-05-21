@@ -86,13 +86,17 @@ func executeToolsForTask(ctx context.Context, toolNames []string, t workers.Task
 					Payload:   nil,
 					SessionID: t.SessionID,
 				}
-				_ = worker.Stream.PublishTask(fmt.Sprintf("task.%s", nextCap), nextTask)
+				if err := worker.Stream.PublishTask(fmt.Sprintf("task.%s", nextCap), nextTask); err != nil {
+					slog.Warn("Failed to publish cascading task", "error", err, "capability", nextCap)
+				}
 			}
 			totalEvents++
 		}
 	}
 
-	_ = publishWorkerCompletion(worker, t, totalEvents, nil)
+	if err := publishWorkerCompletion(worker, t, totalEvents, nil); err != nil {
+		slog.Warn("Failed to publish worker completion", "error", err, "task_id", t.ID)
+	}
 	return nil
 }
 

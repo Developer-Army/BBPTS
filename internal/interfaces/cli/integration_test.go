@@ -21,8 +21,8 @@ import (
 func TestFullPipelineIntegration(t *testing.T) {
 	// Create a temporary test input file with sample targets
 	tmpFile := createTempTargetsFile(t, []string{
-		"example.com",
-		"test.example.com",
+		"acme-corp.io",
+		"test.acme-corp.io",
 	})
 	defer os.Remove(tmpFile)
 
@@ -96,7 +96,7 @@ func TestFullPipelineIntegration(t *testing.T) {
 
 // TestPipelineWithMultipleStages validates that all pipeline stages work together.
 func TestPipelineWithMultipleStages(t *testing.T) {
-	tmpFile := createTempTargetsFile(t, []string{"example.com"})
+	tmpFile := createTempTargetsFile(t, []string{"acme-corp.io"})
 	defer os.Remove(tmpFile)
 
 	cfg := &config.Config{
@@ -152,7 +152,7 @@ func TestOrchestratorWithAllStagesSequential(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 
 	// Should complete without panicking
 	defer func() {
@@ -175,8 +175,8 @@ func TestOrchestratorWithAllStagesSequential(t *testing.T) {
 // TestInputParsingToReconFlow tests input parsing through reconnaissance pipeline.
 func TestInputParsingToReconFlow(t *testing.T) {
 	tmpFile := createTempTargetsFile(t, []string{
-		"example.com",
-		"api.example.com",
+		"acme-corp.io",
+		"api.acme-corp.io",
 	})
 	defer os.Remove(tmpFile)
 
@@ -247,7 +247,7 @@ func TestErrorHandlingAcrossStages(t *testing.T) {
 
 // TestContextTimeoutHandling validates that context timeouts are respected.
 func TestContextTimeoutHandling(t *testing.T) {
-	tmpFile := createTempTargetsFile(t, []string{"example.com"})
+	tmpFile := createTempTargetsFile(t, []string{"acme-corp.io"})
 	defer os.Remove(tmpFile)
 
 	cfg := &config.Config{
@@ -362,7 +362,7 @@ func TestToolExecutionAndResults(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 
 	events, err := orchestrator.Run(ctx, targets)
 
@@ -412,14 +412,14 @@ func TestOutputGenerationValidation(t *testing.T) {
 	// Create mock insights from events
 	mockInsights := []analyze.Insight{
 		{
-			Host:     "example.com",
+			Host:     "acme-corp.io",
 			Priority: "medium",
 			Score:    15,
 			Tags:     []string{"subdomain", "certificate"},
 			Reasons:  []string{"Found subdomains", "SSL certificate detected"},
 		},
 		{
-			Host:     "subdomain.example.com",
+			Host:     "subdomain.acme-corp.io",
 			Priority: "low",
 			Score:    5,
 			Tags:     []string{"subdomain"},
@@ -445,7 +445,7 @@ func TestOutputGenerationValidation(t *testing.T) {
 				t.Logf("✓ Summary CSV generated (%d bytes)", len(content))
 				// Check that it contains expected content
 				contentStr := string(content)
-				if !strings.Contains(contentStr, "example.com") {
+				if !strings.Contains(contentStr, "acme-corp.io") {
 					t.Errorf("Summary CSV does not contain expected host")
 				}
 				if !strings.Contains(contentStr, "subdomain") {
@@ -476,7 +476,7 @@ func TestOutputGenerationValidation(t *testing.T) {
 				if !strings.Contains(contentStr, "# BBPTS") {
 					t.Errorf("Report does not contain expected header")
 				}
-				if !strings.Contains(contentStr, "example.com") {
+				if !strings.Contains(contentStr, "acme-corp.io") {
 					t.Errorf("Report does not contain expected host")
 				}
 			}
@@ -513,7 +513,7 @@ func TestToolFailureDetection(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 
 	events, err := orchestrator.Run(ctx, targets)
 

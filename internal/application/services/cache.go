@@ -6,12 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+const sqliteTimeFmt = "2006-01-02 15:04:05"
 
 // CacheEntry represents a cached tool result.
 type CacheEntry struct {
@@ -72,6 +76,11 @@ type ResultCache struct {
 func NewResultCache(config CacheConfig) (*ResultCache, error) {
 	if !config.Enabled {
 		return nil, nil
+	}
+
+	dir := filepath.Dir(config.DBPath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	db, err := sql.Open("sqlite", config.DBPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
@@ -155,18 +164,27 @@ func (rc *ResultCache) Get(toolName string, targets []string, threads int) (*Cac
 		return nil, false
 	}
 
-	entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	entry.ExpiresAt, _ = time.Parse(time.RFC3339, expiresStr)
+	var errParse error
+	entry.CreatedAt, errParse = time.Parse(sqliteTimeFmt, createdStr)
+	if errParse != nil {
+		slog.Warn("Failed to parse CreatedAt from cache database", "string", createdStr, "error", errParse)
+	}
+	entry.ExpiresAt, errParse = time.Parse(sqliteTimeFmt, expiresStr)
+	if errParse != nil {
+		slog.Warn("Failed to parse ExpiresAt from cache database", "string", expiresStr, "error", errParse)
+	}
 
 	// Update hit count
 	go func() {
 		rc.mu.Lock()
 		defer rc.mu.Unlock()
-		rc.db.Exec(`
+		if _, errExec := rc.db.Exec(`
 			UPDATE result_cache 
 			SET hit_count = hit_count + 1, last_hit_at = datetime('now')
 			WHERE cache_key = ?
-		`, key)
+		`, key); errExec != nil {
+			slog.Warn("Failed to update cache hit count", "key", key, "error", errExec)
+		}
 	}()
 
 	slog.Debug("Cache hit", "tool", toolName, "key", key, "hits", entry.HitCount+1)
@@ -198,7 +216,7 @@ func (rc *ResultCache) Put(toolName string, targets []string, threads int, event
 		(cache_key, tool_name, target, events_json, created_at, expires_at, hit_count, last_hit_at)
 		VALUES (?, ?, ?, ?, ?, ?, 0, NULL)
 	`, key, toolName, strings.Join(targets, ","), string(eventsJSON),
-		now.Format(time.RFC3339), expires.Format(time.RFC3339))
+		now.Format(sqliteTimeFmt), expires.Format(sqliteTimeFmt))
 
 	if err != nil {
 		return fmt.Errorf("failed to insert cache entry: %w", err)
@@ -317,7 +335,7 @@ func (rc *ResultCache) cleanupLoop() {
 		// Remove expired
 		result, err := rc.db.Exec(`DELETE FROM result_cache WHERE expires_at <= datetime('now')`)
 		if err == nil {
-			if deleted, _ := result.RowsAffected(); deleted > 0 {
+			if deleted, errRows := result.RowsAffected(); errRows == nil && deleted > 0 {
 				slog.Debug("Cache cleanup: removed expired entries", "count", deleted)
 			}
 		}
@@ -330,14 +348,16 @@ func (rc *ResultCache) cleanupLoop() {
 			}
 			if count > rc.config.MaxEntries {
 				excess := count - rc.config.MaxEntries
-				rc.db.Exec(`
+				if _, errExec := rc.db.Exec(`
 					DELETE FROM result_cache 
 					WHERE cache_key IN (
 						SELECT cache_key FROM result_cache 
 						ORDER BY COALESCE(last_hit_at, created_at) ASC 
 						LIMIT ?
 					)
-				`, excess)
+				`, excess); errExec != nil {
+					slog.Warn("Cache cleanup: LRU eviction query failed", "error", errExec)
+				}
 				slog.Debug("Cache cleanup: LRU eviction", "evicted", excess)
 			}
 		}

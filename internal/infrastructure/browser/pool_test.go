@@ -145,7 +145,7 @@ func TestPoolConfigCustom(t *testing.T) {
 		MaxContexts: 50,
 		ContextTTL:  5 * 60 * 1000000000, // 5 minutes in nanoseconds
 		Headless:    false,
-		ProxyURL:    "http://proxy.example.com",
+		ProxyURL:    "http://proxy.acme-corp.io",
 		UserAgent:   "CustomAgent/1.0",
 		ExtraArgs:   customArgs,
 	}
@@ -162,8 +162,8 @@ func TestPoolConfigCustom(t *testing.T) {
 		t.Error("Expected Headless to be false")
 	}
 
-	if cfg.ProxyURL != "http://proxy.example.com" {
-		t.Errorf("Expected ProxyURL 'http://proxy.example.com', got '%s'", cfg.ProxyURL)
+	if cfg.ProxyURL != "http://proxy.acme-corp.io" {
+		t.Errorf("Expected ProxyURL 'http://proxy.acme-corp.io', got '%s'", cfg.ProxyURL)
 	}
 
 	if cfg.UserAgent != "CustomAgent/1.0" {

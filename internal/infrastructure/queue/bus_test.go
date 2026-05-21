@@ -52,7 +52,7 @@ func TestPublish(t *testing.T) {
 
 	ev := Event{
 		Type:   "test-event",
-		Target: "example.com",
+		Target: "acme-corp.io",
 		Source: "test",
 	}
 
@@ -82,7 +82,7 @@ func TestPublishMultipleSubscribers(t *testing.T) {
 
 	ev := Event{
 		Type:   "test-event",
-		Target: "example.com",
+		Target: "acme-corp.io",
 	}
 
 	bus.Publish(ev)
@@ -117,7 +117,7 @@ func TestPublishNoSubscribers(t *testing.T) {
 
 	ev := Event{
 		Type:   "test-event",
-		Target: "example.com",
+		Target: "acme-corp.io",
 	}
 
 	// Should not panic when there are no subscribers
@@ -164,7 +164,7 @@ func TestPublishWithProperties(t *testing.T) {
 
 	ev := Event{
 		Type:       "test-event",
-		Target:     "example.com",
+		Target:     "acme-corp.io",
 		Source:     "test",
 		Properties: map[string]string{"key": "value"},
 		Data:       []byte("test data"),
@@ -235,7 +235,7 @@ func TestPublishAfterClose(t *testing.T) {
 
 	ev := Event{
 		Type:   "test-event",
-		Target: "example.com",
+		Target: "acme-corp.io",
 	}
 
 	// Should not panic
@@ -266,15 +266,15 @@ func TestSubscribeAfterClose(t *testing.T) {
 
 func TestEventStructure(t *testing.T) {
 	ev := Event{
-		Target:     "example.com",
+		Target:     "acme-corp.io",
 		Source:     "subfinder",
 		Type:       "subdomain",
 		Properties: map[string]string{"confidence": "high"},
 		Data:       []byte("binary data"),
 	}
 
-	if ev.Target != "example.com" {
-		t.Errorf("Expected Target 'example.com', got '%s'", ev.Target)
+	if ev.Target != "acme-corp.io" {
+		t.Errorf("Expected Target 'acme-corp.io', got '%s'", ev.Target)
 	}
 
 	if ev.Source != "subfinder" {
@@ -333,10 +333,82 @@ func TestPublishDropsWhenFull(t *testing.T) {
 	}
 
 	// Publish should not block
-	ev := Event{Type: "test-event", Target: "example.com"}
+	ev := Event{Type: "test-event", Target: "acme-corp.io"}
 	bus.Publish(ev)
 
 	// Should complete without blocking
+}
+
+func TestUnsubscribe(t *testing.T) {
+	bus := New()
+
+	sub := bus.Subscribe("test-event")
+
+	bus.Unsubscribe(sub)
+
+	// Channel should be closed
+	select {
+	case _, ok := <-sub:
+		if ok {
+			t.Error("Expected channel to be closed")
+		}
+	default:
+		t.Error("Expected channel to be readable (closed)")
+	}
+}
+
+func TestUnsubscribeRemovesFromSubscribers(t *testing.T) {
+	bus := New()
+
+	sub := bus.Subscribe("test-event")
+	bus.Unsubscribe(sub)
+
+	// Publish should not panic and event should not be received
+	ev := Event{Type: "test-event", Target: "acme-corp.io"}
+	bus.Publish(ev)
+
+	// The channel is closed, so we should not receive anything
+	select {
+	case _, ok := <-sub:
+		if ok {
+			t.Error("Should not receive event after unsubscribe")
+		}
+	case <-time.After(50 * time.Millisecond):
+		// Expected - channel is closed, but shouldn't block
+	}
+}
+
+func TestUnsubscribeSpecificChannel(t *testing.T) {
+	bus := New()
+
+	sub1 := bus.Subscribe("test-event")
+	sub2 := bus.Subscribe("test-event")
+
+	// Unsubscribe sub1 only
+	bus.Unsubscribe(sub1)
+
+	// sub2 should still work
+	ev := Event{Type: "test-event", Target: "acme-corp.io"}
+	bus.Publish(ev)
+
+	select {
+	case received := <-sub2:
+		if received.Target != "acme-corp.io" {
+			t.Errorf("Expected target 'acme-corp.io', got '%s'", received.Target)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("sub2 did not receive event after sub1 was unsubscribed")
+	}
+}
+
+func TestUnsubscribeMultipleTimes(t *testing.T) {
+	bus := New()
+
+	sub := bus.Subscribe("test-event")
+	bus.Unsubscribe(sub)
+
+	// Should not panic on second unsubscribe
+	bus.Unsubscribe(sub)
 }
 
 func TestMultipleEventTypes(t *testing.T) {
@@ -347,9 +419,9 @@ func TestMultipleEventTypes(t *testing.T) {
 	sub3 := bus.Subscribe("endpoint")
 
 	events := []Event{
-		{Type: "subdomain", Target: "sub.example.com"},
-		{Type: "port", Target: "example.com:80"},
-		{Type: "endpoint", Target: "https://example.com/api"},
+		{Type: "subdomain", Target: "sub.acme-corp.io"},
+		{Type: "port", Target: "acme-corp.io:80"},
+		{Type: "endpoint", Target: "https://acme-corp.io/api"},
 	}
 
 	for _, ev := range events {

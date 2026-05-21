@@ -90,28 +90,6 @@ func (e *Executor) Run(ctx context.Context) error {
 				}
 			}
 
-			// Idempotency check: Skip if task already completed
-			if e.Worker.IdempotencyMgr != nil {
-				processed, err := e.Worker.IdempotencyMgr.HasBeenProcessed(t.ID)
-				if err != nil {
-					slog.Warn("Failed to check idempotency", "taskID", t.ID, "error", err)
-					return err
-				}
-				if processed {
-					slog.Info("Task already processed (idempotent), skipping", "taskID", t.ID, "target", t.Target)
-					return nil // Idempotently skip
-				}
-
-				// Register task as claimed
-				if err := e.Worker.IdempotencyMgr.Register(context.Background(), t.ID, e.Worker.ID); err != nil {
-					if err == queue.ErrTaskAlreadyProcessed {
-						slog.Info("Task claimed by another worker (idempotent), skipping", "taskID", t.ID)
-						return nil
-					}
-					return err
-				}
-			}
-
 			// Distributed Lease: Ensure no other worker is currently executing this exact target in this session
 			leaseKey := fmt.Sprintf("lease:%s:%s:%s", t.SessionID, t.Type, t.Target)
 			if err := e.Worker.LeaseMgr.Acquire(leaseKey, e.Worker.ID); err != nil {
@@ -128,7 +106,9 @@ func (e *Executor) Run(ctx context.Context) error {
 
 			defer func() {
 				cancelLease()
-				_ = e.Worker.LeaseMgr.Release(leaseKey) // Release lease when done
+				if err := e.Worker.LeaseMgr.Release(leaseKey); err != nil {
+					slog.Warn("Failed to release lease", "key", leaseKey, "error", err)
+				}
 			}()
 
 			slog.Info("Worker executing task", "taskID", t.ID, "type", t.Type, "target", t.Target)

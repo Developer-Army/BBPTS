@@ -7,10 +7,10 @@ import (
 )
 
 func TestFilterEventsInScope(t *testing.T) {
-	sg := normalize.NewScopeGuard([]string{"example.com"})
+	sg := normalize.NewScopeGuard([]string{"acme-corp.io"})
 	events := []Event{
-		{Target: "https://example.com/login", Source: "katana"},
-		{Target: "https://cdn.example.com/app.js", Source: "katana"},
+		{Target: "https://acme-corp.io/login", Source: "katana"},
+		{Target: "https://cdn.acme-corp.io/app.js", Source: "katana"},
 		{Target: "https://youtube.com/watch?v=1", Source: "katana"},
 	}
 

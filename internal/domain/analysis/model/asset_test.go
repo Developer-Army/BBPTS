@@ -10,8 +10,8 @@ func TestClassifyTarget(t *testing.T) {
 		{"", "unknown"},
 		{"192.168.1.1", "ip"},
 		{"10.0.0.1", "ip"},
-		{"example.com", "domain"},
-		{"example.com:8080", "host:port"},
+		{"acme-corp.io", "domain"},
+		{"acme-corp.io:8080", "host:port"},
 		{"sub.example.co.uk", "domain"},
 	}
 

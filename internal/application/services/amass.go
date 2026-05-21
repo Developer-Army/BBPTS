@@ -19,17 +19,23 @@ func (t *AmassTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		return nil, nil
 	}
 
-	args := []string{"enum", "-silent", "-d", strings.Join(targets, ",")}
+	var args []string
+	scanMode := GetScanMode(ctx)
+	if scanMode == "light" {
+		args = []string{"enum", "-passive", "-silent", "-d", strings.Join(targets, ",")}
+	} else {
+		args = []string{"enum", "-silent", "-d", strings.Join(targets, ",")}
 
-	wordlistsDir := wordlistsDirFromContext(ctx)
-	if wordlistsDir != "" {
-		subdomainWordlist := GetWordlistPath(ctx, "subdomain")
-		if subdomainWordlist == "" {
-			// Fallback to default subdomain wordlist
-			subdomainWordlist = filepath.Join(wordlistsDir, "subdomains-top1million-5000.txt")
-		}
-		if _, err := os.Stat(subdomainWordlist); err == nil {
-			args = append(args, "-brute", "-w", subdomainWordlist)
+		wordlistsDir := wordlistsDirFromContext(ctx)
+		if wordlistsDir != "" {
+			subdomainWordlist := GetWordlistPath(ctx, "subdomain")
+			if subdomainWordlist == "" {
+				// Fallback to default subdomain wordlist
+				subdomainWordlist = filepath.Join(wordlistsDir, "subdomains-top1million-5000.txt")
+			}
+			if _, err := os.Stat(subdomainWordlist); err == nil {
+				args = append(args, "-brute", "-w", subdomainWordlist)
+			}
 		}
 	}
 

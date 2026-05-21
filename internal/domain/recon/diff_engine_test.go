@@ -36,10 +36,10 @@ func TestInMemoryStorage_Store(t *testing.T) {
 
 	result := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.example.com", Source: "subfinder"},
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder"},
 		},
 	}
 
@@ -64,11 +64,11 @@ func TestInMemoryStorage_Get(t *testing.T) {
 
 	result := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 	}
 
-	ims.Store(result)
+	_ = ims.Store(result)
 
 	// Test getting existing result
 	stored, err := ims.Get("session1")
@@ -93,28 +93,28 @@ func TestInMemoryStorage_GetLatest(t *testing.T) {
 	// Store multiple scans for the same target
 	result1 := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-2 * time.Hour),
 	}
 
 	result2 := &ScanResult{
 		SessionID: "session2",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-1 * time.Hour),
 	}
 
 	result3 := &ScanResult{
 		SessionID: "session3",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 	}
 
-	ims.Store(result1)
-	ims.Store(result2)
-	ims.Store(result3)
+	_ = ims.Store(result1)
+	_ = ims.Store(result2)
+	_ = ims.Store(result3)
 
 	// Get latest
-	latest, err := ims.GetLatest("example.com")
+	latest, err := ims.GetLatest("acme-corp.io")
 	if err != nil {
 		t.Fatalf("GetLatest failed: %v", err)
 	}
@@ -136,28 +136,28 @@ func TestInMemoryStorage_List(t *testing.T) {
 	// Store multiple scans
 	result1 := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-2 * time.Hour),
 	}
 
 	result2 := &ScanResult{
 		SessionID: "session2",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-1 * time.Hour),
 	}
 
 	result3 := &ScanResult{
 		SessionID: "session3",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 	}
 
-	ims.Store(result1)
-	ims.Store(result2)
-	ims.Store(result3)
+	_ = ims.Store(result1)
+	_ = ims.Store(result2)
+	_ = ims.Store(result3)
 
 	// List all
-	results, err := ims.List("example.com", 0)
+	results, err := ims.List("acme-corp.io", 0)
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestInMemoryStorage_List(t *testing.T) {
 	}
 
 	// List with limit
-	results, err = ims.List("example.com", 2)
+	results, err = ims.List("acme-corp.io", 2)
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
@@ -192,11 +192,11 @@ func TestInMemoryStorage_Delete(t *testing.T) {
 
 	result := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 	}
 
-	ims.Store(result)
+	_ = ims.Store(result)
 
 	// Delete
 	err := ims.Delete("session1")
@@ -223,10 +223,10 @@ func TestDiffEngine_StoreResult(t *testing.T) {
 
 	result := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.example.com", Source: "subfinder"},
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder"},
 		},
 	}
 
@@ -248,22 +248,22 @@ func TestDiffEngine_Compare(t *testing.T) {
 
 	previous := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-1 * time.Hour),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.example.com", Source: "subfinder"},
-			{Type: "subdomain", Value: "www.example.com", Source: "subfinder"},
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder"},
+			{Type: "subdomain", Value: "www.acme-corp.io", Source: "subfinder"},
 		},
 	}
 
 	current := &ScanResult{
 		SessionID: "session2",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.example.com", Source: "subfinder"}, // unchanged
-			{Type: "subdomain", Value: "new.example.com", Source: "subfinder"}, // new
-			// www.example.com removed
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder"}, // unchanged
+			{Type: "subdomain", Value: "new.acme-corp.io", Source: "subfinder"}, // new
+			// www.acme-corp.io removed
 		},
 	}
 
@@ -309,22 +309,22 @@ func TestDiffEngine_CompareWithLatest(t *testing.T) {
 	// Store previous scan
 	previous := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-1 * time.Hour),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.example.com", Source: "subfinder"},
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder"},
 		},
 	}
 
-	de.StoreResult(previous)
+	_ = de.StoreResult(previous)
 
 	// Compare with latest
 	current := &ScanResult{
 		SessionID: "session2",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "new.example.com", Source: "subfinder"},
+			{Type: "subdomain", Value: "new.acme-corp.io", Source: "subfinder"},
 		},
 	}
 
@@ -358,21 +358,21 @@ func TestDiffEngine_GetHistory(t *testing.T) {
 	// Store multiple scans
 	result1 := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-2 * time.Hour),
 	}
 
 	result2 := &ScanResult{
 		SessionID: "session2",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-1 * time.Hour),
 	}
 
-	de.StoreResult(result1)
-	de.StoreResult(result2)
+	_ = de.StoreResult(result1)
+	_ = de.StoreResult(result2)
 
 	// Get history
-	history, err := de.GetHistory("example.com", 0)
+	history, err := de.GetHistory("acme-corp.io", 0)
 	if err != nil {
 		t.Fatalf("GetHistory failed: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestDiffEngine_GetHistory(t *testing.T) {
 	}
 
 	// Get history with limit
-	history, err = de.GetHistory("example.com", 1)
+	history, err = de.GetHistory("acme-corp.io", 1)
 	if err != nil {
 		t.Fatalf("GetHistory with limit failed: %v", err)
 	}
@@ -395,11 +395,11 @@ func TestDiffEngine_GetHistory(t *testing.T) {
 func TestAssetKey(t *testing.T) {
 	asset := Asset{
 		Type:  "subdomain",
-		Value: "api.example.com",
+		Value: "api.acme-corp.io",
 	}
 
 	key := assetKey(asset)
-	expected := "subdomain:api.example.com"
+	expected := "subdomain:api.acme-corp.io"
 
 	if key != expected {
 		t.Errorf("expected key '%s', got '%s'", expected, key)
@@ -409,7 +409,7 @@ func TestAssetKey(t *testing.T) {
 func TestComputeAssetChecksum(t *testing.T) {
 	asset := Asset{
 		Type:   "subdomain",
-		Value:  "api.example.com",
+		Value:  "api.acme-corp.io",
 		Source: "subfinder",
 	}
 
@@ -427,7 +427,7 @@ func TestComputeAssetChecksum(t *testing.T) {
 	// Different assets should have different checksums
 	asset2 := Asset{
 		Type:   "subdomain",
-		Value:  "www.example.com",
+		Value:  "www.acme-corp.io",
 		Source: "subfinder",
 	}
 
@@ -440,7 +440,7 @@ func TestComputeAssetChecksum(t *testing.T) {
 func TestComputeAssetChecksum_WithMetadata(t *testing.T) {
 	asset := Asset{
 		Type:   "subdomain",
-		Value:  "api.example.com",
+		Value:  "api.acme-corp.io",
 		Source: "subfinder",
 		Metadata: map[string]interface{}{
 			"ip": "1.2.3.4",
@@ -455,7 +455,7 @@ func TestComputeAssetChecksum_WithMetadata(t *testing.T) {
 	// Asset with different metadata should have different checksum
 	asset2 := Asset{
 		Type:   "subdomain",
-		Value:  "api.example.com",
+		Value:  "api.acme-corp.io",
 		Source: "subfinder",
 		Metadata: map[string]interface{}{
 			"ip": "5.6.7.8",
@@ -471,9 +471,9 @@ func TestComputeAssetChecksum_WithMetadata(t *testing.T) {
 func TestDiffReport_FilterChanges(t *testing.T) {
 	report := &DiffReport{
 		Changes: []DiffChange{
-			{Type: "added", Asset: Asset{Type: "subdomain", Value: "new.example.com"}},
-			{Type: "removed", Asset: Asset{Type: "subdomain", Value: "old.example.com"}},
-			{Type: "changed", Asset: Asset{Type: "url", Value: "https://example.com/api"}},
+			{Type: "added", Asset: Asset{Type: "subdomain", Value: "new.acme-corp.io"}},
+			{Type: "removed", Asset: Asset{Type: "subdomain", Value: "old.acme-corp.io"}},
+			{Type: "changed", Asset: Asset{Type: "url", Value: "https://acme-corp.io/api"}},
 		},
 	}
 
@@ -500,7 +500,7 @@ func TestDiffReport_ToMarkdown(t *testing.T) {
 	report := &DiffReport{
 		SessionID:  "session2",
 		PreviousID: "session1",
-		Target:     "example.com",
+		Target:     "acme-corp.io",
 		Timestamp:  time.Now(),
 		Summary: DiffSummary{
 			TotalAssets:     3,
@@ -510,9 +510,9 @@ func TestDiffReport_ToMarkdown(t *testing.T) {
 			UnchangedAssets: 0,
 		},
 		Changes: []DiffChange{
-			{Type: "added", Asset: Asset{Type: "subdomain", Value: "new.example.com", Source: "subfinder"}},
-			{Type: "removed", Asset: Asset{Type: "subdomain", Value: "old.example.com", Source: "subfinder"}},
-			{Type: "changed", Asset: Asset{Type: "url", Value: "https://example.com/api", Source: "httpx"}},
+			{Type: "added", Asset: Asset{Type: "subdomain", Value: "new.acme-corp.io", Source: "subfinder"}},
+			{Type: "removed", Asset: Asset{Type: "subdomain", Value: "old.acme-corp.io", Source: "subfinder"}},
+			{Type: "changed", Asset: Asset{Type: "url", Value: "https://acme-corp.io/api", Source: "httpx"}},
 		},
 	}
 
@@ -535,7 +535,7 @@ func TestDiffReport_ToJSON(t *testing.T) {
 	report := &DiffReport{
 		SessionID:  "session2",
 		PreviousID: "session1",
-		Target:     "example.com",
+		Target:     "acme-corp.io",
 		Timestamp:  time.Now(),
 		Summary: DiffSummary{
 			TotalAssets: 3,
@@ -568,19 +568,19 @@ func TestDiffEngine_Compare_ChangedAssets(t *testing.T) {
 
 	previous := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-1 * time.Hour),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.example.com", Source: "subfinder", Metadata: map[string]interface{}{"ip": "1.2.3.4"}},
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder", Metadata: map[string]interface{}{"ip": "1.2.3.4"}},
 		},
 	}
 
 	current := &ScanResult{
 		SessionID: "session2",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.example.com", Source: "subfinder", Metadata: map[string]interface{}{"ip": "5.6.7.8"}},
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder", Metadata: map[string]interface{}{"ip": "5.6.7.8"}},
 		},
 	}
 
@@ -600,14 +600,14 @@ func TestDiffEngine_Compare_EmptyScans(t *testing.T) {
 
 	previous := &ScanResult{
 		SessionID: "session1",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now().Add(-1 * time.Hour),
 		Assets:    []Asset{},
 	}
 
 	current := &ScanResult{
 		SessionID: "session2",
-		Target:    "example.com",
+		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 		Assets:    []Asset{},
 	}

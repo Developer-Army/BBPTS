@@ -37,7 +37,7 @@ func TestOrchestratorExecutionTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 	events, _ := orchestrator.Run(ctx, targets)
 
 	// Should complete without crashing on timeout
@@ -74,7 +74,7 @@ func TestOrchestratorConcurrency(t *testing.T) {
 	orchestrator := NewOrchestrator(config)
 
 	ctx := context.Background()
-	targets := []string{"example.com", "google.com", "github.com"}
+	targets := []string{"acme-corp.io", "google.com", "github.com"}
 
 	events, err := orchestrator.Run(ctx, targets)
 	if err != nil {

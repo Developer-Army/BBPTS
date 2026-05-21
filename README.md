@@ -1,14 +1,15 @@
-# BBPTS v1.0 (Bug Bounty Program Tool Set)
+# BBPTS v1.1.0 (Bug Bounty Program Tool Set)
 
 **Reconnaissance & Target Prioritization Toolkit**
 
 BBPTS is a Go application for automating the early phases of bug bounty reconnaissance. It focuses on structured target ingestion, staged tool orchestration, prioritization, and export into manual testing workflows like Burp Suite.
 
-[![Version](https://img.shields.io/badge/version-1.0-blue.svg)](https://github.com/Developer-Army/BBPTS)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/Developer-Army/BBPTS)
 [![Go Version](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-35.2%25-yellow.svg)](https://github.com/Developer-Army/BBPTS)
+[![codecov](https://codecov.io/gh/Developer-Army/BBPTS/graph/badge.svg?token=)](https://codecov.io/gh/Developer-Army/BBPTS)
 
+![BBPTS TUI Demo](docs/demo.png)
 
 ---
 
@@ -44,27 +45,130 @@ BBPTS is a Go application for automating the early phases of bug bounty reconnai
 
 BBPTS is cross-platform and supports **Linux (Debian/RPM), macOS, and Windows**.
 
-### linux and Mac Installation
+### Option 1: Global Install (Recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/Developer-Army/BBPTS.git
 cd BBPTS
 
-# Run the cross-platform setup (installs deps, tools, wordlists, and builds the binary)
-bash scripts/setup.sh
-
-# Alternatively, if you have 'make':
-make setup
-
-# Build the binary manually if needed 
+# Build from source
 go build -o bbpts ./cmd/bbpts
 
-# Run diagnostics to verify your environment
-./bbpts -doctor
+# Install globally (for all users - requires sudo)
+sudo cp bbpts /usr/local/bin/
+# OR user-only install (no sudo needed)
+mkdir -p ~/.local/bin && cp bbpts ~/.local/bin/
+# Make sure ' ~/.local/bin ' is in your PATH
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 
-# Verify installation
-./bbpts -help
+# Verify global installation
+bbpts -doctor
+```
+
+### Option 2: Local Development Build
+
+```bash
+# Clone, setup, and build
+git clone https://github.com/Developer-Army/BBPTS.git
+cd BBPTS
+bash scripts/setup.sh  # Installs tools and wordlists
+
+go build -o bbpts ./cmd/bbpts
+
+# Run from local directory
+./bbpts -doctor
+```
+
+### Option 3: Using Make
+
+```bash
+git clone https://github.com/Developer-Army/BBPTS.git
+cd BBPTS
+
+# Build and install for current user (uses ~/.local/bin by default)
+make install-user
+
+# OR build and install system-wide
+make install
+
+bbpts -doctor
+```
+
+### Option 4: Go Install
+
+```bash
+# Install directly to $GOPATH/bin
+go install github.com/Developer-Army/BBPTS/cmd/bbpts@latest
+
+# Make sure $GOPATH/bin is in PATH
+echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+
+bbpts -doctor
+```
+
+### Windows Installation
+
+```batch
+# Clone the repository
+git clone https://github.com/Developer-Army/BBPTS.git
+cd BBPTS
+
+# Run the Windows setup (installs deps, tools, and wordlists)
+scripts\setup.bat
+
+# Build the binary
+go build -o bbpts.exe .\cmd\bbpts
+
+# Run diagnostics to verify your environment
+.\bbpts.exe -doctor
+```
+
+**Windows Prerequisites:**
+- **Go 1.22+** (add to PATH)
+- **Git Bash** or **PowerShell** for running scripts
+- **Npcap/WinPcap** for network scanning tools (naabu, etc.)
+
+**Note:** Ensure `%USERPROFILE%\go\bin` is in your PATH to access installed tools.
+
+### Docker Installation
+
+```bash
+# Build the Docker image
+docker build -t bbpts .
+
+# Run BBPTS in Docker
+docker run --rm \\
+ -v $(pwd)/targets.example.txt:/app/targets.txt:ro \\
+ -v $(pwd)/results:/app/results \\
+ bbpts -i /app/targets.txt
+```
+
+---
+
+## Quick Start
+
+After installing globally with any method above:
+
+```bash
+# Run a full reconnaissance scan
+bbpts -i targets.txt
+
+# Quick light mode scan
+bbpts -i targets.txt --light
+
+# Full mode with all tools
+bbpts -i targets.txt --full
+
+# Run specific tools
+bbpts -i targets.txt -t subfinder,httpx,nuclei
+
+# Generate reports
+bbpts -i targets.txt -o results/report.md -s results/summary.csv
+
+# Continuous monitoring
+bbpts -i targets.txt -scope my-program -cron 60
 ```
 
 ### Windows Installation
@@ -351,6 +455,23 @@ Generated: Mon, 01 Jan 2024 12:00:00 UTC
 | example.com | 45 | high | api,parameterized | Test for SQL injection; Parameter tampering |
 ```
 
+## Compared to Alternatives
+
+BBPTS is designed to bridge the gap between simple passive subdomain gatherers and heavy, complex scanning frameworks:
+
+| Feature / Metric | BBPTS v1.1.0 | OWASP Amass | ProjectDiscovery Suite | Osmedeus |
+|------------------|------------|-------------|-------------------------|----------|
+| **Primary Goal** | Prioritized workflow orchestration | Graph-based asset mapping | Single-purpose modular tools | Automated scan pipeline |
+| **Speed & Overhead** | **Medium-Fast** (concurrent Go core) | **Slow** (heavy memory graph DB) | **Fast** (focused utility command) | **Slow** (python/bash runner wrapper) |
+| **Output Type** | Prioritized MD Reports, CSV, Burp XML, Interactive TUI | Graph DB, txt lists | Raw text / JSON | HTML report / file folders |
+| **Prioritization** | **Yes** (automated risk scoring & tags) | No | No | Partially (vuln lists) |
+| **Active Probing** | Chained port/crawler/vuln pipelines | DNS only (passive focus) | Requires manual piping/scripting | Integrated flow |
+| **TUI Dashboard** | **Yes** (Bubbletea CLI dashboard) | No | No | No (Web only) |
+
+* **Why not Amass?** Amass is great for pure mapping but doesn't easily orchestrate downstream active crawling/vuln scanning or track target status.
+* **Why not ProjectDiscovery tools alone?** While subfinder, httpx, and naabu are excellent, BBPTS wraps them into a unified, scope-aware, panic-recovered pipeline without requiring complex bash glue-code.
+* **Why not Osmedeus?** Osmedeus is a heavy pipeline orchestrator that runs python/bash workflows. BBPTS is a fast, native Go executable with zero-configuration setup.
+
 ---
 
 ## Architecture
@@ -411,4 +532,4 @@ Special thanks to the bug bounty community for inspiration and feedback.
 
 ## Changelog
 
-See [CHANGELOG.md](docs/CHANGELOG.md) for version history and updates.
+See [CHANGELOG.md](CHANGELOG.md) for version history and updates.

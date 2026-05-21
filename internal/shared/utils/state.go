@@ -235,7 +235,9 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 	// Persist the diff
 	data, err := json.MarshalIndent(diff, "", "  ")
 	if err == nil {
-		_ = os.WriteFile(s.diffPath(scope), data, 0600)
+		if errWrite := os.WriteFile(s.diffPath(scope), data, 0600); errWrite != nil {
+			slog.Warn("failed to write diff file", "path", s.diffPath(scope), "error", errWrite)
+		}
 	}
 
 	return diff, nil

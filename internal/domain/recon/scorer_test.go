@@ -20,10 +20,10 @@ func TestScorer_ScoreEndpoint_AdminKeywords(t *testing.T) {
 		url      string
 		expected int
 	}{
-		{"admin keyword", "https://example.com/admin", 30},
-		{"debug keyword", "https://example.com/debug", 30},
-		{"staging keyword", "https://example.com/staging", 30},
-		{"no keyword", "https://example.com/home", 0},
+		{"admin keyword", "https://acme-corp.io/admin", 30},
+		{"debug keyword", "https://acme-corp.io/debug", 30},
+		{"staging keyword", "https://acme-corp.io/staging", 30},
+		{"no keyword", "https://acme-corp.io/home", 0},
 	}
 
 	for _, tt := range tests {
@@ -39,7 +39,7 @@ func TestScorer_ScoreEndpoint_AdminKeywords(t *testing.T) {
 func TestScorer_ScoreEndpoint_GraphQL(t *testing.T) {
 	scorer := NewScorer()
 
-	result := scorer.ScoreEndpoint("https://example.com/graphql", false, "")
+	result := scorer.ScoreEndpoint("https://acme-corp.io/graphql", false, "")
 	if result.Score < 40 {
 		t.Errorf("expected score at least 40 for GraphQL, got %d", result.Score)
 	}
@@ -57,9 +57,9 @@ func TestScorer_ScoreEndpoint_VersionedAPI(t *testing.T) {
 		url      string
 		expected int
 	}{
-		{"api v1", "https://example.com/api/v1/users", 15},
-		{"api v2", "https://example.com/api/v2/users", 15},
-		{"no version", "https://example.com/api/users", 0},
+		{"api v1", "https://acme-corp.io/api/v1/users", 15},
+		{"api v2", "https://acme-corp.io/api/v2/users", 15},
+		{"no version", "https://acme-corp.io/api/users", 0},
 	}
 
 	for _, tt := range tests {
@@ -75,7 +75,7 @@ func TestScorer_ScoreEndpoint_VersionedAPI(t *testing.T) {
 func TestScorer_ScoreEndpoint_AuthRequired(t *testing.T) {
 	scorer := NewScorer()
 
-	result := scorer.ScoreEndpoint("https://example.com/protected", true, "")
+	result := scorer.ScoreEndpoint("https://acme-corp.io/protected", true, "")
 	if result.Score < 20 {
 		t.Errorf("expected score at least 20 for auth required, got %d", result.Score)
 	}
@@ -97,7 +97,7 @@ func TestScorer_ScoreEndpoint_LargeJSON(t *testing.T) {
 	scorer := NewScorer()
 
 	largeJSON := `{"data": "` + string(make([]byte, 10000)) + `"}`
-	result := scorer.ScoreEndpoint("https://example.com/api", false, largeJSON)
+	result := scorer.ScoreEndpoint("https://acme-corp.io/api", false, largeJSON)
 
 	if result.Score < 10 {
 		t.Errorf("expected score at least 10 for large JSON, got %d", result.Score)
@@ -112,11 +112,11 @@ func TestScorer_ScoreEndpoint_SensitiveExtensions(t *testing.T) {
 		url      string
 		expected int
 	}{
-		{".bak file", "https://example.com/config.bak", 50},
-		{".env file", "https://example.com/.env", 50},
-		{".sql file", "https://example.com/backup.sql", 50},
-		{".git path", "https://example.com/.git/config", 55},
-		{"normal file", "https://example.com/index.html", 0},
+		{".bak file", "https://acme-corp.io/config.bak", 50},
+		{".env file", "https://acme-corp.io/.env", 50},
+		{".sql file", "https://acme-corp.io/backup.sql", 50},
+		{".git path", "https://acme-corp.io/.git/config", 55},
+		{"normal file", "https://acme-corp.io/index.html", 0},
 	}
 
 	for _, tt := range tests {
@@ -144,14 +144,14 @@ func TestScorer_ScoreEndpoint_HighValuePaths(t *testing.T) {
 		url      string
 		expected int
 	}{
-		{"/internal/", "https://example.com/internal/api", 35},
-		{"/private/", "https://example.com/private/data", 35},
-		{"/secret/", "https://example.com/secret/key", 35},
-		{"/upload", "https://example.com/upload", 30},
-		{"/swagger", "https://example.com/swagger", 40},
-		{"/phpinfo", "https://example.com/phpinfo", 45},
-		{"/actuator", "https://example.com/actuator/health", 40},
-		{"normal path", "https://example.com/home", 0},
+		{"/internal/", "https://acme-corp.io/internal/api", 35},
+		{"/private/", "https://acme-corp.io/private/data", 35},
+		{"/secret/", "https://acme-corp.io/secret/key", 35},
+		{"/upload", "https://acme-corp.io/upload", 30},
+		{"/swagger", "https://acme-corp.io/swagger", 40},
+		{"/phpinfo", "https://acme-corp.io/phpinfo", 45},
+		{"/actuator", "https://acme-corp.io/actuator/health", 40},
+		{"normal path", "https://acme-corp.io/home", 0},
 	}
 
 	for _, tt := range tests {
@@ -180,10 +180,10 @@ func TestScorer_ScoreEndpoint_ParameterCount(t *testing.T) {
 		url      string
 		expected int
 	}{
-		{"single param", "https://example.com?id=1", 5},
-		{"two params", "https://example.com?id=1&name=test", 10},
-		{"many params", "https://example.com?a=1&b=2&c=3&d=4&e=5", 20},
-		{"no params", "https://example.com/home", 0},
+		{"single param", "https://acme-corp.io?id=1", 5},
+		{"two params", "https://acme-corp.io?id=1&name=test", 10},
+		{"many params", "https://acme-corp.io?a=1&b=2&c=3&d=4&e=5", 20},
+		{"no params", "https://acme-corp.io/home", 0},
 	}
 
 	for _, tt := range tests {
@@ -204,11 +204,11 @@ func TestScorer_ScoreEndpoint_SensitiveParams(t *testing.T) {
 		url      string
 		expected int
 	}{
-		{"token param", "https://example.com?token=abc123", 15},
-		{"key param", "https://example.com?key=secret", 15},
-		{"password param", "https://example.com?password=pass", 15},
-		{"redirect param", "https://example.com?redirect=http://evil.com", 15},
-		{"normal param", "https://example.com?page=1", 0},
+		{"token param", "https://acme-corp.io?token=abc123", 15},
+		{"key param", "https://acme-corp.io?key=secret", 15},
+		{"password param", "https://acme-corp.io?password=pass", 15},
+		{"redirect param", "https://acme-corp.io?redirect=http://evil.com", 15},
+		{"normal param", "https://acme-corp.io?page=1", 0},
 	}
 
 	for _, tt := range tests {
@@ -229,10 +229,10 @@ func TestScorer_ScoreEndpoint_SeverityCalculation(t *testing.T) {
 		url      string
 		minScore int
 	}{
-		{"critical", "https://example.com/.env", 80},
-		{"high", "https://example.com/admin", 30},
-		{"medium", "https://example.com/api/v1/users", 15},
-		{"low", "https://example.com/home", 0},
+		{"critical", "https://acme-corp.io/.env", 80},
+		{"high", "https://acme-corp.io/admin", 30},
+		{"medium", "https://acme-corp.io/api/v1/users", 15},
+		{"low", "https://acme-corp.io/home", 0},
 	}
 
 	for _, tt := range tests {
@@ -252,7 +252,7 @@ func TestScorer_ScoreEndpoint_SeverityCalculation(t *testing.T) {
 func TestScorer_ScoreEndpoint_JustificationTracking(t *testing.T) {
 	scorer := NewScorer()
 
-	result := scorer.ScoreEndpoint("https://example.com/admin", true, "")
+	result := scorer.ScoreEndpoint("https://acme-corp.io/admin", true, "")
 
 	if len(result.Justification) == 0 {
 		t.Error("expected at least one justification")
@@ -272,7 +272,7 @@ func TestScorer_ScoreEndpoint_CombinedFactors(t *testing.T) {
 	scorer := NewScorer()
 
 	// URL with multiple high-value factors
-	url := "https://example.com/internal/admin/api/v1/config?token=secret"
+	url := "https://acme-corp.io/internal/admin/api/v1/config?token=secret"
 	result := scorer.ScoreEndpoint(url, true, "")
 
 	if result.Score < 100 {

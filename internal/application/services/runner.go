@@ -9,7 +9,13 @@ import (
 	"strings"
 )
 
-func runCommandStreamWithInput(ctx context.Context, stdin []byte, name string, args ...string) ([]string, error) {
+// RunCommandStream runs an external command and reads stdout stream line-by-line, returning unique lines.
+func RunCommandStream(ctx context.Context, name string, args ...string) ([]string, error) {
+	return RunCommandStreamWithInput(ctx, nil, name, args...)
+}
+
+// RunCommandStreamWithInput runs an external command with stdin provided, and reads stdout stream line-by-line, returning unique lines.
+func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, args ...string) ([]string, error) {
 	cmd := prepareCommand(ctx, name, args...)
 
 	if stdin != nil {
@@ -63,12 +69,4 @@ func runCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 	}
 
 	return unique, nil
-}
-
-func RunCommandStream(ctx context.Context, name string, args ...string) ([]string, error) {
-	return runCommandStreamWithInput(ctx, nil, name, args...)
-}
-
-func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, args ...string) ([]string, error) {
-	return runCommandStreamWithInput(ctx, stdin, name, args...)
 }

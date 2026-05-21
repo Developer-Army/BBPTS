@@ -22,7 +22,7 @@ func TestMemoryGraph_AddNode(t *testing.T) {
 
 	node := &GraphNode{
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	graph.AddNode(node)
@@ -42,7 +42,7 @@ func TestMemoryGraph_AddNode_WithID(t *testing.T) {
 	node := &GraphNode{
 		ID:         "custom-id",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	graph.AddNode(node)
@@ -62,13 +62,13 @@ func TestMemoryGraph_AddNode_Duplicate(t *testing.T) {
 	node1 := &GraphNode{
 		ID:         "test-id",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	node2 := &GraphNode{
 		ID:         "test-id",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	graph.AddNode(node1)
@@ -85,13 +85,13 @@ func TestMemoryGraph_AddEdge(t *testing.T) {
 	node1 := &GraphNode{
 		ID:         "node1",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	node2 := &GraphNode{
 		ID:         "node2",
 		Type:       "Subdomain",
-		Properties: map[string]string{"Value": "api.example.com"},
+		Properties: map[string]string{"Value": "api.acme-corp.io"},
 	}
 
 	graph.AddNode(node1)
@@ -123,7 +123,7 @@ func TestMemoryGraph_AddEdge_MissingSource(t *testing.T) {
 	node := &GraphNode{
 		ID:         "node1",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	graph.AddNode(node)
@@ -140,7 +140,7 @@ func TestMemoryGraph_AddEdge_MissingTarget(t *testing.T) {
 	node := &GraphNode{
 		ID:         "node1",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	graph.AddNode(node)
@@ -157,13 +157,13 @@ func TestMemoryGraph_FindPivots(t *testing.T) {
 	node1 := &GraphNode{
 		ID:         "node1",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	node2 := &GraphNode{
 		ID:         "node2",
 		Type:       "Subdomain",
-		Properties: map[string]string{"Value": "api.example.com"},
+		Properties: map[string]string{"Value": "api.acme-corp.io"},
 	}
 
 	node3 := &GraphNode{
@@ -192,7 +192,7 @@ func TestMemoryGraph_FindPivots_NoEdges(t *testing.T) {
 	node := &GraphNode{
 		ID:         "node1",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	graph.AddNode(node)
@@ -219,13 +219,13 @@ func TestMemoryGraph_FindPivots_DuplicateEdges(t *testing.T) {
 	node1 := &GraphNode{
 		ID:         "node1",
 		Type:       "Domain",
-		Properties: map[string]string{"Value": "example.com"},
+		Properties: map[string]string{"Value": "acme-corp.io"},
 	}
 
 	node2 := &GraphNode{
 		ID:         "node2",
 		Type:       "Subdomain",
-		Properties: map[string]string{"Value": "api.example.com"},
+		Properties: map[string]string{"Value": "api.acme-corp.io"},
 	}
 
 	graph.AddNode(node1)
@@ -247,8 +247,8 @@ func TestMemoryGraph_MultipleEdges(t *testing.T) {
 	graph := NewMemoryGraph()
 
 	// Create a chain: node1 -> node2 -> node3
-	node1 := &GraphNode{ID: "node1", Type: "Domain", Properties: map[string]string{"Value": "example.com"}}
-	node2 := &GraphNode{ID: "node2", Type: "Subdomain", Properties: map[string]string{"Value": "api.example.com"}}
+	node1 := &GraphNode{ID: "node1", Type: "Domain", Properties: map[string]string{"Value": "acme-corp.io"}}
+	node2 := &GraphNode{ID: "node2", Type: "Subdomain", Properties: map[string]string{"Value": "api.acme-corp.io"}}
 	node3 := &GraphNode{ID: "node3", Type: "JS_File", Properties: map[string]string{"Value": "app.js"}}
 
 	graph.AddNode(node1)
@@ -271,7 +271,7 @@ func TestGraphNode_Properties(t *testing.T) {
 	node := &GraphNode{
 		Type: "Domain",
 		Properties: map[string]string{
-			"Value":    "example.com",
+			"Value":    "acme-corp.io",
 			"Status":   "active",
 			"Priority": "high",
 		},
@@ -283,7 +283,7 @@ func TestGraphNode_Properties(t *testing.T) {
 		t.Errorf("expected 3 properties, got %d", len(node.Properties))
 	}
 
-	if node.Properties["Value"] != "example.com" {
-		t.Errorf("expected property Value 'example.com', got '%s'", node.Properties["Value"])
+	if node.Properties["Value"] != "acme-corp.io" {
+		t.Errorf("expected property Value 'acme-corp.io', got '%s'", node.Properties["Value"])
 	}
 }

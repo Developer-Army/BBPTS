@@ -7,17 +7,17 @@ import (
 )
 
 func TestDeriveInsights(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 	events := []recon.Event{
 		{
-			Target: "https://example.com/api/v1/users?id=1",
+			Target: "https://acme-corp.io/api/v1/users?id=1",
 			Source: "httpx",
 			Properties: map[string]string{
 				"server": "nginx",
 			},
 		},
 		{
-			Target: "admin.example.com",
+			Target: "admin.acme-corp.io",
 			Source: "subfinder",
 			Properties: map[string]string{
 				"title": "Admin Login",
@@ -37,18 +37,18 @@ func TestDeriveInsights(t *testing.T) {
 	for _, i := range insights {
 		// need a copy since i is value
 		copy := i
-		if i.Host == "admin.example.com" {
+		if i.Host == "admin.acme-corp.io" {
 			adminInsight = &copy
-		} else if i.Host == "example.com" {
+		} else if i.Host == "acme-corp.io" {
 			exampleInsight = &copy
 		}
 	}
 
 	if adminInsight == nil {
-		t.Fatalf("missing admin.example.com insight")
+		t.Fatalf("missing admin.acme-corp.io insight")
 	}
 	if exampleInsight == nil {
-		t.Fatalf("missing example.com insight")
+		t.Fatalf("missing acme-corp.io insight")
 	}
 
 	// Verify tags
@@ -59,7 +59,7 @@ func TestDeriveInsights(t *testing.T) {
 		}
 	}
 	if !foundAuth {
-		t.Errorf("expected 'auth' tag on admin.example.com")
+		t.Errorf("expected 'auth' tag on admin.acme-corp.io")
 	}
 
 	foundApi := false
@@ -69,7 +69,7 @@ func TestDeriveInsights(t *testing.T) {
 		}
 	}
 	if !foundApi {
-		t.Errorf("expected 'api' tag on example.com")
+		t.Errorf("expected 'api' tag on acme-corp.io")
 	}
 }
 
@@ -83,36 +83,36 @@ func TestAnalyzers(t *testing.T) {
 	}{
 		{
 			name:    "Sensitive File Detection",
-			targets: []string{"example.com"},
+			targets: []string{"acme-corp.io"},
 			events: []recon.Event{
-				{Target: "https://example.com/.env", Source: "gobuster"},
+				{Target: "https://acme-corp.io/.env", Source: "gobuster"},
 			},
 			wantTags: []string{"sensitive"},
 			minScore: 35, // 10 base + 25 sensitive
 		},
 		{
 			name:    "High Value Subdomain",
-			targets: []string{"example.com"},
+			targets: []string{"acme-corp.io"},
 			events: []recon.Event{
-				{Target: "dev.example.com", Source: "subfinder"},
+				{Target: "dev.acme-corp.io", Source: "subfinder"},
 			},
 			wantTags: []string{"high-value-scope", "discovery"},
 			minScore: 35, // 10 base + 20 high-value + 5 discovery
 		},
 		{
 			name:    "LFI Candidate",
-			targets: []string{"example.com"},
+			targets: []string{"acme-corp.io"},
 			events: []recon.Event{
-				{Target: "https://example.com/view?file=test.txt", Source: "katana"},
+				{Target: "https://acme-corp.io/view?file=test.txt", Source: "katana"},
 			},
 			wantTags: []string{"parameterized", "lfi-candidate"},
 			minScore: 33, // 10 base + 8 param + 15 lfi
 		},
 		{
 			name:    "SQLi Candidate Category Filter",
-			targets: []string{"example.com"},
+			targets: []string{"acme-corp.io"},
 			events: []recon.Event{
-				{Target: "https://example.com/filter?category=Gifts", Source: "katana"},
+				{Target: "https://acme-corp.io/filter?category=Gifts", Source: "katana"},
 			},
 			wantTags: []string{"parameterized", "sqli-candidate"},
 			minScore: 30,
@@ -148,10 +148,10 @@ func TestAnalyzers(t *testing.T) {
 }
 
 func TestSQLiSuggestedTestsForSelectorParameters(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 	events := []recon.Event{
-		{Target: "https://example.com/product?category=Accessories", Source: "katana"},
-		{Target: "https://example.com/product?id=12", Source: "gau"},
+		{Target: "https://acme-corp.io/product?category=Accessories", Source: "katana"},
+		{Target: "https://acme-corp.io/product?id=12", Source: "gau"},
 	}
 
 	insights := DeriveInsights(targets, events)
@@ -183,9 +183,9 @@ func TestSQLiSuggestedTestsForSelectorParameters(t *testing.T) {
 }
 
 func TestSQLiSuggestedTestsForGenericQueryParameters(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 	events := []recon.Event{
-		{Target: "https://example.com/search?query=shoes", Source: "katana"},
+		{Target: "https://acme-corp.io/search?query=shoes", Source: "katana"},
 	}
 
 	insights := DeriveInsights(targets, events)
@@ -207,14 +207,14 @@ func TestSQLiSuggestedTestsForGenericQueryParameters(t *testing.T) {
 }
 
 func TestSuggestedTests_AreExpandedAndSpecific(t *testing.T) {
-	targets := []string{"example.com"}
+	targets := []string{"acme-corp.io"}
 	events := []recon.Event{
 		{
-			Target: "https://api.example.com/v1/users?id=1&redirect=https://a.com&token=abc",
+			Target: "https://api.acme-corp.io/v1/users?id=1&redirect=https://a.com&token=abc",
 			Source: "katana",
 		},
 		{
-			Target: "https://api.example.com/login",
+			Target: "https://api.acme-corp.io/login",
 			Source: "httpx",
 		},
 	}

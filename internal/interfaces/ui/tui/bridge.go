@@ -5,9 +5,31 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// TargetInputChan is used to send targets from TUI to the orchestrator.
+var TargetInputChan = make(chan []string, 1)
+
+// TargetModeChan is used to send selected scan mode from TUI to the orchestrator.
+var TargetModeChan = make(chan string, 1)
+
+// ScanAbortChan is used to signal scan interruption from TUI.
+var ScanAbortChan = make(chan struct{}, 1)
+
+// PromptForTargetMsg triggers target entry prompt in the TUI.
+type PromptForTargetMsg struct{}
+
+// InitialTargetsMsg notifies the TUI of the target list to scan.
+type InitialTargetsMsg []string
+
+// StageToolsMsg lists the tools for the current stage.
+type StageToolsMsg struct {
+	Stage int
+	Tools []string
+}
 
 // Bridge acts as a connector between the CLI logic and the TUI.
 type Bridge struct {
@@ -17,6 +39,33 @@ type Bridge struct {
 // NewBridge creates a new TUI bridge.
 func NewBridge(p *tea.Program) *Bridge {
 	return &Bridge{Program: p}
+}
+
+// PromptForTarget requests the TUI to prompt the user for target entry.
+func (b *Bridge) PromptForTarget() {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(PromptForTargetMsg{})
+}
+
+// SendInitialTargets sends the initial target list to the TUI.
+func (b *Bridge) SendInitialTargets(targets []string) {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(InitialTargetsMsg(targets))
+}
+
+// ReportStageTools reports the tool list for the stage.
+func (b *Bridge) ReportStageTools(stage int, tools []string) {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(StageToolsMsg{
+		Stage: stage,
+		Tools: tools,
+	})
 }
 
 // ReportStage implements recon.ProgressReporter.
@@ -38,19 +87,21 @@ func (b *Bridge) SendStageUpdate(stage int, tools int, targets int, complete boo
 }
 
 // SendEvent sends a discovery event to the TUI.
-func (b *Bridge) SendEvent(source, target string) {
+func (b *Bridge) SendEvent(source, target, eventType string, properties map[string]string) {
 	if b == nil || b.Program == nil {
 		return
 	}
 	b.Program.Send(EventFoundMsg{
-		Source: source,
-		Target: target,
+		Source:     source,
+		Target:     target,
+		Type:       eventType,
+		Properties: properties,
 	})
 }
 
 // ReportEvent streams a live discovery into the TUI.
-func (b *Bridge) ReportEvent(source, target string) {
-	b.SendEvent(source, target)
+func (b *Bridge) ReportEvent(source, target, eventType string, properties map[string]string) {
+	b.SendEvent(source, target, eventType, properties)
 }
 
 // SendInsight sends a prioritized insight to the TUI.
@@ -118,13 +169,73 @@ func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 	// Only forward logs when the TUI program is active
 	if h.Program != nil {
 		msg := r.Message
+		var errVal string
 		r.Attrs(func(a slog.Attr) bool {
-			msg = fmt.Sprintf("%s %s=%v", msg, a.Key, a.Value)
+			if a.Key == "error" || a.Key == "err" {
+				errVal = fmt.Sprintf("%v", a.Value)
+			}
 			return true
 		})
-		h.Program.Send(LogMsg(msg))
+		if errVal != "" {
+			msg = fmt.Sprintf("%s (error: %s)", msg, errVal)
+		}
+		
+		component := "Scanner"
+		var threadID string
+		var toolName string
+		r.Attrs(func(a slog.Attr) bool {
+			if a.Key == "thread" || a.Key == "thread_id" {
+				threadID = fmt.Sprintf("Thread-%v", a.Value)
+			} else if a.Key == "tool" || a.Key == "tool_name" {
+				toolName = fmt.Sprintf("%v", a.Value)
+			}
+			return true
+		})
+
+		if threadID != "" {
+			component = threadID
+		} else if toolName != "" {
+			component = formatComponent(toolName)
+		}
+
+		levelStr := r.Level.String()
+		if levelStr == "ERROR" {
+			levelStr = "WARN"
+		}
+		if strings.Contains(strings.ToLower(msg), "vuln") || strings.Contains(strings.ToLower(msg), "cve-") {
+			levelStr = "VULN"
+		}
+
+		h.Program.Send(LogMsg{
+			Timestamp: r.Time.Format("15:04:05"),
+			Level:     levelStr,
+			Component: component,
+			Message:   msg,
+		})
 		return nil // suppress default output
 	}
 	// Fallback to original handler when TUI is not running
 	return h.Handler.Handle(ctx, r)
+}
+
+func formatComponent(toolName string) string {
+	toolName = strings.TrimSpace(toolName)
+	if toolName == "" {
+		return "Scanner"
+	}
+	switch strings.ToLower(toolName) {
+	case "naabu", "nmap":
+		return "PortScan"
+	case "httpx":
+		return "HTTPX"
+	case "dnsx":
+		return "DNS"
+	case "nuclei":
+		return "Scanner"
+	default:
+		// Capitalize first letter
+		runes := []rune(toolName)
+		runes[0] = rune(strings.ToUpper(string(runes[0]))[0])
+		return string(runes)
+	}
 }

@@ -75,9 +75,9 @@ func TestLeaseKeyFormat(t *testing.T) {
 	// Test the lease key format used in the code
 	sessionID := "session-123"
 	stage := "subdomain_enum"
-	target := "example.com"
+	target := "acme-corp.io"
 
-	expectedKey := "lease:session-123:subdomain_enum:example.com"
+	expectedKey := "lease:session-123:subdomain_enum:acme-corp.io"
 	actualKey := formatLeaseKey(sessionID, stage, target)
 
 	if actualKey != expectedKey {

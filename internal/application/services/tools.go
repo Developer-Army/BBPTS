@@ -2,9 +2,12 @@
 package services
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"time"
 )
@@ -181,26 +184,51 @@ func (pr *ProxyRotator) GetNextProxy() string {
 	return proxy
 }
 
-// WebhookNotifier sends findings to external webhooks
+// WebhookNotifier sends findings to external webhooks using HTTP POST.
 type WebhookNotifier struct {
-	url   string
-	token string
+	url    string
+	token  string
+	client *http.Client
 }
 
-// NewWebhookNotifier creates a webhook notifier
+// NewWebhookNotifier creates a webhook notifier.
 func NewWebhookNotifier(url, token string) *WebhookNotifier {
-	return &WebhookNotifier{url: url, token: token}
+	return &WebhookNotifier{
+		url:   url,
+		token: token,
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
 }
 
-// NotifyFinding sends a finding to the configured webhook
+// NotifyFinding sends a finding to the configured webhook via HTTP POST.
 func (wn *WebhookNotifier) NotifyFinding(finding interface{}) error {
 	payload, err := json.Marshal(finding)
 	if err != nil {
 		return fmt.Errorf("failed to marshal finding: %w", err)
 	}
 
-	// In production, this would use http.Client to POST to the webhook
-	_ = payload // Use payload in actual implementation
+	req, err := http.NewRequest(http.MethodPost, wn.url, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if wn.token != "" {
+		req.Header.Set("Authorization", "Bearer "+wn.token)
+	}
+
+	resp, err := wn.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("webhook request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("webhook returned non-2xx status %d: %s", resp.StatusCode, string(body))
+	}
+
 	return nil
 }
 

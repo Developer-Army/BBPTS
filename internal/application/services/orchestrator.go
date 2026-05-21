@@ -38,6 +38,7 @@ type ProgressReporter interface {
 	// targets: number of targets being processed
 	// complete: whether the stage is finished
 	ReportStage(stage int, tools int, targets int, complete bool)
+	ReportStageTools(stage int, tools []string)
 }
 
 // Config holds runtime parameters for the recon orchestrator.
@@ -63,6 +64,10 @@ type Config struct {
 
 	// ProxyURL is a single proxy URL used for the ProxyFeeder (legacy support).
 	ProxyURL string
+
+	// ProxyInsecure disables TLS certificate verification for the proxy feeder.
+	// Useful for intercepting proxies like Burp Suite or mitmproxy.
+	ProxyInsecure bool
 
 	// APIKeys maps provider names to their API keys for enriched scanning.
 	// Supported keys: "shodan", "censys", "zoomfie", "hunter", "virustotal"
@@ -152,7 +157,7 @@ type Orchestrator struct {
 }
 
 type eventReporter interface {
-	ReportEvent(source, target string)
+	ReportEvent(source, target, eventType string, properties map[string]string)
 }
 
 type toolStatusReporter interface {
@@ -212,7 +217,7 @@ func NewOrchestrator(config Config) *Orchestrator {
 	}
 
 	if config.ProxyURL != "" {
-		feeder, err := NewProxyFeeder(config.ProxyURL)
+		feeder, err := NewProxyFeeder(config.ProxyURL, config.ProxyInsecure)
 		if err != nil {
 			slog.Error("failed to initialize proxy feeder", "error", err)
 		} else {
@@ -301,6 +306,11 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		)
 		if o.config.Reporter != nil {
 			o.config.Reporter.ReportStage(stageNum, len(stageTools), len(currentTargets), false)
+			toolNames := make([]string, len(stageTools))
+			for i, t := range stageTools {
+				toolNames[i] = t.Name()
+			}
+			o.config.Reporter.ReportStageTools(stageNum, toolNames)
 		}
 
 		events, errs := o.runStage(ctx, stageTools, currentTargets, threads)
@@ -460,7 +470,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 						slog.Debug("cache hit", "tool", tool.Name(), "events", len(entry.Events))
 						o.reportToolStatus(tool.Name(), "done", fmt.Sprintf("%d findings (cached)", len(entry.Events)))
 						for _, ev := range entry.Events {
-							o.reportEvent(ev.Source, ev.Target)
+							o.reportEvent(ev)
 						}
 						results <- toolResult{tool: tool.Name(), events: entry.Events}
 						return
@@ -478,7 +488,9 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 				if cbErr != nil {
 					err = cbErr
 				} else if o.cache != nil {
-					_ = o.cache.Put(tool.Name(), toolTargets, toolThreads, events)
+					if errPut := o.cache.Put(tool.Name(), toolTargets, toolThreads, events); errPut != nil {
+						slog.Warn("failed to write to tool execution cache", "tool", tool.Name(), "error", errPut)
+					}
 				}
 			}
 
@@ -491,7 +503,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 			slog.Debug("tool complete", "tool", tool.Name(), "events", len(events))
 			o.reportToolStatus(tool.Name(), "done", fmt.Sprintf("%d findings", len(events)))
 			for _, ev := range events {
-				o.reportEvent(ev.Source, ev.Target)
+				o.reportEvent(ev)
 			}
 			results <- toolResult{tool: tool.Name(), events: events}
 		}()
@@ -690,7 +702,8 @@ func extractLiveWebTargets(events []Event) []string {
 }
 
 func prepareTargetsForTool(toolName string, targets []string) []string {
-	if normalizeToolName(toolName) == "uro" {
+	name := normalizeToolName(toolName)
+	if name == "uro" {
 		// uro is URL-focused; keep only fully-qualified web URLs.
 		urls := make([]string, 0, len(targets))
 		for _, target := range targets {
@@ -702,19 +715,19 @@ func prepareTargetsForTool(toolName string, targets []string) []string {
 		return normalize.DeduplicateAndPreserveURLs(urls)
 	}
 
-	switch GetToolStage(toolName) {
-	case 0, 1:
-		// Preprocessing + passive/DNS tools should receive host-like targets,
-		// not deep URL paths.
+	stage := GetToolStage(toolName)
+	if stage <= 1 || name == "dnsx" || name == "naabu" || name == "shodan" {
+		// Preprocessing, passive/DNS tools, port scanners, and host search engines 
+		// should receive host-like targets, not deep URL paths.
 		return normalize.DeduplicateAndNormalize(targets)
-	default:
-		return targets
 	}
+
+	return targets
 }
 
-func (o *Orchestrator) reportEvent(source, target string) {
+func (o *Orchestrator) reportEvent(ev Event) {
 	if reporter, ok := o.config.Reporter.(eventReporter); ok {
-		reporter.ReportEvent(source, target)
+		reporter.ReportEvent(ev.Source, ev.Target, ev.Type, ev.Properties)
 	}
 }
 
@@ -757,6 +770,8 @@ func (o *Orchestrator) dispatchToWorkerMesh(ctx context.Context, toolName string
 	// Wait for job.complete event and collect tool events
 	sub := o.bus.Subscribe(toolName)
 	completeSub := o.bus.Subscribe("job.complete")
+	defer o.bus.Unsubscribe(sub)
+	defer o.bus.Unsubscribe(completeSub)
 
 	var events []Event
 	timeout := o.config.Timeout
@@ -813,6 +828,8 @@ func (o *Orchestrator) dispatchStageTaskToWorkerMesh(ctx context.Context, stage 
 
 	completeSub := o.bus.Subscribe("task.complete")
 	eventSub := o.bus.Subscribe("event.>")
+	defer o.bus.Unsubscribe(completeSub)
+	defer o.bus.Unsubscribe(eventSub)
 
 	taskSession := fmt.Sprintf("stage-%d-%d", stage, time.Now().UnixNano())
 	pending := len(targets)

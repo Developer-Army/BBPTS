@@ -144,7 +144,7 @@ func RunToolWithRetry(ctx context.Context, tool Tool, targets []string, threads 
 func RunCommandWithRetry(ctx context.Context, cfg RetryConfig, name string, args ...string) ([]string, error) {
 	var result []string
 	err := ExecuteWithRetry(ctx, cfg, func(ctx context.Context, attempt int) (bool, error) {
-		lines, err := runCommandStreamWithInput(ctx, nil, name, args...)
+		lines, err := RunCommandStreamWithInput(ctx, nil, name, args...)
 		if err != nil {
 			if ctx.Err() != nil {
 				return false, err
