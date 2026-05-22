@@ -77,7 +77,7 @@ var toolVersionFlags = map[string][]string{
 	"trufflehog":  {"--version"},
 	"chaos":       {"-version"},
 	"uro":         {"--help"},
-	"interactsh":  {"-version"},
+	"interactsh":  {"-v"},
 	"shodan":      {"version"},
 }
 

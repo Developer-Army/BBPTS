@@ -104,7 +104,7 @@ func LightModeTools() []string {
 	return []string{
 		"crtsh", "subfinder", "amass", "assetfinder", "findomain", "chaos",
 		"puredns", "dnsx", "whois",
-		"naabu", "httpx", "wafw00f", "shodan",
+		"naabu", "httpx", "shodan",
 		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",
 		"uro", "dalfox",
 	}
@@ -114,7 +114,7 @@ func NormalModeTools() []string {
 	return []string{
 		"crtsh", "subfinder", "amass", "assetfinder", "findomain", "chaos",
 		"puredns", "dnsx", "massdns", "whois",
-		"naabu", "httpx", "wafw00f", "shodan",
+		"naabu", "httpx", "shodan",
 		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",
 		"uro", "dalfox", "nuclei", "interactsh", "secrets",
 		"trufflehog", "browser", "js_analyzer",

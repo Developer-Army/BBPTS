@@ -357,7 +357,7 @@ for target in "${targets[@]}"; do
                     -summary "$summary_csv" \
                     -low-resource \
                     -threads 2 \
-                    -tools "amass,assetfinder,crtsh,httpx,subfinder,findomain,massdns,whois,shodan,wafw00f,dnsx,puredns,naabu,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,chaos,nuclei,dalfox,trufflehog,interactsh,uro,cloudenum,graphql,secrets,js_analyzer" \
+                    -tools "amass,assetfinder,crtsh,httpx,subfinder,findomain,massdns,whois,shodan,wafw00f,dnsx,puredns,naabu,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,chaos,nuclei,dalfox,trufflehog,interactsh,uro,graphql,secrets,js_analyzer" \
                     >> "$raw_log" 2>&1
         fi
         

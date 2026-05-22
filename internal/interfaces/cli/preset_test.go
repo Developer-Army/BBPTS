@@ -65,7 +65,7 @@ func TestApplyPresetAndProfileDefaults_LightModeFiltersExplicitTools(t *testing.
 
 	ApplyPresetAndProfileDefaults(opts, cfg)
 
-	want := "crtsh,subfinder,amass,assetfinder,findomain,chaos,puredns,dnsx,whois,naabu,httpx,wafw00f,shodan,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,uro,dalfox"
+	want := "crtsh,subfinder,amass,assetfinder,findomain,chaos,puredns,dnsx,whois,naabu,httpx,shodan,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,uro,dalfox"
 	if opts.Tools != want {
 		t.Fatalf("unexpected tools after light filter: %q", opts.Tools)
 	}
@@ -77,7 +77,7 @@ func TestApplyPresetAndProfileDefaults_LightModeFiltersDefaultTools(t *testing.T
 
 	ApplyPresetAndProfileDefaults(opts, cfg)
 
-	want := "crtsh,subfinder,amass,assetfinder,findomain,chaos,puredns,dnsx,whois,naabu,httpx,wafw00f,shodan,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,uro,dalfox"
+	want := "crtsh,subfinder,amass,assetfinder,findomain,chaos,puredns,dnsx,whois,naabu,httpx,shodan,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,uro,dalfox"
 	if opts.Tools != want {
 		t.Fatalf("unexpected tools for light mode: %q", opts.Tools)
 	}
