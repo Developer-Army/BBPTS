@@ -117,7 +117,7 @@ func NormalModeTools() []string {
 		"naabu", "httpx", "shodan",
 		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",
 		"uro", "dalfox", "nuclei", "interactsh", "secrets",
-		"trufflehog", "browser", "js_analyzer",
+		"trufflehog", "browser", "js_analyzer", "gowitness", "tlsx", "github",
 	}
 }
 
