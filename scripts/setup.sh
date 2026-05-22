@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 # BBPTS Elite Setup Script - Optimized for Low-Resource Hardware
 # Part of the "Top 50 in the World" framework initiative.
@@ -14,10 +14,10 @@ echo "   • Subdomain & DNS: subfinder, amass, assetfinder, puredns"
 echo "   • Probing & Ports: httpx, dnsx, naabu"
 echo "   • Discovery & Crawling: katana, gau, hakrawler, gobuster"
 echo "   • Vulnerability Scanning: nuclei, dalfox, interactsh-client"
-echo "   • Data Processing & Fuzzing: anew, gf, ffuf, trufflehog"
+echo "   • Data Processing & Fuzzing: anew, ffuf, trufflehog"
 echo ""
 echo "🐍 Installing Python-based tools:"
-echo "   • uro (URL deduplication), wafw00f"
+echo "   • uro (URL deduplication), wafw00f (Optional)"
 echo ""
 echo "📚 Installing wordlists:"
 echo "   • dns-5k.txt (5k DNS entries)"
@@ -70,8 +70,7 @@ GO_TOOLS=(
     "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"    # ADDED: Essential DNS toolkit
     "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"    # ADDED: TLS certificate parsing
     "github.com/d3mondev/puredns/v2@latest"
-    "github.com/blechschmidt/massdns/cmd/massdns@latest"  # ADDED: Required by puredns
-    "github.com/OWASP/Amass/v3/...@latest"                # ADDED: Missing core tool
+    "github.com/owasp-amass/amass/v4/...@master"
     "github.com/tomnomnom/assetfinder@latest"             # ADDED: Missing core tool
     
     # --- Probing & Ports ---
@@ -89,8 +88,7 @@ GO_TOOLS=(
     "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
     "github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest" # ADDED: OOB testing
     "github.com/hahwul/dalfox/v2@latest"
-    "github.com/KathanP19/Gxss@latest"                    # ADDED: Fast XSS reflection checker (Capital G required)
-    "github.com/sensepost/gowitness@latest"
+    "github.com/sensepost/gowitness/v3/cmd/gowitness@latest"
     
     # --- Data Processing & Manipulation ---
     "github.com/tomnomnom/anew@latest"
@@ -121,46 +119,58 @@ go install github.com/smaranchand/uro@latest || echo "⚠️ Warning: Failed to 
 # 3. RUST-BASED TOOLS (feroxbuster)
 if ! command -v feroxbuster &> /dev/null; then
     echo "Installing feroxbuster (Rust binary)..."
-    curl -sL https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh | bash -s -- --to /usr/local/bin || true
+    curl -sLo /tmp/install-feroxbuster.sh https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh || true
+    if [ -f /tmp/install-feroxbuster.sh ]; then
+        bash /tmp/install-feroxbuster.sh -s -- --to /usr/local/bin || true
+        rm /tmp/install-feroxbuster.sh
+    fi
 fi
 
 # 4. ADDITIONAL NON-GO TOOLS
-# --- Install findomain ---
-if ! command -v findomain &> /dev/null; then
-    echo "Installing findomain..."
-    curl -LO https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux.zip || true
-    if [ -f findomain-linux.zip ]; then
-        unzip -o findomain-linux.zip || true
-        chmod +x findomain || true
-        if [ -w /usr/local/bin ]; then
-            mv findomain /usr/local/bin/ || true
-        else
-            mkdir -p ~/.local/bin && mv findomain ~/.local/bin/ || true
+# --- Install massdns from source ---
+if ! command -v massdns &> /dev/null; then
+    echo "Installing massdns..."
+    git clone https://github.com/blechschmidt/massdns.git /tmp/massdns || true
+    if [ -d /tmp/massdns ]; then
+        (cd /tmp/massdns && make) || true
+        if [ -f /tmp/massdns/bin/massdns ]; then
+            if [ -w /usr/local/bin ]; then
+                mv /tmp/massdns/bin/massdns /usr/local/bin/ || true
+            else
+                mkdir -p ~/.local/bin && mv /tmp/massdns/bin/massdns ~/.local/bin/ || true
+            fi
         fi
-        rm -f findomain-linux.zip || true
+        rm -rf /tmp/massdns
     fi
 fi
 
 # --- Install trufflehog ---
 if ! command -v trufflehog &> /dev/null; then
     echo "Installing trufflehog..."
-    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/truffhog/main/scripts/install.sh 2>/dev/null | sh -s -- -b ~/.local/bin || \
-    curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b ~/.local/bin || true
-fi
-
-# --- Install whois ---
-if ! command -v whois &> /dev/null; then
-    echo "Installing whois..."
-    if command -v apt-get &> /dev/null; then
-        sudo apt-get update && sudo apt-get install -y whois || true
-    elif command -v yum &> /dev/null; then
-        sudo yum install -y whois || true
+    curl -sSfL -o /tmp/install-trufflehog.sh https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh || true
+    if [ -f /tmp/install-trufflehog.sh ]; then
+        sh /tmp/install-trufflehog.sh -s -- -b ~/.local/bin || true
+        rm /tmp/install-trufflehog.sh
     fi
 fi
 
-# --- Install wafw00f ---
+# --- Install shodan CLI (Optional, requires API key) ---
+if [ -n "${SHODAN_API_KEY:-}" ]; then
+    echo "Installing Shodan CLI..."
+    if command -v pip &> /dev/null; then
+        pip install shodan || true
+        shodan init "$SHODAN_API_KEY" || true
+    elif command -v pip3 &> /dev/null; then
+        pip3 install shodan || true
+        shodan init "$SHODAN_API_KEY" || true
+    fi
+else
+    echo "💡 Note: Shodan CLI installation skipped (requires SHODAN_API_KEY environment variable to be set)."
+fi
+
+# --- Install wafw00f (Optional) ---
 if ! command -v wafw00f &> /dev/null; then
-    echo "Installing wafw00f..."
+    echo "Installing wafw00f (Optional)..."
     if command -v pip &> /dev/null; then
         pip install wafw00f || true
     elif command -v pip3 &> /dev/null; then
@@ -168,6 +178,10 @@ if ! command -v wafw00f &> /dev/null; then
     else
         python3 -m pip install wafw00f 2>/dev/null || true
     fi
+fi
+
+if command -v gowitness &> /dev/null; then
+    echo "💡 Note: gowitness requires Chrome/Chromium to be installed on your system to take screenshots."
 fi
 
 echo -e "\n BBPTS ELITE TOOLS INSTALLED!"
@@ -183,7 +197,7 @@ mkdir -p "$WORDLISTS_DIR"
 
 # Download essential wordlists
 echo "Downloading DNS wordlist (5k entries)..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo "️ Failed to download DNS wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/dns-Jhaddix.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo "️ Failed to download DNS wordlist"
 
 echo "Downloading directory wordlist (small)..."
 curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-small-files.txt" -o "$WORDLISTS_DIR/raft-small-files.txt" || echo "️ Failed to download directory wordlist"

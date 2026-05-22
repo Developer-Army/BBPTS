@@ -201,11 +201,12 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 
 func evaluateLegacy(expected Expected, actualPath, mode, failuresPath string) {
 	expectedSet := make(map[string]bool)
-	if mode == "subdomains" {
+	switch mode {
+	case "subdomains":
 		for _, s := range expected.Subdomains {
 			expectedSet[strings.ToLower(strings.TrimSpace(s))] = true
 		}
-	} else if mode == "alive" {
+	case "alive":
 		for _, a := range expected.Alive {
 			expectedSet[strings.ToLower(strings.TrimSpace(a))] = true
 		}
@@ -220,9 +221,10 @@ func evaluateLegacy(expected Expected, actualPath, mode, failuresPath string) {
 			_ = json.Unmarshal(actData, &actual)
 			for _, item := range actual.Items {
 				hostClean := strings.ToLower(strings.TrimSpace(item.Host))
-				if mode == "subdomains" {
+				switch mode {
+				case "subdomains":
 					actualSet[hostClean] = true
-				} else if mode == "alive" {
+				case "alive":
 					if strings.HasPrefix(hostClean, "http://") || strings.HasPrefix(hostClean, "https://") {
 						actualSet[hostClean] = true
 					}
@@ -263,9 +265,10 @@ func evaluateLegacy(expected Expected, actualPath, mode, failuresPath string) {
 					continue
 				}
 				target := strings.ToLower(strings.TrimSpace(row[hostIdx]))
-				if mode == "subdomains" {
+				switch mode {
+				case "subdomains":
 					actualSet[target] = true
-				} else if mode == "alive" {
+				case "alive":
 					if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
 						actualSet[target] = true
 					}

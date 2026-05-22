@@ -57,7 +57,7 @@ type DiagnosticCheck struct {
 
 // toolVersionFlags maps tool names to version flag arguments.
 var toolVersionFlags = map[string][]string{
-	"amass":       {"-version"},
+	"amass":       {"version"},
 	"subfinder":   {"-version"},
 	"findomain":   {"--version"},
 	"httpx":       {"-version"},
@@ -83,7 +83,6 @@ var toolVersionFlags = map[string][]string{
 
 var builtInDoctorTools = map[string]string{
 	"browser":     "built-in browser recon module",
-	"cloudenum":   "built-in cloud enum module",
 	"crtsh":       "built-in crt.sh HTTP client",
 	"graphql":     "built-in GraphQL scanner",
 	"js_analyzer": "built-in JavaScript analyzer",

@@ -27,19 +27,11 @@ func (t *GobusterTool) Run(ctx context.Context, targets []string, threads int) (
 		wordlistsDir = filepath.Join(home, ".bbpts", "wordlists")
 	}
 
-	wordlist := GetWordlistPath(ctx, "directory")
+	wordlist := GetWordlistPath(ctx, "subdomain")
 	if wordlist == "" {
-		if LowResourceFromCtx(ctx) {
-			wordlist = filepath.Join(wordlistsDir, "seclists_common.txt")
-			if _, err := os.Stat(wordlist); os.IsNotExist(err) {
-				wordlist = filepath.Join(wordlistsDir, "raft-small-files.txt")
-			}
-		} else {
-			// Fallback to raft-small-files.txt
-			wordlist = filepath.Join(wordlistsDir, "raft-small-files.txt")
-			if _, err := os.Stat(wordlist); os.IsNotExist(err) {
-				wordlist = filepath.Join(wordlistsDir, "seclists_common.txt")
-			}
+		wordlist = filepath.Join(wordlistsDir, "subdomains-top1million-5000.txt")
+		if _, err := os.Stat(wordlist); os.IsNotExist(err) {
+			wordlist = filepath.Join(wordlistsDir, "dns-5k.txt")
 		}
 	}
 
@@ -81,7 +73,7 @@ func (t *GobusterTool) Run(ctx context.Context, targets []string, threads int) (
 				return
 			}
 
-			args := []string{"dir", "-u", url, "-w", wordlist, "-q", "-z", "--no-error", "-t", fmt.Sprintf("%d", targetThreads)}
+			args := []string{"vhost", "-u", url, "-w", wordlist, "-q", "-z", "--no-error", "-t", fmt.Sprintf("%d", targetThreads)}
 
 			headers := HeadersFromCtx(ctx)
 			for k, v := range headers {
@@ -102,11 +94,25 @@ func (t *GobusterTool) Run(ctx context.Context, targets []string, threads int) (
 
 			var targetEvents []Event
 			for _, line := range lines {
-				// Gobuster output format can be "Found: /path (Status: 200)"
-				path := strings.TrimSpace(line)
-				if strings.HasPrefix(path, "/") {
-					fullURL := fmt.Sprintf("%s/%s", url, path)
-					targetEvents = append(targetEvents, NewEvent(fullURL, t.Name(), "directory", map[string]string{"path": path}))
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				// e.g. "Found: admin.example.com (Status: 200)"
+				if strings.Contains(line, "Found:") {
+					parts := strings.Split(line, "Found:")
+					if len(parts) > 1 {
+						vhost := strings.TrimSpace(strings.Split(parts[1], "(")[0])
+						if vhost != "" {
+							targetEvents = append(targetEvents, NewEvent(vhost, t.Name(), "vhost", map[string]string{"vhost": vhost}))
+						}
+					}
+				} else if !strings.HasPrefix(line, "[") && !strings.Contains(line, "Error:") {
+					// Fallback for simple line output
+					vhost := strings.TrimSpace(strings.Split(line, "(")[0])
+					if vhost != "" && !strings.Contains(vhost, " ") {
+						targetEvents = append(targetEvents, NewEvent(vhost, t.Name(), "vhost", map[string]string{"vhost": vhost}))
+					}
 				}
 			}
 

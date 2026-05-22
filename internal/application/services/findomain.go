@@ -2,17 +2,11 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 type FindomainTool struct{}
-
-type findomainOutput struct {
-	Domain string `json:"domain"`
-	Host   string `json:"host"`
-}
 
 func (t *FindomainTool) Name() string {
 	return "findomain"
@@ -32,28 +26,15 @@ func (t *FindomainTool) Run(ctx context.Context, targets []string, threads int) 
 		}
 
 		// Run findomain
-		args := []string{"-t", target, "-json"}
+		args := []string{"-t", target, "--quiet"}
 		lines, err := RunCommandLines(ctx, "findomain", args...)
 		if err != nil {
 			return nil, fmt.Errorf("findomain execution failed for %s: %w", target, err)
 		}
 
 		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			var out findomainOutput
-			if err := json.Unmarshal([]byte(line), &out); err != nil {
-				continue
-			}
-
-			domain := out.Host
-			if domain == "" {
-				domain = out.Domain
-			}
-			if domain == "" {
+			domain := strings.TrimSpace(line)
+			if domain == "" || strings.HasPrefix(domain, "Findomain") || strings.Contains(domain, "An unique") {
 				continue
 			}
 

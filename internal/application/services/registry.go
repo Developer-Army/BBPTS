@@ -36,7 +36,6 @@ var toolFactories = map[string]struct {
 	"trufflehog":  {factory: func() Tool { return &TrufflehogTool{} }, stage: 3},
 	"interactsh":  {factory: func() Tool { return &InteractshTool{} }, stage: 4},
 	"uro":         {factory: func() Tool { return &UroTool{} }, stage: 3},
-	"cloudenum":   {factory: func() Tool { return &CloudEnumTool{} }, stage: 1},
 	"graphql":     {factory: func() Tool { return &GraphQLScanner{} }, stage: 3},
 	"secrets":     {factory: func() Tool { return &SecretsTool{} }, stage: 4},
 	"browser":     {factory: func() Tool { return &BrowserRecon{} }, stage: 3},

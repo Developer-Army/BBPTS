@@ -50,12 +50,11 @@ github.com/ffuf/ffuf/v2@latest ^
 github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest ^
 github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest ^
 github.com/hahwul/dalfox/v2@latest ^
-github.com/KathanP19/Gxss@latest ^
-github.com/sensepost/gowitness@latest ^
+github.com/sensepost/gowitness/v3/cmd/gowitness@latest ^
 github.com/tomnomnom/anew@latest ^
 github.com/tomnomnom/unfurl@latest ^
 github.com/tomnomnom/qsreplace@latest ^
-github.com/OWASP/Amass/v3/...@latest ^
+github.com/owasp-amass/amass/v4/...@master ^
 github.com/tomnomnom/assetfinder@latest ^
 github.com/hakluke/hakrawler@latest ^
 github.com/OJ/gobuster/v3@latest ^
@@ -84,15 +83,20 @@ go install github.com/smaranchand/uro@latest
 echo.
 echo Installing additional tools...
 
-where findomain >nul 2>nul
-if !errorlevel! neq 0 (
-    echo Installing findomain...
-    powershell -Command "Invoke-WebRequest -Uri 'https://github.com/Findomain/Findomain/releases/latest/download/findomain-windows.exe' -OutFile '%USERPROFILE%\go\bin\findomain.exe'"
+if not "%SHODAN_API_KEY%"=="" (
+    where shodan >nul 2>nul
+    if !errorlevel! neq 0 (
+        echo Installing Shodan CLI...
+        pip install shodan || pip3 install shodan
+        shodan init %SHODAN_API_KEY%
+    )
+) else (
+    echo [INFO] Shodan CLI requires SHODAN_API_KEY environment variable. Skipping.
 )
 
 where wafw00f >nul 2>nul
 if !errorlevel! neq 0 (
-    echo Installing wafw00f...
+    echo Installing wafw00f (Optional)...
     pip install wafw00f || pip3 install wafw00f
 )
 
@@ -101,13 +105,18 @@ if !errorlevel! neq 0 (
     echo [WARNING] 'whois' not found. Please install whois manually or ignore on Windows.
 )
 
+where massdns >nul 2>nul
+if !errorlevel! neq 0 (
+    echo [WARNING] 'massdns' not found. Please install massdns manually or ignore on Windows.
+)
+
 echo.
 echo Installing wordlists...
 set WORDLISTS_DIR=%PROJECT_ROOT%\wordlists
 if not exist "%WORDLISTS_DIR%" mkdir "%WORDLISTS_DIR%"
 
 echo Downloading DNS wordlist (5k entries)...
-powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt' -OutFile '%WORDLISTS_DIR%\dns-5k.txt'" 2>nul
+powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/dns-Jhaddix.txt' -OutFile '%WORDLISTS_DIR%\dns-5k.txt'" 2>nul
 
 echo Downloading directory wordlist (small)...
 powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-small-files.txt' -OutFile '%WORDLISTS_DIR%\raft-small-files.txt'" 2>nul

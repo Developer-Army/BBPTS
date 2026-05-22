@@ -121,6 +121,9 @@ func getSystemTotalMemory() int64 {
 				}
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			slog.Debug("Resource Guard: failed reading /proc/meminfo", "error", err)
+		}
 
 	case "darwin":
 		// macOS: sysctl -n hw.memsize
