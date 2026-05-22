@@ -148,3 +148,25 @@ func applyProfileRateOnly(opts *Options, cfg *config.Config) {
 	}
 	opts.RateLimit = pp.RateLimit
 }
+
+// FilterExcludedTools removes tools listed in the comma-separated exclude string
+// from the given tool list.
+func FilterExcludedTools(tools []string, exclude string) []string {
+	if strings.TrimSpace(exclude) == "" {
+		return tools
+	}
+	excluded := make(map[string]struct{})
+	for _, name := range strings.Split(exclude, ",") {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name != "" {
+			excluded[name] = struct{}{}
+		}
+	}
+	filtered := make([]string, 0, len(tools))
+	for _, t := range tools {
+		if _, skip := excluded[strings.ToLower(strings.TrimSpace(t))]; !skip {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}

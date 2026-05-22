@@ -73,6 +73,18 @@ type Config struct {
 
 	// AutoUpdate controls whether Nuclei templates are updated automatically.
 	AutoUpdate bool `json:"auto_update"`
+
+	// Ports is a comma-separated list of ports for port-scanning tools (naabu).
+	// When empty, the built-in default port list is used.
+	Ports string `json:"ports"`
+
+	// BatchSize controls how many domains are scanned concurrently.
+	// 1 = sequential (default). Higher values trade memory for speed.
+	BatchSize int `json:"batch_size"`
+
+	// ReportTemplatePath is an optional path to a custom Go text/template file
+	// for generating the HTML report. When empty, the built-in template is used.
+	ReportTemplatePath string `json:"report_template"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -139,6 +151,8 @@ func DefaultConfig() *Config {
 		RateLimit:      50,
 		ToolRateLimits: make(map[string]int),
 		AutoUpdate:     false,
+		Ports:          "",
+		BatchSize:      1,
 		StateDir:       filepath.Join(home, ".bbpts", "state"),
 		WordlistsDir: filepath.Join(".", "wordlists"),
 		Wordlists: WordlistConfig{

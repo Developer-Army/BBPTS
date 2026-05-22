@@ -126,6 +126,7 @@ const (
 	scanModeContextKey    contextKey = "scan_mode"
 	headersContextKey     contextKey = "headers"
 	autoUpdateContextKey  contextKey = "auto_update"
+	portsContextKey       contextKey = "ports"
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -250,4 +251,15 @@ func AutoUpdateFromCtx(ctx context.Context) bool {
 		return update
 	}
 	return false
+}
+
+func WithPorts(ctx context.Context, ports string) context.Context {
+	return context.WithValue(ctx, portsContextKey, ports)
+}
+
+func PortsFromCtx(ctx context.Context) string {
+	if ports, ok := ctx.Value(portsContextKey).(string); ok {
+		return ports
+	}
+	return ""
 }

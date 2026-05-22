@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	version = "v1.1.1"
+	version = "v1.1.2"
 	commit  = "unknown"
 	date    = "unknown"
 )
@@ -79,6 +79,11 @@ func main() {
 	}
 	app.ApplyPresetAndProfileDefaults(&opts, cfg)
 
+	// Fallback batch size to config value if CLI flag not set
+	if opts.BatchSize <= 0 && cfg.BatchSize > 1 {
+		opts.BatchSize = cfg.BatchSize
+	}
+
 	// Apply CLI overrides to configuration
 	if opts.MaxCPUPercent > 0 {
 		cfg.ResourceLimits.MaxCPUPercent = opts.MaxCPUPercent
@@ -128,10 +133,7 @@ func main() {
 		}
 	}
 
-	level := slog.LevelInfo
-	if opts.Debug {
-		level = slog.LevelDebug
-	}
+	level := resolveLogLevel(opts)
 	baseHandler := slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: level})
 	slog.SetDefault(slog.New(baseHandler))
 
@@ -226,6 +228,13 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.JSONOutput, "json", false, "Output results in JSON format to stdout")
 	flag.BoolVar(&opts.JSONOutput, "j", false, "Short for -json")
 	flag.BoolVar(&opts.AutoUpdate, "auto-update", false, "Auto-update Nuclei templates before scan")
+
+	flag.StringVar(&opts.ExcludeTools, "exclude-tools", "", "Comma-separated tools to skip (e.g. nuclei,dalfox)")
+	flag.StringVar(&opts.ExcludeTools, "x", "", "Short for -exclude-tools")
+	flag.IntVar(&opts.BatchSize, "batch-size", 0, "Number of domains to scan in parallel (0 = use config or 1)")
+	flag.IntVar(&opts.BatchSize, "b", 0, "Short for -batch-size")
+	flag.StringVar(&opts.LogLevel, "log-level", "", "Log level: debug, info, warn, error")
+	flag.StringVar(&opts.ReportTemplate, "report-template", "", "Path to custom Go text/template for HTML report")
 
 	var showVersion bool
 	flag.BoolVar(&showVersion, "version", false, "Print version information and exit")
@@ -350,4 +359,24 @@ func reorderArgs(args []string) []string {
 	}
 
 	return append(flags, posArgs...)
+}
+
+// resolveLogLevel maps the -log-level flag (and -debug shortcut) to slog.Level.
+func resolveLogLevel(opts app.Options) slog.Level {
+	if opts.LogLevel != "" {
+		switch strings.ToLower(strings.TrimSpace(opts.LogLevel)) {
+		case "debug":
+			return slog.LevelDebug
+		case "warn", "warning":
+			return slog.LevelWarn
+		case "error":
+			return slog.LevelError
+		default:
+			return slog.LevelInfo
+		}
+	}
+	if opts.Debug {
+		return slog.LevelDebug
+	}
+	return slog.LevelInfo
 }

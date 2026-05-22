@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
@@ -28,6 +30,7 @@ type ReportConfig struct {
 	Verbose       bool
 	MinimumScore  int
 	BugBountyType string // "standard", "h1", "intigriti", "bugcrowd", etc.
+	TemplatePath  string // Optional custom Go text/template file for HTML report
 }
 
 // Report represents a comprehensive vulnerability report
@@ -147,6 +150,41 @@ func (rg *ReportGenerator) GenerateFullReport(insights []analyze.Insight, events
 		}
 	}
 
+	// Generate custom template report if a template path is provided
+	if rg.config.TemplatePath != "" {
+		if err := rg.generateCustomTemplateReport(report); err != nil {
+			slog.Warn("failed to generate custom template report", "error", err, "template", rg.config.TemplatePath)
+		}
+	}
+
+	return nil
+}
+
+// generateCustomTemplateReport loads a user-supplied Go text/template file
+// and executes it with the report data, writing output to custom_report.html.
+func (rg *ReportGenerator) generateCustomTemplateReport(report *Report) error {
+	tmplData, err := os.ReadFile(rg.config.TemplatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read custom template %s: %w", rg.config.TemplatePath, err)
+	}
+
+	tmpl, err := template.New("custom").Parse(string(tmplData))
+	if err != nil {
+		return fmt.Errorf("failed to parse custom template: %w", err)
+	}
+
+	outPath := filepath.Join(rg.config.OutputPath, "custom_report.html")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return fmt.Errorf("failed to create custom report file: %w", err)
+	}
+	defer f.Close()
+
+	if err := tmpl.Execute(f, report); err != nil {
+		return fmt.Errorf("failed to execute custom template: %w", err)
+	}
+
+	slog.Info("custom template report generated", "path", outPath)
 	return nil
 }
 

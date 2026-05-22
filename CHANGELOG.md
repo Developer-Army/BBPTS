@@ -4,6 +4,22 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] — 2026-06-05
+
+### Added
+- **Configurable Port List**: Naabu port list moved from hardcoded to `config.json` (`"ports"` field). Empty = built-in default.
+- **Tool Exclusions**: New `-exclude-tools` / `-x` CLI flag to skip specific tools without editing presets.
+- **Batch Parallelism**: New `-batch-size` / `-b` flag and `batch_size` config field for concurrent multi-domain scanning.
+- **Log Level Control**: New `-log-level` flag (`debug`, `info`, `warn`, `error`) for fine-grained log verbosity.
+- **Custom Report Templates**: New `-report-template` flag and `report_template` config field for user-supplied Go `text/template` HTML reports.
+- **Containerization Guide**: New `docs/CONTAINERIZATION.md` with Docker usage, volume mounts, and per-tool container roadmap.
+
+### Changed
+- **Dockerfile**: Updated with ldflags version injection, massdns binary copy, wordlists, healthcheck, and `dnsutils` runtime dependency.
+- **Version**: Bumped to v1.1.2.
+
+---
+
 ## [1.1.1] — 2026-06-04
 
 ### Added

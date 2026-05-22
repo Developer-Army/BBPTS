@@ -34,6 +34,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/sync/errgroup"
 )
 
 func notifierConfigFrom(cfg config.NotifyConfig) utils.Config {
@@ -95,6 +96,10 @@ type Options struct {
 	Resume            bool
 	JSONOutput        bool
 	AutoUpdate        bool
+	ExcludeTools      string
+	BatchSize         int
+	LogLevel          string
+	ReportTemplate    string
 }
 
 // Run executes the BBPTS engine with the provided options.
@@ -318,6 +323,16 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 
 		toolNames := strings.Split(opts.Tools, ",")
 
+		// Apply tool exclusions
+		if opts.ExcludeTools != "" {
+			toolNames = FilterExcludedTools(toolNames, opts.ExcludeTools)
+			if len(toolNames) == 0 {
+				slog.Error("all tools excluded — nothing to run")
+				return
+			}
+			slog.Info("tools after exclusions applied", "remaining", len(toolNames), "excluded", opts.ExcludeTools)
+		}
+
 		// Re-initialize context with proper timeout for tools
 		cancel()
 		if opts.Timeout > 0 {
@@ -331,6 +346,9 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		runCtx = services.WithLowResource(runCtx, opts.LowResource)
 		runCtx = services.WithScanMode(runCtx, opts.Mode)
 		runCtx = services.WithHeaders(runCtx, cfg.Headers)
+		if cfg.Ports != "" {
+			runCtx = services.WithPorts(runCtx, cfg.Ports)
+		}
 
 		var eventBus queue.EventBus
 		if cfg.EventBus.Type == "nats" {
@@ -465,6 +483,43 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 				}
 				runtime.GC()
 			}
+		} else if batchSize := opts.BatchSize; batchSize > 1 {
+			// Batch parallelism: run multiple domain groups concurrently
+			var allEvents []services.Event
+			var eventsMu sync.Mutex
+			eg, egCtx := errgroup.WithContext(runCtx)
+			eg.SetLimit(batchSize)
+
+			chunkSize := (len(normalized) + batchSize - 1) / batchSize
+			if chunkSize < 1 {
+				chunkSize = 1
+			}
+			for i := 0; i < len(normalized); i += chunkSize {
+				end := i + chunkSize
+				if end > len(normalized) {
+					end = len(normalized)
+				}
+				batch := normalized[i:end]
+				eg.Go(func() error {
+					batchEvents, err := orchestrator.Run(egCtx, batch)
+					if err != nil {
+						slog.Warn("batch completed with errors", "error", err, "batch_size", len(batch))
+					}
+					eventsMu.Lock()
+					allEvents = append(allEvents, batchEvents...)
+					eventsMu.Unlock()
+					if cp != nil {
+						for _, t := range batch {
+							cp.MarkComplete(t)
+						}
+					}
+					return nil
+				})
+			}
+			if err := eg.Wait(); err != nil {
+				slog.Warn("batch parallelism completed with errors", "error", err)
+			}
+			events = convertServicesEventsToRecon(allEvents)
 		} else {
 			servicesEvents, err := orchestrator.Run(runCtx, normalized)
 			events = convertServicesEventsToRecon(servicesEvents)
@@ -990,6 +1045,12 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		slog.Warn("failed to ensure detailed report directory", "dir", reportDir, "error", err)
 		return
 	}
+	// Resolve custom report template path
+	templatePath := opts.ReportTemplate
+	if templatePath == "" {
+		templatePath = cfg.ReportTemplatePath
+	}
+
 	gen := ui.NewReportGenerator(ui.ReportConfig{
 		OutputPath:   reportDir,
 		IncludeHTML:  true,
@@ -998,6 +1059,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		IncludeCaido: true,
 		IncludeZAP:   true,
 		MinimumScore: 0,
+		TemplatePath: templatePath,
 	})
 	if err := gen.GenerateFullReport(insights, events); err != nil {
 		slog.Warn("failed to generate detailed report bundle", "dir", reportDir, "error", err)
@@ -1012,6 +1074,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 			IncludeCaido: true,
 			IncludeZAP:   true,
 			MinimumScore: 0,
+			TemplatePath: templatePath,
 		})
 		if err := genGlobal.GenerateFullReport(insights, events); err != nil {
 			slog.Warn("failed to generate global detailed report bundle", "dir", globalReportDir, "error", err)

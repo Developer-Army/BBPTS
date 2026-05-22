@@ -17,9 +17,11 @@ func (t *NaabuTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		return nil, nil
 	}
 
-	// HACK: Hardcoded common ports to avoid scanning all 65535 ports, which takes too long.
-	// We should eventually move this to configs/config.json.
-	vulnerablePorts := "20,21,22,23,25,53,67,68,80,110,119,123,137,138,139,143,161,162,389,443,445,465,514,587,631,636,993,995,1433,1434,1521,2049,3306,3389,3690,5432,5900,5984,6379,6660-6669,8000,8080,8443,8888,9000,9092,9200,9300,11211,27017,27018,27019,50000,50070,50075,61616"
+	defaultPorts := "20,21,22,23,25,53,67,68,80,110,119,123,137,138,139,143,161,162,389,443,445,465,514,587,631,636,993,995,1433,1434,1521,2049,3306,3389,3690,5432,5900,5984,6379,6660-6669,8000,8080,8443,8888,9000,9092,9200,9300,11211,27017,27018,27019,50000,50070,50075,61616"
+	vulnerablePorts := PortsFromCtx(ctx)
+	if vulnerablePorts == "" {
+		vulnerablePorts = defaultPorts
+	}
 	args := []string{"-silent", "-c", fmt.Sprintf("%d", threads), "-p", vulnerablePorts}
 	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 	if rateLimit > 0 {

@@ -1,10 +1,8 @@
-# BBPTS v1.1.1 (Bug Bounty Program Tool Set)
+# BBPTS v1.1.2
 
-**Reconnaissance & Target Prioritization Toolkit**
+> **Bug Bounty recon on autopilot.** Point it at targets, get prioritized findings.
 
-BBPTS is a Go application for automating the early phases of bug bounty reconnaissance. It focuses on structured target ingestion, staged tool orchestration, prioritization, and export into manual testing workflows like Burp Suite.
-
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/Developer-Army/BBPTS)
+[![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)](https://github.com/Developer-Army/BBPTS)
 [![Go Version](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
 [![Build Status](https://github.com/Developer-Army/BBPTS/workflows/CI/badge.svg)](https://github.com/Developer-Army/BBPTS/actions)
 
@@ -12,474 +10,323 @@ BBPTS is a Go application for automating the early phases of bug bounty reconnai
 
 ---
 
-## Key Features
+## What Is This?
 
-- **Concurrency**: Built with a panic-recovered, semaphore-backed orchestrator capable of parallelizing 15+ external security tools safely.
-- **Alerting**: Notifications for **Discord, Slack, and Telegram** on higher-priority findings.
-- **Distributed Fleet Support**: Optional **Axiom** integration for running supported tools across a fleet.
-- **Fingerprinting**: Correlates assets using **JARM fingerprints**, favicon hashes, and SSL pattern analysis to find hidden infrastructure.
-- **Structured Logging**: Native `log/slog` integration ready for CI/CD pipelines and log aggregators.
-- **Prioritization**: Computes scores, tags, and suggested tests from reconnaissance events.
-- **Continuous Monitoring**: Database-backed differential scanning to identify new assets and changes between runs.
-- **Scope-Aware CSV Input**: Header-based CSV imports respect `scope` metadata so out-of-scope rows are not scanned.
-- **Pipeline URL Preservation**: Web URLs discovered by earlier stages remain usable by URL-dependent tools like `ffuf` and `gobuster`.
+BBPTS runs **25+ recon tools** automatically, in the right order, and gives you a **prioritized report** — no bash scripts, no manual piping.
 
----
+**You give it domains → It gives you findings ranked by severity.**
 
-## Table of Contents
+### Why Use BBPTS?
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Supported Tools](#supported-tools)
-- [Output Formats](#output-formats)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [License](#license)
+| Problem                           | BBPTS Solution                              |
+| --------------------------------- | ------------------------------------------- |
+| Running tools one by one          | Runs 25+ tools in parallel, automatically   |
+| Forgetting which tools to run     | Pre-built scan modes (light / full)         |
+| Messy output from different tools | Unified reports (HTML, CSV, JSON, Burp XML) |
+| No idea what to test first        | Scores and ranks findings by risk           |
+| Alerts for critical stuff         | Discord / Slack / Telegram notifications    |
 
 ---
 
-## Installation
+## Install
 
-BBPTS is cross-platform and supports **Linux (Debian/RPM), macOS, and Windows**.
-
-### Option 1: Global Install (Recommended)
+### 🐧 Linux / macOS
 
 ```bash
-# Clone the repository
-git clone https://github.com/Developer-Army/BBPTS.git
-cd BBPTS
-
-# Run setup script to install dependencies and tools
-bash scripts/setup.sh
-
-# Build from source
-go build -o bbpts ./cmd/bbpts
-
-# Install globally (for all users - requires sudo)
-sudo cp bbpts /usr/local/bin/
-
-# OR user-only install (no sudo needed)
-mkdir -p ~/.local/bin && cp bbpts ~/.local/bin/
-
-# Make sure ' ~/.local/bin ' is in your PATH
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-
-# Verify global installation
-bbpts -doctor
-```
-
-### Option 2: Local Development Build
-
-```bash
-# Clone, setup, and build
-git clone https://github.com/Developer-Army/BBPTS.git
-cd BBPTS
-bash scripts/setup.sh  # Installs tools and wordlists
-
-go build -o bbpts ./cmd/bbpts
-
-# Run from local directory
-./bbpts -doctor
-```
-
-### Option 3: Using Make
-
-```bash
-git clone https://github.com/Developer-Army/BBPTS.git
-cd BBPTS
-
-# Build and install for current user (uses ~/.local/bin by default)
-make install-user
-
-# OR build and install system-wide
-make install
-
-bbpts -doctor
-```
-
-### Option 4: Go Install
-
-```bash
-# Install directly to $GOPATH/bin
-go install github.com/Developer-Army/BBPTS/cmd/bbpts@latest
-
-# Make sure $GOPATH/bin is in PATH
-echo 'export PATH="$GOPATH/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-
-# Clone and run setup script to install external tools
 git clone https://github.com/Developer-Army/BBPTS.git
 cd BBPTS
 bash scripts/setup.sh
+go build -o bbpts ./cmd/bbpts
+sudo cp bbpts /usr/local/bin/    # system-wide
+# OR
+cp bbpts ~/.local/bin/            # user-only (add ~/.local/bin to PATH)
 
-# Verify global installation
-bbpts -doctor
+bbpts -doctor    # verify everything works
 ```
 
-## Quick Start
-
-After installing globally with any method above:
-
-```bash
-# Run a full reconnaissance scan
-bbpts -i targets.txt
-
-# Quick light mode scan
-bbpts -i targets.txt --light
-
-# Full mode with all tools
-bbpts -i targets.txt --full
-
-# Run specific tools
-bbpts -i targets.txt -t subfinder,httpx,nuclei
-
-# Generate reports
-bbpts -i targets.txt -o results/report.md -s results/summary.csv
-
-# Continuous monitoring
-bbpts -i targets.txt -scope my-program -cron 60
-```
-
-### Windows Installation
+### 🪟 Windows
 
 ```batch
-# Clone the repository
 git clone https://github.com/Developer-Army/BBPTS.git
 cd BBPTS
-
-# Run the Windows setup (installs deps, tools, and wordlists)
 scripts\setup.bat
-
-# Build the binary
 go build -o bbpts.exe .\cmd\bbpts
-
-# Run diagnostics to verify your environment
 .\bbpts.exe -doctor
 ```
 
-**Windows Prerequisites:**
-- **Go 1.22+** (add to PATH)
-- **Git Bash** or **PowerShell** for running scripts
-- **Npcap/WinPcap** for network scanning tools (naabu, etc.)
+> **Need:** Go 1.22+, Git, and Npcap (for network scanning)
 
-**Note:** Ensure `%USERPROFILE%\go\bin` is in your PATH to access installed tools.
-
-### Docker Installation
+### 🐳 Docker
 
 ```bash
-# Build the Docker image
 docker build -t bbpts .
+docker run --rm -v $(pwd)/results:/app/results bbpts -i targets.txt
+```
 
-# Run BBPTS in Docker
-docker run --rm \
- -v $(pwd)/targets.example.txt:/app/targets.txt:ro \
- -v $(pwd)/results:/app/results \
- bbpts -i /app/targets.txt
+### Other Methods
+
+```bash
+# Using Make
+make install-user    # builds + copies to ~/.local/bin
+make install         # builds + copies to /usr/local/bin (needs sudo)
+
+# Using go install
+go install github.com/Developer-Army/BBPTS/cmd/bbpts@latest
+git clone https://github.com/Developer-Army/BBPTS.git && cd BBPTS && bash scripts/setup.sh
 ```
 
 ---
 
-## Usage
+## Quick Start
 
-### Command Line Options
+### 1. Create a targets file
 
 ```
-Usage of ./bbpts:
- -config string
- Path to BBPTS config file (default "configs/config.json")
- -cron int
- Continuous monitoring interval (minutes)
- -debug
- Enable debug logging
- -diff
- Show only new findings
- -doctor
- Run environment diagnostics
- -export-burp string
- Export Burp Suite XML findings
- -i string
- Short for -input
- -input string
- Input file path
- -low-resource
- Optimize for weak hardware
- -obsidian string
- Obsidian note directory
- -output string
- Markdown report output path
- -port int
- Dashboard port (default 8080)
- -rate-limit int
- Max requests/second (default 20)
- -dry-run
- Log actions that would be taken without submitting reports
- -rules string
- Path to BBPTS rules file (default "configs/rules.json")
- -scope string
- Scope identifier for state tracking
- -summary string
- CSV summary output path
- -t string
- Comma-separated recon tools to run (short for -tools)
- -threads int
- Number of concurrent threads (default 32)
- -timeout duration
- Overall recon timeout per tool group; 0 disables the global timeout and lets each tool/context control cancellation (default 0)
- -tool string
- Comma-separated recon tools to run (short for -tools)
- -tools string
- Comma-separated recon tools to run (leave empty to run all tools)
- -tui
- Enable interactive TUI dashboard (default false)
- -auto-submit
- Submit high-priority findings to the configured bug bounty platform
- -w Short for -web
- -web
- Enable local web dashboard
+example.com
+app.example.com
+https://api.example.com
 ```
 
-### Input Formats
-
-BBPTS supports multiple input formats:
-
-- **Simple list**: One domain/URL per line
-- **CSV with headers**: `url,scope,priority,tags,notes`
-- **JSON**: Structured target definitions
-
-### Examples
+### 2. Run a scan
 
 ```bash
-# Basic reconnaissance
-./bbpts -i targets.txt
-
-# Generate reports
-./bbpts -i targets.txt -output results/report.md -summary results/summary.csv
-
-# Run specific tools
-./bbpts -i targets.txt -tools subfinder,httpx,nuclei
-
-# Continuous monitoring
-./bbpts -i targets.txt -scope acme-corp -cron 60
-
-# Preview platform submissions without sending
-./bbpts -i targets.txt -scope acme-corp -dry-run
-
-# Explicit platform submission for high-priority findings only
-./bbpts -i targets.txt -scope acme-corp -auto-submit
-
-# Export to Burp Suite
-./bbpts -i targets.txt -export-burp burp-import.xml
-
-# Enable web dashboard
-./bbpts -i targets.txt -web -port 8080
+bbpts -i targets.txt              # default scan (medium mode)
 ```
+
+### 3. Check results
+
+Reports land in `./results/`:
+
+- `report.html` — full interactive report
+- `summary.csv` — spreadsheet-friendly
+- `report.json` — machine-readable
+
+**That's it.** Three steps.
+
+---
+
+## Common Commands
+
+```bash
+# Light scan (fast, passive only)
+bbpts -i targets.txt --light
+
+# Full scan (everything, takes longer)
+bbpts -i targets.txt --full
+
+# Pick specific tools
+bbpts -i targets.txt -t subfinder,httpx,nuclei
+
+# Skip specific tools
+bbpts -i targets.txt -x nuclei,dalfox
+
+# Scan multiple domains in parallel
+bbpts -i targets.txt -b 5
+
+# Custom report output
+bbpts -i targets.txt -o results/report.md -s results/summary.csv
+
+# Export for Burp Suite
+bbpts -i targets.txt -export-burp burp-import.xml
+
+# Continuous monitoring (re-scan every 60 min)
+bbpts -i targets.txt -scope my-program -cron 60
+
+# Resume interrupted scan
+bbpts -i targets.txt -resume
+
+# JSON output (pipe to jq, scripts, etc.)
+bbpts -i targets.txt -json | jq '.[] | select(.priority == "high")'
+
+# Only show changes since last scan
+bbpts -i targets.txt -scope my-program -diff
+
+# Interactive config wizard
+bbpts init
+
+# Check tool health
+bbpts -doctor
+```
+
+---
+
+## Scan Modes
+
+| Mode       | Flag        | What It Does                                | Speed   |
+| ---------- | ----------- | ------------------------------------------- | ------- |
+| **Light**  | `--light`   | Passive recon only (subdomains, DNS, WHOIS) | ⚡ Fast |
+| **Normal** | _(default)_ | Passive + active probing + crawling         |
+
+---
+
+## Supported Tools (25+)
+
+### Stage 1 — Subdomain Discovery
+
+`subfinder` · `amass` · `assetfinder` · `findomain` · `chaos` · `crtsh` · `whois` · `tlsx` · `github`
+
+### Stage 2 — DNS & Ports
+
+`dnsx` · `puredns` · `massdns` · `naabu`
+
+### Stage 3 — Web Probing & Crawling
+
+`httpx` · `katana` · `gau` · `hakrawler` · `shodan` · `wafw00f` · `gowitness` · `trufflehog` · `uro` · `graphql` · `browser`
+
+### Stage 4 — Vuln Scanning & Fuzzing
+
+`nuclei` · `dalfox` · `ffuf` · `gobuster` · `feroxbuster` · `interactsh` · `secrets` · `js_analyzer`
 
 ---
 
 ## Configuration
 
-BBPTS uses two main configuration files:
+### Config Wizard (easiest)
 
-- `configs/config.json`: Main application settings
-- `configs/rules.json`: Custom event-matching rules
+```bash
+bbpts init
+```
 
-### Config File Structure
+Walks you through setting up API keys, rate limits, and notifications interactively.
 
-```json
+### Manual Config
+
+Edit `configs/config.json`:
+
+```jsonc
 {
- "api_keys": {
- "shodan": "",
- "censys": "",
- "securitytrails": "",
- "github": "",
- "chaos": "",
- "virustotal": "",
- "passivetotal": "",
- "binaryedge": ""
- },
- "proxies": [],
- "rate_limit": 20,
- "state_dir": "./results/state",
- "wordlists_dir": "./wordlists",
- "wordlists": {
- "dns": "dns-5k.txt",
- "directory": "raft-small-files.txt",
- "subdomain": "subdomains-top1million-5000.txt",
- "api": "api-endpoints.txt"
- },
- "threads": 32,
- "notify": {
- "telegram_bot_token": "",
- "telegram_chat_id": "",
- "discord_webhook": "",
- "slack_webhook": ""
- },
- "submit": {
- "platform": ""
- },
- "fleet": {
- "enabled": false,
- "fleet_name": "bbpts-fleet",
- "fleet_size": 10,
- "delete_after": true
- }
+  "api_keys": {
+    "shodan": "YOUR_KEY", // get from shodan.io
+    "github": "YOUR_TOKEN", // GitHub personal access token
+    "chaos": "YOUR_KEY", // projectdiscovery.io
+    "virustotal": "YOUR_KEY", // virustotal.com
+  },
+  "rate_limit": 50, // global max requests/sec
+  "threads": 32, // parallel workers
+  "ports": "", // custom naabu ports (empty = defaults)
+  "batch_size": 1, // domains scanned in parallel (1 = sequential)
+  "auto_update": false, // auto-update nuclei templates
+  "notify": {
+    "discord_webhook": "", // get from Discord server settings
+    "slack_webhook": "", // get from Slack app config
+    "telegram_bot_token": "", // @BotFather on Telegram
+    "telegram_chat_id": "", // your chat ID
+  },
 }
 ```
 
-### Continuous Recon Safety
+### Environment Variables (alternative)
 
-Do not run active reconnaissance from GitHub-hosted Actions runners. Tools such as `subfinder`, `katana`, `naabu`, and `httpx` can generate traffic from GitHub shared infrastructure, which may violate GitHub's terms and ties scan traffic back to your account. Use a self-hosted runner, a VPS, or the Docker image on infrastructure you control.
-
-Store `bbpts.db` and other scan artifacts on a private persistent volume owned by that runner. Do not store vulnerability scan data in GitHub Actions caches or public artifacts.
-
-Auto-submit is optional and disabled by default. BBPTS produces the same reports, CSVs, and export files whether or not automatic submission is enabled. To submit findings, set `submit.platform` to one supported platform, pass `-auto-submit`, and use `-dry-run` first to review what would be sent. BBPTS records a submission marker under the state directory to avoid resubmitting the same finding on later cron runs.
-
----
-
-## Supported Tools
-
-BBPTS orchestrates 21+ industry-standard reconnaissance tools:
-
-### Subdomain Enumeration & DNS
-- **Subfinder**: Passive subdomain discovery
-- **Findomain**: Fast multi-source subdomain enumeration
-- **Massdns**: Large-scale DNS resolution (A/AAAA records)
-- **Amass**: Comprehensive subdomain enumeration
-- **Assetfinder**: Rapid subdomain finding
-- **Puredns**: High-speed DNS resolution
-- **Whois**: Domain registration & contact information
-
-### Asset Intelligence & Passive Reconnaissance
-- **Shodan**: Exposed service discovery and asset fingerprinting (requires API key)
-- **Wafw00f**: WAF and firewall detection
-- **Trufflehog**: Secrets scanning (API keys, tokens, credentials)
-
-### Port Scanning & Probing
-- **Httpx**: Fast HTTP probing
-- **Dnsx**: DNS record enumeration
-- **Naabu**: Port scanning
-
-### Content Discovery
-- **Katana**: Web crawling
-- **Gau**: URL collection from archives
-- **Waybackurls**: Historical URL discovery
-- **Hakrawler**: Fast web crawling
-
-### Vulnerability Scanning
-- **Nuclei**: Template-based vulnerability scanning
-- **Dalfox**: XSS and injection detection
-
-### Other
-- **Interactsh**: Out-of-band interaction testing
-- **Anew**: Deduplication utilities
-- **Gf**: Pattern matching
-- **Ffuf**: Fuzzing
+```bash
+export BBPTS_SHODAN_API_KEY=your_key
+export BBPTS_GITHUB_TOKEN=your_token
+export BBPTS_RATE_LIMIT=30
+```
 
 ---
 
 ## Output Formats
 
-BBPTS supports multiple output formats:
+| Format         | File                | Use Case                     |
+| -------------- | ------------------- | ---------------------------- |
+| **HTML**       | `report.html`       | Visual report with charts    |
+| **Markdown**   | `report.md`         | Documentation / notes        |
+| **CSV**        | `summary.csv`       | Spreadsheets / data analysis |
+| **JSON**       | `report.json`       | Scripts / automation         |
+| **Burp XML**   | `burp_export.xml`   | Import into Burp Suite       |
+| **ZAP XML**    | `zap_export.xml`    | Import into OWASP ZAP        |
+| **Caido JSON** | `caido_export.json` | Import into Caido            |
 
-- **Markdown Reports**: Detailed analysis with prioritization
-- **CSV Summaries**: Structured data for further processing
-- **Burp Suite XML**: Direct import into Burp Scanner
-- **OWASP ZAP XML**: Import findings into ZAP
-- **Obsidian Notes**: Knowledge base integration
-- **JSON**: Programmatic access
+---
 
-### Sample Markdown Report
+## CLI Flags Reference
 
-```markdown
-# BBPTS Reconnaissance Report
-Generated: Mon, 01 Jan 2024 12:00:00 UTC
-
-## Summary
-- Total Hosts Analyzed: 5
-- High Priority Findings: 2
-
-| Host | Score | Priority | Tags | Suggested Tests |
-|------|-------|----------|------|-----------------|
-| acme-corp.io | 45 | high | api,parameterized | Test for SQL injection; Parameter tampering |
-```
-
-## Compared to Alternatives
-
-BBPTS is designed to bridge the gap between simple passive subdomain gatherers and heavy, complex scanning frameworks:
-
-| Feature / Metric | BBPTS v1.1.1 | OWASP Amass | ProjectDiscovery Suite | Osmedeus |
-|------------------|------------|-------------|-------------------------|----------|
-| **Primary Goal** | Prioritized workflow orchestration | Graph-based asset mapping | Single-purpose modular tools | Automated scan pipeline |
-| **Speed & Overhead** | **Medium-Fast** (concurrent Go core) | **Slow** (heavy memory graph DB) | **Fast** (focused utility command) | **Slow** (python/bash runner wrapper) |
-| **Output Type** | Prioritized MD Reports, CSV, Burp XML, Interactive TUI | Graph DB, txt lists | Raw text / JSON | HTML report / file folders |
-| **Prioritization** | **Yes** (automated risk scoring & tags) | No | No | Partially (vuln lists) |
-| **Active Probing** | Chained port/crawler/vuln pipelines | DNS only (passive focus) | Requires manual piping/scripting | Integrated flow |
-| **TUI Dashboard** | **Yes** (Bubbletea CLI dashboard) | No | No | No (Web only) |
-
-* **Why not Amass?** Amass is great for pure mapping but doesn't easily orchestrate downstream active crawling/vuln scanning or track target status.
-* **Why not ProjectDiscovery tools alone?** While subfinder, httpx, and naabu are excellent, BBPTS wraps them into a unified, scope-aware, panic-recovered pipeline without requiring complex bash glue-code.
-* **Why not Osmedeus?** Osmedeus is a heavy pipeline orchestrator that runs python/bash workflows. BBPTS is a fast, native Go executable with zero-configuration setup.
+| Flag               | Short | Description                         |
+| ------------------ | ----- | ----------------------------------- |
+| `-input`           | `-i`  | Target file or URL                  |
+| `-tools`           | `-t`  | Comma-separated tools to run        |
+| `-exclude-tools`   | `-x`  | Tools to skip                       |
+| `-output`          | `-o`  | Report output path                  |
+| `-summary`         | `-s`  | CSV summary path                    |
+| `--light`          |       | Fast passive scan                   |
+| `-batch-size`      | `-b`  | Parallel domain batches             |
+| `-threads`         |       | Worker threads (default 32)         |
+| `-rate-limit`      |       | Max requests/sec                    |
+| `-log-level`       |       | `debug` / `info` / `warn` / `error` |
+| `-resume`          | `-r`  | Resume interrupted scan             |
+| `-json`            | `-j`  | JSON output to stdout               |
+| `-auto-update`     |       | Update nuclei templates first       |
+| `-report-template` |       | Custom Go template file             |
+| `-scope`           |       | Scope ID for diff tracking          |
+| `-diff`            |       | Show only new findings              |
+| `-cron`            |       | Re-scan interval (minutes)          |
+| `-doctor`          |       | Check tool health                   |
+| `-dry-run`         |       | Preview without sending             |
+| `-auto-submit`     |       | Submit findings to platform         |
+| `-export-burp`     |       | Export Burp Suite XML               |
+| `-web`             | `-w`  | Start web dashboard                 |
+| `-debug`           |       | Debug logging                       |
+| `-version`         | `-v`  | Print version                       |
 
 ---
 
 ## Architecture
 
-BBPTS follows a staged pipeline architecture:
-
-1. **Preprocessing**: Input normalization and deduplication
-2. **Passive Recon**: Subdomain enumeration, DNS analysis
-3. **Active Probing**: Port scanning, HTTP fingerprinting
-4. **Content Discovery**: Web crawling, URL collection
-5. **Vulnerability Scanning**: Template-based testing
-6. **Analysis & Reporting**: Risk scoring, prioritization
-
-### Key Components
-
-- **Orchestrator**: Manages tool execution and concurrency
-- **Bus**: Internal event system for reactive processing
-- **Analyzers**: Intelligence extraction from recon events
-- **Reporters**: Multi-format output generation
+```
+targets.txt
+    │
+    ▼
+┌─────────────────────────────────────┐
+│           BBPTS Engine              │
+│                                     │
+│  Stage 1: Subdomain Discovery       │
+│  Stage 2: DNS + Port Scanning       │
+│  Stage 3: Web Probing + Crawling    │
+│  Stage 4: Vuln Scanning + Fuzzing   │
+│                                     │
+│  ┌──────────┐  ┌──────────┐        │
+│  │ Analyzer │  │ Reporter │        │
+│  └──────────┘  └──────────┘        │
+└─────────────────────────────────────┘
+    │
+    ▼
+results/
+├── report.html
+├── summary.csv
+├── report.json
+└── burp_export.xml
+```
 
 ---
 
-## Documentation
+## Safety Notes
 
-For detailed documentation, see the [docs/](docs/) directory:
+> ⚠️ **Don't run from GitHub Actions shared runners.** Active scanning tools generate real network traffic. Use a VPS or self-hosted runner.
 
-- **[User Guide](docs/user_guide.md)**: Setup, usage, quick start, examples, and troubleshooting.
-- **[Developer Guide](docs/developer_guide.md)**: Architecture, development, contributing, and API details.
-- **[Configuration](docs/configuration.md)**: Details on config.json, rules.json, and rate limiting.
-- **[Tools Integration](docs/tools.md)**: Details on all supported external tools and custom flags.
+> ⚠️ **Auto-submit is off by default.** Always use `-dry-run` first to review what would be submitted.
 
+---
 
+## Docs
+
+| Document                                     | What It Covers                   |
+| -------------------------------------------- | -------------------------------- |
+| [User Guide](docs/user_guide.md)             | Setup, examples, troubleshooting |
+| [Developer Guide](docs/developer_guide.md)   | Architecture, contributing       |
+| [Configuration](docs/configuration.md)       | All config options explained     |
+| [Containerization](docs/CONTAINERIZATION.md) | Docker usage + roadmap           |
+| [Changelog](CHANGELOG.md)                    | Version history                  |
+
+---
 
 ## Contributing
 
-We welcome contributions! Please see our [Developer Guide](docs/developer_guide.md) for details.
-
----
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and [Developer Guide](docs/developer_guide.md).
 
 ## License
 
-BBPTS is released under the MIT License. See [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
 
----
+## Credits
 
-## Acknowledgments
-
-BBPTS builds upon the excellent work of the security community:
-
-- Project Discovery tools (subfinder, httpx, nuclei, etc.)
-- OWASP Amass
-- Tom Hudson's assetfinder
-- And many others...
-
-Special thanks to the bug bounty community for inspiration and feedback.
-
----
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
+Built on top of amazing open-source tools by Project Discovery, OWASP, Tom Hudson, and the bug bounty community. 🙏
