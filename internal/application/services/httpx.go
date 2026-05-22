@@ -27,7 +27,7 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		return nil, nil
 	}
 
-	rateLimit := RateLimitFromCtx(ctx)
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 
 	args := []string{
 		"-silent", "-json",

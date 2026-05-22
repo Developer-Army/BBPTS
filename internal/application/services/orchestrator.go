@@ -98,6 +98,12 @@ type Config struct {
 
 	// CacheEnabled toggles the result cache layer.
 	CacheEnabled bool
+
+	// ToolRateLimits holds rate limits for individual tools.
+	ToolRateLimits map[string]int
+
+	// AutoUpdate controls whether Nuclei templates are updated automatically.
+	AutoUpdate bool
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -261,6 +267,8 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = WithWordlistsDir(ctx, o.config.WordlistsDir)
 	ctx = WithTmpResultsDir(ctx, o.config.TmpResultsDir)
 	ctx = WithRateLimit(ctx, o.config.RateLimit)
+	ctx = WithToolRateLimits(ctx, o.config.ToolRateLimits)
+	ctx = WithAutoUpdate(ctx, o.config.AutoUpdate)
 
 	if err := o.ensureTmpResultsDir(); err != nil {
 		slog.Warn("failed to initialize tmp results directory", "dir", o.config.TmpResultsDir, "error", err)

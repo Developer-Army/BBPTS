@@ -18,7 +18,7 @@ func (t *SubfinderTool) Run(ctx context.Context, targets []string, threads int) 
 		return nil, nil
 	}
 
-	rateLimit := RateLimitFromCtx(ctx)
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 
 	args := []string{
 		"-silent",

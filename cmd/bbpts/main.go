@@ -32,6 +32,14 @@ func main() {
 	utils.InitializeResourceGuard()
 	opts := parseFlags()
 
+	if flag.Arg(0) == "init" {
+		if err := config.RunWizard(opts.ConfigPath); err != nil {
+			slog.Error("wizard failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if opts.ShowVersion {
 		fmt.Printf("bbpts %s (commit: %s, built: %s)\n", version, commit, date)
 		os.Exit(0)
@@ -213,6 +221,12 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.DryRun, "dry-run", false, "Log actions that would be taken without submitting reports")
 	flag.BoolVar(&opts.AutoSubmit, "auto-submit", false, "Submit high-priority findings to the configured bug bounty platform")
 
+	flag.BoolVar(&opts.Resume, "resume", false, "Resume from previous checkpoint")
+	flag.BoolVar(&opts.Resume, "r", false, "Short for -resume")
+	flag.BoolVar(&opts.JSONOutput, "json", false, "Output results in JSON format to stdout")
+	flag.BoolVar(&opts.JSONOutput, "j", false, "Short for -json")
+	flag.BoolVar(&opts.AutoUpdate, "auto-update", false, "Auto-update Nuclei templates before scan")
+
 	var showVersion bool
 	flag.BoolVar(&showVersion, "version", false, "Print version information and exit")
 	flag.BoolVar(&showVersion, "v", false, "Short for -version")
@@ -239,8 +253,8 @@ func parseFlags() app.Options {
 		}
 	})
 
-	// If web/worker mode or non-interactive output is used, disable TUI unless explicitly requested.
-	if (opts.EnableDashboard || opts.RunWorker || !isatty.IsTerminal(os.Stdout.Fd())) && !tuiExplicitlySet {
+	// If web/worker mode, JSON output, or non-interactive output is used, disable TUI unless explicitly requested.
+	if (opts.EnableDashboard || opts.RunWorker || opts.JSONOutput || !isatty.IsTerminal(os.Stdout.Fd())) && !tuiExplicitlySet {
 		opts.UseTUI = false
 	}
 

@@ -67,6 +67,12 @@ type Config struct {
 
 	// ResourceLimits holds resource limits to configure CPU and memory usage
 	ResourceLimits ResourceLimitsConfig `json:"resource_limits"`
+
+	// ToolRateLimits holds rate limits for individual tools.
+	ToolRateLimits map[string]int `json:"tool_rate_limits"`
+
+	// AutoUpdate controls whether Nuclei templates are updated automatically.
+	AutoUpdate bool `json:"auto_update"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -127,11 +133,13 @@ type WordlistConfig struct {
 func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	return &Config{
-		APIKeys:      make(map[string]string),
-		Headers:      make(map[string]string),
-		Proxies:      []string{},
-		RateLimit:    50,
-		StateDir:     filepath.Join(home, ".bbpts", "state"),
+		APIKeys:        make(map[string]string),
+		Headers:        make(map[string]string),
+		Proxies:        []string{},
+		RateLimit:      50,
+		ToolRateLimits: make(map[string]int),
+		AutoUpdate:     false,
+		StateDir:       filepath.Join(home, ".bbpts", "state"),
 		WordlistsDir: filepath.Join(".", "wordlists"),
 		Wordlists: WordlistConfig{
 			DNS:       "dns-5k.txt",

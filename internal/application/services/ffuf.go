@@ -94,7 +94,7 @@ func (t *FFUFTool) Run(ctx context.Context, targets []string, threads int) ([]Ev
 
 			args := []string{"-u", fuzzURL, "-w", wordlist, "-s", "-mc", "200,204,301,302,307,401,403", "-t", fmt.Sprintf("%d", targetThreads)}
 
-			rateLimit := RateLimitFromCtx(ctx)
+			rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 			if rateLimit > 0 {
 				targetRate := rateLimit / maxWorkers
 				if targetRate < 1 {

@@ -42,6 +42,11 @@ func (t *FeroxbusterTool) Run(ctx context.Context, targets []string, threads int
 		args = append(args, "--time-limit", "15s")
 	}
 
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
+	if rateLimit > 0 {
+		args = append(args, "--rate-limit", fmt.Sprintf("%d", rateLimit))
+	}
+
 	headers := HeadersFromCtx(ctx)
 	for k, v := range headers {
 		args = append(args, "-H", fmt.Sprintf("%s: %s", k, v))

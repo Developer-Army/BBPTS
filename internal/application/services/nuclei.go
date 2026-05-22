@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -54,7 +55,15 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 		return nil, nil
 	}
 
-	rateLimit := RateLimitFromCtx(ctx)
+	if AutoUpdateFromCtx(ctx) {
+		slog.Info("Auto-updating Nuclei templates...")
+		_, err := RunCommandLines(ctx, "nuclei", "-update-templates")
+		if err != nil {
+			slog.Warn("Nuclei templates auto-update failed", "error", err)
+		}
+	}
+
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 
 	bulkSize := threads
 	if bulkSize > 10 {

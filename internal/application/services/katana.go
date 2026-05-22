@@ -19,7 +19,7 @@ func (t *KatanaTool) Run(ctx context.Context, targets []string, threads int) ([]
 
 	args := []string{"-silent", "-list", "-", "-c", fmt.Sprintf("%d", threads)}
 
-	rateLimit := RateLimitFromCtx(ctx)
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 	if rateLimit > 0 {
 		args = append(args, "-rl", fmt.Sprintf("%d", rateLimit))
 	}

@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -91,6 +92,9 @@ type Options struct {
 	MaxCPUCores       int
 	MaxMemoryMB       int
 	GCPercent         int
+	Resume            bool
+	JSONOutput        bool
+	AutoUpdate        bool
 }
 
 // Run executes the BBPTS engine with the provided options.
@@ -355,19 +359,26 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			os.Exit(1)
 		}
 
+		autoUpdate := cfg.AutoUpdate
+		if opts.AutoUpdate {
+			autoUpdate = true
+		}
+
 		reconConfig := services.Config{
-			ToolNames:     toolNames,
-			Threads:       reconThreads,
-			RateLimit:     reconRateLimit,
-			Proxies:       cfg.Proxies,
-			APIKeys:       cfg.APIKeys,
-			WordlistsDir:  cfg.WordlistsDir,
-			TmpResultsDir: resolveTmpResultsDir(opts, cfg),
-			Reporter:      bridge,
-			Notifier:      utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify))),
-			EventBus:      eventBus,
-			Timeout:       scanTimeout(opts.Timeout, len(toolNames)),
-			CacheEnabled:  true,
+			ToolNames:      toolNames,
+			Threads:        reconThreads,
+			RateLimit:      reconRateLimit,
+			ToolRateLimits: cfg.ToolRateLimits,
+			AutoUpdate:     autoUpdate,
+			Proxies:        cfg.Proxies,
+			APIKeys:        cfg.APIKeys,
+			WordlistsDir:   cfg.WordlistsDir,
+			TmpResultsDir:  resolveTmpResultsDir(opts, cfg),
+			Reporter:       bridge,
+			Notifier:       utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify))),
+			EventBus:       eventBus,
+			Timeout:        scanTimeout(opts.Timeout, len(toolNames)),
+			CacheEnabled:   true,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
 				WorkerMesh:  cfg.Fleet.WorkerMesh,
@@ -422,10 +433,17 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		if err != nil {
 			slog.Warn("Failed to initialize checkpointing", "error", err)
 		} else {
-			if len(cp.TargetsPending) < len(normalized) {
-				slog.Info("Resuming from previous checkpoint", "remaining", len(cp.TargetsPending))
+			if opts.Resume {
+				if len(cp.TargetsPending) < len(normalized) {
+					slog.Info("Resuming from previous checkpoint", "remaining", len(cp.TargetsPending))
+				}
+				normalized = cp.TargetsPending
+			} else {
+				// Clear any previous checkpoint state by resetting to fresh
+				cp.TargetsPending = normalized
+				cp.TargetsComplete = nil
+				cp.Save()
 			}
-			normalized = cp.TargetsPending
 		}
 
 		if opts.LowResource && len(normalized) > 50 {
@@ -854,6 +872,15 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 					insights[i].Score += 10 // Bonus for rule matches
 				}
 			}
+		}
+	}
+
+	if opts.JSONOutput {
+		data, err := json.MarshalIndent(insights, "", "  ")
+		if err != nil {
+			slog.Error("failed to serialize insights to JSON", "error", err)
+		} else {
+			fmt.Println(string(data))
 		}
 	}
 

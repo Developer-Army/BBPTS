@@ -121,9 +121,11 @@ const (
 	tmpResultsDirKey      contextKey = "tmp_results_dir"
 	proxiesContextKey     contextKey = "proxies"
 	rateLimitContextKey   contextKey = "rate_limit"
+	toolRateLimitsKey     contextKey = "tool_rate_limits"
 	lowResourceContextKey contextKey = "low_resource"
 	scanModeContextKey    contextKey = "scan_mode"
 	headersContextKey     contextKey = "headers"
+	autoUpdateContextKey  contextKey = "auto_update"
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -193,6 +195,19 @@ func RateLimitFromCtx(ctx context.Context) int {
 	return 0
 }
 
+func WithToolRateLimits(ctx context.Context, limits map[string]int) context.Context {
+	return context.WithValue(ctx, toolRateLimitsKey, limits)
+}
+
+func ToolRateLimitFromCtx(ctx context.Context, toolName string) int {
+	if limits, ok := ctx.Value(toolRateLimitsKey).(map[string]int); ok {
+		if limit, found := limits[toolName]; found && limit > 0 {
+			return limit
+		}
+	}
+	return RateLimitFromCtx(ctx)
+}
+
 func WithLowResource(ctx context.Context, low bool) context.Context {
 	return context.WithValue(ctx, lowResourceContextKey, low)
 }
@@ -224,4 +239,15 @@ func HeadersFromCtx(ctx context.Context) map[string]string {
 		return headers
 	}
 	return nil
+}
+
+func WithAutoUpdate(ctx context.Context, update bool) context.Context {
+	return context.WithValue(ctx, autoUpdateContextKey, update)
+}
+
+func AutoUpdateFromCtx(ctx context.Context) bool {
+	if update, ok := ctx.Value(autoUpdateContextKey).(bool); ok {
+		return update
+	}
+	return false
 }
