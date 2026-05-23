@@ -50,11 +50,11 @@ github.com/ffuf/ffuf/v2@latest ^
 github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest ^
 github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest ^
 github.com/hahwul/dalfox/v2@latest ^
-github.com/sensepost/gowitness/v3/cmd/gowitness@latest ^
+github.com/sensepost/gowitness@latest ^
 github.com/tomnomnom/anew@latest ^
 github.com/tomnomnom/unfurl@latest ^
 github.com/tomnomnom/qsreplace@latest ^
-github.com/owasp-amass/amass/v4/...@master ^
+github.com/owasp-amass/amass/v4/...@latest ^
 github.com/tomnomnom/assetfinder@latest ^
 github.com/hakluke/hakrawler@latest ^
 github.com/OJ/gobuster/v3@latest ^
@@ -78,7 +78,7 @@ for %%T in (%TOOLS%) do (
 
 echo.
 echo [3/3] Installing Go-based uro...
-go install github.com/smaranchand/uro@latest
+go install github.com/szybnev/uro-go/cmd/uro@latest
 
 echo.
 echo Installing additional tools...
@@ -136,6 +136,6 @@ go build -o bbpts.exe .\cmd\bbpts || echo Warning: Failed to build BBPTS executa
 
 echo.
 echo =================================================
-echo ✅ BBPTS setup is complete!
+echo BBPTS setup is complete!
 echo Ensure %USERPROFILE%\go\bin is in your PATH.
-echo =================================================
+echo ===================================================

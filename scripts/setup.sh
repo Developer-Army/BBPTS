@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# BBPTS Elite Setup Script - Optimized for Low-Resource Hardware
+## BBPTS Elite Setup Script - Optimized for Low-Resource Hardware
 # Part of the "Top 50 in the World" framework initiative.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,27 +9,27 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo " Starting BBPTS Elite Tooling Setup..."
 echo ""
-echo "📦 Installing the following Go-based tools:"
-echo "   • Subdomain & DNS: subfinder, amass, assetfinder, puredns"
-echo "   • Probing & Ports: httpx, dnsx, naabu"
-echo "   • Discovery & Crawling: katana, gau, hakrawler, gobuster"
-echo "   • Vulnerability Scanning: nuclei, dalfox, interactsh-client"
-echo "   • Data Processing & Fuzzing: anew, ffuf, trufflehog"
+echo " Installing the following Go-based tools:"
+echo "   * Subdomain & DNS: subfinder, amass, assetfinder, puredns"
+echo "   * Probing & Ports: httpx, dnsx, naabu"
+echo "   * Discovery & Crawling: katana, gau, hakrawler, gobuster"
+echo "   * Vulnerability Scanning: nuclei, dalfox, interactsh-client"
+echo "   * Data Processing & Fuzzing: anew, ffuf, trufflehog"
 echo ""
-echo "🐍 Installing Python-based tools:"
-echo "   • uro (URL deduplication), wafw00f (Optional)"
+echo " Installing Python-based tools:"
+echo "   * uro (URL deduplication), wafw00f (Optional)"
 echo ""
-echo "📚 Installing wordlists:"
-echo "   • dns-5k.txt (5k DNS entries)"
-echo "   • raft-small-files.txt (directory enumeration)"
-echo "   • subdomains-top1million-5000.txt (subdomain brute-force)"
-echo "   • api-endpoints.txt (API endpoints)"
+echo " Installing wordlists:"
+echo "   * dns-5k.txt (5k DNS entries)"
+echo "   * raft-small-files.txt (directory enumeration)"
+echo "   * subdomains-top1million-5000.txt (subdomain brute-force)"
+echo "   * api-endpoints.txt (API endpoints)"
 echo ""
 
 # 0. PREREQUISITES CHECK
 echo " Checking core prerequisites..."
 if ! command -v go &> /dev/null; then
-    echo "️ Go is not installed. Attempting to install Go 1.23.0..."
+    echo " Go is not installed. Attempting to install Go 1.23.0..."
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         wget https://go.dev/dl/go1.23.0.linux-amd64.tar.gz -O /tmp/go.tar.gz
         sudo tar -C /usr/local -xzf /tmp/go.tar.gz
@@ -55,7 +55,7 @@ fi
 
 for cmd in git docker make gcc; do
     if ! command -v $cmd &> /dev/null; then
-        echo "️  Warning: '$cmd' is not installed. Some advanced BBPTS features may require it."
+        echo "  Warning: '$cmd' is not installed. Some advanced BBPTS features may require it."
     else
         echo " '$cmd' is installed."
     fi
@@ -70,7 +70,7 @@ GO_TOOLS=(
     "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"    # ADDED: Essential DNS toolkit
     "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"    # ADDED: TLS certificate parsing
     "github.com/d3mondev/puredns/v2@latest"
-    "github.com/owasp-amass/amass/v4/...@master"
+    "github.com/owasp-amass/amass/v4/...@latest"
     "github.com/tomnomnom/assetfinder@latest"             # ADDED: Missing core tool
     
     # --- Probing & Ports ---
@@ -88,7 +88,7 @@ GO_TOOLS=(
     "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
     "github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest" # ADDED: OOB testing
     "github.com/hahwul/dalfox/v2@latest"
-    "github.com/sensepost/gowitness/v3/cmd/gowitness@latest"
+    "github.com/sensepost/gowitness@latest"
     
     # --- Data Processing & Manipulation ---
     "github.com/tomnomnom/anew@latest"
@@ -105,23 +105,23 @@ crt_sh() {
 install_go_tool() {
     local tool=$1
     echo "Installing $tool..."
-    go install "$tool" || echo "️ Warning: Failed to install $tool"
+    go install "$tool" || echo " Warning: Failed to install $tool"
 }
 
 for tool in "${GO_TOOLS[@]}"; do
     install_go_tool "$tool"
 done
 
-# 2. GO-BASED URO (Replaces Python dependency)
-echo "Installing uro (Golang port)..."
-go install github.com/smaranchand/uro@latest || echo "⚠️ Warning: Failed to install Go uro"
+# 2. GO-BASED URO (szybnev/uro-go)
+echo "Installing uro (Golang port szybnev)..."
+go install github.com/szybnev/uro-go/cmd/uro@latest || echo " Warning: Failed to install Go uro"
 
 # 3. RUST-BASED TOOLS (feroxbuster)
 if ! command -v feroxbuster &> /dev/null; then
     echo "Installing feroxbuster (Rust binary)..."
     curl -sLo /tmp/install-feroxbuster.sh https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh || true
     if [ -f /tmp/install-feroxbuster.sh ]; then
-        bash /tmp/install-feroxbuster.sh -s -- --to /usr/local/bin || true
+        bash /tmp/install-feroxbuster.sh --to /usr/local/bin || true
         rm /tmp/install-feroxbuster.sh
     fi
 fi
@@ -149,7 +149,7 @@ if ! command -v trufflehog &> /dev/null; then
     echo "Installing trufflehog..."
     curl -sSfL -o /tmp/install-trufflehog.sh https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh || true
     if [ -f /tmp/install-trufflehog.sh ]; then
-        sh /tmp/install-trufflehog.sh -s -- -b ~/.local/bin || true
+        sh /tmp/install-trufflehog.sh -b ~/.local/bin || true
         rm /tmp/install-trufflehog.sh
     fi
 fi
@@ -165,7 +165,7 @@ if [ -n "${SHODAN_API_KEY:-}" ]; then
         shodan init "$SHODAN_API_KEY" || true
     fi
 else
-    echo "💡 Note: Shodan CLI installation skipped (requires SHODAN_API_KEY environment variable to be set)."
+    echo " Note: Shodan CLI installation skipped (requires SHODAN_API_KEY environment variable to be set)."
 fi
 
 # --- Install wafw00f (Optional) ---
@@ -181,7 +181,7 @@ if ! command -v wafw00f &> /dev/null; then
 fi
 
 if command -v gowitness &> /dev/null; then
-    echo "💡 Note: gowitness requires Chrome/Chromium to be installed on your system to take screenshots."
+    echo " Note: gowitness requires Chrome/Chromium to be installed on your system to take screenshots."
 fi
 
 echo -e "\n BBPTS ELITE TOOLS INSTALLED!"
@@ -190,31 +190,31 @@ echo " WEAK PC TIPS: Use '-t 10' and always pipe to 'anew'."
 echo "To build main app: go build ./cmd/bbpts"
 
 # 4. WORDLISTS SETUP
-echo -e "\n📚 Setting up wordlists..."
+echo -e "\n Setting up wordlists..."
 
 WORDLISTS_DIR="$PROJECT_ROOT/wordlists"
 mkdir -p "$WORDLISTS_DIR"
 
 # Download essential wordlists
 echo "Downloading DNS wordlist (5k entries)..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/dns-Jhaddix.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo "️ Failed to download DNS wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/dns-Jhaddix.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo " Failed to download DNS wordlist"
 
 echo "Downloading directory wordlist (small)..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-small-files.txt" -o "$WORDLISTS_DIR/raft-small-files.txt" || echo "️ Failed to download directory wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-small-files.txt" -o "$WORDLISTS_DIR/raft-small-files.txt" || echo " Failed to download directory wordlist"
 
 echo "Downloading subdomain wordlist..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt" -o "$WORDLISTS_DIR/subdomains-top1million-5000.txt" || echo "️ Failed to download subdomain wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt" -o "$WORDLISTS_DIR/subdomains-top1million-5000.txt" || echo " Failed to download subdomain wordlist"
 
 echo "Downloading API endpoints wordlist..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt" -o "$WORDLISTS_DIR/api-endpoints.txt" || echo "️ Failed to download API wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt" -o "$WORDLISTS_DIR/api-endpoints.txt" || echo " Failed to download API wordlist"
 
 echo "Downloading common web content wordlist..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt" -o "$WORDLISTS_DIR/seclists_common.txt" || echo "️ Failed to download common wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt" -o "$WORDLISTS_DIR/seclists_common.txt" || echo " Failed to download common wordlist"
 
 echo " WORDLISTS SETUP COMPLETE!"
 
-echo "\n🔧 Building BBPTS application..."
+echo -e "\n Building BBPTS application..."
 go build -o bbpts ./cmd/bbpts
 
-echo "\n BBPTS setup is complete. The binary 'bbpts' has been built in the current folder."
+echo -e "\n BBPTS setup is complete. The binary 'bbpts' has been built in the current folder."te. The binary 'bbpts' has been built in the current folder."
 
