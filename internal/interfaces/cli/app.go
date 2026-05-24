@@ -21,6 +21,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/cluster"
+	"github.com/Developer-Army/BBPTS/internal/domain/analysis/triage"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
@@ -203,6 +204,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 
 	var normalized []string
 	var events []recon.Event
+	var validationEvents []recon.Event
 	var matches []recon.Match
 	var triggeredTools []string
 
@@ -285,7 +287,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	}
 
 	if len(normalized) > 0 {
-		normalized = validateTargetsWithHTTPX(abortCtx, normalized, reconThreads)
+		normalized, validationEvents = validateTargetsWithHTTPX(abortCtx, normalized, reconThreads)
 		if len(normalized) == 0 {
 			slog.Warn("No valid targets active or resolved via httpx validation. Aborting run.")
 			if bridge != nil {
@@ -322,6 +324,17 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		}
 
 		toolNames := strings.Split(opts.Tools, ",")
+
+		// Exclude httpx from the pipeline if it already ran in target validation
+		if len(validationEvents) > 0 {
+			var filteredTools []string
+			for _, t := range toolNames {
+				if strings.TrimSpace(strings.ToLower(t)) != "httpx" {
+					filteredTools = append(filteredTools, t)
+				}
+			}
+			toolNames = filteredTools
+		}
 
 		// Apply tool exclusions
 		if opts.ExcludeTools != "" {
@@ -465,6 +478,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		}
 
 		if opts.LowResource && len(normalized) > 50 {
+			events = append([]recon.Event{}, validationEvents...)
 			for i := 0; i < len(normalized); i += 20 {
 				end := i + 20
 				if end > len(normalized) {
@@ -519,10 +533,10 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			if err := eg.Wait(); err != nil {
 				slog.Warn("batch parallelism completed with errors", "error", err)
 			}
-			events = convertServicesEventsToRecon(allEvents)
+			events = append(validationEvents, convertServicesEventsToRecon(allEvents)...)
 		} else {
 			servicesEvents, err := orchestrator.Run(runCtx, normalized)
-			events = convertServicesEventsToRecon(servicesEvents)
+			events = append(validationEvents, convertServicesEventsToRecon(servicesEvents)...)
 			if err != nil {
 				slog.Warn("recon completed with tool errors", "error", err)
 			}
@@ -555,6 +569,20 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 
 		matches, triggeredTools = ruleSet.Evaluate(events)
 		diff, _ := handlePersistence(opts, cfg, normalized, events)
+		if diff != nil && opts.Scope != "" {
+			diffMD := diff.ToMarkdown(opts.Scope)
+			reportDir := "results"
+			if strings.TrimSpace(opts.OutputPath) != "" {
+				reportDir = filepath.Dir(opts.OutputPath)
+			}
+			_ = os.MkdirAll(reportDir, 0700)
+			diffPath := filepath.Join(reportDir, fmt.Sprintf("%s_diff.md", opts.Scope))
+			if err := os.WriteFile(diffPath, []byte(diffMD), 0600); err != nil {
+				slog.Error("failed to write diff markdown report", "path", diffPath, "error", err)
+			} else {
+				slog.Info("diff markdown report written", "path", diffPath)
+			}
+		}
 		if diff != nil && opts.DiffOnly {
 			events = diff.NewEvents
 			normalized = diff.NewTargets
@@ -588,7 +616,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	}
 
 	// --- Final Intelligence & Reporting ---
-	handleIntelligence(runCtx, opts, events, matches, triggeredTools, reconThreads, bridge)
+	events = handleIntelligence(runCtx, opts, events, matches, triggeredTools, reconThreads, bridge)
 	handleReporting(runCtx, opts, cfg, normalized, events, matches, bridge)
 
 	// If dashboard is enabled and not in cron mode, wait for it
@@ -885,33 +913,66 @@ func handlePersistence(opts Options, cfg *config.Config, normalized []string, ev
 	return diff, nil
 }
 
-func handleIntelligence(ctx context.Context, opts Options, events []recon.Event, matches []recon.Match, triggeredTools []string, threads int, bridge *tui.Bridge) {
+func handleIntelligence(ctx context.Context, opts Options, events []recon.Event, matches []recon.Match, triggeredTools []string, threads int, bridge *tui.Bridge) []recon.Event {
 	slog.Info("Running Advanced Offensive Intelligence Engine")
 
-	graph := recon.NewMemoryGraph()
+	te := triage.NewTriageEngine()
 	scorer := recon.NewScorer()
 
-	// Build relationship graph from raw events
-	for _, ev := range events {
-		// Graph building
-		node := &recon.GraphNode{
-			Type:       ev.Type,
-			Properties: map[string]string{"Value": ev.Target},
+	// Convert events to findings
+	findings := make([]*triage.Finding, len(events))
+	for i, ev := range events {
+		findings[i] = &triage.Finding{
+			Type:   ev.Type,
+			Target: ev.Target,
+			Source: ev.Source,
 		}
-		graph.AddNode(node)
+	}
 
-		// If it's an HTTP endpoint, score it for high-value prioritization
+	// Filter noise and prioritize
+	actionable := te.FilterNoise(findings)
+	prioritized := te.PrioritizeFindings(actionable)
+
+	// Keep a map from type:target to original event to preserve original properties
+	eventMap := make(map[string]recon.Event)
+	for _, ev := range events {
+		key := fmt.Sprintf("%s:%s", ev.Type, ev.Target)
+		eventMap[key] = ev
+	}
+
+	// Convert back to events, scoring HTTP endpoints along the way
+	triagedEvents := make([]recon.Event, 0, len(prioritized))
+	for _, f := range prioritized {
+		key := fmt.Sprintf("%s:%s", f.Type, f.Target)
+		ev, ok := eventMap[key]
+		if !ok {
+			ev = recon.Event{
+				Type:   f.Type,
+				Target: f.Target,
+				Source: f.Source,
+			}
+		}
+
 		if strings.HasPrefix(ev.Target, "http") {
 			score := scorer.ScoreEndpoint(ev.Target, false, "")
 			if score.Score > 0 {
 				slog.Info("High Value Target Prioritized", "target", ev.Target, "severity", score.Severity, "score", score.Score, "reasons", score.Justification)
+				if ev.Properties == nil {
+					ev.Properties = make(map[string]string)
+				}
+				ev.Properties["scorer_score"] = fmt.Sprintf("%d", score.Score)
+				ev.Properties["scorer_severity"] = score.Severity
+				ev.Properties["scorer_justification"] = strings.Join(score.Justification, ", ")
 			}
 		}
+		triagedEvents = append(triagedEvents, ev)
 	}
 
 	if len(triggeredTools) > 0 {
 		slog.Info("recon triggered additional tools", "count", len(triggeredTools), "tools", triggeredTools)
 	}
+
+	return triagedEvents
 }
 
 func handleReporting(ctx context.Context, opts Options, cfg *config.Config, normalized []string, events []recon.Event, matches []recon.Match, bridge *tui.Bridge) {
@@ -1198,28 +1259,28 @@ var fileExtsThatMightBeURLs = []string{
 	".log", ".jsonl", ".env", ".md", ".input",
 }
 
-func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int) []string {
+func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int) ([]string, []recon.Event) {
 	slog.Info("Probing input targets to verify active hosts...", "count", len(targets))
-	
+
 	var alive []string
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	
+
 	// Create a semaphore to cap parallel lookups to 50
 	sem := make(chan struct{}, 50)
-	
+
 	for _, target := range targets {
 		wg.Add(1)
 		go func(target string) {
 			defer wg.Done()
-			
+
 			select {
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
 			case <-ctx.Done():
 				return
 			}
-			
+
 			cleanHost := target
 			if strings.Contains(cleanHost, "://") {
 				parts := strings.SplitN(cleanHost, "://", 2)
@@ -1235,7 +1296,7 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 					cleanHost = strings.TrimSuffix(cleanHost, "]")
 				}
 			}
-			
+
 			// If it's a direct IP, it's alive
 			if net.ParseIP(cleanHost) != nil {
 				mu.Lock()
@@ -1243,7 +1304,7 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 				mu.Unlock()
 				return
 			}
-			
+
 			// Try DNS lookup to see if it resolves
 			ips, err := net.LookupIP(cleanHost)
 			if err == nil && len(ips) > 0 {
@@ -1256,26 +1317,26 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 		}(target)
 	}
 	wg.Wait()
-	
+
 	if len(alive) == 0 {
 		slog.Warn("No targets resolved via DNS lookup.")
-		return nil
+		return nil, nil
 	}
-	
+
 	// Sort alive list to keep deterministic order
 	sort.Strings(alive)
-	
+
 	httpxTool := &services.HTTPXTool{}
 	events, err := httpxTool.Run(ctx, alive, threads)
 	if err != nil {
 		slog.Warn("Target validation via httpx failed or skipped; proceeding with DNS-resolved targets", "error", err)
-		return alive
+		return alive, nil
 	}
 	if len(events) == 0 {
 		slog.Warn("No targets returned active status via httpx; proceeding with DNS-resolved targets")
-		return alive
+		return alive, nil
 	}
-	
+
 	var validated []string
 	seen := make(map[string]struct{})
 	for _, ev := range events {
@@ -1288,5 +1349,5 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 		}
 	}
 	slog.Info("Target validation completed successfully", "active_targets", len(validated))
-	return validated
+	return validated, convertServicesEventsToRecon(events)
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
@@ -278,4 +279,36 @@ func eventKeySet(events []recon.Event) map[string]struct{} {
 		s[eventKey(ev)] = struct{}{}
 	}
 	return s
+}
+
+// ToMarkdown converts the diff results into markdown report.
+func (d *Diff) ToMarkdown(scope string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# Differential Reconnaissance Report - %s\n\n", scope))
+	sb.WriteString(fmt.Sprintf("**Previous Scan:** %s\n\n", d.PreviousTime.Format(time.RFC3339)))
+	sb.WriteString(fmt.Sprintf("**Current Scan:** %s\n\n", d.Timestamp.Format(time.RFC3339)))
+
+	sb.WriteString("## Summary\n\n")
+	sb.WriteString(fmt.Sprintf("- **New Targets:** %d\n", len(d.NewTargets)))
+	sb.WriteString(fmt.Sprintf("- **Removed Targets:** %d\n", len(d.RemovedTargets)))
+	sb.WriteString(fmt.Sprintf("- **New Events:** %d\n", len(d.NewEvents)))
+	sb.WriteString(fmt.Sprintf("- **Removed Events:** %d\n\n", len(d.RemovedEvents)))
+
+	if len(d.NewTargets) > 0 {
+		sb.WriteString("## New Targets\n\n")
+		for _, t := range d.NewTargets {
+			sb.WriteString(fmt.Sprintf("- `%s`\n", t))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(d.NewEvents) > 0 {
+		sb.WriteString("## New Events\n\n")
+		for _, ev := range d.NewEvents {
+			sb.WriteString(fmt.Sprintf("- **%s** `%s` (from %s)\n", ev.Type, ev.Target, ev.Source))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }

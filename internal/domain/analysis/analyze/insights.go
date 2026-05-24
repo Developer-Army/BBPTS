@@ -75,6 +75,7 @@ func DeriveInsights(targets []string, events []recon.Event) []Insight {
 		&SourceAnalyzer{},
 		&FingerprintAnalyzer{},
 		&ManualTestingAnalyzer{},
+		&ScorerAnalyzer{},
 	}
 	// Add cluster analyzer for post-processing
 	clusterAnalyzer := NewClusterAnalyzer()
@@ -242,6 +243,22 @@ func (s *SeverityAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		addTag(insight, "low-severity")
 		addReason(insight, "low severity finding reported by "+ev.Source)
 		insight.Score += 5
+	}
+}
+
+type ScorerAnalyzer struct{}
+
+func (s *ScorerAnalyzer) Analyze(ev recon.Event, insight *Insight) {
+	if val, ok := ev.Properties["scorer_score"]; ok {
+		var score int
+		fmt.Sscanf(val, "%d", &score)
+		insight.Score += score
+		if justification, ok := ev.Properties["scorer_justification"]; ok {
+			addReason(insight, "scorer prioritization: "+justification)
+		}
+		if sev, ok := ev.Properties["scorer_severity"]; ok {
+			addTag(insight, "scorer-"+sev)
+		}
 	}
 }
 
