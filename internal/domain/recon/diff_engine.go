@@ -209,7 +209,7 @@ func assetKey(asset Asset) string {
 // computeAssetChecksum computes a checksum for an asset for comparison.
 func computeAssetChecksum(asset Asset) string {
 	// Create a normalized representation
-	data := fmt.Sprintf("%s:%s:%s", asset.Type, asset.Value, asset.Source)
+	data := fmt.Sprintf("%s:%s", asset.Type, asset.Value)
 
 	// Include metadata if present
 	if len(asset.Metadata) > 0 {

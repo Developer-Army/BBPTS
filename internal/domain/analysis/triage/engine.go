@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -363,17 +364,15 @@ func (te *TriageEngine) PrioritizeFindings(findings []*Finding) []*Finding {
 		"info":     1,
 	}
 
-	// Simple bubble sort by severity (descending) then confidence
-	for i := 0; i < len(findings); i++ {
-		for j := i + 1; j < len(findings); j++ {
-			rank1 := severityRank[findings[i].Severity]
-			rank2 := severityRank[findings[j].Severity]
-
-			if rank2 > rank1 || (rank2 == rank1 && findings[j].Confidence > findings[i].Confidence) {
-				findings[i], findings[j] = findings[j], findings[i]
-			}
+	// Sort by severity (critical > high > medium > low > info) then confidence descending
+	sort.Slice(findings, func(i, j int) bool {
+		rank1 := severityRank[findings[i].Severity]
+		rank2 := severityRank[findings[j].Severity]
+		if rank1 != rank2 {
+			return rank1 > rank2
 		}
-	}
+		return findings[i].Confidence > findings[j].Confidence
+	})
 
 	return findings
 }
