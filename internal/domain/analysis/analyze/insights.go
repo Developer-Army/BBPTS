@@ -251,8 +251,9 @@ type ScorerAnalyzer struct{}
 func (s *ScorerAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 	if val, ok := ev.Properties["scorer_score"]; ok {
 		var score int
-		fmt.Sscanf(val, "%d", &score)
-		insight.Score += score
+		if _, err := fmt.Sscanf(val, "%d", &score); err == nil {
+			insight.Score += score
+		}
 		if justification, ok := ev.Properties["scorer_justification"]; ok {
 			addReason(insight, "scorer prioritization: "+justification)
 		}

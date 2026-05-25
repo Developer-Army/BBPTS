@@ -1,0 +1,96 @@
+name: Cross-Platform Compatibility Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.0'
+
+      - name: Build Windows Binary
+        run: |
+          go build -o bbpts.exe ./cmd/bbpts
+        shell: cmd
+
+      - name: Test Windows Binary
+        run: |
+          .\bbpts.exe --version
+        shell: cmd
+
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.0'
+
+      - name: Build macOS Binary
+        run: |
+          go build -o bbpts ./cmd/bbpts
+
+      - name: Test macOS Binary
+        run: |
+          chmod +x ./bbpts
+          ./bbpts --version
+
+  test-freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.0'
+
+      - name: Cross-compile for FreeBSD
+        run: |
+          GOOS=freebsd GOARCH=amd64 go build -o bbpts_freebsd ./cmd/bbpts
+
+      - name: Test Binary on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          run: |
+            chmod +x ./bbpts_freebsd
+            ./bbpts_freebsd --version
+
+  test-openbsd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.0'
+
+      - name: Cross-compile for OpenBSD
+        run: |
+          GOOS=openbsd GOARCH=amd64 go build -o bbpts_openbsd ./cmd/bbpts
+
+      - name: Test Binary on OpenBSD
+        uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          run: |
+            chmod +x ./bbpts_openbsd
+            ./bbpts_openbsd --version
