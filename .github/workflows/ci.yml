@@ -1,45 +1,47 @@
-name: CI
+name: Continuous Integration
 
 on:
   push:
-    branches: ["main", "dev"]
+    branches: ["main", "master", "dev"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "master"]
 
 permissions:
   contents: read
 
 jobs:
-  # ── 1. Lint ──────────────────────────────────────────────────────────────────
   lint:
-    name: Lint
+    name: Run Linter
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: golangci-lint
+      - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
           args: --timeout=5m
 
-  # ── 2. Test ───────────────────────────────────────────────────────────────────
   test:
-    name: Test (Go ${{ matrix.go }})
+    name: Run Tests (Go ${{ matrix.go }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ["1.22", "1.23"]
+        go: ["1.23", "1.24"]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
           cache: true
@@ -47,42 +49,43 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
-      - name: Vet
+      - name: Run vet
         run: go vet ./...
 
-      - name: Test (race + coverage)
+      - name: Run tests with race detector and coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Upload coverage
-        if: matrix.go == '1.22'
+      - name: Upload coverage results to Codecov
+        if: matrix.go == '1.23'
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  # ── 3. Build ──────────────────────────────────────────────────────────────────
   build:
-    name: Build (${{ matrix.os }})
+    name: Build Binary (${{ matrix.os }})
     needs: [lint, test]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - name: Setup Go environment
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Build binary
+      - name: Build executable
         run: |
           go build \
             -ldflags "-s -w -X main.version=$(git describe --tags --always --dirty) -X main.commit=$(git rev-parse --short HEAD) -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o bbpts \
             ./cmd/bbpts
 
-      - name: Smoke test
+      - name: Run smoke test
         run: ./bbpts --version

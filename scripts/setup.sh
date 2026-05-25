@@ -121,7 +121,11 @@ if ! command -v feroxbuster &> /dev/null; then
     echo "Installing feroxbuster (Rust binary)..."
     curl -sLo /tmp/install-feroxbuster.sh https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh || true
     if [ -f /tmp/install-feroxbuster.sh ]; then
-        bash /tmp/install-feroxbuster.sh --to /usr/local/bin || true
+        if [ -w /usr/local/bin ]; then
+            bash /tmp/install-feroxbuster.sh /usr/local/bin || true
+        else
+            mkdir -p ~/.local/bin && bash /tmp/install-feroxbuster.sh ~/.local/bin || true
+        fi
         rm /tmp/install-feroxbuster.sh
     fi
 fi
@@ -216,5 +220,5 @@ echo " WORDLISTS SETUP COMPLETE!"
 echo -e "\n Building BBPTS application..."
 go build -o bbpts ./cmd/bbpts
 
-echo -e "\n BBPTS setup is complete. The binary 'bbpts' has been built in the current folder."te. The binary 'bbpts' has been built in the current folder."
+echo -e "\n BBPTS setup is complete. The binary 'bbpts' has been built in the current folder."
 
