@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
-	"net/url"
 	"runtime"
 	"strings"
 	"sync"
@@ -576,7 +576,7 @@ func injectMockComplianceEvents(initialTargets []string, tmpDir string, events [
 			addEvent("127.0.0.1", "dnsx", "discovery", nil)
 			addEvent("127.0.0.1", "katana", "discovery", nil)
 			addEvent("127.0.0.1", "uro", "cleaned_url", nil)
-			
+
 			// Additional events to trigger high severity recommendations/scores for Mock DNS
 			addEvent("127.0.0.1", "nuclei", "vulnerability", map[string]string{
 				"severity": "high", "vuln_name": "DNS Zone Transfer",
@@ -936,7 +936,7 @@ func prepareTargetsForTool(toolName string, targets []string) []string {
 
 	stage := GetToolStage(toolName)
 	if stage <= 1 || name == "dnsx" || name == "naabu" || name == "shodan" {
-		// Preprocessing, passive/DNS tools, port scanners, and host search engines 
+		// Preprocessing, passive/DNS tools, port scanners, and host search engines
 		// should receive host-like targets, not deep URL paths.
 		return normalize.DeduplicateAndNormalize(targets)
 	}

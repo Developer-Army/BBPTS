@@ -7,6 +7,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 ## [1.1.2] — 2026-06-05
 
 ### Added
+
 - **Configurable Port List**: Naabu port list moved from hardcoded to `config.json` (`"ports"` field). Empty = built-in default.
 - **Tool Exclusions**: New `-exclude-tools` / `-x` CLI flag to skip specific tools without editing presets.
 - **Batch Parallelism**: New `-batch-size` / `-b` flag and `batch_size` config field for concurrent multi-domain scanning.
@@ -15,6 +16,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - **Containerization Guide**: New `docs/CONTAINERIZATION.md` with Docker usage, volume mounts, and per-tool container roadmap.
 
 ### Changed
+
 - **Dockerfile**: Updated with ldflags version injection, massdns binary copy, wordlists, healthcheck, and `dnsutils` runtime dependency.
 - **Version**: Bumped to v1.1.2.
 
@@ -23,6 +25,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 ## [1.1.1] — 2026-06-04
 
 ### Added
+
 - **TUI Settings Editor**: Interactive configuration menu accessible via `/configure` (or `/setup` / `/keys`) to update API keys and notification webhooks.
 - **TUI Command Listing Hotkey**: Typing `/` inside an empty target input box immediately outputs all available commands.
 - **Beginner Quick Start Guide**: Added a step-by-step setup and testing guide at the top of the HTML report.
@@ -34,6 +37,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - **Verify Command**: Introduced `cmd/verify/main.go` and validation framework test suite.
 
 ### Changed
+
 - **Config & Rules Fallbacks**: Wordlists and rules path fallbacks automatically redirect search path to `~/.bbpts` if missing locally.
 - **Parallel Recon Optimization**: Redesigned Gobuster, Ffuf, and Dalfox runners with worker pool concurrency and dynamic timeout limits under low-resource environments.
 - **Resource Limit Controls**: Enforce CPU and memory limits inside resource_guard.
@@ -41,6 +45,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 ## [1.1.0] — 2026-05-24
 
 ### Added
+
 - **TUI overhaul** (`tui/model.go`): Interactive target-input wizard, real-time scan-abort via `ScanAbortChan`, per-stage tool-list display, scrollable event feed with type/properties, rich progress panels, and animated status indicators.
 - **TUI bridge** (`tui/bridge.go`): `PromptForTarget`, `SendInitialTargets`, `ReportStageTools`, and enriched `SendEvent(source, target, eventType, properties)` for full bidirectional orchestrator↔TUI communication.
 - **Target pre-validation** (`cli/app.go`): `validateTargetsWithHTTPX` — DNS resolution + httpx liveness probe before any scan stage begins.
@@ -56,6 +61,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - Unified target normalization for host-based stage-2 tools (dnsx, naabu, shodan).
 
 ### Changed
+
 - **Mock data sanitized**: All `example.com` / `Example Inc.` placeholders replaced with `acme-corp.io` / `Acme Corp Ltd.` across mock tools, command outputs, and ~60 test files.
 - **`reportEvent` signature** (`services/orchestrator.go`): Now passes full `Event` struct instead of loose `source, target` strings, enabling downstream property enrichment.
 - **Target normalization** (`services/orchestrator.go`): `prepareTargetsForTool` refactored — `dnsx`, `naabu`, and `shodan` always receive host-normalised targets regardless of stage number.
@@ -71,6 +77,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - Removed unused stub types and fields from queue stubs and UI model.
 
 ### Fixed
+
 - `ims.Store` / `de.StoreResult` return values in `diff_engine_test.go` were silently discarded — now handled with `_ =`.
 - `ReportEvent` interface mismatch between bridge and orchestrator resolved — both now use the 4-argument enriched signature.
 - Bus, checkpoint, lease, and queue stubs updated to match the new API surface.
@@ -81,6 +88,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 ## [1.0.0] — 2026-05-15
 
 ### Added
+
 - `--version` / `-v` flag for build-time version output
 - `build-full` and `build-fleet` Makefile targets for optional NATS/Redis builds
 - `scripts/clean-artifacts.sh` for removing committed binaries and results from git history
@@ -92,6 +100,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - `results/.gitkeep` so the results directory is tracked without committing scan output
 
 ### Changed
+
 - NATS and Redis are now optional — gated behind `//go:build nats` and `//go:build redis` tags
 - Burp Suite export now generates valid Burp XML (was previously JSON)
 - Scorer severity thresholds revised upward to reflect expanded score range
@@ -99,6 +108,7 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - Improved `.gitignore` to exclude compiled binaries and runtime output
 
 ### Fixed
+
 - Binary (`bbpts`) and result files were committed to the repository
 - `ExportToBurpConfig` generated JSON instead of Burp-compatible XML
 - `--version` flag was wired in ldflags but not exposed as a CLI flag

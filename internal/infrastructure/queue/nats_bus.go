@@ -17,7 +17,7 @@ type NatsBus struct {
 	nc          *nats.Conn
 	js          nats.JetStreamContext
 	mu          sync.Mutex
-	subscribers  map[string][]*nats.Subscription
+	subscribers map[string][]*nats.Subscription
 	channels    []Subscriber
 	chToSub     map[Subscriber]*nats.Subscription
 }

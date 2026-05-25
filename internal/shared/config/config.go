@@ -154,7 +154,7 @@ func DefaultConfig() *Config {
 		Ports:          "",
 		BatchSize:      1,
 		StateDir:       filepath.Join(home, ".bbpts", "state"),
-		WordlistsDir: filepath.Join(".", "wordlists"),
+		WordlistsDir:   filepath.Join(".", "wordlists"),
 		Wordlists: WordlistConfig{
 			DNS:       "dns-5k.txt",
 			Directory: "raft-small-files.txt",

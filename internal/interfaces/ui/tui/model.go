@@ -74,18 +74,18 @@ type SessionCompleteMsg struct{}
 
 type Model struct {
 	// State
-	currentStage int
-	stages       [7]stageInfo
-	eventsFound  int
-	insights     []InsightMsg
-	ruleMatches  []RuleMatchMsg
-	lastEvent    EventFoundMsg
-	lastTool     ToolStatusMsg
-	failures     []FailureMsg
-	logs         []string
-	discoveredHosts []HostInfo
+	currentStage      int
+	stages            [7]stageInfo
+	eventsFound       int
+	insights          []InsightMsg
+	ruleMatches       []RuleMatchMsg
+	lastEvent         EventFoundMsg
+	lastTool          ToolStatusMsg
+	failures          []FailureMsg
+	logs              []string
+	discoveredHosts   []HostInfo
 	discoveredSources map[string]string
-	startTime    time.Time
+	startTime         time.Time
 
 	// Scan progress metrics
 	activeThreads  int
@@ -108,7 +108,7 @@ type Model struct {
 	width        int
 	height       int
 	scanComplete bool
-	quitting bool
+	quitting     bool
 
 	// Progress tracking for more accurate estimation.
 	stageToolPlan    map[int]int
@@ -128,15 +128,15 @@ type Model struct {
 	stageTools   map[int][]string
 
 	// Target states
-	targetList       []string
-	targetStatus     map[string]string
-	uniqueHosts      map[string]struct{}
-	validatedTargets map[string]struct{}
-	modesView        bool
-	suggestionIndex  int
+	targetList        []string
+	targetStatus      map[string]string
+	uniqueHosts       map[string]struct{}
+	validatedTargets  map[string]struct{}
+	modesView         bool
+	suggestionIndex   int
 	inputErrorMessage string
-	targetMode       string
-	cliHistory       []string
+	targetMode        string
+	cliHistory        []string
 
 	// Config editor state
 	configPath    string
@@ -147,14 +147,14 @@ type Model struct {
 
 // HostInfo represents a discovered host with its details for display.
 type HostInfo struct {
-	Hostname  string
-	IP        string
-	Status    string
-	OpenPorts []int
-	Vulns     int
-	LastSeen  time.Time
+	Hostname    string
+	IP          string
+	Status      string
+	OpenPorts   []int
+	Vulns       int
+	LastSeen    time.Time
 	LastSeenStr string
-	Source    string
+	Source      string
 }
 
 type stageInfo struct {
@@ -236,41 +236,41 @@ func NewModel(args ...interface{}) Model {
 	}
 
 	return Model{
-		spinner:          s,
-		progress:         p,
-		insightTable:     t,
-		textInput:        ti,
-		awaitingInput:    true,
-		failures:         make([]FailureMsg, 0, 4),
-		logs:             make([]string, 0),
-		discoveredHosts:  make([]HostInfo, 0),
+		spinner:           s,
+		progress:          p,
+		insightTable:      t,
+		textInput:         ti,
+		awaitingInput:     true,
+		failures:          make([]FailureMsg, 0, 4),
+		logs:              make([]string, 0),
+		discoveredHosts:   make([]HostInfo, 0),
 		discoveredSources: make(map[string]string),
-		startTime:        time.Now(),
-		width:            80, // Default width
-		height:           24, // Default height
-		stageToolPlan:    make(map[int]int),
-		stageCompletions: make(map[int]map[string]struct{}),
-		lastToolStage:    -1,
-		toolProgress:     make(map[string]float64),
-		toolActive:       make(map[string]bool),
-		toolDetail:       make(map[string]string),
-		stageTools:       make(map[int][]string),
-		targetStatus:     make(map[string]string),
-		uniqueHosts:      make(map[string]struct{}),
-		validatedTargets: make(map[string]struct{}),
-		utcTime:          time.Now().UTC().Format("2006-01-02 15:04:05"),
-		vulnsCritical:    0,
-		vulnsHigh:        0,
-		vulnsMedium:      0,
-		totalVulns:       0,
-		portsScanned:     0,
-		requestsPerSec:   0,
-		activeThreads:    0,
-		maxThreads:       32,
-		rateLimit:        20,
-		stages:           stages,
-		suggestionIndex:  -1,
-		targetMode:       mode,
+		startTime:         time.Now(),
+		width:             80, // Default width
+		height:            24, // Default height
+		stageToolPlan:     make(map[int]int),
+		stageCompletions:  make(map[int]map[string]struct{}),
+		lastToolStage:     -1,
+		toolProgress:      make(map[string]float64),
+		toolActive:        make(map[string]bool),
+		toolDetail:        make(map[string]string),
+		stageTools:        make(map[int][]string),
+		targetStatus:      make(map[string]string),
+		uniqueHosts:       make(map[string]struct{}),
+		validatedTargets:  make(map[string]struct{}),
+		utcTime:           time.Now().UTC().Format("2006-01-02 15:04:05"),
+		vulnsCritical:     0,
+		vulnsHigh:         0,
+		vulnsMedium:       0,
+		totalVulns:        0,
+		portsScanned:      0,
+		requestsPerSec:    0,
+		activeThreads:     0,
+		maxThreads:        32,
+		rateLimit:         20,
+		stages:            stages,
+		suggestionIndex:   -1,
+		targetMode:        mode,
 		cliHistory: []string{
 			"",
 		},
@@ -661,7 +661,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Realistic Request/sec based on actual RateLimit
 			if m.rateLimit > 0 {
-				m.requestsPerSec = m.rateLimit - rand.Intn(m.rateLimit/5 + 1)
+				m.requestsPerSec = m.rateLimit - rand.Intn(m.rateLimit/5+1)
 				if m.requestsPerSec < 1 {
 					m.requestsPerSec = 1
 				}
@@ -809,11 +809,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if hostIndex == -1 {
 				newHost := HostInfo{
-					Hostname:  cleanHost,
-					IP:        ip,
-					Status:    "ACTIVE",
-					LastSeen:  time.Now(),
-					Source:    msg.Source,
+					Hostname: cleanHost,
+					IP:       ip,
+					Status:   "ACTIVE",
+					LastSeen: time.Now(),
+					Source:   msg.Source,
 				}
 				if newHost.IP == "" {
 					newHost.IP = "pending"
@@ -903,7 +903,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.toolProgress[toolKey] = 0.1
 			}
 			m.toolDetail[toolKey] = msg.Detail
-			
+
 			for _, t := range m.targetList {
 				if strings.Contains(strings.ToLower(msg.Detail), strings.ToLower(t)) {
 					if m.targetStatus[t] != "validated" {
@@ -915,7 +915,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toolActive[toolKey] = false
 			m.toolProgress[toolKey] = 1.0
 			m.toolDetail[toolKey] = msg.Detail
-			
+
 			stage := m.lastToolStage
 			if stage < 0 {
 				stage = m.currentStage
@@ -1002,7 +1002,7 @@ func (m Model) View() string {
 				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Configuration Editor"))
 				innerLines = append(innerLines, "  "+StyleComment.Render("Config path: "+m.configPath))
 				innerLines = append(innerLines, "")
-				
+
 				for i, field := range configFields {
 					var val string
 					switch field.Key {
@@ -1042,7 +1042,7 @@ func (m Model) View() string {
 
 			b.WriteString(center(configBox))
 			b.WriteString("\n")
-			
+
 			vAlign := lipgloss.Center
 			if m.height < 18 {
 				vAlign = lipgloss.Top
@@ -1602,12 +1602,12 @@ func truncateStyledString(s string, maxLen int) string {
 	if width <= maxLen {
 		return s
 	}
-	
+
 	targetLen := maxLen - 3
 	if targetLen < 1 {
 		targetLen = 1
 	}
-	
+
 	var result strings.Builder
 	visibleLen := 0
 	inEscape := false
@@ -1639,10 +1639,10 @@ func truncateStyledString(s string, maxLen int) string {
 
 func renderBox(title string, content string, width int, height int, borderColor lipgloss.Color, titleColor lipgloss.Color, centerTitle bool) string {
 	lines := strings.Split(content, "\n")
-	
+
 	borderStyle := lipgloss.NewStyle().Foreground(borderColor)
 	titleStyle := lipgloss.NewStyle().Foreground(titleColor).Bold(true)
-	
+
 	var topBorder string
 	if centerTitle {
 		titleLen := len(title)
@@ -1652,44 +1652,44 @@ func renderBox(title string, content string, width int, height int, borderColor 
 		}
 		leftDashes := totalDashes / 2
 		rightDashes := totalDashes - leftDashes
-		
+
 		topBorder = borderStyle.Render("╭"+strings.Repeat("─", leftDashes)+" ") +
-					titleStyle.Render(title) +
-					borderStyle.Render(" "+strings.Repeat("─", rightDashes)+"╮")
+			titleStyle.Render(title) +
+			borderStyle.Render(" "+strings.Repeat("─", rightDashes)+"╮")
 	} else {
 		topBorder = borderStyle.Render("╭── ") +
-					titleStyle.Render(title) +
-					borderStyle.Render(" "+strings.Repeat("─", width-len(title)-6)+"╮")
+			titleStyle.Render(title) +
+			borderStyle.Render(" "+strings.Repeat("─", width-len(title)-6)+"╮")
 	}
-	
+
 	var b strings.Builder
 	b.WriteString(topBorder)
 	b.WriteString("\n")
-	
+
 	innerWidth := width - 2
-	
+
 	for i := 0; i < height-2; i++ {
 		line := ""
 		if i < len(lines) {
 			line = lines[i]
 		}
-		
+
 		// 1. Truncate styled line to innerWidth
 		truncated := truncateStyledString(line, innerWidth)
-		
+
 		// 2. Pad to innerWidth
 		visibleWidth := lipgloss.Width(truncated)
 		padded := truncated
 		if visibleWidth < innerWidth {
-			padded += strings.Repeat(" ", innerWidth - visibleWidth)
+			padded += strings.Repeat(" ", innerWidth-visibleWidth)
 		}
-		
+
 		b.WriteString(borderStyle.Render("│"))
 		b.WriteString(padded)
 		b.WriteString(borderStyle.Render("│"))
 		b.WriteString("\n")
 	}
-	
+
 	bottomBorder := borderStyle.Render("╰" + strings.Repeat("─", innerWidth) + "╯")
 	b.WriteString(bottomBorder)
 	return b.String()
@@ -1699,25 +1699,25 @@ func colorizeLog(logLine string) string {
 	if !strings.Contains(logLine, "|") {
 		return logLine
 	}
-	
+
 	parts := strings.SplitN(logLine, "|", 3)
 	if len(parts) < 3 {
 		return logLine
 	}
-	
+
 	timestampPart := strings.TrimSpace(parts[0])
 	levelPart := strings.TrimSpace(parts[1])
 	rest := strings.TrimSpace(parts[2])
-	
+
 	componentEnd := strings.Index(rest, "]")
 	if componentEnd == -1 {
 		return logLine
 	}
 	componentPart := rest[:componentEnd+1]
 	messagePart := strings.TrimSpace(rest[componentEnd+1:])
-	
+
 	timestampColored := StyleComment.Render(timestampPart)
-	
+
 	var levelColored string
 	switch levelPart {
 	case "INFO":
@@ -1729,9 +1729,9 @@ func colorizeLog(logLine string) string {
 	default:
 		levelColored = StyleWhite.Render(levelPart)
 	}
-	
+
 	componentColored := StyleWhite.Render(componentPart)
-	
+
 	var messageColored string
 	if levelPart == "VULN" {
 		messageColored = StyleRed.Render(messagePart)
@@ -1746,7 +1746,7 @@ func colorizeLog(logLine string) string {
 		}
 		messageColored = strings.Join(words, " ")
 	}
-	
+
 	return fmt.Sprintf("%s %s %s %s", timestampColored, levelColored, componentColored, messageColored)
 }
 

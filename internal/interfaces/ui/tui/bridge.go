@@ -211,7 +211,7 @@ func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 		if errVal != "" {
 			msg = fmt.Sprintf("%s (error: %s)", msg, errVal)
 		}
-		
+
 		component := "Scanner"
 		var threadID string
 		var toolName string

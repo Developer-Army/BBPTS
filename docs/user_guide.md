@@ -72,6 +72,7 @@ api.acme-corp.io,in,medium,api,REST API
 ### 3. View Results
 
 The scan generates:
+
 - **Terminal Output**: Real-time progress and findings
 - **Markdown Report**: Detailed analysis with prioritization
 - **CSV Summary**: Structured data for import
@@ -119,12 +120,13 @@ The scan generates:
 # BBPTS Reconnaissance Report
 
 ## Summary
+
 - Total Hosts Analyzed: 3
 - High Priority Findings: 1
 
-| Host | Score | Priority | Tags | Suggested Tests |
-|------|-------|----------|------|-----------------|
-| acme-corp.io | 25 | medium | api,parameterized | Test for SQL injection; Parameter tampering |
+| Host         | Score | Priority | Tags              | Suggested Tests                             |
+| ------------ | ----- | -------- | ----------------- | ------------------------------------------- |
+| acme-corp.io | 25    | medium   | api,parameterized | Test for SQL injection; Parameter tampering |
 ```
 
 ### CSV Summary
@@ -172,20 +174,24 @@ Add API keys for enhanced reconnaissance:
 ### Common Issues
 
 **"Command not found" errors:**
+
 - Run `bash scripts/setup.sh` to install external tools
 - Or use Docker: `docker run -it bbpts -doctor`
 
 **Slow scanning:**
+
 - Reduce threads: `-threads 10`
 - Increase timeout: `-timeout 60s`
 - Use low-resource mode: `-low-resource`
 
 **No findings:**
+
 - Check target format (should be domains or URLs)
 - Verify internet connectivity
 - Some tools require API keys
 
 **Memory issues:**
+
 - Use low-resource mode
 - Reduce concurrent tools
 - Process targets in batches
@@ -203,16 +209,18 @@ Add API keys for enhanced reconnaissance:
 - Explore [configuration options](configuration.md)
 - Learn about [supported tools](tools.md)
 - Check [development guide](developer_guide.md) for contributions
-```
+
+````
 
 **Report Generation:**
 ```bash
 # Verify report output formats
 go test -v ./internal/ui/report/
 # Tests verify: JSON, Markdown, HTML, filtering, statistics
-```
+````
 
 **Tool Integration:**
+
 ```bash
 # Verify tool exports work
 go test -v ./internal/engine/integration/
@@ -220,6 +228,7 @@ go test -v ./internal/engine/integration/
 ```
 
 **Orchestration & Analysis:**
+
 ```bash
 # Verify core scanning engine
 go test -v ./internal/engine/recon/
@@ -253,6 +262,7 @@ dev.acme-corp.io,out,medium,dev;internal,Development server
 ```
 
 **CSV Columns:**
+
 - `url` (required): Target domain or URL
 - `scope` (in/out): Include in scope or out of scope
 - `priority` (critical/high/medium/low): Prioritization level
@@ -262,6 +272,7 @@ dev.acme-corp.io,out,medium,dev;internal,Development server
 ### New Features in This Release
 
 #### 1. **Enhanced CSV Input with Metadata**
+
 ```bash
 # Parse targets with metadata
 ./bbpts -input targets.csv
@@ -273,12 +284,14 @@ dev.acme-corp.io,out,medium,dev;internal,Development server
 - Custom tag organization
 
 #### 2. **World-Class Report Generation**
+
 ```bash
 # Generate comprehensive reports
 ./bbpts -input targets.csv -report-all
 ```
 
 Generates:
+
 - `report.md` - Markdown report for documentation
 - `report.html` - Professional HTML report
 - `report.json` - Structured JSON for integration
@@ -287,6 +300,7 @@ Generates:
 - `zap-import.xml` - OWASP ZAP compatible format
 
 #### 3. **Tool Integrations**
+
 ```bash
 # Export for specific tools
 ./bbpts -export-burp burp_config.json
@@ -295,6 +309,7 @@ Generates:
 ```
 
 #### 4. **Advanced Filtering**
+
 ```bash
 # Filter results by minimum risk score
 ./bbpts -input targets.csv -min-score 70
@@ -304,6 +319,7 @@ Generates:
 ```
 
 #### 5. **Proxy and Fleet Configuration**
+
 ```bash
 # With proxy rotation
 ./bbpts -proxies "http://proxy1:8080,http://proxy2:8080"

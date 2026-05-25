@@ -22,27 +22,32 @@ This guide covers development setup, architecture, and contribution guidelines f
 ### Setup Steps
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/Developer-Army/BBPTS.git
    cd BBPTS
    ```
 
 2. **Install dependencies**:
+
    ```bash
    go mod download
    ```
 
 3. **Run setup script** (installs external tools):
+
    ```bash
    bash scripts/setup.sh
    ```
 
 4. **Build the project**:
+
    ```bash
    go build -o bbpts ./cmd/bbpts
    ```
 
 5. **Run diagnostics**:
+
    ```bash
    ./bbpts -doctor
    ```
@@ -140,21 +145,25 @@ bbpts/
 ### Key Files
 
 #### `cmd/bbpts/main.go`
+
 - Application entry point
 - Command-line flag parsing
 - Configuration initialization
 
 #### `internal/app/app.go`
+
 - Main application logic
 - Pipeline orchestration
 - Mode selection (one-shot, continuous, TUI)
 
 #### `internal/engine/recon/orchestrator.go`
+
 - Tool execution management
 - Concurrency control
 - Error handling and recovery
 
 #### `internal/analysis/analyze/insights.go`
+
 - Risk scoring algorithms
 - Tag assignment logic
 - Suggested test generation
@@ -214,6 +223,7 @@ func TestMyFunction(t *testing.T) {
 ### Test Coverage
 
 Current coverage targets:
+
 - Core packages: 90%+
 - UI packages: 70%+
 - Integration tests: 80%+
@@ -243,6 +253,7 @@ type(scope): description
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation
@@ -292,6 +303,7 @@ BBPTS follows [Semantic Versioning](https://semver.org/):
 ## Support
 
 For development questions:
+
 - Open an issue on GitHub
 - Join our Discord community
 - Check the documentation
@@ -301,16 +313,19 @@ For development questions:
 By contributing to BBPTS, you agree that your contributions will be licensed under the MIT License.
 
 ### `internal/engine/analysis/`
+
 - **insights.go**: Risk scoring and prioritization
 - **analyze/**: Detailed analysis components
 - Tests cover: insight generation, prioritization, tagging
 
 ### `internal/engine/integration/`
+
 - **exporter.go**: Burp/Caido export
 - **tools.go**: ZAP, extended Burp, proxy feeder, webhooks
 - Tests cover: all export formats, proxy rotation
 
 ### `internal/core/`
+
 - **config/config.go**: Configuration loading and management
 - **input/parser.go**: CSV/text parsing with metadata
 - **state/state.go**: Database-backed state and differential scanning
@@ -319,6 +334,7 @@ By contributing to BBPTS, you agree that your contributions will be licensed und
 - **ratelimit/**: Request throttling
 
 ### `internal/ui/report/`
+
 - **report.go**: Comprehensive report generation
 - **burp.go**: Burp-specific formatting
 - **markdown.go**: Markdown formatting
@@ -327,19 +343,24 @@ By contributing to BBPTS, you agree that your contributions will be licensed und
 ## Testing Strategy
 
 ### Unit Tests
+
 Each package has a `*_test.go` file covering:
+
 - Happy path scenarios
 - Edge cases (empty inputs, invalid data)
 - Error conditions
 - Timeout handling
 
 ### Integration Tests
+
 Files ending in `_integration_test.go` cover:
+
 - Multi-component workflows
 - End-to-end scenarios
 - Tool integration
 
 ### Running Tests
+
 ```bash
 # All tests
 make test
@@ -360,7 +381,9 @@ go test -run TestParserCSVBasic ./internal/core/input/
 ## Recommended Test Execution Plans
 
 ### 1. Quick Validation (< 1 minute)
+
 Run before committing code:
+
 ```bash
 # All tests with summary
 go test ./...
@@ -368,10 +391,13 @@ go test ./...
 # Or with make
 make test
 ```
+
 **Validates:** Basic functionality across all packages
 
 ### 2. Development Testing (Before Submit)
+
 Run while developing features:
+
 ```bash
 # Tests + coverage
 go test -v -cover ./...
@@ -382,10 +408,13 @@ go test -race ./...
 # Tests + timeout (catches hanging tests)
 go test -timeout 30s ./...
 ```
+
 **Validates:** No race conditions, tests complete, coverage maintained
 
 ### 3. Pre-Release Testing
+
 Run before releasing a version:
+
 ```bash
 # Full test suite with detailed output
 go test -v -race -timeout 60s -coverprofile=coverage.out ./...
@@ -396,15 +425,19 @@ go tool cover -html=coverage.out -o coverage.html
 # Show coverage by package
 go tool cover -func=coverage.out
 ```
+
 **Validates:** All tests pass, no races, coverage adequate
 
 ### 4. Package-Specific Testing
 
 **Input Parsing (Critical for CSV handling):**
+
 ```bash
 go test -v ./internal/core/input/...
 ```
+
 Tests to verify:
+
 - `TestParserCSVBasic` - CSV format parsing
 - `TestParserNewlineFormat` - Line-separated format
 - `TestParserComments` - Comment filtering
@@ -414,10 +447,13 @@ Tests to verify:
 - `TestParserNonexistentFile` - Error handling
 
 **Orchestrator (Core engine):**
+
 ```bash
 go test -v ./internal/engine/recon/
 ```
+
 Tests to verify:
+
 - `TestOrchestratorInitialization` - Setup works
 - `TestOrchestratorExecutionTimeout` - Respects timeouts
 - `TestOrchestratorWithInvalidTools` - Error handling
@@ -425,20 +461,26 @@ Tests to verify:
 - `TestOrchestratorRateLimiting` - Rate limiting works
 
 **State Management (Persistence):**
+
 ```bash
 go test -v ./internal/core/state/
 ```
+
 Tests to verify:
+
 - `TestStateInitialization` - DB creation
 - `TestStateAssetStorage` - Asset persistence
 - `TestStateDifferential` - Diff detection
 - `TestStateMultipleTargets` - Bulk operations
 
 **Analysis (Scoring & Insights):**
+
 ```bash
 go test -v ./internal/analysis/analyze/
 ```
+
 Tests to verify:
+
 - `TestInsightsGenerationBasic` - Insight creation
 - `TestInsightsPriorityLevels` - Priority assignment
 - `TestInsightsTagging` - Tag generation
@@ -446,10 +488,13 @@ Tests to verify:
 - `TestInsightsEvidenceAccumulation` - Evidence counting
 
 **Integration (Tool Exports):**
+
 ```bash
 go test -v ./internal/engine/integration/
 ```
+
 Tests to verify:
+
 - `TestBurpExportIntegration` - Burp export works
 - `TestCaidoExportIntegration` - Caido export works
 - `TestZAPExportIntegration` - ZAP export works
@@ -457,10 +502,13 @@ Tests to verify:
 - `TestMultipleToolExportIntegration` - Multi-tool workflow
 
 **Reports (Output Generation):**
+
 ```bash
 go test -v ./internal/ui/report/
 ```
+
 Tests to verify:
+
 - `TestJSONReportGeneration` - JSON output
 - `TestMarkdownReportGeneration` - Markdown output
 - `TestHTMLReportGeneration` - HTML output
@@ -470,6 +518,7 @@ Tests to verify:
 ### 5. Scenario-Based Testing
 
 **CSV Input Workflow:**
+
 ```bash
 # Run these in sequence
 go test -v -run "Parser" ./internal/core/input/
@@ -478,6 +527,7 @@ go test -v -run "Report" ./internal/ui/report/
 ```
 
 **Tool Orchestration Workflow:**
+
 ```bash
 # Run these in sequence
 go test -v -run "Orchestrator" ./internal/engine/recon/
@@ -486,6 +536,7 @@ go test -v -run "RateLimiting" ./internal/engine/recon/
 ```
 
 **Multi-Tool Export Workflow:**
+
 ```bash
 # Run these in sequence
 go test -v -run "BurpExport|CaidoExport|ZAPExport" ./internal/engine/integration/
@@ -495,6 +546,7 @@ go test -v -run "ProxyFeeder|WebhookNotifier" ./internal/engine/integration/
 ### 6. Continuous Integration (CI/CD)
 
 Add to CI pipeline:
+
 ```bash
 #!/bin/bash
 set -e
@@ -522,6 +574,7 @@ echo " All checks passed!"
 ### 7. Regression Testing
 
 When fixing bugs, run:
+
 ```bash
 # Run all tests
 go test -v ./...
@@ -536,33 +589,37 @@ go test -v ./internal/*/integration_test.go
 
 ## Test Coverage Goals
 
-| Package | Current | Target | Priority |
-|---------|---------|--------|----------|
-| input/parser | 95%+ | 95%+ | Critical |
-| engine/recon | 80%+ | 85%+ | High |
-| core/state | 85%+ | 90%+ | High |
-| analysis/analyze | 85%+ | 90%+ | High |
-| engine/integration | 70%+ | 80%+ | Medium |
-| ui/report | 75%+ | 85%+ | Medium |
+| Package            | Current | Target | Priority |
+| ------------------ | ------- | ------ | -------- |
+| input/parser       | 95%+    | 95%+   | Critical |
+| engine/recon       | 80%+    | 85%+   | High     |
+| core/state         | 85%+    | 90%+   | High     |
+| analysis/analyze   | 85%+    | 90%+   | High     |
+| engine/integration | 70%+    | 80%+   | Medium   |
+| ui/report          | 75%+    | 85%+   | Medium   |
 
 ## Test Naming Convention
 
 Tests follow this pattern:
+
 - `Test[Component][Scenario]` - Unit test
 - `Test[Component][Scenario]Integration` - Integration test
 - `Test[Feature]With[Condition]` - Conditional tests
 - `TestMultiple[Features]` - Multi-component tests
 
 Examples:
--  `TestParserCSVBasic` - Parser + CSV + basic scenario
--  `TestOrchestratorExecutionTimeout` - Orchestrator + execution + timeout
--  `TestBurpExportIntegration` - Burp + export + integration
--  `TestMultipleRunnersSequential` - Multiple + sequential
+
+- `TestParserCSVBasic` - Parser + CSV + basic scenario
+- `TestOrchestratorExecutionTimeout` - Orchestrator + execution + timeout
+- `TestBurpExportIntegration` - Burp + export + integration
+- `TestMultipleRunnersSequential` - Multiple + sequential
 
 ## Test Troubleshooting
 
 ### Flaky Tests
+
 If a test fails intermittently:
+
 ```bash
 # Run multiple times
 for i in {1..10}; do go test -run TestName ./package/; done
@@ -572,7 +629,9 @@ go test -v -run TestName -timeout 30s ./package/
 ```
 
 ### Slow Tests
+
 If tests are too slow:
+
 ```bash
 # Find slowest tests
 go test -v -timeout 60s ./... 2>&1 | grep -E "^--- |PASS|FAIL"
@@ -582,7 +641,9 @@ go test -v -run SlowTestName -timeout 120s ./package/
 ```
 
 ### Failed Tests
+
 If a test fails:
+
 ```bash
 # Run with verbose output
 go test -v -run FailedTest ./package/
@@ -594,29 +655,34 @@ go test -v -run FailedTest -debug ./package/
 ## Code Quality Standards
 
 ### Documentation
+
 - All public functions have docstrings
 - Complex logic has inline comments
 - Examples provided where helpful
 - Package-level comments explain purpose
 
 ### Error Handling
+
 - Use `fmt.Errorf` with `%w` for error wrapping
 - Check errors immediately after operations
 - Provide context in error messages
 - Don't suppress errors with `_`
 
 ### Naming
+
 - Use clear, descriptive names
 - Exported symbols start with capital letter
 - Unexported symbols start with lowercase
 - Avoid single-letter variables (except `i`, `j` in loops)
 
 ### Formatting
+
 - Use `gofmt` - run `make fmt` if available
 - Max line length: 100 characters (soft limit)
 - Indentation: tabs (Go standard)
 
 ### Testing
+
 - Each public function should have a test
 - Use table-driven tests for multiple scenarios
 - Include edge cases and error paths
@@ -625,6 +691,7 @@ go test -v -run FailedTest -debug ./package/
 ## Adding New Tools
 
 ### Step 1: Create Tool Implementation
+
 File: `internal/engine/recon/newTool.go`
 
 ```go
@@ -643,6 +710,7 @@ func (n *NewToolRunner) Run(ctx context.Context, targets []string) ([]Event, err
 ```
 
 ### Step 2: Register Tool
+
 File: `internal/engine/recon/registry.go`
 
 ```go
@@ -656,6 +724,7 @@ func GetToolByName(name string) (Tool, error) {
 ```
 
 ### Step 3: Add Tests
+
 File: `internal/engine/recon/newTool_test.go`
 
 ```go
@@ -665,6 +734,7 @@ func TestNewToolRunnerExecution(t *testing.T) {
 ```
 
 ### Step 4: Update Documentation
+
 - Add to `docs/tools.md`
 - Update `README.md`
 - Add examples to `QUICKSTART.md`
@@ -672,6 +742,7 @@ func TestNewToolRunnerExecution(t *testing.T) {
 ## Adding New Report Format
 
 ### Step 1: Create Exporter
+
 File: `internal/ui/report/newFormat.go`
 
 ```go
@@ -682,6 +753,7 @@ func ExportToNewFormat(filename string, report *Report) error {
 ```
 
 ### Step 2: Integrate into ReportGenerator
+
 File: `internal/ui/report/report.go`
 
 ```go
@@ -691,6 +763,7 @@ func (rg *ReportGenerator) exportForNewTool(report *Report) error {
 ```
 
 ### Step 3: Add Tests
+
 File: `internal/ui/report/newFormat_test.go`
 
 ```go
@@ -702,16 +775,19 @@ func TestNewFormatExport(t *testing.T) {
 ## Performance Considerations
 
 ### Concurrency
+
 - Use semaphores to limit concurrent operations
 - Ensure panic recovery for goroutines
 - Test with `TestOrchestrator*` tests
 
 ### Memory
+
 - Stream large result sets when possible
 - Use buffered channels appropriately
 - Profile with `go tool pprof` if needed
 
 ### Rate Limiting
+
 - Respect `Config.RateLimit`
 - Use `ratelimit.Limiter` for distribution
 - Test with `TestOrchestratorRateLimiting`
@@ -719,18 +795,21 @@ func TestNewFormatExport(t *testing.T) {
 ## Common Tasks
 
 ### Adding a Configuration Option
+
 1. Update `Config` struct in target package
 2. Add flag in `parseFlags()` in main.go
 3. Document in `QUICKSTART.md`
 4. Add test case
 
 ### Fixing a Bug
+
 1. Write a failing test that reproduces the bug
 2. Fix the bug
 3. Verify test passes
 4. Add regression test if needed
 
 ### Improving Documentation
+
 1. Update relevant `.md` files
 2. Add examples if applicable
 3. Update version in docs
@@ -749,22 +828,26 @@ func TestNewFormatExport(t *testing.T) {
 ## Debugging Tips
 
 ### Enable Debug Logging
+
 ```bash
 ./bbpts -input targets.csv -debug
 ```
 
 ### Check Environment
+
 ```bash
 ./bbpts -doctor
 ```
 
 ### Profile Execution
+
 ```bash
 go test -cpuprofile=cpu.prof ./...
 go tool pprof cpu.prof
 ```
 
 ### Race Condition Detection
+
 ```bash
 go test -race ./...
 ```
@@ -772,18 +855,21 @@ go test -race ./...
 ## Contributing Guidelines
 
 ### Before Starting
+
 1. Check GitHub issues for related work
 2. Discuss large changes with maintainers
 3. Fork repository
 4. Create feature branch
 
 ### While Working
+
 1. Write tests first (TDD approach)
 2. Keep commits logical and small
 3. Write clear commit messages
 4. Update documentation
 
 ### Before Submitting
+
 1. Run `make test`
 2. Run `make fmt`
 3. Update CHANGELOG.md

@@ -38,11 +38,11 @@ docker run --rm \
 
 ## Volume Mounts
 
-| Host Path | Container Path | Purpose |
-|-----------|---------------|---------|
-| `./results` | `/app/results` | Scan output |
-| `./configs` | `/app/configs` | Custom config.json |
-| `./wordlists` | `/app/wordlists` | Custom wordlists |
+| Host Path     | Container Path   | Purpose            |
+| ------------- | ---------------- | ------------------ |
+| `./results`   | `/app/results`   | Scan output        |
+| `./configs`   | `/app/configs`   | Custom config.json |
+| `./wordlists` | `/app/wordlists` | Custom wordlists   |
 
 ## Per-Tool Container Architecture (v1.2.0 Roadmap)
 
@@ -61,16 +61,19 @@ Future versions will support running individual heavy tools in isolated containe
 ```
 
 ### Pros
+
 - **Isolation**: tool crashes don't kill orchestrator
 - **No install headaches**: each tool pinned to known-good version
 - **Portable**: works on any Docker/Podman host
 
 ### Cons
+
 - **Overhead**: container startup adds ~1-3s per tool invocation
 - **Disk**: each tool image ~50-200MB
 - **Complexity**: stdin/stdout piping through `docker run` needs wrapper
 
 ### Implementation Approach (deferred to v1.2.0)
+
 1. Add `ContainerMode bool` config field
 2. In `runner.go`, wrap `exec.Command` calls with `docker run` when enabled
 3. Maintain per-tool Dockerfiles in `docker/` directory

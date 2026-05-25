@@ -425,7 +425,7 @@ func TestCacheConcurrentAccess(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
 			for j := 0; j < 20; j++ {
-				target := strings.ToLower(string(rune('a' + (j % 26)))) + ".com"
+				target := strings.ToLower(string(rune('a'+(j%26)))) + ".com"
 				_ = cache.Put("test", []string{target}, 5, []Event{{Target: target}})
 				_, _ = cache.Get("test", []string{target}, 5)
 			}

@@ -164,20 +164,24 @@ BBPTS supports API keys for enhanced reconnaissance:
 ### Obtaining API Keys
 
 #### Shodan
+
 1. Visit [Shodan](https://account.shodan.io/)
 2. Sign up for a free account
 3. Get your API key from the dashboard
 
 #### Censys
+
 1. Visit [Censys](https://censys.io/)
 2. Create an account
 3. Generate API ID and Secret
 
 #### GitHub
+
 1. Go to GitHub Settings > Developer settings > Personal access tokens
 2. Generate a new token with `public_repo` scope
 
 #### VirusTotal
+
 1. Visit [VirusTotal](https://www.virustotal.com/)
 2. Sign up and get your API key
 
@@ -370,21 +374,25 @@ Pass `-evidence path/to/evidence.json` to write a compact JSON file of the top i
 ### Common Configuration Issues
 
 **Configuration not loading:**
+
 - Check file permissions
 - Verify JSON syntax
 - Use absolute paths
 
 **API keys not working:**
+
 - Verify key format
 - Check account status
 - Monitor rate limits
 
 **Performance issues:**
+
 - Adjust thread counts
 - Increase timeouts
 - Use low-resource mode
 
 **State persistence:**
+
 - Ensure write permissions on state directory
 - Check disk space
 - Verify file system compatibility

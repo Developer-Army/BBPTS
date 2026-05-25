@@ -367,7 +367,7 @@ func TestConcurrentAccess(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		go func(idx int) {
 			for j := 0; j < 5; j++ {
-				target := string(rune('a' + idx)) + ".com"
+				target := string(rune('a'+idx)) + ".com"
 				id, err := db.StartScan(ctx, "test-scope")
 				if err != nil {
 					t.Logf("Warning: failed to start scan: %v", err)

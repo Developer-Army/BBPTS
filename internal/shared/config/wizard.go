@@ -61,7 +61,7 @@ func RunWizard(path string) error {
 
 	// 4. Webhooks
 	fmt.Println("\n--- Notification Webhooks (Optional) ---")
-	
+
 	fmt.Printf("Telegram Bot Token [%s]: ", cfg.Notify.TelegramBotToken)
 	input, _ = reader.ReadString('\n')
 	input = strings.TrimSpace(input)

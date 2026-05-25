@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"log/slog"
 	"math"
 	"os"
 	"os/exec"
@@ -9,7 +10,6 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"log/slog"
 )
 
 // InitializeResourceGuard sets up CPU and memory limits with default settings.

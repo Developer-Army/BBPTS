@@ -25,7 +25,7 @@ func TestApplyResourceLimits_CPUPercent(t *testing.T) {
 
 	// Test 50% CPU percent
 	ApplyResourceLimits(50, 0, 0, 0)
-	expectedProcs := int(float64(numCPUs) * 0.5 + 0.5)
+	expectedProcs := int(float64(numCPUs)*0.5 + 0.5)
 	if expectedProcs < 1 {
 		expectedProcs = 1
 	}
@@ -51,7 +51,7 @@ func TestApplyResourceLimits_GCPercent(t *testing.T) {
 
 	// Set custom GC percent
 	ApplyResourceLimits(0, 0, 0, 80)
-	
+
 	// debug.SetGCPercent returns the previous setting
 	prev := debug.SetGCPercent(100)
 	if prev != 80 {

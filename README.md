@@ -241,32 +241,32 @@ export BBPTS_RATE_LIMIT=30
 
 ## CLI Flags Reference
 
-| Flag               | Short | Description                         |
-| ------------------ | ----- | ----------------------------------- |
-| `-input`           | `-i`  | Target file or URL                  |
-| `-tools`           | `-t`  | Comma-separated tools to run        |
-| `-exclude-tools`   | `-x`  | Tools to skip                       |
-| `-output`          | `-o`  | Report output path                  |
-| `-summary`         | `-s`  | CSV summary path                    |
-| `--light`          |       | Fast passive scan                   |
-| `-batch-size`      | `-b`  | Parallel domain batches             |
-| `-threads`         |       | Worker threads (default 32)         |
-| `-rate-limit`      |       | Max requests/sec                    |
-| `-log-level`       |       | `debug` / `info` / `warn` / `error` |
-| `-resume`          | `-r`  | Resume interrupted scan             |
-| `-json`            | `-j`  | JSON output to stdout               |
-| `-auto-update`     |       | Update nuclei templates first       |
-| `-report-template` |       | Custom Go template file             |
-| `-scope`           |       | Scope ID for diff tracking          |
-| `-diff`            |       | Show only new findings              |
-| `-cron`            |       | Re-scan interval (minutes)          |
-| `-doctor`          |       | Check tool health                   |
-| `-dry-run`         |       | Preview without sending             |
-| `-auto-submit`     |       | Submit findings to platform         |
-| `-export-burp`     |       | Export Burp Suite XML               |
-| `-web`             | `-w`  | Start web dashboard                 |
-| `-debug`           |       | Debug logging                       |
-| `-version`         | `-v`  | Print version                       |
+| Flag               | Short | Description                                              |
+| ------------------ | ----- | -------------------------------------------------------- |
+| `-input`           | `-i`  | Target file or URL                                       |
+| `-tools`           | `-t`  | Comma-separated tools to run                             |
+| `-exclude-tools`   | `-x`  | Tools to skip                                            |
+| `-output`          | `-o`  | Report output path                                       |
+| `-summary`         | `-s`  | CSV summary path                                         |
+| `--light`          |       | Fast passive scan                                        |
+| `-batch-size`      | `-b`  | Parallel domain batches                                  |
+| `-threads`         |       | Worker threads (default 32)                              |
+| `-rate-limit`      |       | Max requests/sec                                         |
+| `-log-level`       |       | `debug` / `info` / `warn` / `error`                      |
+| `-resume`          | `-r`  | Resume scan from checkpoint (tracks targets by `-scope`) |
+| `-json`            | `-j`  | JSON output to stdout                                    |
+| `-auto-update`     |       | Update nuclei templates first                            |
+| `-report-template` |       | Custom Go template file                                  |
+| `-scope`           |       | Scope ID for state & checkpoint tracking                 |
+| `-diff`            |       | Show only new findings                                   |
+| `-cron`            |       | Re-scan interval (minutes)                               |
+| `-doctor`          |       | Check tool health                                        |
+| `-dry-run`         |       | Preview without sending                                  |
+| `-auto-submit`     |       | Submit findings to platform                              |
+| `-export-burp`     |       | Export Burp Suite XML                                    |
+| `-web`             | `-w`  | Start web dashboard                                      |
+| `-debug`           |       | Debug logging                                            |
+| `-version`         | `-v`  | Print version                                            |
 
 ---
 

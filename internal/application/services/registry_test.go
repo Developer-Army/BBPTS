@@ -92,4 +92,3 @@ func TestGetToolByNameReturnsTLSX(t *testing.T) {
 		t.Fatalf("expected tool name %q, got %q", "tlsx", tool.Name())
 	}
 }
-

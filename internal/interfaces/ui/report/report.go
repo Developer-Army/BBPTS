@@ -796,20 +796,20 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 	for _, finding := range findings {
 		severity := strings.ToLower(finding.Severity)
 		targetURL := makeURL(finding.Target)
-		
+
 		sb.WriteString(fmt.Sprintf(`<div class="finding %s">`, severity))
 		sb.WriteString(`  <div class="finding-header">`)
 		sb.WriteString(fmt.Sprintf(`    <h3 class="finding-title"><a href="%s" target="_blank">%s</a></h3>`, targetURL, finding.Target))
 		sb.WriteString(fmt.Sprintf(`    <span class="severity-badge badge-%s">%s</span>`, severity, finding.Severity))
 		sb.WriteString(`  </div>`)
-		
+
 		sb.WriteString(`  <div class="finding-meta">`)
 		sb.WriteString(fmt.Sprintf(`    <span>Score: <strong>%d/100</strong></span>`, finding.Score))
 		if len(finding.Sources) > 0 {
 			sb.WriteString(fmt.Sprintf(`    <span>Sources: <strong>%s</strong></span>`, strings.Join(finding.Sources, ", ")))
 		}
 		sb.WriteString(`  </div>`)
-		
+
 		sb.WriteString(`  <div class="finding-section">`)
 		sb.WriteString(`    <div class="section-label">🔍 Security Analysis</div>`)
 		sb.WriteString(`    <ul class="analysis-list">`)
@@ -821,7 +821,7 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		}
 		sb.WriteString(`    </ul>`)
 		sb.WriteString(`  </div>`)
-		
+
 		if finding.Evidence != "" {
 			parts := strings.Split(finding.Evidence, " | ")
 			var urls []string
@@ -884,7 +884,7 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 			sb.WriteString(`<strong>🔵 Next Step:</strong> Low priority/recon data. Check for directory listings or sensitive technology disclosures. Verify if security headers like CSP/HSTS are correctly set.`)
 		}
 		sb.WriteString(`  </div>`)
-		
+
 		sb.WriteString(`</div>`)
 	}
 	return sb.String()

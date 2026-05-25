@@ -17,6 +17,7 @@ Please **do not** open a public issue for security vulnerabilities.
 
 Instead, please email the details to dev-army@outlook.com.
 Please include the following information in your report:
+
 - Type of issue (e.g., buffer overflow, SQL injection, cross-site scripting)
 - Full paths of source file(s) related to the manifestation of the issue
 - The location of the affected source code (tag/branch/commit or direct URL)
