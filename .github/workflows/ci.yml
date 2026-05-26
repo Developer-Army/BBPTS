@@ -52,7 +52,7 @@ jobs:
           gosec -fmt=json -out=gosec-report.json ./... || true
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@ed142fd11c34a413d74542289c02506b3a32f627 # v0.36.0
         with:
           scan-type: 'fs'
           ignore-unfixed: true
@@ -69,7 +69,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@f697939c8789ccb2496a798539c3cc5b1f09bb79 # v2.3.7
+        uses: gitleaks/gitleaks-action@v2.3.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
