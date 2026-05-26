@@ -1,4 +1,4 @@
-// Package services — mock_tools.go
+// Package services — mock_tools_test.go
 //
 // MockTool implements the Tool interface for use in unit and integration tests.
 // All fixtures use the fictional domain "acme-corp.io". This domain is not a
