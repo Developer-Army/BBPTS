@@ -1,96 +1,77 @@
-name: Cross-Platform Compatibility Check
+name: Cross-Platform Verification
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main, master, develop ]
+
+permissions:
+  contents: read
 
 jobs:
-  test-windows:
-    runs-on: windows-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.0'
-
-      - name: Build Windows Binary
-        run: |
-          go build -o bbpts.exe ./cmd/bbpts
-        shell: cmd
-
-      - name: Test Windows Binary
-        run: |
-          .\bbpts.exe --version
-        shell: cmd
-
-  test-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.0'
-
-      - name: Build macOS Binary
-        run: |
-          go build -o bbpts ./cmd/bbpts
-
-      - name: Test macOS Binary
-        run: |
-          chmod +x ./bbpts
-          ./bbpts --version
-
-  test-freebsd:
+  linux-distros:
+    name: Build & Test on ${{ matrix.distro }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [ 'fedora:latest', 'archlinux:latest' ]
+    container:
+      image: ${{ matrix.distro }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.0'
-
-      - name: Cross-compile for FreeBSD
+      - name: Install dependencies (Fedora)
+        if: matrix.distro == 'fedora:latest'
         run: |
-          GOOS=freebsd GOARCH=amd64 go build -o bbpts_freebsd ./cmd/bbpts
+          dnf install -y golang git make sqlite-devel gcc
 
-      - name: Test Binary on FreeBSD
-        uses: vmactions/freebsd-vm@v1
-        with:
-          usesh: true
-          run: |
-            chmod +x ./bbpts_freebsd
-            ./bbpts_freebsd --version
+      - name: Install dependencies (Arch Linux)
+        if: matrix.distro == 'archlinux:latest'
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm go git make sqlite gcc
 
-  test-openbsd:
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Configure Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Run Build
+        run: make build-full
+
+      - name: Run Tests
+        run: make test
+
+  bsd-systems:
+    name: Build & Test on ${{ matrix.os }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ freebsd, openbsd ]
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Build and Test on FreeBSD VM
+        if: matrix.os == 'freebsd'
+        uses: cross-platform-actions/action@d75d315fa7621c0dfcfd3d3ef0c0d1c4a01c40f5 # v0.26.0
         with:
-          go-version: '1.23.0'
-
-      - name: Cross-compile for OpenBSD
-        run: |
-          GOOS=openbsd GOARCH=amd64 go build -o bbpts_openbsd ./cmd/bbpts
-
-      - name: Test Binary on OpenBSD
-        uses: vmactions/openbsd-vm@v1
-        with:
-          usesh: true
+          operating_system: freebsd
+          version: '14.0'
           run: |
-            chmod +x ./bbpts_openbsd
-            ./bbpts_openbsd --version
+            sudo pkg install -y go bash git gmake sqlite3
+            gmake build-full
+            gmake test
+
+      - name: Build and Test on OpenBSD VM
+        if: matrix.os == 'openbsd'
+        uses: cross-platform-actions/action@d75d315fa7621c0dfcfd3d3ef0c0d1c4a01c40f5 # v0.26.0
+        with:
+          operating_system: openbsd
+          version: '7.5'
+          run: |
+            sudo pkg_add go git gmake sqlite3
+            gmake build-full
+            gmake test
