@@ -56,7 +56,7 @@ jobs:
 
       - name: Build and Test on FreeBSD VM
         if: matrix.os == 'freebsd'
-        uses: cross-platform-actions/action@d75d315fa7621c0dfcfd3d3ef0c0d1c4a01c40f5 # v0.26.0
+        uses: cross-platform-actions/action@v0.26.0
         with:
           operating_system: freebsd
           version: '14.0'
@@ -67,7 +67,7 @@ jobs:
 
       - name: Build and Test on OpenBSD VM
         if: matrix.os == 'openbsd'
-        uses: cross-platform-actions/action@d75d315fa7621c0dfcfd3d3ef0c0d1c4a01c40f5 # v0.26.0
+        uses: cross-platform-actions/action@v0.26.0
         with:
           operating_system: openbsd
           version: '7.5'

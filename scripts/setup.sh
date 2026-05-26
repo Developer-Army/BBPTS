@@ -158,6 +158,18 @@ if ! command -v trufflehog &> /dev/null; then
     fi
 fi
 
+# --- Install whois ---
+if ! command -v whois &> /dev/null; then
+    echo "Installing whois..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y whois || true
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y whois || true
+    elif command -v pacman &> /dev/null; then
+        sudo pacman -S --noconfirm whois || true
+    fi
+fi
+
 # --- Install shodan CLI (Optional, requires API key) ---
 if [ -n "${SHODAN_API_KEY:-}" ]; then
     echo "Installing Shodan CLI..."
@@ -175,12 +187,21 @@ fi
 # --- Install wafw00f (Optional) ---
 if ! command -v wafw00f &> /dev/null; then
     echo "Installing wafw00f (Optional)..."
-    if command -v pip &> /dev/null; then
-        pip install wafw00f || true
-    elif command -v pip3 &> /dev/null; then
-        pip3 install wafw00f || true
+    if ! command -v pip &> /dev/null && ! command -v pip3 &> /dev/null; then
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y python3-pip || true
+        elif command -v pacman &> /dev/null; then
+            sudo pacman -S --noconfirm python-pip || true
+        fi
+    fi
+    PIP_CMD="pip"
+    if ! command -v pip &> /dev/null && command -v pip3 &> /dev/null; then
+        PIP_CMD="pip3"
+    fi
+    if command -v $PIP_CMD &> /dev/null; then
+        $PIP_CMD install --break-system-packages --user wafw00f || $PIP_CMD install wafw00f || true
     else
-        python3 -m pip install wafw00f 2>/dev/null || true
+        python3 -m pip install --break-system-packages --user wafw00f 2>/dev/null || python3 -m pip install wafw00f 2>/dev/null || true
     fi
 fi
 

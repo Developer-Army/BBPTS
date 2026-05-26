@@ -11,10 +11,10 @@ echo.
 
 echo "[1/3] Checking prerequisites..."
 where go >nul 2>nul
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo [WARNING] Go is not installed or not in PATH. Attempting to install Go via winget...
     winget install --id GoLang.Go -e --source winget --accept-package-agreements --accept-source-agreements
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo [ERROR] Failed to install Go automatically. Please install it manually from https://go.dev/
         exit /b 1
     )
@@ -23,13 +23,13 @@ if %errorlevel% neq 0 (
 )
 
 where git >nul 2>nul
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo [WARNING] Git is not installed or not in PATH. Attempting to install Git via winget...
     winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
 )
 
 where docker >nul 2>nul
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo [WARNING] Docker is not installed. Some advanced BBPTS features may require it.
 ) else (
     echo [OK] Docker is installed.
