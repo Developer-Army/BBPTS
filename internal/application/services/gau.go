@@ -24,17 +24,7 @@ func (t *GauTool) Run(ctx context.Context, targets []string, threads int) ([]Eve
 		return nil, fmt.Errorf("gau execution failed: %w", err)
 	}
 
-	// Deterministic URLs for verification test compliance
-	for _, target := range targets {
-		if strings.Contains(target, "127.0.0.1:8080") || strings.Contains(target, "localhost:8080") {
-			lines = append(lines, "http://127.0.0.1:8080/Best_Practices.html")
-			lines = append(lines, "http://127.0.0.1:8080/config/secret.txt")
-		} else if strings.Contains(target, "127.0.0.1:8083") || strings.Contains(target, "localhost:8083") {
-			lines = append(lines, "http://127.0.0.1:8083/robots.txt")
-			lines = append(lines, "http://127.0.0.1:8083/debug/vars")
-			lines = append(lines, "http://127.0.0.1:8083/whatsappQuote")
-		}
-	}
+
 
 	return NewEventsFromLinesFunc(lines, t.Name(), func(value string) map[string]string {
 		return map[string]string{"history_url": value}
