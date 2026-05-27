@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const markdownTemplate = `# ️ BBPTS Reconnaissance Report
+const markdownTemplate = `# BBPTS Reconnaissance Report
 > **Generated:** {{.Timestamp}}  
 > **Total Hosts:** {{.TotalHosts}} | **High Priority:** {{.HighPriorityCount}}
 
