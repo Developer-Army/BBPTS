@@ -14,13 +14,14 @@ import (
 
 // ToolHealth represents the health status of a single recon tool.
 type ToolHealth struct {
-	Name      string `json:"name"`
-	Available bool   `json:"available"`
-	Path      string `json:"path,omitempty"`
-	Version   string `json:"version,omitempty"`
-	Error     string `json:"error,omitempty"`
-	Required  bool   `json:"required"`
-	CheckedAt string `json:"checked_at"`
+	Name       string `json:"name"`
+	Available  bool   `json:"available"`
+	Path       string `json:"path,omitempty"`
+	Version    string `json:"version,omitempty"`
+	Error      string `json:"error,omitempty"`
+	Required   bool   `json:"required"`
+	CheckedAt  string `json:"checked_at"`
+	InstallCmd string `json:"install_cmd,omitempty"`
 }
 
 // SystemHealth represents overall system health metrics.
@@ -84,6 +85,7 @@ var toolVersionFlags = map[string][]string{
 var builtInDoctorTools = map[string]string{
 	"browser":     "built-in browser recon module",
 	"crtsh":       "built-in crt.sh HTTP client",
+	"github":      "built-in GitHub API code search tool",
 	"graphql":     "built-in GraphQL scanner",
 	"js_analyzer": "built-in JavaScript analyzer",
 	"secrets":     "built-in secret scanner",
@@ -92,6 +94,33 @@ var builtInDoctorTools = map[string]string{
 
 var toolBinaryNames = map[string]string{
 	"interactsh": "interactsh-client",
+}
+
+var toolInstallInstructions = map[string]string{
+	"amass":       "CGO_ENABLED=0 go install github.com/owasp-amass/amass/v4/cmd/amass@latest",
+	"subfinder":   "go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
+	"chaos":       "go install github.com/projectdiscovery/chaos-client/cmd/chaos@latest",
+	"dnsx":        "go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest",
+	"tlsx":        "go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest",
+	"puredns":     "go install github.com/d3mondev/puredns/v2@latest",
+	"assetfinder": "go install github.com/tomnomnom/assetfinder@latest",
+	"httpx":       "go install github.com/projectdiscovery/httpx/cmd/httpx@latest",
+	"naabu":       "go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest",
+	"katana":      "go install github.com/projectdiscovery/katana/cmd/katana@latest",
+	"gau":         "go install github.com/lc/gau/v2/cmd/gau@latest",
+	"ffuf":        "go install github.com/ffuf/ffuf/v2@latest",
+	"hakrawler":   "go install github.com/hakluke/hakrawler@latest",
+	"gobuster":    "go install github.com/OJ/gobuster/v3@latest",
+	"nuclei":      "go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+	"interactsh":  "go install github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest",
+	"dalfox":      "go install github.com/hahwul/dalfox/v2@latest",
+	"gowitness":   "go install github.com/sensepost/gowitness@latest",
+	"anew":        "go install github.com/tomnomnom/anew@latest",
+	"uro":         "go install github.com/szybnev/uro-go/cmd/uro@latest",
+	"findomain":   "wget https://github.com/findomain/findomain/releases/latest/download/findomain-linux -O /usr/local/bin/findomain && chmod +x /usr/local/bin/findomain",
+	"feroxbuster": "curl -sLo install-feroxbuster.sh https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh && chmod +x install-feroxbuster.sh && ./install-feroxbuster.sh",
+	"massdns":     "git clone https://github.com/blechschmidt/massdns.git && cd massdns && make && sudo cp bin/massdns /usr/local/bin/",
+	"trufflehog":  "curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin",
 }
 
 // RunHealthChecks performs health checks on all registered recon tools.
@@ -211,6 +240,9 @@ func checkToolHealth(ctx context.Context, name string) ToolHealth {
 	if err != nil {
 		th.Available = false
 		th.Error = fmt.Sprintf("binary not found in PATH: %v", err)
+		if inst, ok := toolInstallInstructions[name]; ok {
+			th.InstallCmd = inst
+		}
 		return th
 	}
 	th.Path = path
@@ -397,6 +429,19 @@ func FormatHealthReport(health *SystemHealth) string {
 			icon = "✗"
 		}
 		b.WriteString(fmt.Sprintf("    %s %s: %s\n", icon, d.Name, d.Message))
+	}
+
+	var missingInstructions []string
+	for _, tool := range health.Tools {
+		if !tool.Available && tool.InstallCmd != "" {
+			missingInstructions = append(missingInstructions, fmt.Sprintf("    * %s: %s", strings.TrimSuffix(tool.Name, " (opt)"), tool.InstallCmd))
+		}
+	}
+	if len(missingInstructions) > 0 {
+		b.WriteString("\n  How to install missing tools:\n")
+		for _, inst := range missingInstructions {
+			b.WriteString(inst + "\n")
+		}
 	}
 
 	b.WriteString("\n")
