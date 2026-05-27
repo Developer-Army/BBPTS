@@ -25,7 +25,8 @@ type githubSearchItem struct {
 	Path       string `json:"path"`
 	HTMLURL    string `json:"html_url"`
 	Repository struct {
-		FullName string `json:"full_name"`
+		FullName      string `json:"full_name"`
+		DefaultBranch string `json:"default_branch"`
 	} `json:"repository"`
 }
 
@@ -101,8 +102,12 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 			subdomainRegex := regexp.MustCompile(fmt.Sprintf(`(?i)([a-z0-9-_]+\.)*%s`, regexp.QuoteMeta(dom)))
 
 			for _, item := range searchResp.Items {
-				// We can download the raw file from raw.githubusercontent.com
-				rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/master/%s", item.Repository.FullName, item.Path)
+				// Use the repository's actual default branch from the API response
+				branch := item.Repository.DefaultBranch
+				if branch == "" {
+					branch = "main"
+				}
+				rawURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s", item.Repository.FullName, branch, item.Path)
 
 				select {
 				case <-ctx.Done():
@@ -123,17 +128,7 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 
 				if rawResp.StatusCode != 200 {
 					rawResp.Body.Close()
-					// Try main branch fallback
-					rawURL = fmt.Sprintf("https://raw.githubusercontent.com/%s/main/%s", item.Repository.FullName, item.Path)
-					rawReq2, _ := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
-					rawReq2.Header.Set("Authorization", "token "+apiKey)
-					rawResp, err = client.Do(rawReq2)
-					if err != nil || rawResp.StatusCode != 200 {
-						if rawResp != nil {
-							rawResp.Body.Close()
-						}
-						continue
-					}
+					continue
 				}
 
 				fileBody, err := io.ReadAll(rawResp.Body)
