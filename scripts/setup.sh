@@ -70,7 +70,7 @@ GO_TOOLS=(
     "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"    # ADDED: Essential DNS toolkit
     "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"    # ADDED: TLS certificate parsing
     "github.com/d3mondev/puredns/v2@latest"
-    "github.com/owasp-amass/amass/v4/...@latest"
+    "github.com/owasp-amass/amass/v4/cmd/amass@latest"
     "github.com/tomnomnom/assetfinder@latest"             # ADDED: Missing core tool
     
     # --- Probing & Ports ---
@@ -127,6 +127,20 @@ if ! command -v feroxbuster &> /dev/null; then
             mkdir -p ~/.local/bin && bash /tmp/install-feroxbuster.sh ~/.local/bin || true
         fi
         rm /tmp/install-feroxbuster.sh
+    fi
+fi
+
+# --- Install findomain ---
+if ! command -v findomain &> /dev/null; then
+    echo "Installing findomain..."
+    wget https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux -O /tmp/findomain || true
+    if [ -f /tmp/findomain ]; then
+        chmod +x /tmp/findomain
+        if [ -w /usr/local/bin ]; then
+            mv /tmp/findomain /usr/local/bin/findomain || true
+        else
+            mkdir -p ~/.local/bin && mv /tmp/findomain ~/.local/bin/findomain || true
+        fi
     fi
 fi
 
