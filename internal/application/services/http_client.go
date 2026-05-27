@@ -84,7 +84,11 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 	for i := 0; i < maxRetries; i++ {
 		if sc.jitter > 0 {
 			delay := time.Duration(rand.Int63n(int64(sc.jitter)))
-			time.Sleep(delay)
+			select {
+			case <-time.After(delay):
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			}
 		}
 
 		if req.Header.Get("User-Agent") == "" {
@@ -123,7 +127,11 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 			resp.Body.Close()
 		}
 
-		time.Sleep(backoff)
+		select {
+		case <-time.After(backoff):
+		case <-req.Context().Done():
+			return resp, req.Context().Err()
+		}
 	}
 
 	return resp, lastErr
