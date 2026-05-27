@@ -4,7 +4,9 @@ package ui
 import (
 	"encoding/xml"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
@@ -26,6 +28,28 @@ type BurpIssues struct {
 	Issues  []BurpIssue `xml:"issue"`
 }
 
+func splitHostAndPath(target string) (string, string) {
+	target = strings.TrimSpace(target)
+	if !strings.Contains(target, "://") {
+		if idx := strings.IndexByte(target, '/'); idx >= 0 {
+			return target[:idx], target[idx:]
+		}
+		return target, "/"
+	}
+	u, err := url.Parse(target)
+	if err != nil {
+		return target, "/"
+	}
+	path := u.EscapedPath()
+	if u.RawQuery != "" {
+		path += "?" + u.RawQuery
+	}
+	if path == "" {
+		path = "/"
+	}
+	return u.Host, path
+}
+
 // ExportToBurpXML generates an XML file that can be imported into Burp Suite.
 func ExportToBurpXML(path string, events []recon.Event) error {
 	var issues BurpIssues
@@ -35,9 +59,11 @@ func ExportToBurpXML(path string, events []recon.Event) error {
 			severity = "Information"
 		}
 
+		host, pathVal := splitHostAndPath(ev.Target)
 		issue := BurpIssue{
 			Name:            fmt.Sprintf("[%s] %s", ev.Source, ev.Type),
-			Host:            ev.Target,
+			Host:            host,
+			Path:            pathVal,
 			Location:        ev.Target,
 			Severity:        severity,
 			Confidence:      "Certain",
