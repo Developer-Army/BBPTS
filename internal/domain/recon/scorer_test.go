@@ -283,3 +283,29 @@ func TestScorer_ScoreEndpoint_CombinedFactors(t *testing.T) {
 		t.Errorf("expected CRITICAL severity for combined factors, got %s", result.Severity)
 	}
 }
+
+func TestScorer_ScoreEndpoint_MultiFactorFields(t *testing.T) {
+	scorer := NewScorer()
+
+	url := "https://acme-corp.io/internal/admin/api/v1/config?token=secret"
+	result := scorer.ScoreEndpoint(url, true, "")
+
+	if result.ExposureScore != 100 {
+		t.Errorf("expected ExposureScore = 100, got %d", result.ExposureScore)
+	}
+	if result.AttackabilityScore != 100 {
+		t.Errorf("expected AttackabilityScore = 100, got %d", result.AttackabilityScore)
+	}
+	if result.BusinessImpactScore != 100 {
+		t.Errorf("expected BusinessImpactScore = 100, got %d", result.BusinessImpactScore)
+	}
+	if result.ConfidenceScore != 100 {
+		t.Errorf("expected ConfidenceScore = 100, got %d", result.ConfidenceScore)
+	}
+	if result.FreshnessScore != 100 {
+		t.Errorf("expected FreshnessScore = 100, got %d", result.FreshnessScore)
+	}
+	if result.PathScore != 100 {
+		t.Errorf("expected PathScore = 100, got %d", result.PathScore)
+	}
+}

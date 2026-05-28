@@ -1,9 +1,11 @@
 package analyze
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
 func TestDeriveInsights(t *testing.T) {
@@ -237,5 +239,54 @@ func TestSuggestedTests_AreExpandedAndSpecific(t *testing.T) {
 	}
 	if !strings.Contains(joined, "token") {
 		t.Fatalf("expected token-specific suggestion, got %v", insights[0].SuggestedTests)
+	}
+}
+
+func TestRiskDecay(t *testing.T) {
+	targets := []string{"acme.com"}
+	// An event with a timestamp from 45 days ago
+	oldTime := time.Now().Add(-45 * 24 * time.Hour)
+	events := []recon.Event{
+		{
+			Target: "https://acme.com/.env",
+			Source: "httpx",
+			Type:   "service",
+			Properties: map[string]string{
+				"timestamp": oldTime.Format(time.RFC3339),
+			},
+		},
+	}
+
+	// 1. Compute without decay (current time is oldTime)
+	freshInsights := deriveInsightsWithTime(targets, events, oldTime)
+	if len(freshInsights) == 0 {
+		t.Fatal("expected insights")
+	}
+	freshScore := freshInsights[0].Score
+
+	// 2. Compute with decay (current time is now)
+	decayedInsights := deriveInsightsWithTime(targets, events, time.Now())
+	if len(decayedInsights) == 0 {
+		t.Fatal("expected insights")
+	}
+	decayedScore := decayedInsights[0].Score
+
+	// Age is 45 days: 45 / 30 = 1.5. Decay = 1.5 * 20 = 30 points.
+	expectedDecay := 30
+	actualDecay := freshScore - decayedScore
+	if actualDecay != expectedDecay {
+		t.Errorf("expected score decay of %d, got %d (fresh: %d, decayed: %d)", expectedDecay, actualDecay, freshScore, decayedScore)
+	}
+
+	// Verify reason was appended
+	foundDecayReason := false
+	for _, r := range decayedInsights[0].Reasons {
+		if strings.Contains(r, "Risk decayed by") {
+			foundDecayReason = true
+			break
+		}
+	}
+	if !foundDecayReason {
+		t.Errorf("expected decay reason in reasons list, got %v", decayedInsights[0].Reasons)
 	}
 }

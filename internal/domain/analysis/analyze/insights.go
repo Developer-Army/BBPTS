@@ -3,12 +3,14 @@
 package analyze
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
@@ -31,6 +33,16 @@ type Insight struct {
 	DedupeKey string `json:"dedupe_key,omitempty"`
 	// Evidence holds a sample of the raw data (URLs, paths, etc.) that triggered the insights.
 	Evidence []string `json:"evidence,omitempty"`
+
+	// Multi-Factor Risk Vector components
+	ExposureScore       int `json:"exposure_score"`
+	AttackabilityScore  int `json:"attackability_score"`
+	BusinessImpactScore int `json:"business_impact_score"`
+	ConfidenceScore     int `json:"confidence_score"`
+	FreshnessScore      int `json:"freshness_score"`
+	PathScore           int `json:"path_score"`
+
+	Risk recon.RiskVector `json:"risk_vector"`
 }
 
 // Analyzer defines the interface for components that evaluate recon events
@@ -42,10 +54,15 @@ type Analyzer interface {
 // DeriveInsights aggregates initial targets and subsequent reconnaissance events
 // to calculate risk scores and build Insight records for each discovered host.
 func DeriveInsights(targets []string, events []recon.Event) []Insight {
+	return deriveInsightsWithTime(targets, events, time.Now())
+}
+
+func deriveInsightsWithTime(targets []string, events []recon.Event, currentTime time.Time) []Insight {
 	insights := make(map[string]*Insight)
 	hostCache := make(map[string]string)
 	sourcesPerHost := make(map[string]map[string]struct{})
 	evidencePerHost := make(map[string]map[string]struct{})
+	mostRecentTime := make(map[string]time.Time)
 
 	getExtractedHost := func(raw string) string {
 		if h, ok := hostCache[raw]; ok {
@@ -107,6 +124,25 @@ func DeriveInsights(targets []string, events []recon.Event) []Insight {
 			sourcesPerHost[host][src] = struct{}{}
 		}
 
+		// Track most recent event timestamp per host
+		var evTime time.Time
+		if tStr, ok := ev.Properties["timestamp"]; ok {
+			if parsed, err := time.Parse(time.RFC3339, tStr); err == nil {
+				evTime = parsed
+			} else if parsed, err := time.Parse("2006-01-02 15:04:05", tStr); err == nil {
+				evTime = parsed
+			}
+		} else if tStr, ok := ev.Properties["time"]; ok {
+			if parsed, err := time.Parse(time.RFC3339, tStr); err == nil {
+				evTime = parsed
+			}
+		}
+		if !evTime.IsZero() {
+			if currentMax, ok := mostRecentTime[host]; !ok || evTime.After(currentMax) {
+				mostRecentTime[host] = evTime
+			}
+		}
+
 		for _, a := range analyzers {
 			a.Analyze(ev, insight)
 		}
@@ -135,7 +171,28 @@ func DeriveInsights(targets []string, events []recon.Event) []Insight {
 	// scores reflect suspicion level rather than data volume.
 	normalizeScores(result)
 
-	// Priority must be set after normalization.
+	// Apply Risk Decay (Phase 4 / Option 3)
+	for i := range result {
+		host := result[i].Host
+		if t, ok := mostRecentTime[host]; ok && !t.IsZero() {
+			age := currentTime.Sub(t)
+			if age > 0 {
+				days := age.Hours() / 24.0
+				if days >= 30.0 {
+					decay := int((days / 30.0) * 20.0)
+					if decay > 0 {
+						result[i].Score -= decay
+						if result[i].Score < 10 {
+							result[i].Score = 10
+						}
+						result[i].Reasons = append(result[i].Reasons, fmt.Sprintf("Risk decayed by %d points due to age (%d days stale)", decay, int(days)))
+					}
+				}
+			}
+		}
+	}
+
+	// Priority must be set after normalization and decay.
 	for i := range result {
 		adjustPriority(&result[i])
 	}
@@ -264,6 +321,62 @@ func (s *ScorerAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		}
 		if sev, ok := ev.Properties["scorer_severity"]; ok {
 			addTag(insight, "scorer-"+sev)
+		}
+
+		var temp int
+		if eVal, ok := ev.Properties["scorer_exposure"]; ok {
+			if _, err := fmt.Sscanf(eVal, "%d", &temp); err == nil && temp > insight.ExposureScore {
+				insight.ExposureScore = temp
+			}
+		}
+		if aVal, ok := ev.Properties["scorer_attackability"]; ok {
+			if _, err := fmt.Sscanf(aVal, "%d", &temp); err == nil && temp > insight.AttackabilityScore {
+				insight.AttackabilityScore = temp
+			}
+		}
+		if bVal, ok := ev.Properties["scorer_business_impact"]; ok {
+			if _, err := fmt.Sscanf(bVal, "%d", &temp); err == nil && temp > insight.BusinessImpactScore {
+				insight.BusinessImpactScore = temp
+			}
+		}
+		if cVal, ok := ev.Properties["scorer_confidence"]; ok {
+			if _, err := fmt.Sscanf(cVal, "%d", &temp); err == nil && temp > insight.ConfidenceScore {
+				insight.ConfidenceScore = temp
+			}
+		}
+		if fVal, ok := ev.Properties["scorer_freshness"]; ok {
+			if _, err := fmt.Sscanf(fVal, "%d", &temp); err == nil && temp > insight.FreshnessScore {
+				insight.FreshnessScore = temp
+			}
+		}
+		if pVal, ok := ev.Properties["scorer_path_score"]; ok {
+			if _, err := fmt.Sscanf(pVal, "%d", &temp); err == nil && temp > insight.PathScore {
+				insight.PathScore = temp
+			}
+		}
+
+		if rvJSON, ok := ev.Properties["scorer_risk_vector"]; ok && rvJSON != "" {
+			var rv recon.RiskVector
+			if json.Unmarshal([]byte(rvJSON), &rv) == nil {
+				if rv.Exposure > insight.Risk.Exposure {
+					insight.Risk.Exposure = rv.Exposure
+				}
+				if rv.Attackability > insight.Risk.Attackability {
+					insight.Risk.Attackability = rv.Attackability
+				}
+				if rv.BusinessImpact > insight.Risk.BusinessImpact {
+					insight.Risk.BusinessImpact = rv.BusinessImpact
+				}
+				if rv.Confidence > insight.Risk.Confidence {
+					insight.Risk.Confidence = rv.Confidence
+				}
+				if rv.Freshness > insight.Risk.Freshness {
+					insight.Risk.Freshness = rv.Freshness
+				}
+				if rv.PathRisk > insight.Risk.PathRisk {
+					insight.Risk.PathRisk = rv.PathRisk
+				}
+			}
 		}
 	}
 }
