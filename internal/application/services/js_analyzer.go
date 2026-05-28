@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
+	"golang.org/x/time/rate"
 )
 
 // JSAnalyzer parses JavaScript files to recover routing, mutations, and internal APIs.
@@ -22,6 +22,16 @@ func (j *JSAnalyzer) Name() string {
 
 func (j *JSAnalyzer) Run(ctx context.Context, targets []string, threads int) ([]Event, error) {
 	if len(targets) == 0 {
+		return nil, nil
+	}
+
+	var jsTargets []string
+	for _, t := range targets {
+		if strings.HasSuffix(t, ".js") || strings.Contains(t, ".js?") {
+			jsTargets = append(jsTargets, t)
+		}
+	}
+	if len(jsTargets) == 0 {
 		return nil, nil
 	}
 
@@ -39,36 +49,13 @@ func (j *JSAnalyzer) Run(ctx context.Context, targets []string, threads int) ([]
 		client.SetCustomHeaders(HeadersFromCtx(ctx))
 	}
 
-	var allEvents []Event
-	var mu sync.Mutex
+	rateLimit := ToolRateLimitFromCtx(ctx, j.Name())
+	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
 
-	sem := make(chan struct{}, threads)
-	var wg sync.WaitGroup
-
-	for _, t := range targets {
-		if !strings.HasSuffix(t, ".js") && !strings.Contains(t, ".js?") {
-			continue
-		}
-
-		wg.Add(1)
-		go func(url string) {
-			defer wg.Done()
-			select {
-			case sem <- struct{}{}:
-				defer func() { <-sem }()
-			case <-ctx.Done():
-				return
-			}
-
-			events := j.analyzeJS(ctx, client, url)
-			mu.Lock()
-			allEvents = append(allEvents, events...)
-			mu.Unlock()
-		}(t)
-	}
-
-	wg.Wait()
-	return allEvents, nil
+	return pool.Process(ctx, jsTargets, func(ctx context.Context, url string) ([]Event, error) {
+		events := j.analyzeJS(ctx, client, url)
+		return events, nil
+	})
 }
 
 func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClient, url string) []Event {

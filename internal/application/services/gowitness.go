@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -45,6 +46,9 @@ func (t *GowitnessTool) Run(ctx context.Context, targets []string, threads int) 
 
 	// Ensure destination directory exists
 	destDir := "results/screenshots"
+	if tmpDir := GetTmpResultsDir(ctx); tmpDir != "" {
+		destDir = filepath.Join(filepath.Dir(tmpDir), "screenshots")
+	}
 	_ = os.MkdirAll(destDir, 0755)
 
 	args := []string{"file", "-f", tmpFile.Name(), "--destination", destDir, "--threads", fmt.Sprintf("%d", threads), "--write-db=false"}

@@ -17,7 +17,7 @@ type ToolStatus struct {
 
 func CheckEnvironment() []ToolStatus {
 	tools := []string{
-		"amass", "subfinder", "findomain", "massdns", "assetfinder", "httpx", "dnsx",
+		"amass", "subfinder", "massdns", "assetfinder", "httpx", "dnsx",
 		"naabu", "katana", "gau", "hakrawler", "whois",
 		"ffuf", "gobuster", "chaos", "dalfox", "nuclei", "shodan", "wafw00f", "trufflehog", "axiom-scan",
 	}

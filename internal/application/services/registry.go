@@ -16,7 +16,6 @@ var toolFactories = map[string]struct {
 	"crtsh":       {factory: func() Tool { return &CrtshTool{} }, stage: 1},
 	"httpx":       {factory: func() Tool { return &HTTPXTool{} }, stage: 3},
 	"subfinder":   {factory: func() Tool { return &SubfinderTool{} }, stage: 1},
-	"findomain":   {factory: func() Tool { return &FindomainTool{} }, stage: 1},
 	"github":      {factory: func() Tool { return &GithubTool{} }, stage: 1},
 	"massdns":     {factory: func() Tool { return &MassdnsTool{} }, stage: 2},
 	"whois":       {factory: func() Tool { return &WhoisTool{} }, stage: 1},

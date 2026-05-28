@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
-	_ "github.com/mattn/go-sqlite3" // Import SQLite driver
+	_ "modernc.org/sqlite" // Import Go-native SQLite driver
 )
 
 // Storage manages the SQLite/Postgres database connection and queries.
@@ -21,10 +21,13 @@ type Storage struct {
 	dbType string
 }
 
+// DB is an alias of Storage to unify database classes.
+type DB = Storage
+
 // NewStorage initializes a new database connection.
 func NewStorage(dbType, dbSource string) (*Storage, error) {
-	if dbType == "" {
-		dbType = "sqlite3"
+	if dbType == "" || dbType == "sqlite3" {
+		dbType = "sqlite"
 	}
 	if dbType == "postgres" {
 		return nil, fmt.Errorf("postgres storage is not enabled in the default build")
@@ -34,7 +37,7 @@ func NewStorage(dbType, dbSource string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	if dbType == "sqlite" || dbType == "sqlite3" {
+	if dbType == "sqlite" {
 		db.SetMaxOpenConns(1)
 		db.SetMaxIdleConns(1)
 	}
@@ -44,7 +47,7 @@ func NewStorage(dbType, dbSource string) (*Storage, error) {
 		}
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
-	if dbType == "sqlite" || dbType == "sqlite3" {
+	if dbType == "sqlite" {
 		if _, err := db.Exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;`); err != nil {
 			if errClose := db.Close(); errClose != nil {
 				slog.Warn("failed to close database on initialization error", "error", errClose)
@@ -109,7 +112,63 @@ func (s *Storage) initSchema() error {
 		FOREIGN KEY (source_id) REFERENCES asset_nodes(id) ON DELETE CASCADE,
 		FOREIGN KEY (target_id) REFERENCES asset_nodes(id) ON DELETE CASCADE
 	);
-	`, autoInc, autoInc)
+
+	CREATE TABLE IF NOT EXISTS teams (
+		id INTEGER PRIMARY KEY %s,
+		name TEXT NOT NULL UNIQUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS owners (
+		id INTEGER PRIMARY KEY %s,
+		name TEXT NOT NULL,
+		email TEXT NOT NULL UNIQUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS asset_ownership (
+		id INTEGER PRIMARY KEY %s,
+		asset_id TEXT NOT NULL,
+		owner_id INTEGER,
+		team_id INTEGER,
+		start_time TIMESTAMP NOT NULL,
+		end_time TIMESTAMP,
+		FOREIGN KEY(owner_id) REFERENCES owners(id),
+		FOREIGN KEY(team_id) REFERENCES teams(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS sla_policies (
+		id INTEGER PRIMARY KEY %s,
+		name TEXT NOT NULL,
+		severity TEXT NOT NULL,
+		duration_days INTEGER NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS finding_assignments (
+		id INTEGER PRIMARY KEY %s,
+		finding_id INTEGER NOT NULL,
+		team_id INTEGER,
+		owner_id INTEGER,
+		status TEXT NOT NULL,
+		assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		due_at TIMESTAMP NOT NULL,
+		resolved_at TIMESTAMP,
+		FOREIGN KEY(finding_id) REFERENCES findings(id) ON DELETE CASCADE,
+		FOREIGN KEY(team_id) REFERENCES teams(id),
+		FOREIGN KEY(owner_id) REFERENCES owners(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS escalation_rules (
+		id INTEGER PRIMARY KEY %s,
+		policy_id INTEGER NOT NULL,
+		delay_days INTEGER NOT NULL,
+		action_type TEXT NOT NULL,
+		properties TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(policy_id) REFERENCES sla_policies(id) ON DELETE CASCADE
+	);
+	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
 
 	if s.dbType == "postgres" {
 		schema = strings.ReplaceAll(schema, "INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY")

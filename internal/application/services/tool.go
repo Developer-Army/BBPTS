@@ -131,6 +131,8 @@ const (
 	dockerImagesContextKey  contextKey = "docker_images"
 )
 
+const insecureContextKey = "insecure"
+
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
 	return context.WithValue(ctx, apiKeyContextKey, keys)
 }
@@ -148,6 +150,13 @@ func WithWordlistsDir(ctx context.Context, dir string) context.Context {
 
 func WithTmpResultsDir(ctx context.Context, dir string) context.Context {
 	return context.WithValue(ctx, tmpResultsDirKey, dir)
+}
+
+func GetTmpResultsDir(ctx context.Context) string {
+	if dir, ok := ctx.Value(tmpResultsDirKey).(string); ok {
+		return dir
+	}
+	return ""
 }
 
 func wordlistsDirFromContext(ctx context.Context) string {
@@ -286,4 +295,19 @@ func DockerImagesFromCtx(ctx context.Context) map[string]string {
 		return images
 	}
 	return nil
+}
+
+func WithInsecure(ctx context.Context, insecure bool) context.Context {
+	return context.WithValue(ctx, insecureContextKey, insecure)
+}
+
+func InsecureFromCtx(ctx context.Context) bool {
+	val := ctx.Value(insecureContextKey)
+	if val == nil {
+		return true // Default to true if not set
+	}
+	if insecure, ok := val.(bool); ok {
+		return insecure
+	}
+	return true
 }

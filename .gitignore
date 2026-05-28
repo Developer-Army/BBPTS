@@ -66,3 +66,10 @@ bbpts.log
 # Wordlists
 /wordlists/*
 !/wordlists/.gitkeep
+
+# Local enterprise configs & outputs
+/bbpts_enterprise/
+/output/
+internal/interfaces/cli/output/
+internal/interfaces/cli/results/
+

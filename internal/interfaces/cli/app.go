@@ -416,6 +416,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			CacheEnabled:   true,
 			ContainerMode:  cfg.ContainerMode,
 			DockerImages:   cfg.DockerImages,
+			MockMode:       cfg.MockMode,
+			InsecureSkipVerify: cfg.InsecureSkipVerify,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
 				WorkerMesh:  cfg.Fleet.WorkerMesh,
@@ -451,7 +453,13 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 				"port_open", "vulnerability", "discovery", "subdomain",
 			})
 			defer sub.Stop()
-			slog.Info("Recon Memory enabled", "db_type", dbType, "source", dbSource)
+
+			// Start background CTEM Escalator
+			escalator := services.NewEscalator(store, 1*time.Hour)
+			escalator.Start(runCtx)
+			defer escalator.Stop()
+
+			slog.Info("Recon Memory and CTEM Escalator enabled", "db_type", dbType, "source", dbSource)
 		} else {
 			slog.Warn("Failed to initialize Recon Memory storage", "error", err, "db_type", dbType)
 		}

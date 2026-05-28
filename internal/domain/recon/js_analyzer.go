@@ -66,7 +66,7 @@ var endpointPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`['"](/graphql[a-zA-Z0-9_/\-{}:.]*?)['"]`),
 
 	// Relative endpoints
-	regexp.MustCompile(`['"]([a-zA-Z0-9_\-]+/[a-zA-Z0-9_/\-{}:.]+)['"]`),
+	regexp.MustCompile(`['"]([a-zA-Z0-9_\-]{2,}/[a-zA-Z0-9_/\-{}:.]{2,})['"]`),
 
 	// Full URLs in code
 	regexp.MustCompile(`['"]https?://[a-zA-Z0-9.\-]+(?::[0-9]+)?/[a-zA-Z0-9_/\-{}:.?&=]+['"]`),
@@ -643,12 +643,16 @@ func isNoiseEndpoint(ep string) bool {
 		return true
 	}
 
-	// Filter static asset paths
+	// Filter static asset paths and MIME types
 	noisePatterns := []string{
 		".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
 		".css", ".woff", ".woff2", ".ttf", ".eot",
 		".map", "webpack", "node_modules", "__webpack",
 		"polyfill", "sourcemap", "chunk-", "vendor",
+		"text/html", "text/plain", "text/css", "text/javascript",
+		"application/json", "application/xml", "application/javascript",
+		"multipart/form-data", "application/x-www-form-urlencoded",
+		"image/", "audio/", "video/", "charset=", "utf-8", "us-ascii",
 	}
 	lower := strings.ToLower(ep)
 	for _, n := range noisePatterns {

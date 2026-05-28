@@ -28,19 +28,6 @@ func TestGetToolByNameReturnsShodan(t *testing.T) {
 	}
 }
 
-func TestGetToolByNameReturnsFindomain(t *testing.T) {
-	tool, ok := GetToolByName("findomain")
-	if !ok {
-		t.Fatal("expected findomain to be registered in the tool registry")
-	}
-	if tool == nil {
-		t.Fatal("expected non-nil Findomain tool")
-	}
-	if tool.Name() != "findomain" {
-		t.Fatalf("expected tool name %q, got %q", "findomain", tool.Name())
-	}
-}
-
 func TestGetToolByAliasWaybackurls(t *testing.T) {
 	tool, ok := GetToolByName("waybackurls")
 	if !ok {

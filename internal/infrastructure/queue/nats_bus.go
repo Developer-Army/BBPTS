@@ -39,18 +39,24 @@ func NewNatsBus(url string) (EventBus, error) {
 
 	// Create or update the stream for recon events
 	streamName := "RECON"
+	cfg := &nats.StreamConfig{
+		Name:     streamName,
+		Subjects: []string{"recon.*", "scan.*", "worker.*"},
+		Storage:  nats.FileStorage, // Persistence
+		MaxAge:   24 * time.Hour,
+	}
 	_, err = js.StreamInfo(streamName)
 	if err != nil {
-		_, err = js.AddStream(&nats.StreamConfig{
-			Name:     streamName,
-			Subjects: []string{"*"},
-			Storage:  nats.FileStorage, // Persistence
-			MaxAge:   24 * time.Hour,
-		})
+		_, err = js.AddStream(cfg)
 		if err != nil {
 			slog.Warn("Failed to create JetStream, falling back to core NATS behavior", "error", err)
 		} else {
 			slog.Info("JetStream RECON stream created successfully")
+		}
+	} else {
+		_, err = js.UpdateStream(cfg)
+		if err != nil {
+			slog.Warn("Failed to update JetStream stream configuration", "error", err)
 		}
 	}
 
@@ -99,10 +105,11 @@ func (b *NatsBus) subscribeInternal(eventType, queue string) Subscriber {
 
 	var sub *nats.Subscription
 	var err error
+	mappedSubject := mapSubject(eventType)
 	if queue != "" {
-		sub, err = b.js.QueueSubscribe(eventType, queue, cb, nats.ManualAck())
+		sub, err = b.js.QueueSubscribe(mappedSubject, queue, cb, nats.ManualAck())
 	} else {
-		sub, err = b.js.Subscribe(eventType, cb, nats.ManualAck())
+		sub, err = b.js.Subscribe(mappedSubject, cb, nats.ManualAck())
 	}
 
 	if err != nil {
@@ -155,7 +162,7 @@ func (b *NatsBus) Publish(ev Event) {
 		return
 	}
 
-	if _, err := b.js.Publish(ev.Type, data); err != nil {
+	if _, err := b.js.Publish(mapSubject(ev.Type), data); err != nil {
 		slog.Error("failed to publish event to NATS JetStream", "error", err)
 	}
 }

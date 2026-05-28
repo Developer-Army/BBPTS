@@ -1,7 +1,0 @@
-# Example targets for BBPTS
-# You can use hostnames, IPs, or CIDR ranges.
-
-example.com
-testphp.vulnweb.com
-# 192.168.1.1
-# 10.0.0.0/24

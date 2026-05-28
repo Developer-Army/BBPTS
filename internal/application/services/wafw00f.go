@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+
+	"golang.org/x/time/rate"
 )
 
 type Wafw00fTool struct{}
@@ -18,18 +20,13 @@ func (t *Wafw00fTool) Run(ctx context.Context, targets []string, threads int) ([
 		return nil, nil
 	}
 
-	events := make([]Event, 0)
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
+	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
 
-	for _, target := range targets {
-		select {
-		case <-ctx.Done():
-			return events, ctx.Err()
-		default:
-		}
-
+	return pool.Process(ctx, targets, func(ctx context.Context, target string) ([]Event, error) {
 		target = strings.TrimSpace(target)
 		if target == "" {
-			continue
+			return nil, nil
 		}
 
 		// Ensure target has a scheme
@@ -46,10 +43,10 @@ func (t *Wafw00fTool) Run(ctx context.Context, targets []string, threads int) ([
 		lines, err := RunCommandLines(ctx, "wafw00f", args...)
 		if err != nil {
 			slog.Debug("wafw00f execution warning", "target", target, "error", err)
-			continue
+			return nil, nil
 		}
 
-		wafDetected := false
+		var events []Event
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if strings.Contains(strings.ToLower(line), "identified") || strings.Contains(strings.ToLower(line), "detected") {
@@ -61,16 +58,11 @@ func (t *Wafw00fTool) Run(ctx context.Context, targets []string, threads int) ([
 							"waf_type": wafName,
 						}
 						events = append(events, NewEvent(target, t.Name(), "waf-detection", props))
-						wafDetected = true
 					}
 				}
 			}
 		}
 
-		if wafDetected {
-			slog.Debug("WAF detected", "target", target)
-		}
-	}
-
-	return events, nil
+		return events, nil
+	})
 }

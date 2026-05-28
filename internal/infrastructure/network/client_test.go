@@ -3,8 +3,13 @@ package network
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
+
+func init() {
+	os.Setenv("BBPTS_ALLOW_PRIVATE_IPS", "true")
+}
 
 func TestStealthClientInjectsCustomHeaders(t *testing.T) {
 	var receivedHeaders http.Header

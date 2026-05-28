@@ -4,10 +4,12 @@ package queue
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -27,13 +29,22 @@ type RedisStreamManager struct {
 
 // NewRedisStreamManager creates a new Redis stream manager.
 func NewRedisStreamManager(addr string) (*RedisStreamManager, error) {
-	client := redis.NewClient(&redis.Options{
+	opts := &redis.Options{
 		Addr:            addr,
-		Password:        "", // No password by default
+		Password:        os.Getenv("REDIS_PASSWORD"),
+		Username:        os.Getenv("REDIS_USERNAME"),
 		DB:              0,  // Default DB
 		MaxRetries:      3,
 		MaxRetryBackoff: 5 * time.Second,
-	})
+	}
+
+	if os.Getenv("REDIS_USE_TLS") == "true" {
+		opts.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+
+	client := redis.NewClient(opts)
 
 	// Test connection
 	ctx := context.Background()

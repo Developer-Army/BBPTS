@@ -2,7 +2,7 @@ BINARY_NAME=bbpts
 CMD_PATH=./cmd/bbpts
 INSTALL_PATH=/usr/local/bin
 BINARY_DIR=bin
-VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION=v1.3.0
 COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS=-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)

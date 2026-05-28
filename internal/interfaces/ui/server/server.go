@@ -11,10 +11,12 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
+	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
 // Config holds the web server configuration.
@@ -103,6 +105,59 @@ func generateSelfSignedCert() (tls.Certificate, error) {
 	return cert, nil
 }
 
+func generateRandomToken() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "bbpts-default-token-1234"
+	}
+	return fmt.Sprintf("%x", b)
+}
+
+func authMiddleware(configPath string, generatedToken string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Bypass token verification for fleet sync since it has its own X-Sync-Token verification
+		if r.URL.Path == "/api/fleet/sync" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Retrieve expected token
+		expectedToken := generatedToken
+		if cfgFile, err := config.LoadFromFile(configPath); err == nil && cfgFile.DashboardToken != "" {
+			expectedToken = cfgFile.DashboardToken
+		}
+
+		// If no token exists, return 401
+		if expectedToken == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "unauthorized: dashboard token not configured"}`))
+			return
+		}
+
+		// Check query parameter and header
+		receivedToken := r.URL.Query().Get("token")
+		if receivedToken == "" {
+			receivedToken = r.Header.Get("X-Dashboard-Token")
+		}
+
+		if receivedToken != expectedToken {
+			if r.URL.Path == "/" || !strings.HasPrefix(r.URL.Path, "/api/") {
+				w.Header().Set("Content-Type", "text/html")
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`<h2>Unauthorized: Access Token Required</h2><p>Please launch with <code>?token=YOUR_TOKEN</code> in URL.</p>`))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "unauthorized: invalid dashboard token"}`))
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Start launches the BBPTS dashboard server on the specified port.
 func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) error {
 	if db == nil {
@@ -135,10 +190,26 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
 
+	// Load token or generate on startup
+	var generatedToken string
+	cfgFile, err := config.LoadFromFile(configPath)
+	if err == nil && cfgFile.DashboardToken != "" {
+		slog.Info("dashboard server: using token from config")
+	} else {
+		generatedToken = generateRandomToken()
+		slog.Info("==========================================================")
+		slog.Info("DASHBOARD SECURITY TOKEN GENERATED:")
+		slog.Info("Token: " + generatedToken)
+		slog.Info("URL:   http://localhost:" + fmt.Sprintf("%d", cfg.Port) + "/?token=" + generatedToken)
+		slog.Info("==========================================================")
+	}
+
+	handler := authMiddleware(configPath, generatedToken, mux)
+
 	if cfg.TLSEnabled {
 		slog.Info("dashboard server starting with TLS", "addr", "https://localhost"+addr)
 		if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
-			return http.ListenAndServeTLS(addr, cfg.TLSCertFile, cfg.TLSKeyFile, mux)
+			return http.ListenAndServeTLS(addr, cfg.TLSCertFile, cfg.TLSKeyFile, handler)
 		}
 
 		cert, err := generateSelfSignedCert()
@@ -148,7 +219,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 		slog.Info("using generated self-signed certificate for HTTPS")
 		server := &http.Server{
 			Addr:    addr,
-			Handler: mux,
+			Handler: handler,
 			TLSConfig: &tls.Config{
 				Certificates: []tls.Certificate{cert},
 			},
@@ -157,7 +228,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	}
 
 	slog.Info("dashboard server starting", "addr", "http://localhost"+addr)
-	return http.ListenAndServe(addr, mux)
+	return http.ListenAndServe(addr, handler)
 }
 
 // DashboardHTML is the embedded frontend for the BBPTS elite dashboard.
@@ -417,6 +488,8 @@ const DashboardHTML = `
     </div>
 
     <script>
+        const token = new URLSearchParams(window.location.search).get('token') || '';
+
         function switchTab(tabId) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('panel-active'));
             document.querySelectorAll('.nav-item').forEach(n => {
@@ -437,8 +510,8 @@ const DashboardHTML = `
         async function refreshData() {
             try {
                 const [statsResp, scansResp] = await Promise.all([
-                    fetch('/api/stats'),
-                    fetch('/api/scans')
+                    fetch('/api/stats' + (token ? '?token=' + token : '')),
+                    fetch('/api/scans' + (token ? '?token=' + token : ''))
                 ]);
                 
                 const stats = await statsResp.json();
@@ -495,7 +568,7 @@ const DashboardHTML = `
         function startLogStream() {
             const statusIndicator = document.getElementById('log-status');
             const terminal = document.getElementById('log-terminal');
-            const eventSource = new EventSource('/api/logs/stream');
+            const eventSource = new EventSource('/api/logs/stream' + (token ? '?token=' + token : ''));
 
             eventSource.onopen = () => {
                 statusIndicator.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400';
@@ -527,7 +600,7 @@ const DashboardHTML = `
 
         async function loadConfig() {
             try {
-                const response = await fetch('/api/config');
+                const response = await fetch('/api/config' + (token ? '?token=' + token : ''));
                 if (!response.ok) throw new Error('Failed to load config');
                 
                 const cfg = await response.json();
@@ -602,7 +675,7 @@ const DashboardHTML = `
             });
 
             try {
-                const response = await fetch('/api/config', {
+                const response = await fetch('/api/config' + (token ? '?token=' + token : ''), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(currentRawConfig)

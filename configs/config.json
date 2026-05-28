@@ -1,7 +1,6 @@
 {
   "api_keys": {
     "shodan": "",
-    "censys": "",
     "securitytrails": "",
     "github": "",
     "chaos": "",
@@ -47,14 +46,14 @@
   },
   "tool_presets": {
     "passive": {
-      "tools": "subfinder,crtsh,httpx,dnsx",
-      "timeout": "60s",
-      "rate_limit": 15
+      "tools": "subfinder,crtsh,assetfinder,chaos,tlsx,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox",
+      "timeout": "30m",
+      "rate_limit": 50
     },
-    "deep": {
-      "tools": "subfinder,httpx,katana,nuclei,ffuf",
-      "timeout": "120s",
-      "rate_limit": 10
+    "normal": {
+      "tools": "subfinder,crtsh,assetfinder,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,ffuf",
+      "timeout": "2h",
+      "rate_limit": 150
     }
   },
   "program_profiles": {

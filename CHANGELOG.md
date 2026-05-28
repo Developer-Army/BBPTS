@@ -4,6 +4,22 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-06-11
+
+### Added
+
+- **CTEM Ownership and SLA Engine**: Complete database tables (`teams`, `owners`, `finding_assignments`, `sla_policies`, `escalation_rules`), graph synchronization, and background escalator alert daemon.
+- **Pure Go SQLite Driver**: Migrated to CGo-free `modernc.org/sqlite` package, eliminating external SQLite binary and compiler dependencies.
+- **HTTPX Pre-validation Filters**: Automatic skipping for invalid domain syntaxes and parked/for-sale HTTP HTML title templates, gating downstream crawlers/fuzzers.
+- **TUI Command Window Auto-Resize**: Adjusted command history spacing dynamically to render the commands list on smaller terminals.
+- **Directory Input Rejection**: Reject directories (such as `.` or `/`) in target validation, avoiding infinite target parser loops.
+
+### Changed
+
+- **Version**: Bumped to v1.3.0.
+
+---
+
 ## [1.1.2] — 2026-06-05
 
 ### Added

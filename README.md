@@ -1,9 +1,9 @@
-# BBPTS v1.1.2
+# BBPTS v1.3.0
 
 > **Bug Bounty recon on autopilot.** Point it at targets, get prioritized findings.
 
-[![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)](https://github.com/Developer-Army/BBPTS)
-[![Go Version](https://img.shields.io/badge/go-1.22+-00ADD8.svg)](https://golang.org/)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Developer-Army/BBPTS)
+[![Go Version](https://img.shields.io/badge/go-1.23+-00ADD8.svg)](https://golang.org/)
 [![Build Status](https://github.com/Developer-Army/BBPTS/workflows/CI/badge.svg)](https://github.com/Developer-Army/BBPTS/actions)
 
 ![BBPTS TUI Demo](docs/terminal.png)
@@ -54,7 +54,7 @@ go build -o bbpts.exe .\cmd\bbpts
 .\bbpts.exe -doctor
 ```
 
-> **Need:** Go 1.22+, Git, and Npcap (for network scanning)
+> **Need:** Go 1.23+, Git, and Npcap (for network scanning)
 
 ### 🐳 Docker
 
@@ -163,7 +163,7 @@ bbpts -doctor
 
 ### Stage 1 — Subdomain Discovery
 
-`subfinder` · `amass` · `assetfinder` · `findomain` · `chaos` · `crtsh` · `whois` · `tlsx` · `github`
+`subfinder` · `amass` · `assetfinder` · `chaos` · `crtsh` · `whois` · `tlsx` · `github`
 
 ### Stage 2 — DNS & Ports
 

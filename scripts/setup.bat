@@ -38,28 +38,26 @@ echo.
 
 echo [2/3] Installing Go-based Elite Tools...
 set "TOOLS="
-set "TOOLS=!TOOLS! github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/chaos-client/cmd/chaos@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/dnsx/cmd/dnsx@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/tlsx/cmd/tlsx@latest"
-set "TOOLS=!TOOLS! github.com/d3mondev/puredns/v2@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/httpx/cmd/httpx@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/naabu/v2/cmd/naabu@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/katana/cmd/katana@latest"
-set "TOOLS=!TOOLS! github.com/lc/gau/v2/cmd/gau@latest"
-set "TOOLS=!TOOLS! github.com/ffuf/ffuf/v2@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
-set "TOOLS=!TOOLS! github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest"
-set "TOOLS=!TOOLS! github.com/hahwul/dalfox/v2@latest"
-set "TOOLS=!TOOLS! github.com/sensepost/gowitness@latest"
-set "TOOLS=!TOOLS! github.com/tomnomnom/anew@latest"
-set "TOOLS=!TOOLS! github.com/tomnomnom/unfurl@latest"
-set "TOOLS=!TOOLS! github.com/tomnomnom/qsreplace@latest"
-set "TOOLS=!TOOLS! github.com/owasp-amass/amass/v4/...@latest"
-set "TOOLS=!TOOLS! github.com/tomnomnom/assetfinder@latest"
-set "TOOLS=!TOOLS! github.com/hakluke/hakrawler@latest"
-set "TOOLS=!TOOLS! github.com/OJ/gobuster/v3@latest"
-set "TOOLS=!TOOLS! github.com/trufflesecurity/trufflehog/v3@latest"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/chaos-client/cmd/chaos@v0.2.1"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/tlsx/cmd/tlsx@v1.1.6"
+set "TOOLS=!TOOLS! github.com/d3mondev/puredns/v2@v2.2.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/katana/cmd/katana@v1.1.0"
+set "TOOLS=!TOOLS! github.com/lc/gau/v2/cmd/gau@v2.2.3"
+set "TOOLS=!TOOLS! github.com/ffuf/ffuf/v2@v2.1.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/interactsh/cmd/interactsh-client@v1.1.9"
+set "TOOLS=!TOOLS! github.com/hahwul/dalfox/v2@v2.9.0"
+set "TOOLS=!TOOLS! github.com/sensepost/gowitness@v3.0.3"
+set "TOOLS=!TOOLS! github.com/tomnomnom/anew@v0.1.1"
+set "TOOLS=!TOOLS! github.com/tomnomnom/unfurl@v0.4.3"
+set "TOOLS=!TOOLS! github.com/tomnomnom/qsreplace@v0.0.3"
+set "TOOLS=!TOOLS! github.com/owasp-amass/amass/v4/cmd/amass@v4.2.0"
+set "TOOLS=!TOOLS! github.com/tomnomnom/assetfinder@v0.1.1"
+set "TOOLS=!TOOLS! github.com/hakluke/hakrawler@v2.4.0"
 
 for %%T in (!TOOLS!) do (
     set "TOOL_PATH=%%T"
@@ -91,9 +89,8 @@ for %%T in (!TOOLS!) do (
     )
 )
 
-echo.
 echo [3/3] Installing Go-based uro...
-go install github.com/szybnev/uro-go/cmd/uro@latest
+go install github.com/szybnev/uro-go/cmd/uro@v0.1.0
 
 echo.
 echo Installing additional tools...

@@ -78,3 +78,28 @@ func TestTargetValidationResultMsg_HandlesInvalid(t *testing.T) {
 		t.Errorf("expected cmd to be nil, got %v", cmd)
 	}
 }
+
+func TestValidateTargetCmd_RejectsDirectories(t *testing.T) {
+	// Test "."
+	cmd := validateTargetCmd(".")
+	msg := cmd()
+	res, ok := msg.(TargetValidationResultMsg)
+	if !ok {
+		t.Fatalf("expected TargetValidationResultMsg, got %T", msg)
+	}
+	if res.IsValid {
+		t.Errorf("expected '.' to be invalid target")
+	}
+
+	// Test "/"
+	cmd = validateTargetCmd("/")
+	msg = cmd()
+	res, ok = msg.(TargetValidationResultMsg)
+	if !ok {
+		t.Fatalf("expected TargetValidationResultMsg, got %T", msg)
+	}
+	if res.IsValid {
+		t.Errorf("expected '/' to be invalid target")
+	}
+}
+

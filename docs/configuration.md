@@ -1,4 +1,4 @@
-# Configuration Guide - BBPTS v1.1.1
+# Configuration Guide - BBPTS v1.3.0
 
 This guide covers BBPTS configuration options, API keys, and customization.
 
@@ -34,6 +34,7 @@ BBPTS uses two main configuration files:
     "platform": ""
   },
   "web_ender": "H1{username}",
+  "batch_size": 1,
   "dashboard_tls": {
     "enabled": false,
     "cert_file": "",
@@ -156,7 +157,6 @@ BBPTS supports API keys for enhanced reconnaissance:
 {
   "api_keys": {
     "shodan": "your-shodan-api-key",
-    "censys": "your-censys-api-id:secret",
     "securitytrails": "your-securitytrails-key",
     "github": "your-github-personal-access-token",
     "chaos": "your-chaos-api-key",
@@ -174,12 +174,6 @@ BBPTS supports API keys for enhanced reconnaissance:
 1. Visit [Shodan](https://account.shodan.io/)
 2. Sign up for a free account
 3. Get your API key from the dashboard
-
-#### Censys
-
-1. Visit [Censys](https://censys.io/)
-2. Create an account
-3. Generate API ID and Secret
 
 #### GitHub
 
@@ -246,8 +240,6 @@ BBPTS supports environment variable overrides:
 ```bash
 # API Keys
 export BBPTS_SHODAN_API_KEY="your-key"
-export BBPTS_CENSYS_API_ID="your-id"
-export BBPTS_CENSYS_API_SECRET="your-secret"
 
 # Configuration
 export BBPTS_RATE_LIMIT="50"
@@ -335,6 +327,34 @@ docker run -it \
     "http://proxy1.acme-corp.io:8080",
     "http://proxy2.acme-corp.io:8080"
   ]
+}
+```
+
+### Undocumented & Tuning Fields
+
+- **`web_ender`**: String. Research identifier tag format (e.g. `H1{username}`) injected into HTTP custom headers and User-Agent fields.
+- **`batch_size`**: Integer. Controls how many target domains are scanned in parallel batches. Defaults to `1` (sequential).
+- **`tool_rate_limits`**: Object. Map of individual tools to their request per second rate limits (e.g. `{"nuclei": 10, "httpx": 20}`).
+- **`resource_limits`**: Object. Configures memory/CPU resource ceilings.
+  - `max_cpu_percent`: Maximum CPU percentage allowed.
+  - `max_cpu_cores`: Cap on the number of CPU cores utilized.
+  - `max_memory_mb`: Memory limit in MB.
+  - `gc_percent`: Custom garbage collection target percentage.
+
+```json
+{
+  "web_ender": "H1{username}",
+  "batch_size": 2,
+  "tool_rate_limits": {
+    "nuclei": 15,
+    "httpx": 30
+  },
+  "resource_limits": {
+    "max_cpu_percent": 80,
+    "max_cpu_cores": 4,
+    "max_memory_mb": 4096,
+    "gc_percent": 100
+  }
 }
 ```
 

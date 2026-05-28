@@ -47,7 +47,7 @@ func RunWizard(path string) error {
 	}
 
 	// 3. API Keys
-	apiKeys := []string{"shodan", "censys", "securitytrails", "github", "chaos", "virustotal", "passivetotal", "binaryedge"}
+	apiKeys := []string{"shodan", "securitytrails", "github", "chaos", "virustotal", "passivetotal", "binaryedge"}
 	fmt.Println("\n--- API Keys (Optional) ---")
 	for _, provider := range apiKeys {
 		current := cfg.APIKeys[provider]

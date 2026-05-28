@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+
+	"golang.org/x/time/rate"
 )
 
 type WhoisTool struct{}
@@ -17,18 +19,13 @@ func (t *WhoisTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		return nil, nil
 	}
 
-	events := make([]Event, 0)
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
+	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
 
-	for _, target := range targets {
-		select {
-		case <-ctx.Done():
-			return events, ctx.Err()
-		default:
-		}
-
+	return pool.Process(ctx, targets, func(ctx context.Context, target string) ([]Event, error) {
 		target = strings.TrimSpace(target)
 		if target == "" {
-			continue
+			return nil, nil
 		}
 
 		domain := target
@@ -45,7 +42,7 @@ func (t *WhoisTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		lines, err := RunCommandLines(ctx, "whois", domain)
 		if err != nil {
 			slog.Debug("whois execution warning", "domain", domain, "error", err)
-			continue
+			return nil, nil
 		}
 
 		registrar := ""
@@ -86,9 +83,9 @@ func (t *WhoisTool) Run(ctx context.Context, targets []string, threads int) ([]E
 				props["admin"] = admin
 			}
 
-			events = append(events, NewEvent(domain, t.Name(), "domain-info", props))
+			return []Event{NewEvent(domain, t.Name(), "domain-info", props)}, nil
 		}
-	}
 
-	return events, nil
+		return nil, nil
+	})
 }

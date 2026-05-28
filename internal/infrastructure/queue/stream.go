@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -33,7 +34,7 @@ func NewStreamManager(url string) (*StreamManager, error) {
 		nc: nc,
 		js: js,
 	}
-	if err := streamMgr.EnsureStream("BBPTS_STREAM", []string{"*"}); err != nil {
+	if err := streamMgr.EnsureStream("BBPTS_STREAM", []string{"recon.*", "scan.*", "worker.*"}); err != nil {
 		nc.Close()
 		return nil, fmt.Errorf("failed to ensure JetStream stream: %w", err)
 	}
@@ -51,20 +52,26 @@ func (sm *StreamManager) EnsureStream(streamName string, subjects []string) erro
 	if sm.js == nil {
 		return fmt.Errorf("jetstream context is nil")
 	}
+	cfg := &nats.StreamConfig{
+		Name:       streamName,
+		Subjects:   subjects,
+		Storage:    nats.FileStorage, // Durable persistence
+		MaxAge:     72 * time.Hour,   // Keep events for 3 days for replayability
+		Replicas:   1,                // Can be increased for HA clusters
+		Duplicates: 5 * time.Minute,  // Duplicate message detection window
+	}
 	_, err := sm.js.StreamInfo(streamName)
 	if err != nil {
-		_, err = sm.js.AddStream(&nats.StreamConfig{
-			Name:       streamName,
-			Subjects:   subjects,
-			Storage:    nats.FileStorage, // Durable persistence
-			MaxAge:     72 * time.Hour,   // Keep events for 3 days for replayability
-			Replicas:   1,                // Can be increased for HA clusters
-			Duplicates: 5 * time.Minute,  // Duplicate message detection window
-		})
+		_, err = sm.js.AddStream(cfg)
 		if err != nil {
 			return fmt.Errorf("failed to create durable stream %s: %w", streamName, err)
 		}
 		slog.Info("Durable stream initialized", "stream", streamName)
+	} else {
+		_, err = sm.js.UpdateStream(cfg)
+		if err != nil {
+			slog.Warn("Failed to update JetStream stream configuration", "stream", streamName, "error", err)
+		}
 	}
 	return nil
 }
@@ -83,7 +90,7 @@ func (sm *StreamManager) PublishTask(subject string, payload interface{}) error 
 	}
 
 	// Publish with sync ack to guarantee it's durable
-	_, err = sm.js.Publish(subject, data)
+	_, err = sm.js.Publish(mapSubject(subject), data)
 	if err != nil {
 		return fmt.Errorf("failed to publish task to %s: %w", subject, err)
 	}
@@ -92,6 +99,9 @@ func (sm *StreamManager) PublishTask(subject string, payload interface{}) error 
 
 // SubscribeWorker attaches an idempotent consumer to a durable queue group.
 func (sm *StreamManager) SubscribeWorker(ctx context.Context, subject, queueGroup string, handler func(data []byte) error) error {
+	if handler == nil {
+		return fmt.Errorf("handler cannot be nil")
+	}
 	if sm.js == nil {
 		return fmt.Errorf("jetstream context is nil")
 	}
@@ -110,7 +120,7 @@ func (sm *StreamManager) SubscribeWorker(ctx context.Context, subject, queueGrou
 		}
 	}
 
-	_, err := sm.js.QueueSubscribe(subject, queueGroup, cb, nats.ManualAck(), nats.MaxDeliver(3), nats.AckExplicit())
+	_, err := sm.js.QueueSubscribe(mapSubject(subject), queueGroup, cb, nats.ManualAck(), nats.MaxDeliver(3), nats.AckExplicit())
 	if err != nil {
 		return fmt.Errorf("failed to queue subscribe to %s: %w", subject, err)
 	}
@@ -128,4 +138,46 @@ func (sm *StreamManager) Close() error {
 		sm.nc.Close()
 	}
 	return nil
+}
+
+
+func mapSubject(subject string) string {
+	if subject == "*" || subject == ">" {
+		return subject
+	}
+	if strings.HasPrefix(subject, "recon.") || strings.HasPrefix(subject, "scan.") || strings.HasPrefix(subject, "worker.") {
+		return subject
+	}
+
+	suffix := ""
+	if strings.HasSuffix(subject, ".>") {
+		suffix = ".>"
+		subject = strings.TrimSuffix(subject, ".>")
+	} else if strings.HasSuffix(subject, ".*") {
+		suffix = ".*"
+		subject = strings.TrimSuffix(subject, ".*")
+	}
+
+	var mapped string
+	if subject == "system.worker.heartbeat" {
+		mapped = "worker.heartbeat"
+	} else if subject == "task.complete" {
+		mapped = "worker.complete"
+	} else if strings.HasPrefix(subject, "task.") {
+		mapped = "worker." + strings.TrimPrefix(subject, "task.")
+	} else if strings.HasPrefix(subject, "system.") {
+		mapped = "worker." + strings.TrimPrefix(subject, "system.")
+	} else if strings.HasPrefix(subject, "event.") {
+		toolName := strings.TrimPrefix(subject, "event.")
+		if toolName == "nuclei" || toolName == "dalfox" || toolName == "vuln" {
+			mapped = "scan." + toolName
+		} else {
+			mapped = "recon." + toolName
+		}
+	} else {
+		cleanSubject := strings.ReplaceAll(subject, ".", "_")
+		mapped = "recon." + cleanSubject
+	}
+
+	return mapped + suffix
 }

@@ -499,7 +499,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if lowerVal == "/info" || lowerVal == "info" {
 					m.cliHistory = append(m.cliHistory,
 						"  "+StyleWhite.Bold(true).Render("BBPTS Engine Info:"),
-						"    Version:    v1.1.1",
+						"    Version:    v1.3.0",
 						"    Status:     Ready to scan",
 						"    Database:   SQLite (active)",
 						"",
@@ -1070,11 +1070,9 @@ func (m Model) View() string {
 
 		// ── CLI History ───────────────────────────────────────────────────────
 		var maxHistoryLines int
-		if m.height >= 22 {
-			maxHistoryLines = m.height - 16
-			if maxHistoryLines < 0 {
-				maxHistoryLines = 0
-			}
+		maxHistoryLines = m.height - 12
+		if maxHistoryLines < 0 {
+			maxHistoryLines = 0
 		}
 		if maxHistoryLines > 0 {
 			startIdx := len(m.cliHistory) - maxHistoryLines
@@ -1126,9 +1124,9 @@ func (m Model) View() string {
 		cwd, err := os.Getwd()
 		var rightInfo string
 		if err == nil {
-			rightInfo = StyleComment.Render(cwd) + "  " + StyleCyan.Render("v1.1.1")
+			rightInfo = StyleComment.Render(cwd) + "  " + StyleCyan.Render("v1.3.0")
 		} else {
-			rightInfo = StyleCyan.Render("v1.1.1")
+			rightInfo = StyleCyan.Render("v1.3.0")
 		}
 		// Build the bar at boxWidth so it sits directly under the prompt box
 		barInnerWidth := boxWidth + 2 // +2 accounts for box border chars
@@ -1824,8 +1822,8 @@ type TargetValidationResultMsg struct {
 
 func validateTargetCmd(targetVal string) tea.Cmd {
 	return func() tea.Msg {
-		// Verify if it is a local file path
-		if _, err := os.Stat(targetVal); err == nil {
+		// Verify if it is a local file path and NOT a directory
+		if info, err := os.Stat(targetVal); err == nil && !info.IsDir() {
 			return TargetValidationResultMsg{Target: targetVal, IsValid: true, IsFile: true}
 		}
 

@@ -14,7 +14,7 @@ import (
 // Config holds all runtime configuration for the BBPTS toolkit.
 type Config struct {
 	// APIKeys maps provider names to their API keys.
-	// Supported providers: shodan, censys, securitytrails, github, chaos, virustotal, passivetotal, binaryedge
+	// Supported providers: shodan, securitytrails, github, chaos, virustotal, passivetotal, binaryedge
 	APIKeys map[string]string `json:"api_keys"`
 
 	// Headers holds custom HTTP headers to pass to active scanners.
@@ -95,8 +95,17 @@ type Config struct {
 	// DashboardTLS configuration for securing the web dashboard.
 	DashboardTLS TLSConfig `json:"dashboard_tls"`
 
+	// DashboardToken is the token required to access the dashboard API.
+	DashboardToken string `json:"dashboard_token"`
+
+	// InsecureSkipVerify disables SSL/TLS certificate verification for scanners.
+	InsecureSkipVerify bool `json:"insecure_skip_verify"`
+
 	// WebEnder holds a custom research identifier tag (e.g., H1{username}).
 	WebEnder string `json:"web_ender"`
+
+	// MockMode gates simulated/mock event injection.
+	MockMode bool `json:"mock_mode"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -171,6 +180,7 @@ func DefaultConfig() *Config {
 		RateLimit:      50,
 		ToolRateLimits: make(map[string]int),
 		AutoUpdate:     false,
+		InsecureSkipVerify: true,
 		Ports:          "",
 		BatchSize:      1,
 		ContainerMode:  false,
@@ -292,6 +302,9 @@ func (c *Config) LoadFromEnv() {
 	if val := os.Getenv("BBPTS_TMP_RESULTS_DIR"); val != "" {
 		c.TmpResultsDir = val
 	}
+	if val := os.Getenv("BBPTS_INSECURE_SKIP_VERIFY"); val != "" {
+		c.InsecureSkipVerify = (strings.ToLower(val) == "true")
+	}
 
 	if val := os.Getenv("BBPTS_HEADERS"); val != "" {
 		if c.Headers == nil {
@@ -347,7 +360,6 @@ func WriteDefault(path string) error {
 	cfg := DefaultConfig()
 	cfg.APIKeys = map[string]string{
 		"shodan":         "",
-		"censys":         "",
 		"securitytrails": "",
 		"github":         "",
 		"chaos":          "",

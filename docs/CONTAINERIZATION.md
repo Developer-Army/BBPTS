@@ -7,7 +7,7 @@ BBPTS supports running inside Docker for consistent, reproducible environments.
 ```bash
 # Build the image
 docker build -t bbpts:latest \
-  --build-arg VERSION=v1.1.2 \
+  --build-arg VERSION=v1.3.0 \
   --build-arg COMMIT=$(git rev-parse --short HEAD) \
   --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) .
 

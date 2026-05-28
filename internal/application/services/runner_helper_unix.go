@@ -62,20 +62,47 @@ func prepareCommand(ctx context.Context, name string, args ...string) commandHan
 
 			dockerArgs := []string{"run", "--rm", "-i"}
 
-			// Mount current working directory
-			if cwd, err := os.Getwd(); err == nil {
-				dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s", cwd, cwd), "-w", cwd)
+			// Use gVisor runtime if available
+			if _, err := exec.LookPath("runsc"); err == nil {
+				dockerArgs = append(dockerArgs, "--runtime=runsc")
 			}
 
-			// Mount home directory if it exists
-			if home, err := os.UserHomeDir(); err == nil {
-				dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s", home, home))
+			// Drop all privileges & capabilities
+			dockerArgs = append(dockerArgs,
+				"--cap-drop=all",
+				"--security-opt=no-new-privileges:true",
+			)
+
+			// Run as non-root user
+			uid := os.Getuid()
+			gid := os.Getgid()
+			if uid > 0 && gid > 0 {
+				dockerArgs = append(dockerArgs, "--user", fmt.Sprintf("%d:%d", uid, gid))
+			}
+
+			// Mount current working directory as read-only
+			if cwd, err := os.Getwd(); err == nil {
+				dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s:ro", cwd, cwd), "-w", cwd)
+			}
+
+			// Mount temporary results directory as read-write
+			if tmpDir := GetTmpResultsDir(ctx); tmpDir != "" {
+				if absTmpDir, err := filepath.Abs(tmpDir); err == nil {
+					dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s:rw", absTmpDir, absTmpDir))
+				}
+			}
+
+			// Mount wordlist directory as read-only
+			if wlDir := wordlistsDirFromContext(ctx); wlDir != "" {
+				if absWlDir, err := filepath.Abs(wlDir); err == nil {
+					dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s:ro", absWlDir, absWlDir))
+				}
 			}
 
 			dockerArgs = append(dockerArgs, image)
 			dockerArgs = append(dockerArgs, args...)
 
-			slog.Debug("executing tool in container", "runtime", containerRuntime, "image", image, "tool", name)
+			slog.Debug("executing tool in container sandbox", "runtime", containerRuntime, "image", image, "tool", name)
 			cmd := exec.CommandContext(ctx, containerRuntime, dockerArgs...)
 			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 			return cmd

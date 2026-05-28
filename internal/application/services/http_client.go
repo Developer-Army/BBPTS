@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	utls "github.com/refraction-networking/utls"
 )
 
@@ -23,17 +24,17 @@ type StealthClient struct {
 func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, error) {
 	// Custom dialer using utls for TLS fingerprint spoofing (mimics Chrome)
 	dialTLS := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		host, _, err := net.SplitHostPort(addr)
+		pinnedAddr, host, err := security.ResolveAndValidateAddr(ctx, addr)
 		if err != nil {
 			return nil, err
 		}
 
-		conn, err := net.DialTimeout(network, addr, 10*time.Second)
+		conn, err := net.DialTimeout(network, pinnedAddr, 10*time.Second)
 		if err != nil {
 			return nil, err
 		}
 
-		uConn := utls.UClient(conn, &utls.Config{ServerName: host, InsecureSkipVerify: true}, utls.HelloChrome_Auto)
+		uConn := utls.UClient(conn, &utls.Config{ServerName: host, InsecureSkipVerify: InsecureFromCtx(ctx)}, utls.HelloChrome_Auto)
 		if err := uConn.HandshakeContext(ctx); err != nil {
 			conn.Close()
 			return nil, fmt.Errorf("utls handshake failed: %w", err)
@@ -41,7 +42,20 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 		return uConn, nil
 	}
 
+	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		pinnedAddr, _, err := security.ResolveAndValidateAddr(ctx, addr)
+		if err != nil {
+			return nil, err
+		}
+		dialer := &net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}
+		return dialer.DialContext(ctx, network, pinnedAddr)
+	}
+
 	transport := &http.Transport{
+		DialContext:           dialContext,
 		DialTLSContext:        dialTLS,
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100,
@@ -64,6 +78,16 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 	client := &http.Client{
 		Transport: transport,
 		Timeout:   30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			san := security.NewSanitizer()
+			if err := san.ValidateURL(req.URL.String()); err != nil {
+				return fmt.Errorf("SSRF validation blocked redirect: %w", err)
+			}
+			return nil
+		},
 	}
 
 	return &StealthClient{

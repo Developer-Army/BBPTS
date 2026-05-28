@@ -4,12 +4,17 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 )
+
+func init() {
+	os.Setenv("BBPTS_ALLOW_PRIVATE_IPS", "true")
+}
 
 // Scenario 1: WAF Simulation Test
 // Ensures the StealthClient correctly identifies a WAF, backs off, and rotates headers.

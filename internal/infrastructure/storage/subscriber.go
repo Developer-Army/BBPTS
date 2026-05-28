@@ -72,6 +72,33 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 		return
 	}
 
+	// Link active owners and teams
+	owners, err := s.storage.GetAssetOwners(ev.Target)
+	if err == nil {
+		for _, o := range owners {
+			if o.EndTime == nil {
+				if o.OwnerID != nil {
+					owner, err := s.storage.GetOwner(*o.OwnerID)
+					if err == nil && owner != nil {
+						ownerNodeID, err := s.storage.SaveNode("owner", owner.Email, map[string]string{"name": owner.Name})
+						if err == nil {
+							_ = s.storage.SaveEdge(targetID, ownerNodeID, "owned_by_owner")
+						}
+					}
+				}
+				if o.TeamID != nil {
+					team, err := s.storage.GetTeam(*o.TeamID)
+					if err == nil && team != nil {
+						teamNodeID, err := s.storage.SaveNode("team", team.Name, nil)
+						if err == nil {
+							_ = s.storage.SaveEdge(targetID, teamNodeID, "owned_by_team")
+						}
+					}
+				}
+			}
+		}
+	}
+
 	switch ev.Source {
 	case "httpx", "naabu":
 		// Linking service to target

@@ -1,4 +1,4 @@
-# Development Guide - BBPTS v1.1.1
+# Development Guide - BBPTS v1.3.0
 
 This guide covers development setup, architecture, and contribution guidelines for BBPTS.
 

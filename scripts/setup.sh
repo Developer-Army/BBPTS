@@ -65,35 +65,34 @@ echo ""
 # 1. GO-BASED ELITE TOOLS
 GO_TOOLS=(
     # --- Recon & Subdomains ---
-    "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"
-    "github.com/projectdiscovery/chaos-client/cmd/chaos@latest"
-    "github.com/projectdiscovery/dnsx/cmd/dnsx@latest"    # ADDED: Essential DNS toolkit
-    "github.com/projectdiscovery/tlsx/cmd/tlsx@latest"    # ADDED: TLS certificate parsing
-    "github.com/d3mondev/puredns/v2@latest"
-    "github.com/owasp-amass/amass/v4/cmd/amass@latest"
-    "github.com/tomnomnom/assetfinder@latest"             # ADDED: Missing core tool
+    "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
+    "github.com/projectdiscovery/chaos-client/cmd/chaos@v0.2.1"
+    "github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
+    "github.com/projectdiscovery/tlsx/cmd/tlsx@v1.1.6"
+    "github.com/d3mondev/puredns/v2@v2.2.0"
+    "github.com/owasp-amass/amass/v4/cmd/amass@v4.2.0"
+    "github.com/tomnomnom/assetfinder@v0.1.1"
     
     # --- Probing & Ports ---
-    "github.com/projectdiscovery/httpx/cmd/httpx@latest"
-    "github.com/projectdiscovery/naabu/v2/cmd/naabu@latest"
+    "github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
+    "github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.0"
     
     # --- Discovery, Crawling & Fuzzing ---
-    "github.com/projectdiscovery/katana/cmd/katana@latest"
-    "github.com/lc/gau/v2/cmd/gau@latest"
-    "github.com/ffuf/ffuf/v2@latest"                      # ADDED: Essential for VHOST/Param fuzzing
-    "github.com/hakluke/hakrawler@latest"                 # ADDED: Missing core tool
-    "github.com/OJ/gobuster/v3@latest"                    # ADDED: Missing core tool
+    "github.com/projectdiscovery/katana/cmd/katana@v1.1.0"
+    "github.com/lc/gau/v2/cmd/gau@v2.2.3"
+    "github.com/ffuf/ffuf/v2@v2.1.0"
+    "github.com/hakluke/hakrawler@v2.4.0"
     
     # --- Vulnerability, XSS & OOB ---
-    "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
-    "github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest" # ADDED: OOB testing
-    "github.com/hahwul/dalfox/v2@latest"
-    "github.com/sensepost/gowitness@latest"
+    "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
+    "github.com/projectdiscovery/interactsh/cmd/interactsh-client@v1.1.9"
+    "github.com/hahwul/dalfox/v2@v2.9.0"
+    "github.com/sensepost/gowitness@v3.0.3"
     
     # --- Data Processing & Manipulation ---
-    "github.com/tomnomnom/anew@latest"
-    "github.com/tomnomnom/unfurl@latest"
-    "github.com/tomnomnom/qsreplace@latest"               # ADDED: Parameter manipulation
+    "github.com/tomnomnom/anew@v0.1.1"
+    "github.com/tomnomnom/unfurl@v0.4.3"
+    "github.com/tomnomnom/qsreplace@v0.0.3"
 )
 
 # Native crt.sh Bash Function
@@ -114,7 +113,7 @@ done
 
 # 2. GO-BASED URO (szybnev/uro-go)
 echo "Installing uro (Golang port szybnev)..."
-go install github.com/szybnev/uro-go/cmd/uro@latest || echo " Warning: Failed to install Go uro"
+go install github.com/szybnev/uro-go/cmd/uro@v0.1.0 || echo " Warning: Failed to install Go uro"
 
 # 3. RUST-BASED TOOLS (feroxbuster)
 if ! command -v feroxbuster &> /dev/null; then
@@ -130,19 +129,6 @@ if ! command -v feroxbuster &> /dev/null; then
     fi
 fi
 
-# --- Install findomain ---
-if ! command -v findomain &> /dev/null; then
-    echo "Installing findomain..."
-    wget https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux -O /tmp/findomain || true
-    if [ -f /tmp/findomain ]; then
-        chmod +x /tmp/findomain
-        if [ -w /usr/local/bin ]; then
-            mv /tmp/findomain /usr/local/bin/findomain || true
-        else
-            mkdir -p ~/.local/bin && mv /tmp/findomain ~/.local/bin/findomain || true
-        fi
-    fi
-fi
 
 # 4. ADDITIONAL NON-GO TOOLS
 # --- Install massdns from source ---
@@ -162,15 +148,7 @@ if ! command -v massdns &> /dev/null; then
     fi
 fi
 
-# --- Install trufflehog ---
-if ! command -v trufflehog &> /dev/null; then
-    echo "Installing trufflehog..."
-    curl -sSfL -o /tmp/install-trufflehog.sh https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh || true
-    if [ -f /tmp/install-trufflehog.sh ]; then
-        sh /tmp/install-trufflehog.sh -b ~/.local/bin || true
-        rm /tmp/install-trufflehog.sh
-    fi
-fi
+
 
 # --- Install whois ---
 if ! command -v whois &> /dev/null; then

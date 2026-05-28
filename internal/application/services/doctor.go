@@ -60,7 +60,6 @@ type DiagnosticCheck struct {
 var toolVersionFlags = map[string][]string{
 	"amass":       {"version"},
 	"subfinder":   {"-version"},
-	"findomain":   {"--version"},
 	"httpx":       {"-version"},
 	"naabu":       {"-version"},
 	"nuclei":      {"-version"},
@@ -117,7 +116,6 @@ var toolInstallInstructions = map[string]string{
 	"gowitness":   "go install github.com/sensepost/gowitness@latest",
 	"anew":        "go install github.com/tomnomnom/anew@latest",
 	"uro":         "go install github.com/szybnev/uro-go/cmd/uro@latest",
-	"findomain":   "wget https://github.com/findomain/findomain/releases/latest/download/findomain-linux -O /usr/local/bin/findomain && chmod +x /usr/local/bin/findomain",
 	"feroxbuster": "curl -sLo install-feroxbuster.sh https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh && chmod +x install-feroxbuster.sh && ./install-feroxbuster.sh",
 	"massdns":     "git clone https://github.com/blechschmidt/massdns.git && cd massdns && make && sudo cp bin/massdns /usr/local/bin/",
 	"trufflehog":  "curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin",

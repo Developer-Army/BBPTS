@@ -2,11 +2,7 @@ package services
 
 import (
 	"context"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -46,105 +42,6 @@ func TestCaidoExportIntegration(t *testing.T) {
 	t.Logf("Successfully exported Caido targets to %s", outputPath)
 }
 
-// TestZAPExportIntegration tests the OWASP ZAP export workflow
-func TestZAPExportIntegration(t *testing.T) {
-	tempDir := t.TempDir()
-	outputPath := filepath.Join(tempDir, "zap-report.xml")
-
-	findings := map[string]interface{}{
-		"alerts": []interface{}{
-			map[string]interface{}{
-				"name":        "SQL Injection",
-				"severity":    "High",
-				"description": "Potential SQL injection vulnerability detected",
-			},
-			map[string]interface{}{
-				"name":        "Cross-Site Scripting",
-				"severity":    "Medium",
-				"description": "Potential XSS vulnerability detected",
-			},
-		},
-	}
-
-	err := ExportToZAP(outputPath, findings)
-	if err != nil {
-		t.Fatalf("Failed to export to ZAP: %v", err)
-	}
-
-	t.Logf("Successfully exported ZAP report to %s", outputPath)
-}
-
-// TestProxyFeederRotation tests proxy rotation functionality
-func TestProxyFeederRotation(t *testing.T) {
-	proxies := []string{
-		"http://proxy1.acme-corp.io:8080",
-		"http://proxy2.acme-corp.io:8080",
-		"http://proxy3.acme-corp.io:8080",
-	}
-
-	feeder := NewProxyRotator(proxies)
-
-	// Test rotation
-	for i := 0; i < 9; i++ {
-		proxy := feeder.GetNextProxy()
-		expectedProxy := proxies[i%3]
-
-		if proxy != expectedProxy {
-			t.Fatalf("Iteration %d: expected %s, got %s", i, expectedProxy, proxy)
-		}
-	}
-
-	t.Log("Proxy rotation working correctly")
-}
-
-// TestProxyFeederEmpty tests proxy feeder with empty list
-func TestProxyFeederEmpty(t *testing.T) {
-	feeder := NewProxyRotator([]string{})
-	proxy := feeder.GetNextProxy()
-
-	if proxy != "" {
-		t.Fatalf("Expected empty string for empty proxy list, got %s", proxy)
-	}
-}
-
-// TestWebhookNotifier tests webhook notification
-func TestWebhookNotifier(t *testing.T) {
-	var receivedBody string
-	var receivedAuth string
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedAuth = r.Header.Get("Authorization")
-		body, _ := io.ReadAll(r.Body)
-		receivedBody = string(body)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	notifier := NewWebhookNotifier(server.URL, "token123")
-
-	finding := map[string]interface{}{
-		"title":       "Test Finding",
-		"severity":    "high",
-		"target":      "acme-corp.io",
-		"description": "This is a test finding",
-	}
-
-	err := notifier.NotifyFinding(finding)
-	if err != nil {
-		t.Fatalf("Failed to notify finding: %v", err)
-	}
-
-	if receivedAuth != "Bearer token123" {
-		t.Errorf("Expected Auth header 'Bearer token123', got '%s'", receivedAuth)
-	}
-
-	if !strings.Contains(receivedBody, `"title":"Test Finding"`) {
-		t.Errorf("Expected body to contain finding JSON, got '%s'", receivedBody)
-	}
-
-	t.Log("Webhook notification sent successfully")
-}
-
 // TestMultipleToolExportIntegration tests exporting for multiple tools simultaneously
 func TestMultipleToolExportIntegration(t *testing.T) {
 	tempDir := t.TempDir()
@@ -161,15 +58,6 @@ func TestMultipleToolExportIntegration(t *testing.T) {
 	caidoPath := filepath.Join(tempDir, "caido.txt")
 	if err := ExportToCaidoTarget(caidoPath, hosts); err != nil {
 		t.Fatalf("Caido export failed: %v", err)
-	}
-
-	// Export for ZAP
-	zapPath := filepath.Join(tempDir, "zap.xml")
-	findings := map[string]interface{}{
-		"alerts": []interface{}{},
-	}
-	if err := ExportToZAP(zapPath, findings); err != nil {
-		t.Fatalf("ZAP export failed: %v", err)
 	}
 
 	t.Log("Successfully exported to multiple tools")

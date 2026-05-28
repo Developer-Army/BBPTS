@@ -14,13 +14,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// DB wraps the SQLite database and provides CRUD methods.
-type DB struct {
-	conn *sql.DB
-}
-
 // Open creates or opens a BBPTS database at the given path.
-func Open(dbPath string) (*DB, error) {
+func Open(dbPath string) (*Storage, error) {
 	// Ensure directory exists
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -31,9 +26,9 @@ func Open(dbPath string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	// Configure for concurrent access: 10 max open connections, 5 idle, 5s busy timeout
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
+	// Configure for concurrent access: 1 max open connection to avoid SQLite database locks, 1 idle, 5s busy timeout
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := db.Ping(); err != nil {
@@ -43,7 +38,7 @@ func Open(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("failed to configure sqlite pragmas: %w", err)
 	}
 
-	instance := &DB{conn: db}
+	instance := &Storage{db: db, dbType: "sqlite3"}
 	if err := instance.migrate(context.Background()); err != nil {
 		return nil, fmt.Errorf("migration failed: %w", err)
 	}
@@ -51,13 +46,8 @@ func Open(dbPath string) (*DB, error) {
 	return instance, nil
 }
 
-// Close closes the database connection.
-func (db *DB) Close() error {
-	return db.conn.Close()
-}
-
 // migrate creates the schema and records the migration version.
-func (db *DB) migrate(ctx context.Context) error {
+func (db *Storage) migrate(ctx context.Context) error {
 	migrations := []string{
 		`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);`,
 		`
@@ -103,12 +93,69 @@ func (db *DB) migrate(ctx context.Context) error {
 	CREATE INDEX IF NOT EXISTS idx_targets_host ON targets(host);
 	CREATE INDEX IF NOT EXISTS idx_targets_scan_host ON targets(scan_id, host);
 	`,
+		`
+	CREATE TABLE IF NOT EXISTS teams (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS owners (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		email TEXT NOT NULL UNIQUE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS asset_ownership (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		asset_id TEXT NOT NULL,
+		owner_id INTEGER,
+		team_id INTEGER,
+		start_time TIMESTAMP NOT NULL,
+		end_time TIMESTAMP,
+		FOREIGN KEY(owner_id) REFERENCES owners(id),
+		FOREIGN KEY(team_id) REFERENCES teams(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS sla_policies (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		severity TEXT NOT NULL,
+		duration_days INTEGER NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS finding_assignments (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		finding_id INTEGER NOT NULL,
+		team_id INTEGER,
+		owner_id INTEGER,
+		status TEXT NOT NULL,
+		assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		due_at TIMESTAMP NOT NULL,
+		resolved_at TIMESTAMP,
+		FOREIGN KEY(finding_id) REFERENCES findings(id) ON DELETE CASCADE,
+		FOREIGN KEY(team_id) REFERENCES teams(id),
+		FOREIGN KEY(owner_id) REFERENCES owners(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS escalation_rules (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		policy_id INTEGER NOT NULL,
+		delay_days INTEGER NOT NULL,
+		action_type TEXT NOT NULL,
+		properties TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(policy_id) REFERENCES sla_policies(id) ON DELETE CASCADE
+	);
+	`,
 	}
 	for version, migration := range migrations {
-		if _, err := db.conn.ExecContext(ctx, migration); err != nil {
+		if _, err := db.db.ExecContext(ctx, migration); err != nil {
 			return err
 		}
-		if _, err := db.conn.ExecContext(ctx, `INSERT OR IGNORE INTO schema_version (version) VALUES (?)`, version+1); err != nil {
+		if _, err := db.db.ExecContext(ctx, `INSERT OR IGNORE INTO schema_version (version) VALUES (?)`, version+1); err != nil {
 			return err
 		}
 	}
@@ -116,8 +163,8 @@ func (db *DB) migrate(ctx context.Context) error {
 }
 
 // StartScan creates a new scan record and returns its ID.
-func (db *DB) StartScan(ctx context.Context, scope string) (int64, error) {
-	res, err := db.conn.ExecContext(ctx, "INSERT INTO scans (scope, status) VALUES (?, ?)", scope, "running")
+func (db *Storage) StartScan(ctx context.Context, scope string) (int64, error) {
+	res, err := db.db.ExecContext(ctx, "INSERT INTO scans (scope, status) VALUES (?, ?)", scope, "running")
 	if err != nil {
 		return 0, err
 	}
@@ -125,14 +172,14 @@ func (db *DB) StartScan(ctx context.Context, scope string) (int64, error) {
 }
 
 // FinishScan updates a scan record as completed.
-func (db *DB) FinishScan(ctx context.Context, scanID int64) error {
-	_, err := db.conn.ExecContext(ctx, "UPDATE scans SET end_time = CURRENT_TIMESTAMP, status = ? WHERE id = ?", "completed", scanID)
+func (db *Storage) FinishScan(ctx context.Context, scanID int64) error {
+	_, err := db.db.ExecContext(ctx, "UPDATE scans SET end_time = CURRENT_TIMESTAMP, status = ? WHERE id = ?", "completed", scanID)
 	return err
 }
 
 // SaveTargets bulk inserts target records.
-func (db *DB) SaveTargets(ctx context.Context, scanID int64, targets []string) error {
-	tx, err := db.conn.Begin()
+func (db *Storage) SaveTargets(ctx context.Context, scanID int64, targets []string) error {
+	tx, err := db.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -162,8 +209,8 @@ type EventRecord struct {
 }
 
 // SaveEvents bulk inserts event records.
-func (db *DB) SaveEvents(ctx context.Context, scanID int64, events []EventRecord) error {
-	tx, err := db.conn.Begin()
+func (db *Storage) SaveEvents(ctx context.Context, scanID int64, events []EventRecord) error {
+	tx, err := db.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -195,8 +242,8 @@ type ScanRecord struct {
 }
 
 // GetScans returns all scans from the database.
-func (db *DB) GetScans(ctx context.Context) ([]ScanRecord, error) {
-	rows, err := db.conn.QueryContext(ctx, "SELECT id, scope, start_time, end_time, status FROM scans ORDER BY start_time DESC")
+func (db *Storage) GetScans(ctx context.Context) ([]ScanRecord, error) {
+	rows, err := db.db.QueryContext(ctx, "SELECT id, scope, start_time, end_time, status FROM scans ORDER BY start_time DESC")
 	if err != nil {
 		return nil, err
 	}
@@ -214,8 +261,8 @@ func (db *DB) GetScans(ctx context.Context) ([]ScanRecord, error) {
 }
 
 // GetTargets returns all targets for a given scan.
-func (db *DB) GetTargets(ctx context.Context, scanID int64) ([]string, error) {
-	rows, err := db.conn.QueryContext(ctx, "SELECT host FROM targets WHERE scan_id = ? ORDER BY id", scanID)
+func (db *Storage) GetTargets(ctx context.Context, scanID int64) ([]string, error) {
+	rows, err := db.db.QueryContext(ctx, "SELECT host FROM targets WHERE scan_id = ? ORDER BY id", scanID)
 	if err != nil {
 		return nil, err
 	}
@@ -233,8 +280,8 @@ func (db *DB) GetTargets(ctx context.Context, scanID int64) ([]string, error) {
 }
 
 // GetEvents returns all events for a given scan.
-func (db *DB) GetEvents(ctx context.Context, scanID int64) ([]EventRecord, error) {
-	rows, err := db.conn.QueryContext(ctx, "SELECT target, source, type, properties FROM events WHERE scan_id = ?", scanID)
+func (db *Storage) GetEvents(ctx context.Context, scanID int64) ([]EventRecord, error) {
+	rows, err := db.db.QueryContext(ctx, "SELECT target, source, type, properties FROM events WHERE scan_id = ?", scanID)
 	if err != nil {
 		return nil, err
 	}
@@ -256,9 +303,9 @@ func (db *DB) GetEvents(ctx context.Context, scanID int64) ([]EventRecord, error
 }
 
 // GetLastScanID returns the ID of the most recent completed scan for a scope.
-func (db *DB) GetLastScanID(ctx context.Context, scope string) (int64, error) {
+func (db *Storage) GetLastScanID(ctx context.Context, scope string) (int64, error) {
 	var id int64
-	err := db.conn.QueryRowContext(ctx, "SELECT id FROM scans WHERE scope = ? AND status = 'completed' ORDER BY start_time DESC, id DESC LIMIT 1", scope).Scan(&id)
+	err := db.db.QueryRowContext(ctx, "SELECT id FROM scans WHERE scope = ? AND status = 'completed' ORDER BY start_time DESC, id DESC LIMIT 1", scope).Scan(&id)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}
@@ -273,9 +320,9 @@ type ScanDiff struct {
 
 // GetScanDiff compares the current scan against the most recent previous completed scan
 // in the same scope.
-func (db *DB) GetScanDiff(ctx context.Context, scope string, currentScanID int64) (*ScanDiff, error) {
+func (db *Storage) GetScanDiff(ctx context.Context, scope string, currentScanID int64) (*ScanDiff, error) {
 	var previousID int64
-	err := db.conn.QueryRowContext(ctx,
+	err := db.db.QueryRowContext(ctx,
 		"SELECT id FROM scans WHERE scope = ? AND status = 'completed' AND id < ? ORDER BY start_time DESC, id DESC LIMIT 1",
 		scope, currentScanID).Scan(&previousID)
 	if err == sql.ErrNoRows {
@@ -288,7 +335,7 @@ func (db *DB) GetScanDiff(ctx context.Context, scope string, currentScanID int64
 	diff := &ScanDiff{}
 
 	// Find new targets
-	rows, err := db.conn.QueryContext(ctx, `
+	rows, err := db.db.QueryContext(ctx, `
 		SELECT t1.host
 		FROM targets t1
 		LEFT JOIN targets t2 ON t2.host = t1.host AND t2.scan_id = ?
@@ -314,9 +361,9 @@ func (db *DB) GetScanDiff(ctx context.Context, scope string, currentScanID int64
 }
 
 // GetNewFindings returns events from a scan that were not present in the previous scan.
-func (db *DB) GetNewFindings(ctx context.Context, scope string, scanID int64) ([]EventRecord, error) {
+func (db *Storage) GetNewFindings(ctx context.Context, scope string, scanID int64) ([]EventRecord, error) {
 	var previousID int64
-	err := db.conn.QueryRowContext(ctx,
+	err := db.db.QueryRowContext(ctx,
 		"SELECT id FROM scans WHERE scope = ? AND status = 'completed' AND id < ? ORDER BY start_time DESC, id DESC LIMIT 1",
 		scope, scanID).Scan(&previousID)
 	if err == sql.ErrNoRows || previousID == 0 {
@@ -332,7 +379,7 @@ func (db *DB) GetNewFindings(ctx context.Context, scope string, scanID int64) ([
 		LEFT JOIN events e2 ON e2.target = e1.target AND e2.scan_id = ?
 		WHERE e1.scan_id = ? AND e2.target IS NULL
 	`
-	rows, err := db.conn.QueryContext(ctx, query, previousID, scanID)
+	rows, err := db.db.QueryContext(ctx, query, previousID, scanID)
 	if err != nil {
 		return nil, err
 	}
@@ -363,25 +410,25 @@ type Stats struct {
 }
 
 // GetStats computes aggregate statistics from the database.
-func (db *DB) GetStats(ctx context.Context) (Stats, error) {
+func (db *Storage) GetStats(ctx context.Context) (Stats, error) {
 	var stats Stats
 
-	err := db.conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM scans").Scan(&stats.TotalScans)
+	err := db.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM scans").Scan(&stats.TotalScans)
 	if err != nil {
 		return stats, err
 	}
 
-	err = db.conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM targets").Scan(&stats.TotalTargets)
+	err = db.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM targets").Scan(&stats.TotalTargets)
 	if err != nil {
 		return stats, err
 	}
 
-	err = db.conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM events").Scan(&stats.TotalEvents)
+	err = db.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events").Scan(&stats.TotalEvents)
 	if err != nil {
 		return stats, err
 	}
 
-	err = db.conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM insights WHERE priority = 'critical'").Scan(&stats.CriticalVulns)
+	err = db.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM insights WHERE priority = 'critical'").Scan(&stats.CriticalVulns)
 	if err != nil {
 		// insights table might be empty, ignore error and set to 0
 		stats.CriticalVulns = 0

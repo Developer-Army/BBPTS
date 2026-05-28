@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -22,8 +24,103 @@ func (t *HTTPXTool) Name() string {
 	return "httpx"
 }
 
+func isValidTarget(target string) bool {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return false
+	}
+	if strings.ContainsAny(target, " \t\r\n`'\"<>\\") {
+		return false
+	}
+	u, err := url.Parse(target)
+	if err != nil {
+		return false
+	}
+	if u.Scheme != "" {
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return false
+		}
+		if u.Host == "" {
+			return false
+		}
+		return true
+	}
+	host := target
+	if idx := strings.Index(host, "/"); idx != -1 {
+		host = host[:idx]
+	}
+	if host == "" {
+		return false
+	}
+	if strings.HasPrefix(host, ".") || strings.HasSuffix(host, ".") || strings.HasPrefix(host, "-") || strings.HasSuffix(host, "-") {
+		return false
+	}
+	return true
+}
+
+func isParkedOrForSale(title string) bool {
+	title = strings.ToLower(strings.TrimSpace(title))
+	keywords := []string{
+		"domain for sale",
+		"domain is for sale",
+		"buy this domain",
+		"domain parking",
+		"parked domain",
+		"website for sale",
+		"this website is for sale",
+		"domain name is for sale",
+		"domainname for sale",
+		"under construction",
+		"coming soon",
+		"holding page",
+	}
+	for _, kw := range keywords {
+		if strings.Contains(title, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+func extractHost(target string) string {
+	target = strings.TrimSpace(strings.ToLower(target))
+	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+		host := target
+		if idx := strings.Index(host, "/"); idx != -1 {
+			host = host[:idx]
+		}
+		if idx := strings.Index(host, ":"); idx != -1 {
+			host = host[:idx]
+		}
+		return host
+	}
+	u, err := url.Parse(target)
+	if err != nil {
+		return target
+	}
+	host := u.Host
+	if idx := strings.Index(host, ":"); idx != -1 {
+		host = host[:idx]
+	}
+	return host
+}
+
 func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]Event, error) {
 	if len(targets) == 0 {
+		return nil, nil
+	}
+
+	var validTargets []string
+	for _, target := range targets {
+		if !isValidTarget(target) {
+			slog.Warn("Target skipped: invalid url/domain structure", "target", target)
+			continue
+		}
+		validTargets = append(validTargets, target)
+	}
+
+	if len(validTargets) == 0 {
+		slog.Warn("All targets skipped because they are invalid")
 		return nil, nil
 	}
 
@@ -50,8 +147,7 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		args = append(args, "-header", fmt.Sprintf("%s: %s", k, v))
 	}
 
-	// Optimization: Pass targets via stdin instead of arguments to avoid ARG_MAX OS limits
-	input := strings.Join(targets, "\n")
+	input := strings.Join(validTargets, "\n")
 	lines, err := RunCommandWithInputLines(ctx, []byte(input), "httpx", args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such option") || strings.Contains(err.Error(), "invalid option") {
@@ -62,6 +158,8 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 
 	events := []Event{}
 	jsonParsed := 0
+	foundHosts := make(map[string]bool)
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -72,6 +170,12 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 			continue
 		}
 		jsonParsed++
+
+		if isParkedOrForSale(out.Title) {
+			slog.Warn("Target skipped: parked or for sale domain detected", "url", out.URL, "title", out.Title)
+			continue
+		}
+
 		props := map[string]string{
 			"status_code": fmt.Sprintf("%d", out.StatusCode),
 			"title":       out.Title,
@@ -79,10 +183,18 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 			"ip":          out.IP,
 		}
 		events = append(events, NewEvent(out.URL, t.Name(), "service", props))
+		foundHosts[extractHost(out.URL)] = true
 	}
 
 	if jsonParsed == 0 && len(lines) > 0 {
 		return nil, fmt.Errorf("httpx failed to produce JSON output; check if projectdiscovery httpx is installed")
+	}
+
+	for _, target := range validTargets {
+		h := extractHost(target)
+		if !foundHosts[h] {
+			slog.Warn("Target skipped: host returned no active HTTP services", "target", target)
+		}
 	}
 
 	return events, nil

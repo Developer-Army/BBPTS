@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	utls "github.com/refraction-networking/utls"
 )
 
@@ -77,10 +78,17 @@ func NewStealthClientWithPool(profiles []BrowserProfile, proxyURL string) (*Stea
 // buildHTTPClient constructs the HTTP client with TLS fingerprinting.
 func (sc *StealthClient) buildHTTPClient() error {
 	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			pinnedAddr, _, err := security.ResolveAndValidateAddr(ctx, addr)
+			if err != nil {
+				return nil, err
+			}
+			dialer := &net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}
+			return dialer.DialContext(ctx, network, pinnedAddr)
+		},
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
@@ -94,23 +102,29 @@ func (sc *StealthClient) buildHTTPClient() error {
 	// Use uTLS for TLS fingerprinting based on current profile
 	profile := sc.profile
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		tcpConn, err := net.DialTimeout(network, addr, 30*time.Second)
+		pinnedAddr, host, err := security.ResolveAndValidateAddr(ctx, addr)
 		if err != nil {
 			return nil, err
 		}
 
-		// Extract hostname
-		host, _, err := net.SplitHostPort(addr)
+		tcpConn, err := net.DialTimeout(network, pinnedAddr, 30*time.Second)
 		if err != nil {
-			host = addr
+			return nil, err
+		}
+
+		skipVerify := true
+		if val := ctx.Value("insecure"); val != nil {
+			if b, ok := val.(bool); ok {
+				skipVerify = b
+			}
 		}
 
 		uconn := utls.UClient(tcpConn, &utls.Config{
 			ServerName:         host,
-			InsecureSkipVerify: false,
+			InsecureSkipVerify: skipVerify,
 		}, profile.TLSFingerprint.ClientHelloID)
 
-		if err := uconn.Handshake(); err != nil {
+		if err := uconn.HandshakeContext(ctx); err != nil {
 			tcpConn.Close()
 			return nil, fmt.Errorf("TLS handshake failed: %w", err)
 		}
@@ -121,6 +135,16 @@ func (sc *StealthClient) buildHTTPClient() error {
 	sc.httpClient = &http.Client{
 		Transport: transport,
 		Timeout:   30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			san := security.NewSanitizer()
+			if err := san.ValidateURL(req.URL.String()); err != nil {
+				return fmt.Errorf("SSRF validation blocked redirect: %w", err)
+			}
+			return nil
+		},
 	}
 
 	return nil

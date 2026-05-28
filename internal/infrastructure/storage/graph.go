@@ -81,31 +81,30 @@ func (s *Storage) SaveEdge(sourceID, targetID, relation string) error {
 
 // GetGraphPaths recursively queries the graph to discover attack paths up to a specified depth.
 func (s *Storage) GetGraphPaths(rootID string, maxDepth int) ([]AssetEdge, error) {
-	// Recursive queries (CTEs) are supported by both SQLite and PostgreSQL.
 	query := `
-		WITH RECURSIVE paths(source_id, target_id, relation, depth) AS (
-			SELECT source_id, target_id, relation, 1
+		WITH RECURSIVE paths(source_id, target_id, relation, depth, visited) AS (
+			SELECT source_id, target_id, relation, 1, ',' || source_id || ',' || target_id || ','
 			FROM asset_edges
 			WHERE source_id = ?
 			UNION
-			SELECT e.source_id, e.target_id, e.relation, p.depth + 1
+			SELECT e.source_id, e.target_id, e.relation, p.depth + 1, p.visited || e.target_id || ','
 			FROM asset_edges e
 			JOIN paths p ON e.source_id = p.target_id
-			WHERE p.depth < ?
+			WHERE p.depth < ? AND INSTR(p.visited, ',' || e.target_id || ',') = 0
 		)
 		SELECT source_id, target_id, relation FROM paths
 	`
 	if s.dbType == "postgres" {
 		query = `
-			WITH RECURSIVE paths(source_id, target_id, relation, depth) AS (
-				SELECT source_id, target_id, relation, 1
+			WITH RECURSIVE paths(source_id, target_id, relation, depth, visited) AS (
+				SELECT source_id, target_id, relation, 1, ARRAY[source_id, target_id]
 				FROM asset_edges
 				WHERE source_id = $1
 				UNION
-				SELECT e.source_id, e.target_id, e.relation, p.depth + 1
+				SELECT e.source_id, e.target_id, e.relation, p.depth + 1, p.visited || e.target_id
 				FROM asset_edges e
 				JOIN paths p ON e.source_id = p.target_id
-				WHERE p.depth < $2
+				WHERE p.depth < $2 AND NOT (e.target_id = ANY(p.visited))
 			)
 			SELECT source_id, target_id, relation FROM paths
 		`

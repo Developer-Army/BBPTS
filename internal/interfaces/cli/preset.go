@@ -102,17 +102,18 @@ func ToolsetForMode(mode string) string {
 
 func LightModeTools() []string {
 	return []string{
-		"crtsh", "subfinder", "amass", "assetfinder", "findomain", "chaos",
-		"puredns", "dnsx", "whois",
+		"crtsh", "subfinder", "amass", "assetfinder", "chaos",
+		"puredns", "dnsx", "massdns", "whois",
 		"naabu", "httpx", "shodan",
-		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",
-		"uro", "dalfox",
+		"katana", "gau", "hakrawler",
+		"uro", "dalfox", "nuclei", "interactsh", "secrets",
+		"trufflehog", "browser", "js_analyzer", "gowitness", "tlsx", "github",
 	}
 }
 
 func NormalModeTools() []string {
 	return []string{
-		"crtsh", "subfinder", "amass", "assetfinder", "findomain", "chaos",
+		"crtsh", "subfinder", "amass", "assetfinder", "chaos",
 		"puredns", "dnsx", "massdns", "whois",
 		"naabu", "httpx", "shodan",
 		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -110,6 +111,12 @@ type Config struct {
 
 	// DockerImages maps tool names to docker images to use.
 	DockerImages map[string]string
+
+	// MockMode gates mock event injection.
+	MockMode bool
+
+	// InsecureSkipVerify gates TLS check skip
+	InsecureSkipVerify bool
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -277,6 +284,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = WithAutoUpdate(ctx, o.config.AutoUpdate)
 	ctx = WithContainerMode(ctx, o.config.ContainerMode)
 	ctx = WithDockerImages(ctx, o.config.DockerImages)
+	ctx = WithInsecure(ctx, o.config.InsecureSkipVerify)
 
 	if err := o.ensureTmpResultsDir(); err != nil {
 		slog.Warn("failed to initialize tmp results directory", "dir", o.config.TmpResultsDir, "error", err)
@@ -390,7 +398,9 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		}
 	}
 
-	allEvents = injectMockComplianceEvents(initialTargets, o.config.TmpResultsDir, allEvents)
+	if o.config.MockMode {
+		allEvents = injectMockComplianceEvents(initialTargets, o.config.TmpResultsDir, allEvents)
+	}
 
 	if len(allErrs) > 0 {
 		return allEvents, errors.Join(allErrs...)
@@ -1048,8 +1058,29 @@ func prepareTargetsForTool(toolName string, targets []string) []string {
 				nucleiTargets = append(nucleiTargets, target)
 			}
 		}
-		if len(nucleiTargets) > 50 {
-			nucleiTargets = nucleiTargets[:50]
+		// Prioritize targets by heuristic score:
+		// admin, api, upload, debug, login, config, console, setup, vuln
+		priorityScore := func(t string) int {
+			t = strings.ToLower(t)
+			score := 0
+			keywords := []string{"admin", "api", "upload", "debug", "login", "config", "console", "setup", "vulnerable", "vuln"}
+			for _, kw := range keywords {
+				if strings.Contains(t, kw) {
+					score += 10
+				}
+			}
+			if strings.Contains(t, "?") {
+				score += 5
+			}
+			score += strings.Count(t, "/")
+			return score
+		}
+		sort.SliceStable(nucleiTargets, func(i, j int) bool {
+			return priorityScore(nucleiTargets[i]) > priorityScore(nucleiTargets[j])
+		})
+		if len(nucleiTargets) > 200 {
+			slog.Warn("nuclei targets exceeded cap; truncating to 200 priority targets", "original_count", len(nucleiTargets))
+			nucleiTargets = nucleiTargets[:200]
 		}
 		return nucleiTargets
 	}
@@ -1114,14 +1145,14 @@ func (o *Orchestrator) dispatchToWorkerMesh(ctx context.Context, toolName string
 	if timeout <= 0 {
 		timeout = 24 * time.Hour
 	}
-	ticker := time.NewTicker(timeout)
-	defer ticker.Stop()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return events, ctx.Err()
-		case <-ticker.C:
+		case <-timer.C:
 			return events, fmt.Errorf("timeout waiting for worker mesh job %s", jobID)
 		case ev := <-sub:
 			// Tool specific events (e.g., from Nuclei, HTTPX)
@@ -1201,14 +1232,14 @@ func (o *Orchestrator) dispatchStageTaskToWorkerMesh(ctx context.Context, stage 
 	if timeout <= 0 {
 		timeout = 24 * time.Hour
 	}
-	ticker := time.NewTicker(timeout)
-	defer ticker.Stop()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 
 	for pending > 0 {
 		select {
 		case <-ctx.Done():
 			return events, ctx.Err()
-		case <-ticker.C:
+		case <-timer.C:
 			return events, fmt.Errorf("timeout waiting for stage %d completion", stage)
 		case ev := <-eventSub:
 			if ev.Properties["session_id"] != taskSession {
