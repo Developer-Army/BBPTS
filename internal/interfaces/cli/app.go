@@ -20,6 +20,7 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
+	"github.com/Developer-Army/BBPTS/internal/domain/analysis/baseline"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/cluster"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/triage"
 
@@ -556,6 +557,9 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			if err := writeModePipelineArtifacts("results", normalized, events); err != nil {
 				slog.Warn("failed to write mode pipeline artifacts", "error", err)
 			}
+			if err := writeModePipelineArtifacts("output", normalized, events); err != nil {
+				slog.Warn("failed to write output mode pipeline artifacts", "error", err)
+			}
 		}
 		if bridge != nil {
 			bridge.ReportToolStatus("engine", "done", "recon pipeline complete")
@@ -616,7 +620,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	}
 
 	// --- Final Intelligence & Reporting ---
-	events = handleIntelligence(runCtx, opts, events, matches, triggeredTools, reconThreads, bridge)
+	events = handleIntelligence(runCtx, opts, cfg, events, matches, triggeredTools, reconThreads, bridge)
 	handleReporting(runCtx, opts, cfg, normalized, events, matches, bridge)
 
 	// If dashboard is enabled and not in cron mode, wait for it
@@ -913,7 +917,7 @@ func handlePersistence(opts Options, cfg *config.Config, normalized []string, ev
 	return diff, nil
 }
 
-func handleIntelligence(ctx context.Context, opts Options, events []recon.Event, matches []recon.Match, triggeredTools []string, threads int, bridge *tui.Bridge) []recon.Event {
+func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, events []recon.Event, matches []recon.Match, triggeredTools []string, threads int, bridge *tui.Bridge) []recon.Event {
 	slog.Info("Running Advanced Offensive Intelligence Engine")
 
 	te := triage.NewTriageEngine()
@@ -970,12 +974,64 @@ func handleIntelligence(ctx context.Context, opts Options, events []recon.Event,
 
 	if len(triggeredTools) > 0 {
 		slog.Info("recon triggered additional tools", "count", len(triggeredTools), "tools", triggeredTools)
+		// Extract targets from triagedEvents
+		var triagedTargets []string
+		seenTargets := make(map[string]struct{})
+		for _, ev := range triagedEvents {
+			if _, ok := seenTargets[ev.Target]; !ok {
+				seenTargets[ev.Target] = struct{}{}
+				triagedTargets = append(triagedTargets, ev.Target)
+			}
+		}
+
+		if len(triagedTargets) > 0 {
+			reconConfig := services.Config{
+				ToolNames:    triggeredTools,
+				Threads:      threads,
+				RateLimit:    opts.RateLimit,
+				Proxies:      cfg.Proxies,
+				APIKeys:      cfg.APIKeys,
+				WordlistsDir: cfg.WordlistsDir,
+			}
+			orchestrator := services.NewOrchestrator(reconConfig)
+			if orchestrator != nil {
+				defer orchestrator.Close()
+				slog.Info("Running triggered tools on triaged targets...", "tools", triggeredTools, "targets", len(triagedTargets))
+				triggeredEvents, err := orchestrator.Run(ctx, triagedTargets)
+				if err != nil {
+					slog.Warn("triggered tools run failed", "error", err)
+				} else if len(triggeredEvents) > 0 {
+					slog.Info("triggered tools completed successfully", "new_events", len(triggeredEvents))
+					triagedEvents = append(triagedEvents, convertServicesEventsToRecon(triggeredEvents)...)
+				}
+			}
+		}
 	}
 
 	return triagedEvents
 }
 
 func handleReporting(ctx context.Context, opts Options, cfg *config.Config, normalized []string, events []recon.Event, matches []recon.Match, bridge *tui.Bridge) {
+	// Wire BaselineStore for continuous monitoring
+	scope := opts.Scope
+	if scope == "" {
+		scope = "default_run"
+	}
+	if bs, err := baseline.NewBaselineStore(cfg.StateDir, scope); err == nil {
+		newCount := 0
+		for _, ev := range events {
+			isNew, _, _ := bs.AddFinding(ev.Source, ev.Type, ev.Target)
+			if isNew {
+				newCount++
+			}
+		}
+		slog.Info("Baseline analysis complete", "total_events", len(events), "new_events", newCount)
+		_ = bs.SaveSessionDiff()
+		_ = bs.Close()
+	} else {
+		slog.Warn("Failed to initialize baseline store", "error", err)
+	}
+
 	insights := analyze.DeriveInsights(normalized, events)
 
 	// Inject rule tags into insights
@@ -1114,6 +1170,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 
 	gen := ui.NewReportGenerator(ui.ReportConfig{
 		OutputPath:   reportDir,
+		MarkdownPath: opts.OutputPath,
 		IncludeHTML:  true,
 		IncludeJSON:  true,
 		IncludeBurp:  true,
@@ -1124,6 +1181,26 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 	})
 	if err := gen.GenerateFullReport(insights, events); err != nil {
 		slog.Warn("failed to generate detailed report bundle", "dir", reportDir, "error", err)
+	}
+
+	// Also generate in output directory
+	outputDir := "output"
+	if err := os.MkdirAll(outputDir, 0700); err != nil {
+		slog.Warn("failed to ensure output directory", "dir", outputDir, "error", err)
+	} else {
+		genOutput := ui.NewReportGenerator(ui.ReportConfig{
+			OutputPath:   outputDir,
+			IncludeHTML:  true,
+			IncludeJSON:  true,
+			IncludeBurp:  true,
+			IncludeCaido: true,
+			IncludeZAP:   true,
+			MinimumScore: 0,
+			TemplatePath: templatePath,
+		})
+		if err := genOutput.GenerateFullReport(insights, events); err != nil {
+			slog.Warn("failed to generate output report bundle", "dir", outputDir, "error", err)
+		}
 	}
 
 	if globalReportDir != "" {
