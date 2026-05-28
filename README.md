@@ -22,7 +22,7 @@ BBPTS runs **25+ recon tools** automatically, in the right order, and gives you 
 | --------------------------------- | ------------------------------------------- |
 | Running tools one by one          | Runs 25+ tools in parallel, automatically   |
 | Forgetting which tools to run     | Pre-built scan modes (light / full)         |
-| Messy output from different tools | Unified reports (HTML, CSV, JSON, Burp XML) |
+| Messy output from different tools | Unified reports (HTML, JSON, Burp/ZAP/Caido XML) |
 | No idea what to test first        | Scores and ranks findings by risk           |
 | Alerts for critical stuff         | Discord / Slack / Telegram notifications    |
 
