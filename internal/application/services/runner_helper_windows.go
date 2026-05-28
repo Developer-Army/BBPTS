@@ -22,15 +22,14 @@ func prepareCommand(ctx context.Context, name string, args ...string) commandHan
 	localBin := filepath.Join(home, ".local", "bin")
 	currentPath := os.Getenv("PATH")
 
-	// Create prioritized PATH using os.PathListSeparator
-	pathsList := []string{goBin, localBin}
-
-	// Add Go standard install path on Windows
+	// Standard/System PATHs first to prevent command shadowing/hijacking
+	var pathsList []string
 	goCommonBin := `C:\Program Files\Go\bin`
 	pathsList = append(pathsList, goCommonBin)
-
-	// Append current PATH
 	pathsList = append(pathsList, filepath.SplitList(currentPath)...)
+
+	// User-writable paths last
+	pathsList = append(pathsList, goBin, localBin)
 
 	newPath := strings.Join(pathsList, string(os.PathListSeparator))
 

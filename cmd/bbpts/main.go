@@ -30,14 +30,6 @@ var (
 )
 
 func main() {
-	// Prepend $HOME/go/bin and $HOME/.local/bin to PATH so target tools are found
-	if home, err := os.UserHomeDir(); err == nil {
-		path := os.Getenv("PATH")
-		goBin := filepath.Join(home, "go", "bin")
-		localBin := filepath.Join(home, ".local", "bin")
-		os.Setenv("PATH", goBin+string(os.PathListSeparator)+localBin+string(os.PathListSeparator)+path)
-	}
-
 	utils.InitializeResourceGuard()
 	opts := parseFlags()
 

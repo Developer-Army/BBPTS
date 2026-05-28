@@ -23,6 +23,7 @@
     "api": "api-endpoints.txt"
   },
   "threads": 32,
+  "insecure_skip_verify": false,
   "notify": {
     "telegram_bot_token": "",
     "telegram_chat_id": "",

@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
+
+	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
 func TestNewAPI(t *testing.T) {
@@ -300,5 +304,220 @@ func TestRespondWithErrorDifferentCodes(t *testing.T) {
 		if w.Code != code {
 			t.Errorf("Expected status %d, got %d", code, w.Code)
 		}
+	}
+}
+
+func TestHistoricalAPI(t *testing.T) {
+	api := NewAPI(nil, "", "")
+
+	// Test GetRiskHistory
+	{
+		req := httptest.NewRequest("GET", "/api/history/risk?host=test.com", nil)
+		w := httptest.NewRecorder()
+		api.GetRiskHistory(w, req)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500 for GetRiskHistory, got %d", w.Code)
+		}
+	}
+
+	// Test GetTechTrend
+	{
+		req := httptest.NewRequest("GET", "/api/history/tech?scope=default", nil)
+		w := httptest.NewRecorder()
+		api.GetTechTrend(w, req)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500 for GetTechTrend, got %d", w.Code)
+		}
+	}
+
+	// Test GetOwnershipHistory missing parameter
+	{
+		req := httptest.NewRequest("GET", "/api/history/ownership", nil)
+		w := httptest.NewRecorder()
+		api.GetOwnershipHistory(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for GetOwnershipHistory with missing parameter, got %d", w.Code)
+		}
+	}
+
+	// Test GetOwnershipHistory
+	{
+		req := httptest.NewRequest("GET", "/api/history/ownership?asset_id=test", nil)
+		w := httptest.NewRecorder()
+		api.GetOwnershipHistory(w, req)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500 for GetOwnershipHistory, got %d", w.Code)
+		}
+	}
+
+	// Test GetAssetHistory missing parameter
+	{
+		req := httptest.NewRequest("GET", "/api/history/asset", nil)
+		w := httptest.NewRecorder()
+		api.GetAssetHistory(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for GetAssetHistory with missing parameter, got %d", w.Code)
+		}
+	}
+
+	// Test GetAssetHistory
+	{
+		req := httptest.NewRequest("GET", "/api/history/asset?host=test.com", nil)
+		w := httptest.NewRecorder()
+		api.GetAssetHistory(w, req)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500 for GetAssetHistory, got %d", w.Code)
+		}
+	}
+
+	// Test GetFindingHistory missing parameter
+	{
+		req := httptest.NewRequest("GET", "/api/history/finding", nil)
+		w := httptest.NewRecorder()
+		api.GetFindingHistory(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for GetFindingHistory with missing parameter, got %d", w.Code)
+		}
+	}
+
+	// Test GetFindingHistory
+	{
+		req := httptest.NewRequest("GET", "/api/history/finding?target=test", nil)
+		w := httptest.NewRecorder()
+		api.GetFindingHistory(w, req)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500 for GetFindingHistory, got %d", w.Code)
+		}
+	}
+}
+
+func TestConfigRedaction(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "bbpts-config-test-*.json")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	testConfig := `{
+		"api_keys": {
+			"shodan": "secret-shodan-key",
+			"github": "secret-github-key"
+		},
+		"dashboard_token": "secret-token",
+		"fleet": {
+			"sync_token": "secret-sync-token"
+		},
+		"notify": {
+			"slack_webhook": "https://hooks.slack.com/services/123/456"
+		}
+	}`
+	if _, err := tmpFile.Write([]byte(testConfig)); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+	tmpFile.Close()
+
+	api := NewAPI(nil, tmpFile.Name(), "")
+	req := httptest.NewRequest("GET", "/api/config", nil)
+	w := httptest.NewRecorder()
+
+	api.GetConfig(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var res map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("Failed to parse body: %v", err)
+	}
+
+	apiKeys, ok := res["api_keys"].(map[string]interface{})
+	if !ok {
+		t.Fatal("api_keys missing or invalid in response")
+	}
+	if apiKeys["shodan"] != "●●●●●●●●" {
+		t.Errorf("Expected shodan key to be redacted, got %v", apiKeys["shodan"])
+	}
+	if apiKeys["github"] != "●●●●●●●●" {
+		t.Errorf("Expected github key to be redacted, got %v", apiKeys["github"])
+	}
+
+	if res["dashboard_token"] != "●●●●●●●●" {
+		t.Errorf("Expected dashboard_token to be redacted, got %v", res["dashboard_token"])
+	}
+
+	fleet, ok := res["fleet"].(map[string]interface{})
+	if !ok {
+		t.Fatal("fleet missing or invalid in response")
+	}
+	if fleet["sync_token"] != "●●●●●●●●" {
+		t.Errorf("Expected sync_token to be redacted, got %v", fleet["sync_token"])
+	}
+
+	notify, ok := res["notify"].(map[string]interface{})
+	if !ok {
+		t.Fatal("notify missing or invalid in response")
+	}
+	if notify["slack_webhook"] != "●●●●●●●●" {
+		t.Errorf("Expected slack_webhook to be redacted, got %v", notify["slack_webhook"])
+	}
+}
+
+func TestConfigUpdateSecrets(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "bbpts-config-test-*.json")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	testConfig := `{
+		"api_keys": {
+			"shodan": "secret-shodan-key",
+			"github": "secret-github-key"
+		},
+		"dashboard_token": "secret-token",
+		"fleet": {
+			"sync_token": "secret-sync-token"
+		}
+	}`
+	if _, err := tmpFile.Write([]byte(testConfig)); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+	tmpFile.Close()
+
+	api := NewAPI(nil, tmpFile.Name(), "")
+
+	updatePayload := `{
+		"api_keys": {
+			"shodan": "●●●●●●●●",
+			"github": "new-github-key"
+		},
+		"fleet": {
+			"sync_token": "●●●●●●●●"
+		}
+	}`
+
+	req := httptest.NewRequest("POST", "/api/config", strings.NewReader(updatePayload))
+	w := httptest.NewRecorder()
+
+	api.UpdateConfig(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	cfgFile, err := config.LoadFromFile(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("failed to reload config: %v", err)
+	}
+
+	if cfgFile.APIKeys["shodan"] != "secret-shodan-key" {
+		t.Errorf("Expected shodan key to be preserved, got %s", cfgFile.APIKeys["shodan"])
+	}
+	if cfgFile.APIKeys["github"] != "new-github-key" {
+		t.Errorf("Expected github key to be updated, got %s", cfgFile.APIKeys["github"])
+	}
+	if cfgFile.Fleet.SyncToken != "secret-sync-token" {
+		t.Errorf("Expected fleet sync token to be preserved, got %s", cfgFile.Fleet.SyncToken)
 	}
 }

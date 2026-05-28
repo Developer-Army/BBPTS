@@ -1,8 +1,25 @@
 package security
 
 import (
+	"context"
+	"net"
+	"os"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	oldLookupIP := lookupIP
+	lookupIP = func(ctx context.Context, host string) ([]net.IP, error) {
+		if host == "acme-corp.io" {
+			return []net.IP{net.ParseIP("8.8.8.8")}, nil
+		}
+		return oldLookupIP(ctx, host)
+	}
+
+	code := m.Run()
+	lookupIP = oldLookupIP
+	os.Exit(code)
+}
 
 func TestNewSanitizer(t *testing.T) {
 	s := NewSanitizer()

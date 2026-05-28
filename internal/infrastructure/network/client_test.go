@@ -1,6 +1,7 @@
 package network
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -56,5 +57,41 @@ func TestStealthClientInjectsCustomHeaders(t *testing.T) {
 	}
 	if receivedHeaders.Get("User-Agent") != "TestUA" {
 		t.Errorf("expected User-Agent to be 'TestUA', got '%s'", receivedHeaders.Get("User-Agent"))
+	}
+}
+
+func TestStealthClientPostSendsBody(t *testing.T) {
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		receivedBody, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("failed to read body: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	profile := BrowserProfile{
+		Name:      "TestProfile",
+		UserAgent: "TestUA",
+	}
+
+	client, err := NewStealthClient(profile, "")
+	if err != nil {
+		t.Fatalf("failed to create stealth client: %v", err)
+	}
+	defer client.Close()
+
+	testBody := []byte("hello-world-stealth-post")
+	resp, err := client.Post(server.URL, "text/plain", testBody)
+	if err != nil {
+		t.Fatalf("POST request failed: %v", err)
+	}
+	resp.Body.Close()
+
+	if string(receivedBody) != string(testBody) {
+		t.Errorf("expected body '%s', got '%s'", string(testBody), string(receivedBody))
 	}
 }

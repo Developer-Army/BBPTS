@@ -1,9 +1,11 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand"
 	"net"
@@ -112,7 +114,7 @@ func (sc *StealthClient) buildHTTPClient() error {
 			return nil, err
 		}
 
-		skipVerify := true
+		skipVerify := false
 		if val := ctx.Value("insecure"); val != nil {
 			if b, ok := val.(bool); ok {
 				skipVerify = b
@@ -187,17 +189,18 @@ func (sc *StealthClient) Get(url string) (*http.Response, error) {
 
 // Post performs a POST request with stealth.
 func (sc *StealthClient) Post(url string, contentType string, body []byte) (*http.Response, error) {
-	req, err := http.NewRequest("POST", url, nil)
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	req, err := http.NewRequest("POST", url, bodyReader)
 	if err != nil {
 		return nil, err
 	}
 
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
-	}
-
-	if body != nil {
-		req.Body = nil // Would need to set up a reader
 	}
 
 	return sc.Do(req)

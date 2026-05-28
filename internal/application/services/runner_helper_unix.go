@@ -16,25 +16,70 @@ import (
 
 type commandHandle = *exec.Cmd
 
-func prepareCommand(ctx context.Context, name string, args ...string) commandHandle {
-	home, _ := os.UserHomeDir()
-	goBin := filepath.Join(home, "go", "bin")
-	localBin := filepath.Join(home, ".local", "bin")
-	currentPath := os.Getenv("PATH")
+var allowedBinaries = map[string]bool{
+	"dnsx":         true,
+	"nuclei":       true,
+	"subfinder":    true,
+	"httpx":        true,
+	"naabu":        true,
+	"dalfox":       true,
+	"amass":        true,
+	"assetfinder":  true,
+	"crtsh":        true,
+	"ffuf":         true,
+	"gau":          true,
+	"gobuster":     true,
+	"gowitness":    true,
+	"hakrawler":    true,
+	"interactsh":   true,
+	"katana":       true,
+	"massdns":      true,
+	"puredns":      true,
+	"shodan":       true,
+	"trufflehog":   true,
+	"uro":          true,
+	"wafw00f":      true,
+	"whois":        true,
+	"axiom-fleet":  true,
+	"axiom-scan":   true,
+	"axiom-ls":     true,
+	"docker":       true,
+	"podman":       true,
+	"runsc":        true,
+	"sysctl":       true,
+	"wmic":         true,
+	"taskkill":     true,
+	"dig":          true,
+	"nslookup":     true,
+}
 
-	// Create prioritized PATH
-	newPath := fmt.Sprintf("%s:%s:/usr/local/go/bin:%s", goBin, localBin, currentPath)
+func prepareCommand(ctx context.Context, name string, args ...string) commandHandle {
+	if !allowedBinaries[name] && name != os.Args[0] {
+		binaryPath := "/invalid/path/forbidden/" + name
+		cmd := exec.CommandContext(ctx, binaryPath, args...)
+		return cmd
+	}
+
+	// Create prioritized PATH (placing system directories first to prevent hijacking/shadowing)
+	systemPaths := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin"
 
 	// Manually resolve the path to ensure we pick up the correct version
-	// (e.g., go/bin/httpx vs .local/bin/httpx)
-	binaryPath := name
-	paths := filepath.SplitList(newPath)
-	for _, p := range paths {
-		fullPath := filepath.Join(p, name)
-		if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
-			binaryPath = fullPath
-			break
+	binaryPath := ""
+	if name == os.Args[0] {
+		binaryPath = name
+	} else {
+		paths := filepath.SplitList(systemPaths)
+		for _, p := range paths {
+			fullPath := filepath.Join(p, name)
+			if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
+				binaryPath = fullPath
+				break
+			}
 		}
+	}
+
+	if binaryPath == "" {
+		binaryPath = "/invalid/path/notfound/" + name
 	}
 
 	// Calculate safe CPU cores for sub-tools: 90% of total cores
@@ -114,7 +159,7 @@ func prepareCommand(ctx context.Context, name string, args ...string) commandHan
 	cmd := exec.CommandContext(ctx, binaryPath, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = append(os.Environ(),
-		"PATH="+newPath,
+		"PATH="+systemPaths,
 		"GOMEMLIMIT=2GiB",
 		fmt.Sprintf("GOMAXPROCS=%d", safeCPUs),
 	)

@@ -15,6 +15,11 @@ import (
 	"unicode"
 )
 
+var lookupIP = func(ctx context.Context, host string) ([]net.IP, error) {
+	var resolver net.Resolver
+	return resolver.LookupIP(ctx, "ip", host)
+}
+
 // Sanitizer provides input validation and sanitization for security.
 type Sanitizer struct {
 	// Allowed patterns for different input types
@@ -251,8 +256,9 @@ func ParseMixedNotationIP(host string) (net.IP, bool) {
 	return nil, false
 }
 
-// ValidateResolvedIP pre-resolves a host and checks all its IPs for SSRF protection.
-func (s *Sanitizer) ValidateResolvedIP(host string) error {
+// ValidateResolvedIPEx pre-resolves a host and checks all its IPs for SSRF protection.
+// If strict is true, it fails closed on DNS/resolution failures.
+func (s *Sanitizer) ValidateResolvedIPEx(host string, strict bool) error {
 	host = strings.TrimSpace(host)
 	if host == "" {
 		return fmt.Errorf("host cannot be empty")
@@ -298,16 +304,8 @@ func (s *Sanitizer) ValidateResolvedIP(host string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	var resolver net.Resolver
-	ips, err := resolver.LookupIP(ctx, "ip", host)
+	ips, err := lookupIP(ctx, host)
 	if err != nil {
-		if dnsErr, ok := err.(*net.DNSError); ok && dnsErr.IsNotFound {
-			return nil
-		}
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "no such host") || strings.Contains(errMsg, "server misbehaving") || strings.Contains(errMsg, "i/o timeout") || strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "temporary failure") {
-			return nil
-		}
 		return fmt.Errorf("failed to resolve host %s: %w", host, err)
 	}
 	if len(ips) == 0 {
@@ -328,6 +326,15 @@ func (s *Sanitizer) ValidateResolvedIP(host string) error {
 	return nil
 }
 
+// ValidateResolvedIP pre-resolves a host and checks all its IPs for SSRF protection.
+func (s *Sanitizer) ValidateResolvedIP(host string) error {
+	return s.ValidateResolvedIPEx(host, true)
+}
+
+// ValidateResolvedIPStrict pre-resolves a host strictly and fails closed on resolution errors.
+func (s *Sanitizer) ValidateResolvedIPStrict(host string) error {
+	return s.ValidateResolvedIPEx(host, true)
+}
 
 // ValidateURL validates a URL for security.
 func (s *Sanitizer) ValidateURL(urlStr string) error {
@@ -353,6 +360,36 @@ func (s *Sanitizer) ValidateURL(urlStr string) error {
 	host := parsed.Hostname()
 	if err := s.ValidateResolvedIP(host); err != nil {
 		slog.Warn("SSRF check blocked URL", "url", urlStr, "error", err)
+		return fmt.Errorf("URL points to internal address: %s", urlStr)
+	}
+
+	return nil
+}
+
+// ValidateURLStrict validates a URL strictly for active fetches.
+func (s *Sanitizer) ValidateURLStrict(urlStr string) error {
+	if urlStr == "" {
+		return fmt.Errorf("URL cannot be empty")
+	}
+
+	// Check for shell metacharacters
+	if containsShellMetacharactersForURL(urlStr) {
+		return fmt.Errorf("URL contains invalid characters: %s", urlStr)
+	}
+
+	// Basic URL validation
+	if !s.urlPattern.MatchString(urlStr) {
+		return fmt.Errorf("invalid URL format: %s", urlStr)
+	}
+
+	parsed, err := url.Parse(urlStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	host := parsed.Hostname()
+	if err := s.ValidateResolvedIPStrict(host); err != nil {
+		slog.Warn("Strict SSRF check blocked URL", "url", urlStr, "error", err)
 		return fmt.Errorf("URL points to internal address: %s", urlStr)
 	}
 
@@ -502,32 +539,43 @@ func ResolveAndValidateAddr(ctx context.Context, addr string) (string, string, e
 		return "", "", err
 	}
 
-	s := NewSanitizer()
-	if err := s.ValidateResolvedIP(host); err != nil {
-		return "", "", err
-	}
-
+	var isIP bool
+	var ipParsed net.IP
 	if ip := net.ParseIP(host); ip != nil {
-		return addr, host, nil
-	}
-	if ip, ok := ParseMixedNotationIP(host); ok {
-		return net.JoinHostPort(ip.String(), port), host, nil
+		isIP = true
+		ipParsed = ip
+	} else if ip, ok := ParseMixedNotationIP(host); ok {
+		isIP = true
+		ipParsed = ip
 	}
 
-	var resolver net.Resolver
-	ips, err := resolver.LookupIP(ctx, "ip", host)
+	if isIP {
+		if addrVal, err := netip.ParseAddr(ipParsed.String()); err == nil {
+			if IsPrivateAddr(addrVal) {
+				return "", "", fmt.Errorf("IP address is private/local: %s", addrVal.String())
+			}
+		} else if IsPrivateIP(ipParsed) {
+			return "", "", fmt.Errorf("IP address is private/local: %s", ipParsed.String())
+		}
+		return net.JoinHostPort(ipParsed.String(), port), host, nil
+	}
+
+	ips, err := lookupIP(ctx, host)
 	if err != nil {
-		if dnsErr, ok := err.(*net.DNSError); ok && dnsErr.IsNotFound {
-			return addr, host, nil
-		}
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "no such host") || strings.Contains(errMsg, "server misbehaving") || strings.Contains(errMsg, "i/o timeout") || strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "temporary failure") {
-			return addr, host, nil
-		}
-		return "", "", err
+		return "", "", fmt.Errorf("DNS resolution failed for %s: %w", host, err)
 	}
 	if len(ips) == 0 {
 		return "", "", fmt.Errorf("no IP address found for %s", host)
+	}
+
+	for _, ip := range ips {
+		if addrVal, err := netip.ParseAddr(ip.String()); err == nil {
+			if IsPrivateAddr(addrVal) {
+				return "", "", fmt.Errorf("host %s resolves to private IP %s", host, addrVal.String())
+			}
+		} else if IsPrivateIP(ip) {
+			return "", "", fmt.Errorf("host %s resolves to private IP %s", host, ip.String())
+		}
 	}
 
 	pinnedAddr := net.JoinHostPort(ips[0].String(), port)

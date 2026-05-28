@@ -6,11 +6,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"embed"
 	"fmt"
 	"io"
 	"log/slog"
 	"math/big"
+	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +21,9 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
+
+//go:embed static/*
+var staticFS embed.FS
 
 // Config holds the web server configuration.
 type Config struct {
@@ -91,6 +97,8 @@ func generateSelfSignedCert() (tls.Certificate, error) {
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
+		DNSNames:              []string{"localhost"},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
@@ -115,8 +123,8 @@ func generateRandomToken() string {
 
 func authMiddleware(configPath string, generatedToken string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Bypass token verification for fleet sync since it has its own X-Sync-Token verification
-		if r.URL.Path == "/api/fleet/sync" {
+		// Allow static assets, main UI page, and auth/sync endpoints to bypass token validation
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" || strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/api/auth" || r.URL.Path == "/api/fleet/sync" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -135,19 +143,21 @@ func authMiddleware(configPath string, generatedToken string, next http.Handler)
 			return
 		}
 
-		// Check query parameter and header
-		receivedToken := r.URL.Query().Get("token")
+		// Check auth tokens in preference order: Bearer -> X-Dashboard-Token -> Cookie
+		var receivedToken string
+		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+			receivedToken = strings.TrimPrefix(authHeader, "Bearer ")
+		}
 		if receivedToken == "" {
 			receivedToken = r.Header.Get("X-Dashboard-Token")
 		}
+		if receivedToken == "" {
+			if cookie, err := r.Cookie("bbpts_session"); err == nil {
+				receivedToken = cookie.Value
+			}
+		}
 
 		if receivedToken != expectedToken {
-			if r.URL.Path == "/" || !strings.HasPrefix(r.URL.Path, "/api/") {
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusUnauthorized)
-				w.Write([]byte(`<h2>Unauthorized: Access Token Required</h2><p>Please launch with <code>?token=YOUR_TOKEN</code> in URL.</p>`))
-				return
-			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error": "unauthorized: invalid dashboard token"}`))
@@ -164,17 +174,44 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 		return fmt.Errorf("database client is required")
 	}
 
+	// Load token or generate on startup
+	var generatedToken string
+	cfgFile, err := config.LoadFromFile(configPath)
+	if err == nil && cfgFile.DashboardToken != "" {
+		slog.Info("dashboard server: using token from config")
+	} else {
+		generatedToken = generateRandomToken()
+		slog.Info("==========================================================")
+		slog.Info("DASHBOARD SECURITY TOKEN GENERATED:")
+		slog.Info("Token saved to local .bbpts_token file (0600 permissions).")
+		slog.Info("URL:   http://127.0.0.1:" + fmt.Sprintf("%d", cfg.Port) + "/")
+		slog.Info("==========================================================")
+		if wErr := os.WriteFile(".bbpts_token", []byte(generatedToken), 0600); wErr != nil {
+			slog.Error("failed to write generated token to .bbpts_token", "error", wErr)
+		}
+	}
+
 	api := NewAPI(db, configPath, masterDBPath)
+	api.SetGeneratedToken(generatedToken)
 
 	mux := http.NewServeMux()
 
+	// Static Assets
+	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
+
 	// API Routes
+	mux.HandleFunc("/api/auth", api.Authenticate)
 	mux.HandleFunc("/api/stats", api.GetStats)
 	mux.HandleFunc("/api/scans", api.GetScans)
 	mux.HandleFunc("/api/events", api.GetEvents)
 	mux.HandleFunc("/api/config", api.HandleConfig)
 	mux.HandleFunc("/api/logs/stream", api.StreamLogs)
 	mux.HandleFunc("/api/fleet/sync", api.HandleFleetSync)
+	mux.HandleFunc("/api/history/risk", api.GetRiskHistory)
+	mux.HandleFunc("/api/history/tech", api.GetTechTrend)
+	mux.HandleFunc("/api/history/ownership", api.GetOwnershipHistory)
+	mux.HandleFunc("/api/history/asset", api.GetAssetHistory)
+	mux.HandleFunc("/api/history/finding", api.GetFindingHistory)
 
 	// Static Frontend (Embedded or simply served from a string for now)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -188,26 +225,12 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 		}
 	})
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
-
-	// Load token or generate on startup
-	var generatedToken string
-	cfgFile, err := config.LoadFromFile(configPath)
-	if err == nil && cfgFile.DashboardToken != "" {
-		slog.Info("dashboard server: using token from config")
-	} else {
-		generatedToken = generateRandomToken()
-		slog.Info("==========================================================")
-		slog.Info("DASHBOARD SECURITY TOKEN GENERATED:")
-		slog.Info("Token: " + generatedToken)
-		slog.Info("URL:   http://localhost:" + fmt.Sprintf("%d", cfg.Port) + "/?token=" + generatedToken)
-		slog.Info("==========================================================")
-	}
+	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
 
 	handler := authMiddleware(configPath, generatedToken, mux)
 
 	if cfg.TLSEnabled {
-		slog.Info("dashboard server starting with TLS", "addr", "https://localhost"+addr)
+		slog.Info("dashboard server starting with TLS", "addr", "https://"+addr)
 		if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
 			return http.ListenAndServeTLS(addr, cfg.TLSCertFile, cfg.TLSKeyFile, handler)
 		}
@@ -227,7 +250,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 		return server.ListenAndServeTLS("", "")
 	}
 
-	slog.Info("dashboard server starting", "addr", "http://localhost"+addr)
+	slog.Info("dashboard server starting", "addr", "http://"+addr)
 	return http.ListenAndServe(addr, handler)
 }
 
@@ -239,11 +262,11 @@ const DashboardHTML = `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BBPTS | Mission Control</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- tailwindcss self-hosted -->
+    <script src="/static/tailwind.js"></script>
+    <script src="/static/chart.js"></script>
     <style>
-        body { font-family: 'Outfit', sans-serif; background-color: #0b0e14; color: #f8fafc; margin: 0; overflow-x: hidden; }
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: #0b0e14; color: #f8fafc; margin: 0; overflow-x: hidden; }
         .glass { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
         .accent-purple { color: #bd93f9; }
         .bg-accent-purple { background-color: #bd93f9; }
@@ -487,8 +510,51 @@ const DashboardHTML = `
         </div>
     </div>
 
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden">
+        <div class="glass p-8 rounded-2xl w-full max-w-md border border-slate-800 text-center animate-fade-in">
+            <h1 class="text-2xl font-bold tracking-tighter mb-2"><span class="accent-purple">BBPTS</span><span class="text-slate-500 font-light">.io</span></h1>
+            <p class="text-slate-400 text-xs uppercase tracking-wider mb-6">Mission Control Access</p>
+            <input type="password" id="login-token" placeholder="Security Token" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none mb-4 text-center">
+            <button onclick="submitLogin()" class="w-full bg-purple-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-purple-700 transition-colors">Authenticate</button>
+            <p id="login-error" class="text-rose-500 text-xs mt-3 hidden"></p>
+        </div>
+    </div>
+
     <script>
-        const token = new URLSearchParams(window.location.search).get('token') || '';
+        async function fetchAPI(url, options = {}) {
+            const response = await fetch(url, options);
+            if (response.status === 401) {
+                document.getElementById('login-modal').classList.remove('hidden');
+                throw new Error('Unauthorized');
+            }
+            return response;
+        }
+
+        async function submitLogin() {
+            const tokenVal = document.getElementById('login-token').value;
+            const errEl = document.getElementById('login-error');
+            errEl.classList.add('hidden');
+            try {
+                const response = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: tokenVal })
+                });
+                if (response.ok) {
+                    document.getElementById('login-modal').classList.add('hidden');
+                    refreshData();
+                    startLogStream();
+                } else {
+                    const data = await response.json();
+                    errEl.innerText = data.error || 'Authentication failed';
+                    errEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                errEl.innerText = 'Network error: ' + e.message;
+                errEl.classList.remove('hidden');
+            }
+        }
 
         function switchTab(tabId) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('panel-active'));
@@ -510,8 +576,8 @@ const DashboardHTML = `
         async function refreshData() {
             try {
                 const [statsResp, scansResp] = await Promise.all([
-                    fetch('/api/stats' + (token ? '?token=' + token : '')),
-                    fetch('/api/scans' + (token ? '?token=' + token : ''))
+                    fetchAPI('/api/stats'),
+                    fetchAPI('/api/scans')
                 ]);
                 
                 const stats = await statsResp.json();
@@ -565,10 +631,14 @@ const DashboardHTML = `
         }
 
         // --- Log Streaming ---
+        let eventSource = null;
         function startLogStream() {
+            if (eventSource) {
+                eventSource.close();
+            }
             const statusIndicator = document.getElementById('log-status');
             const terminal = document.getElementById('log-terminal');
-            const eventSource = new EventSource('/api/logs/stream' + (token ? '?token=' + token : ''));
+            eventSource = new EventSource('/api/logs/stream');
 
             eventSource.onopen = () => {
                 statusIndicator.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400';
@@ -600,9 +670,7 @@ const DashboardHTML = `
 
         async function loadConfig() {
             try {
-                const response = await fetch('/api/config' + (token ? '?token=' + token : ''));
-                if (!response.ok) throw new Error('Failed to load config');
-                
+                const response = await fetchAPI('/api/config');
                 const cfg = await response.json();
                 currentRawConfig = cfg;
 
@@ -644,7 +712,7 @@ const DashboardHTML = `
                     apiKeysContainer.appendChild(div);
                 });
             } catch (e) {
-                alert('Error loading configuration: ' + e.message);
+                console.error('Error loading configuration: ', e);
             }
         }
 
@@ -675,7 +743,7 @@ const DashboardHTML = `
             });
 
             try {
-                const response = await fetch('/api/config' + (token ? '?token=' + token : ''), {
+                const response = await fetchAPI('/api/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(currentRawConfig)
@@ -693,8 +761,11 @@ const DashboardHTML = `
         }
 
         window.onload = () => {
-            refreshData();
-            startLogStream();
+            refreshData().then(() => {
+                startLogStream();
+            }).catch(() => {
+                // Ignore initial load failure if unauthorized, modal will cover it
+            });
         };
         setInterval(refreshData, 10000);
     </script>

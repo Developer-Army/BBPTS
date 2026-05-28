@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
@@ -18,14 +20,20 @@ import (
 
 // API wraps the database and provides HTTP handlers.
 type API struct {
-	db           *storage.DB
-	configPath   string
-	masterDBPath string
+	db             *storage.DB
+	configPath     string
+	masterDBPath   string
+	generatedToken string
 }
 
 // NewAPI creates a new API instance.
 func NewAPI(db *storage.DB, configPath, masterDBPath string) *API {
 	return &API{db: db, configPath: configPath, masterDBPath: masterDBPath}
+}
+
+// SetGeneratedToken sets the temporary runtime generated token.
+func (a *API) SetGeneratedToken(token string) {
+	a.generatedToken = token
 }
 
 // GetStats returns aggregate system statistics.
@@ -109,20 +117,56 @@ func (a *API) HandleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+const redactPlaceholder = "●●●●●●●●"
+
+func redactConfig(cfg *config.Config) *config.Config {
+	redacted := *cfg
+	if redacted.APIKeys != nil {
+		redacted.APIKeys = make(map[string]string)
+		for k, v := range cfg.APIKeys {
+			if v != "" {
+				redacted.APIKeys[k] = redactPlaceholder
+			} else {
+				redacted.APIKeys[k] = ""
+			}
+		}
+	}
+	if redacted.DashboardToken != "" {
+		redacted.DashboardToken = redactPlaceholder
+	}
+	if redacted.Fleet.SyncToken != "" {
+		redacted.Fleet.SyncToken = redactPlaceholder
+	}
+	if redacted.Notify.TelegramBotToken != "" {
+		redacted.Notify.TelegramBotToken = redactPlaceholder
+	}
+	if redacted.Notify.TelegramChatID != "" {
+		redacted.Notify.TelegramChatID = redactPlaceholder
+	}
+	if redacted.Notify.DiscordWebhook != "" {
+		redacted.Notify.DiscordWebhook = redactPlaceholder
+	}
+	if redacted.Notify.SlackWebhook != "" {
+		redacted.Notify.SlackWebhook = redactPlaceholder
+	}
+	return &redacted
+}
+
 // GetConfig reads and returns the JSON configuration file.
 func (a *API) GetConfig(w http.ResponseWriter, r *http.Request) {
 	if a.configPath == "" {
 		respondWithError(w, http.StatusBadRequest, "config path is not configured")
 		return
 	}
-	data, err := os.ReadFile(a.configPath)
+	cfg, err := config.LoadFromFile(a.configPath)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("failed to read config file: %v", err))
 		return
 	}
+	redacted := redactConfig(cfg)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write(data); err != nil {
+	if err := json.NewEncoder(w).Encode(redacted); err != nil {
 		slog.Warn("failed to write config response", "error", err)
 	}
 }
@@ -133,21 +177,129 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "config path is not configured")
 		return
 	}
-	var temp interface{}
-	if err := json.NewDecoder(r.Body).Decode(&temp); err != nil {
+
+	// Limit request body size to 2 MB to prevent memory exhaustion attacks
+	r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
+
+	var incoming config.Config
+	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
 		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("invalid JSON configuration: %v", err))
 		return
 	}
-	// Pretty print and write back to file
-	data, err := json.MarshalIndent(temp, "", "  ")
+
+	// Load existing configuration
+	existing, err := config.LoadFromFile(a.configPath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load existing config: %v", err))
+		return
+	}
+
+	// Validate and copy allowed fields
+	existing.ContainerMode = incoming.ContainerMode
+
+	if incoming.RateLimit >= 0 {
+		existing.RateLimit = incoming.RateLimit
+	}
+	if incoming.Threads > 0 {
+		existing.Threads = incoming.Threads
+	}
+	if incoming.BatchSize > 0 {
+		existing.BatchSize = incoming.BatchSize
+	}
+
+	// Sanitize paths to prevent directory traversal
+	if incoming.WordlistsDir != "" {
+		if strings.Contains(incoming.WordlistsDir, "..") {
+			respondWithError(w, http.StatusBadRequest, "invalid wordlists directory (traversal detected)")
+			return
+		}
+		existing.WordlistsDir = incoming.WordlistsDir
+	}
+	if incoming.StateDir != "" {
+		if strings.Contains(incoming.StateDir, "..") {
+			respondWithError(w, http.StatusBadRequest, "invalid state directory (traversal detected)")
+			return
+		}
+		existing.StateDir = incoming.StateDir
+	}
+
+	// Copy and validate wordlist files
+	if incoming.Wordlists.DNS != "" {
+		if strings.Contains(incoming.Wordlists.DNS, "..") {
+			respondWithError(w, http.StatusBadRequest, "invalid dns wordlist filename")
+			return
+		}
+		existing.Wordlists.DNS = incoming.Wordlists.DNS
+	}
+	if incoming.Wordlists.Directory != "" {
+		if strings.Contains(incoming.Wordlists.Directory, "..") {
+			respondWithError(w, http.StatusBadRequest, "invalid directory fuzzer wordlist filename")
+			return
+		}
+		existing.Wordlists.Directory = incoming.Wordlists.Directory
+	}
+	if incoming.Wordlists.Subdomain != "" {
+		if strings.Contains(incoming.Wordlists.Subdomain, "..") {
+			respondWithError(w, http.StatusBadRequest, "invalid subdomain wordlist filename")
+			return
+		}
+		existing.Wordlists.Subdomain = incoming.Wordlists.Subdomain
+	}
+	if incoming.Wordlists.API != "" {
+		if strings.Contains(incoming.Wordlists.API, "..") {
+			respondWithError(w, http.StatusBadRequest, "invalid api wordlist filename")
+			return
+		}
+		existing.Wordlists.API = incoming.Wordlists.API
+	}
+
+	// Fleet settings
+	if incoming.Fleet.SyncToken != "" && incoming.Fleet.SyncToken != redactPlaceholder {
+		for _, r := range incoming.Fleet.SyncToken {
+			if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+				respondWithError(w, http.StatusBadRequest, "invalid characters in fleet sync token")
+				return
+			}
+		}
+		existing.Fleet.SyncToken = incoming.Fleet.SyncToken
+	}
+
+	// API Keys whitelist validation
+	allowedProviders := map[string]bool{
+		"shodan":         true,
+		"censys":         true,
+		"securitytrails": true,
+		"github":         true,
+		"chaos":          true,
+		"virustotal":     true,
+		"passivetotal":   true,
+		"binaryedge":     true,
+	}
+
+	if existing.APIKeys == nil {
+		existing.APIKeys = make(map[string]string)
+	}
+	for k, v := range incoming.APIKeys {
+		kLower := strings.ToLower(k)
+		if allowedProviders[kLower] {
+			if v != redactPlaceholder {
+				existing.APIKeys[kLower] = v
+			}
+		}
+	}
+
+	// Marshal validated configuration
+	data, err := json.MarshalIndent(existing, "", "  ")
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("failed to marshal JSON: %v", err))
 		return
 	}
-	if err := os.WriteFile(a.configPath, data, 0644); err != nil {
+
+	if err := os.WriteFile(a.configPath, data, 0600); err != nil {
 		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config: %v", err))
 		return
 	}
+
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "configuration updated successfully"})
 }
 
@@ -194,6 +346,9 @@ func (a *API) HandleFleetSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit request body size to 50 MB to prevent disk exhaustion attacks
+	r.Body = http.MaxBytesReader(w, r.Body, 50*1024*1024)
+
 	receivedToken := r.Header.Get("X-Sync-Token")
 	if receivedToken == "" {
 		respondWithError(w, http.StatusUnauthorized, "sync token required")
@@ -235,4 +390,182 @@ func (a *API) HandleFleetSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "database merged successfully"})
+}
+
+// GetRiskHistory returns risk history for a specific host, or a general risk trend.
+func (a *API) GetRiskHistory(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+	host := r.URL.Query().Get("host")
+	scope := r.URL.Query().Get("scope")
+
+	if host != "" {
+		history, err := a.db.GetRiskHistory(r.Context(), host)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		respondWithJSON(w, http.StatusOK, history)
+		return
+	}
+
+	if scope == "" {
+		scope = "default_run"
+	}
+	trend, err := a.db.GetRiskTrend(r.Context(), scope)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, trend)
+}
+
+// GetTechTrend returns technology trend counts over time.
+func (a *API) GetTechTrend(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+	scope := r.URL.Query().Get("scope")
+	if scope == "" {
+		scope = "default_run"
+	}
+	trend, err := a.db.GetTechTrend(r.Context(), scope)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, trend)
+}
+
+// GetOwnershipHistory returns ownership changes over time.
+func (a *API) GetOwnershipHistory(w http.ResponseWriter, r *http.Request) {
+	assetID := r.URL.Query().Get("asset_id")
+	if assetID == "" {
+		respondWithError(w, http.StatusBadRequest, "asset_id is required")
+		return
+	}
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+	history, err := a.db.GetOwnershipHistory(r.Context(), assetID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, history)
+}
+
+// GetAssetHistory returns scan history for a specific asset.
+func (a *API) GetAssetHistory(w http.ResponseWriter, r *http.Request) {
+	host := r.URL.Query().Get("host")
+	if host == "" {
+		respondWithError(w, http.StatusBadRequest, "host is required")
+		return
+	}
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+	history, err := a.db.GetAssetHistory(r.Context(), host)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, history)
+}
+
+// GetFindingHistory returns specific finding history for a target.
+func (a *API) GetFindingHistory(w http.ResponseWriter, r *http.Request) {
+	target := r.URL.Query().Get("target")
+	if target == "" {
+		respondWithError(w, http.StatusBadRequest, "target is required")
+		return
+	}
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+	history, err := a.db.GetFindingHistory(r.Context(), target)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, history)
+}
+
+var (
+	loginAttemptsMu sync.Mutex
+	loginAttempts   = make(map[string][]time.Time)
+)
+
+func isRateLimited(ip string) bool {
+	loginAttemptsMu.Lock()
+	defer loginAttemptsMu.Unlock()
+	now := time.Now()
+	var validAttempts []time.Time
+	for _, t := range loginAttempts[ip] {
+		if now.Sub(t) < time.Minute {
+			validAttempts = append(validAttempts, t)
+		}
+	}
+	if len(validAttempts) >= 5 {
+		loginAttempts[ip] = validAttempts
+		return true
+	}
+	loginAttempts[ip] = append(validAttempts, now)
+	return false
+}
+
+// Authenticate verifies the login token and sets a secure session cookie.
+func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+
+	if isRateLimited(ip) {
+		respondWithError(w, http.StatusTooManyRequests, "too many login attempts. please wait one minute.")
+		return
+	}
+
+	var req struct {
+		Token string `json:"token"`
+	}
+	// Limit request body to 1KB to prevent resource exhaustion attacks
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request payload")
+		return
+	}
+
+	expectedToken := a.generatedToken
+	if cfgFile, err := config.LoadFromFile(a.configPath); err == nil && cfgFile.DashboardToken != "" {
+		expectedToken = cfgFile.DashboardToken
+	}
+
+	if expectedToken == "" || req.Token != expectedToken {
+		respondWithError(w, http.StatusUnauthorized, "invalid token")
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "bbpts_session",
+		Value:    req.Token,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
