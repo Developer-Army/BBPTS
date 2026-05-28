@@ -1,6 +1,6 @@
 //go:build integration
 
-package app
+package cli
 
 import (
 	"context"
@@ -19,10 +19,10 @@ import (
 // the entire BBPTS pipeline working together across all stages.
 // This catches errors that might not be caught by individual unit tests.
 func TestFullPipelineIntegration(t *testing.T) {
+	t.Setenv("BBPTS_ALLOW_LOCAL", "true")
 	// Create a temporary test input file with sample targets
 	tmpFile := createTempTargetsFile(t, []string{
-		"acme-corp.io",
-		"test.acme-corp.io",
+		"127.0.0.1",
 	})
 	defer os.Remove(tmpFile)
 
@@ -133,7 +133,7 @@ func TestPipelineWithMultipleStages(t *testing.T) {
 // TestOrchestratorWithAllStagesSequential validates the stage ordering.
 func TestOrchestratorWithAllStagesSequential(t *testing.T) {
 	// Test that stages execute in the correct order: 0, 1, 2, 3, 4, 5
-	cfg := recon.Config{
+	cfg := services.Config{
 		ToolNames:    []string{"uro", "subfinder", "dnsx", "katana", "ffuf", "nuclei"},
 		Threads:      2,
 		RateLimit:    0,
@@ -142,7 +142,7 @@ func TestOrchestratorWithAllStagesSequential(t *testing.T) {
 		WordlistsDir: "",
 	}
 
-	orchestrator := recon.NewOrchestrator(cfg)
+	orchestrator := services.NewOrchestrator(cfg)
 	defer orchestrator.Close()
 
 	if orchestrator == nil {
@@ -312,7 +312,7 @@ func TestPipelineWithNoInput(t *testing.T) {
 
 // TestToolRegistrationIntegration validates that all registered tools can be accessed.
 func TestToolRegistrationIntegration(t *testing.T) {
-	availableTools := recon.AvailableToolNames()
+	availableTools := services.AvailableToolNames()
 
 	if len(availableTools) == 0 {
 		t.Fatal("No tools registered in the registry")
@@ -322,7 +322,7 @@ func TestToolRegistrationIntegration(t *testing.T) {
 
 	// Verify each tool can be retrieved
 	for _, toolName := range availableTools {
-		tool, ok := recon.GetToolByName(toolName)
+		tool, ok := services.GetToolByName(toolName)
 		if !ok {
 			t.Errorf("Tool registration failed for: %s", toolName)
 		}
@@ -338,7 +338,7 @@ func TestToolRegistrationIntegration(t *testing.T) {
 // and gracefully manages both successful and failed tool runs without crashing.
 func TestToolExecutionAndResults(t *testing.T) {
 	// Test with tools that might work or fail in test environment
-	cfg := recon.Config{
+	cfg := services.Config{
 		ToolNames: []string{"crtsh", "subfinder"}, // Mix of tools that might work or fail
 		Threads:   2,
 		RateLimit: 10,
@@ -353,7 +353,7 @@ func TestToolExecutionAndResults(t *testing.T) {
 		}
 	}()
 
-	orchestrator := recon.NewOrchestrator(cfg)
+	orchestrator := services.NewOrchestrator(cfg)
 	if orchestrator == nil {
 		t.Fatal("Failed to create orchestrator")
 	}
@@ -412,18 +412,22 @@ func TestOutputGenerationValidation(t *testing.T) {
 	// Create mock insights from events
 	mockInsights := []analyze.Insight{
 		{
-			Host:     "acme-corp.io",
-			Priority: "medium",
-			Score:    15,
-			Tags:     []string{"subdomain", "certificate"},
-			Reasons:  []string{"Found subdomains", "SSL certificate detected"},
+			Host:          "acme-corp.io",
+			Priority:      "medium",
+			Score:         15,
+			Tags:          []string{"subdomain", "certificate"},
+			Reasons:       []string{"Found subdomains", "SSL certificate detected"},
+			EvidenceCount: 2,
+			Sources:       []string{"subfinder"},
 		},
 		{
-			Host:     "subdomain.acme-corp.io",
-			Priority: "low",
-			Score:    5,
-			Tags:     []string{"subdomain"},
-			Reasons:  []string{"Subdomain enumeration"},
+			Host:          "subdomain.acme-corp.io",
+			Priority:      "low",
+			Score:         5,
+			Tags:          []string{"subdomain"},
+			Reasons:       []string{"Subdomain enumeration"},
+			EvidenceCount: 2,
+			Sources:       []string{"subfinder"},
 		},
 	}
 
@@ -487,7 +491,7 @@ func TestOutputGenerationValidation(t *testing.T) {
 // TestToolFailureDetection validates that the system properly detects and reports tool failures.
 func TestToolFailureDetection(t *testing.T) {
 	// Test with a tool that might not be installed
-	cfg := recon.Config{
+	cfg := services.Config{
 		ToolNames: []string{"nonexistent_tool", "crtsh"}, // Mix of invalid and valid tools
 		Threads:   2,
 		RateLimit: 10,
@@ -502,7 +506,7 @@ func TestToolFailureDetection(t *testing.T) {
 		}
 	}()
 
-	orchestrator := recon.NewOrchestrator(cfg)
+	orchestrator := services.NewOrchestrator(cfg)
 	if orchestrator == nil {
 		t.Log("✓ Orchestrator properly handled invalid tool (returned nil)")
 		return
@@ -548,7 +552,7 @@ func TestStageAssignmentConsistency(t *testing.T) {
 
 	// This test validates the stage assignments don't change unexpectedly
 	for toolName, expectedStage := range expectedMappings {
-		tool, ok := recon.GetToolByName(toolName)
+		tool, ok := services.GetToolByName(toolName)
 		if !ok {
 			t.Logf("Warning: Tool not found in registry: %s (may not be installed)", toolName)
 			continue
