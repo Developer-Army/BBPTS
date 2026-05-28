@@ -9,6 +9,10 @@
     "passivetotal": "",
     "binaryedge": ""
   },
+  "headers": {
+    "X-HackerOne-Research": "dev-army",
+    "User-Agent": "dev-army"
+  },
   "proxies": [],
   "rate_limit": 20,
   "state_dir": "./results/state",
