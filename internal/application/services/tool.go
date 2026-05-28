@@ -116,17 +116,19 @@ func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(str
 type contextKey string
 
 const (
-	apiKeyContextKey      contextKey = "api_keys"
-	wordlistDirContextKey contextKey = "wordlist_dir"
-	tmpResultsDirKey      contextKey = "tmp_results_dir"
-	proxiesContextKey     contextKey = "proxies"
-	rateLimitContextKey   contextKey = "rate_limit"
-	toolRateLimitsKey     contextKey = "tool_rate_limits"
-	lowResourceContextKey contextKey = "low_resource"
-	scanModeContextKey    contextKey = "scan_mode"
-	headersContextKey     contextKey = "headers"
-	autoUpdateContextKey  contextKey = "auto_update"
-	portsContextKey       contextKey = "ports"
+	apiKeyContextKey        contextKey = "api_keys"
+	wordlistDirContextKey   contextKey = "wordlist_dir"
+	tmpResultsDirKey        contextKey = "tmp_results_dir"
+	proxiesContextKey       contextKey = "proxies"
+	rateLimitContextKey     contextKey = "rate_limit"
+	toolRateLimitsKey       contextKey = "tool_rate_limits"
+	lowResourceContextKey   contextKey = "low_resource"
+	scanModeContextKey      contextKey = "scan_mode"
+	headersContextKey       contextKey = "headers"
+	autoUpdateContextKey    contextKey = "auto_update"
+	portsContextKey         contextKey = "ports"
+	containerModeContextKey contextKey = "container_mode"
+	dockerImagesContextKey  contextKey = "docker_images"
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -262,4 +264,26 @@ func PortsFromCtx(ctx context.Context) string {
 		return ports
 	}
 	return ""
+}
+
+func WithContainerMode(ctx context.Context, mode bool) context.Context {
+	return context.WithValue(ctx, containerModeContextKey, mode)
+}
+
+func ContainerModeFromCtx(ctx context.Context) bool {
+	if mode, ok := ctx.Value(containerModeContextKey).(bool); ok {
+		return mode
+	}
+	return false
+}
+
+func WithDockerImages(ctx context.Context, images map[string]string) context.Context {
+	return context.WithValue(ctx, dockerImagesContextKey, images)
+}
+
+func DockerImagesFromCtx(ctx context.Context) map[string]string {
+	if images, ok := ctx.Value(dockerImagesContextKey).(map[string]string); ok {
+		return images
+	}
+	return nil
 }

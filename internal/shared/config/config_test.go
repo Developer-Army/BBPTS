@@ -78,3 +78,32 @@ func TestConfigToolRateLimitsAndAutoUpdate(t *testing.T) {
 		t.Error("expected AutoUpdate to be true, got false")
 	}
 }
+
+func TestResolveWebEnder(t *testing.T) {
+	headers := map[string]string{
+		"User-Agent": "CustomUA",
+	}
+
+	res := ResolveWebEnder("H1{alice}", headers)
+	if res["X-Research-Tag"] != "H1{alice}" {
+		t.Errorf("expected X-Research-Tag 'H1{alice}', got '%s'", res["X-Research-Tag"])
+	}
+	if res["X-H1-Research"] != "alice" {
+		t.Errorf("expected X-H1-Research 'alice', got '%s'", res["X-H1-Research"])
+	}
+	if res["User-Agent"] != "CustomUA H1{alice}" {
+		t.Errorf("expected User-Agent 'CustomUA H1{alice}', got '%s'", res["User-Agent"])
+	}
+
+	// Test without existing headers/User-Agent
+	res2 := ResolveWebEnder("HTM{bob}", nil)
+	if res2["X-Research-Tag"] != "HTM{bob}" {
+		t.Errorf("expected X-Research-Tag 'HTM{bob}', got '%s'", res2["X-Research-Tag"])
+	}
+	if res2["X-HTM-Research"] != "bob" {
+		t.Errorf("expected X-HTM-Research 'bob', got '%s'", res2["X-HTM-Research"])
+	}
+	if res2["User-Agent"] != "BBPTS HTM{bob}" {
+		t.Errorf("expected User-Agent 'BBPTS HTM{bob}', got '%s'", res2["User-Agent"])
+	}
+}

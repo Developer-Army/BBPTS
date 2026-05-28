@@ -261,8 +261,11 @@ export BBPTS_RATE_LIMIT=30
 | `-diff`            |       | Show only new findings                                   |
 | `-cron`            |       | Re-scan interval (minutes)                               |
 | `-doctor`          |       | Check tool health                                        |
-| `-dry-run`         |       | Preview without sending                                  |
-| `-auto-submit`     |       | Submit findings to platform                              |
+| `-submit`          |       | Submit findings to platform                              |
+| `-https`           |       | Start dashboard with HTTPS/TLS                           |
+| `-tls-cert`        |       | Path to TLS certificate file                             |
+| `-tls-key`         |       | Path to TLS key file                                     |
+| `-web-ender`       |       | Custom research identifier tag (e.g. H1{username})       |
 | `-export-burp`     |       | Export Burp Suite XML                                    |
 | `-web`             | `-w`  | Start web dashboard                                      |
 | `-debug`           |       | Debug logging                                            |
@@ -303,7 +306,7 @@ results/
 
 > ⚠️ **Don't run from GitHub Actions shared runners.** Active scanning tools generate real network traffic. Use a VPS or self-hosted runner.
 
-> ⚠️ **Auto-submit is off by default.** Always use `-dry-run` first to review what would be submitted.
+> ⚠️ **Submission is off by default.** Use the `-submit` flag to submit high-priority findings to configured platforms.
 
 ---
 

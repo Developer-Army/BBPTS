@@ -16,12 +16,12 @@ func (t *InteractshTool) Name() string {
 }
 
 func (t *InteractshTool) Run(ctx context.Context, targets []string, threads int) ([]Event, error) {
-	// Interactsh is usually used to generate a payload URL or monitor for interactions.
-	// For this adapter, we will use it to generate a unique session and return it.
-	// Since interactsh-client polls forever, we start it, read the first line of stdout (the URL),
-	// and then immediately terminate it.
+	// Interactsh-client polls for out-of-band interactions.
+	// We start the command and read the first line of stdout to get the URL,
+	// then keep it running in a background goroutine to log any incoming interactions
+	// until the context is cancelled.
 
-	cmd := prepareCommand(ctx, "interactsh-client", "-n", "1")
+	cmd := prepareCommand(ctx, "interactsh-client")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -33,7 +33,6 @@ func (t *InteractshTool) Run(ctx context.Context, targets []string, threads int)
 		return nil, nil
 	}
 
-	var url string
 	scanner := bufio.NewScanner(stdout)
 	lineChan := make(chan string, 1)
 	go func() {
@@ -44,10 +43,11 @@ func (t *InteractshTool) Run(ctx context.Context, targets []string, threads int)
 		}
 	}()
 
+	var url string
 	select {
 	case line := <-lineChan:
 		url = strings.TrimSpace(line)
-	case <-time.After(3 * time.Second):
+	case <-time.After(5 * time.Second):
 		slog.Warn("interactsh-client timed out registering session; skipping tool")
 		terminateCommand(cmd)
 		_ = cmd.Wait()
@@ -58,13 +58,31 @@ func (t *InteractshTool) Run(ctx context.Context, targets []string, threads int)
 		return nil, ctx.Err()
 	}
 
-	terminateCommand(cmd)
-	_ = cmd.Wait() // Reclaim process resources
-
 	if url == "" {
 		slog.Warn("interactsh-client returned empty URL; skipping tool")
+		terminateCommand(cmd)
+		_ = cmd.Wait()
 		return nil, nil
 	}
+
+	// Keep the process running in the background until context is canceled.
+	go func() {
+		// Wait for context done, then kill the process
+		go func() {
+			<-ctx.Done()
+			terminateCommand(cmd)
+		}()
+
+		// Read continuous interaction logs from stdout
+		for scanner.Scan() {
+			text := scanner.Text()
+			if strings.Contains(text, "[") || strings.Contains(text, "interaction") || strings.Contains(text, "DNS") || strings.Contains(text, "HTTP") {
+				slog.Info("Interactsh interaction detected", "log", text)
+			}
+		}
+
+		_ = cmd.Wait() // Reclaim resources
+	}()
 
 	return []Event{
 		NewEvent(url, t.Name(), "oob_session", map[string]string{

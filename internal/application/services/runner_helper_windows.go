@@ -24,14 +24,14 @@ func prepareCommand(ctx context.Context, name string, args ...string) commandHan
 
 	// Create prioritized PATH using os.PathListSeparator
 	pathsList := []string{goBin, localBin}
-	
+
 	// Add Go standard install path on Windows
 	goCommonBin := `C:\Program Files\Go\bin`
 	pathsList = append(pathsList, goCommonBin)
-	
+
 	// Append current PATH
 	pathsList = append(pathsList, filepath.SplitList(currentPath)...)
-	
+
 	newPath := strings.Join(pathsList, string(os.PathListSeparator))
 
 	// On Windows, resolve with .exe if needed

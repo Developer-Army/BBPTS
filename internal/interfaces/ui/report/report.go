@@ -410,17 +410,17 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 		outputPath = filepath.Join(rg.config.OutputPath, "report.md")
 	}
 
-	content := fmt.Sprintf("# ️ %s\n\n", report.Title)
+	content := fmt.Sprintf("# %s\n\n", report.Title)
 	content += fmt.Sprintf("> **Generated:** %s  \n", report.GeneratedAt.Format(time.RFC1123))
 	content += fmt.Sprintf("> **Risk Level:** %s | **Targets:** %d | **Findings:** %d\n\n",
 		report.Executive.OverallRisk, report.TargetCount, report.FindingCount)
 
-	content += "---\n\n## 🚀 Quick Start Guide for Beginners\n\n"
+	content += "---\n\n## Quick Start Guide for Beginners\n\n"
 	content += "1. **Import Configs**: Load `burp-import.xml` in Burp Suite (`Project` > `Import scan items`) or `caido-import.json` in Caido (`Workspaces` > `Import`).\n"
 	content += "2. **Open Target**: Click target domain links or evidence URLs below to open targets in your browser configured with your proxy.\n"
 	content += "3. **Run Checklists**: Follow step-by-step checklists under each finding. Check them off as you test.\n\n"
 
-	content += "---\n\n## 📊 Executive Summary\n\n"
+	content += "---\n\n## Executive Summary\n\n"
 	content += fmt.Sprintf("| Critical | High | Medium | Low |\n| :---: | :---: | :---: | :---: |\n| %d | %d | %d | %d |\n\n",
 		report.CriticalCount, report.HighCount, report.MediumCount, report.LowCount)
 
@@ -432,30 +432,30 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 	content += "\n---\n\n##  Detailed Findings\n\n"
 
 	for _, finding := range report.Findings {
-		severityEmoji := "⚪"
+		severityPrefix := ""
 		switch strings.ToLower(finding.Severity) {
 		case "critical":
-			severityEmoji = "🔴"
+			severityPrefix = "[CRITICAL] "
 		case "high":
-			severityEmoji = "🟠"
+			severityPrefix = "[HIGH] "
 		case "medium":
-			severityEmoji = "🟡"
+			severityPrefix = "[MEDIUM] "
 		case "low":
-			severityEmoji = "🔵"
+			severityPrefix = "[LOW] "
 		}
 
 		targetURL := makeURL(finding.Target)
-		content += fmt.Sprintf("<details>\n<summary><b>%s <a href=\"%s\">%s</a></b> (Score: %d)</summary>\n\n",
-			severityEmoji, targetURL, finding.Target, finding.Score)
+		content += fmt.Sprintf("<details>\n<summary><b>%s<a href=\"%s\">%s</a></b> (Score: %d)</summary>\n\n",
+			severityPrefix, targetURL, finding.Target, finding.Score)
 
-		content += "###  Security Analysis\n"
+		content += "### Security Analysis\n"
 		for _, reason := range strings.Split(finding.Description, "; ") {
 			content += fmt.Sprintf("- %s\n", reason)
 		}
 		content += "\n"
 
 		if finding.Evidence != "" {
-			content += "### 🔗 Discovery Context / Evidence URLs\n"
+			content += "### Discovery Context / Evidence URLs\n"
 			parts := strings.Split(finding.Evidence, " | ")
 			var urls []string
 			discoveredBy := ""
@@ -477,7 +477,7 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 		}
 
 		if finding.Remediation != "" {
-			content += "### 📝 Recommended Testing Checklist\n"
+			content += "### Recommended Testing Checklist\n"
 			if strings.HasPrefix(finding.Remediation, "Suggested security tests: ") {
 				tests := strings.TrimPrefix(finding.Remediation, "Suggested security tests: ")
 				for _, test := range strings.Split(tests, "\x00") {
@@ -492,20 +492,20 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 			content += "\n"
 		}
 
-		content += "### 🎯 Next Steps\n"
+		content += "### Next Steps\n"
 		switch strings.ToLower(finding.Severity) {
 		case "critical", "high":
-			content += "> **🔴 Next Action:** High risk target. Open Burp/Caido proxy. Fuzz the parameters listed in the findings with payloads (SQLi probes, SSRF endpoints, XSS scripts). Pay close attention to database-related input fields.\n\n"
+			content += "> **Next Action:** High risk target. Open Burp/Caido proxy. Fuzz the parameters listed in the findings with payloads (SQLi probes, SSRF endpoints, XSS scripts). Pay close attention to database-related input fields.\n\n"
 		case "medium":
-			content += "> **🟡 Next Action:** Active endpoints found. Verify authentication bypass mechanisms, look for IDOR vulnerabilities on object IDs in paths, or check CORS parameters for wildcards.\n\n"
+			content += "> **Next Action:** Active endpoints found. Verify authentication bypass mechanisms, look for IDOR vulnerabilities on object IDs in paths, or check CORS parameters for wildcards.\n\n"
 		default:
-			content += "> **🔵 Next Action:** Low priority/recon data. Check for directory listings or sensitive technology disclosures. Verify if security headers like CSP/HSTS are correctly set.\n\n"
+			content += "> **Next Action:** Low priority/recon data. Check for directory listings or sensitive technology disclosures. Verify if security headers like CSP/HSTS are correctly set.\n\n"
 		}
 
 		content += "</details>\n\n"
 	}
 
-	content += "---\n\n## 🛠️ Strategic Recommendations\n\n"
+	content += "---\n\n## Strategic Recommendations\n\n"
 	for i, rec := range report.Recommendations {
 		content += fmt.Sprintf("%d. %s\n", i+1, rec)
 	}
@@ -531,30 +531,49 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 	recsHTML := rg.generateRecommendationsHTML(report.Recommendations)
 
 	maxCount := report.CriticalCount
-	if report.HighCount > maxCount { maxCount = report.HighCount }
-	if report.MediumCount > maxCount { maxCount = report.MediumCount }
-	if report.LowCount > maxCount { maxCount = report.LowCount }
-	if maxCount == 0 { maxCount = 1 }
+	if report.HighCount > maxCount {
+		maxCount = report.HighCount
+	}
+	if report.MediumCount > maxCount {
+		maxCount = report.MediumCount
+	}
+	if report.LowCount > maxCount {
+		maxCount = report.LowCount
+	}
+	if maxCount == 0 {
+		maxCount = 1
+	}
 	critW := report.CriticalCount * 100 / maxCount
 	highW := report.HighCount * 100 / maxCount
-	medW  := report.MediumCount * 100 / maxCount
-	lowW  := report.LowCount * 100 / maxCount
+	medW := report.MediumCount * 100 / maxCount
+	lowW := report.LowCount * 100 / maxCount
 
 	riskBadgeClass := "badge-low"
 	switch report.Executive.OverallRisk {
-	case "Critical": riskBadgeClass = "badge-critical"
-	case "High":     riskBadgeClass = "badge-high"
-	case "Medium":   riskBadgeClass = "badge-medium"
+	case "Critical":
+		riskBadgeClass = "badge-critical"
+	case "High":
+		riskBadgeClass = "badge-high"
+	case "Medium":
+		riskBadgeClass = "badge-medium"
 	}
 
 	critLabel := ""
-	if report.CriticalCount > 0 { critLabel = fmt.Sprintf("%d", report.CriticalCount) }
+	if report.CriticalCount > 0 {
+		critLabel = fmt.Sprintf("%d", report.CriticalCount)
+	}
 	highLabel := ""
-	if report.HighCount > 0 { highLabel = fmt.Sprintf("%d", report.HighCount) }
+	if report.HighCount > 0 {
+		highLabel = fmt.Sprintf("%d", report.HighCount)
+	}
 	medLabel := ""
-	if report.MediumCount > 0 { medLabel = fmt.Sprintf("%d", report.MediumCount) }
+	if report.MediumCount > 0 {
+		medLabel = fmt.Sprintf("%d", report.MediumCount)
+	}
 	lowLabel := ""
-	if report.LowCount > 0 { lowLabel = fmt.Sprintf("%d", report.LowCount) }
+	if report.LowCount > 0 {
+		lowLabel = fmt.Sprintf("%d", report.LowCount)
+	}
 
 	html := `<!DOCTYPE html>
 <html lang="en">
@@ -563,13 +582,23 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BBPTS Recon Report</title>
 <style>
-:root{--bg:#090d1a;--surface:#111827;--surface2:#1c2433;--border:#1f2d40;--text:#e2e8f0;--muted:#64748b;--accent:#38bdf8;--primary:#6366f1;--critical:#ef4444;--high:#fb923c;--medium:#fbbf24;--low:#34d399}
+:root{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;--text:#f8fafc;--muted:#94a3b8;--accent:#38bdf8;--primary:#3b82f6;--critical:#ef4444;--high:#fb923c;--medium:#eab308;--low:#22c55e}
+body.light-theme {
+  --bg:#f8fafc;
+  --surface:#ffffff;
+  --surface2:#f1f5f9;
+  --border:#cbd5e1;
+  --text:#0f172a;
+  --muted:#64748b;
+  --accent:#0284c7;
+  --primary:#2563eb;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;font-size:15px}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.65;font-size:15px;transition: background 0.3s, color 0.3s}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 .wrap{max-width:1140px;margin:0 auto;padding:32px 20px}
-.header{background:linear-gradient(135deg,#1e1b4b,#0f172a);border:1px solid var(--border);border-radius:16px;padding:40px 48px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px}
+.header{background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid var(--border);border-radius:16px;padding:40px 48px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px}
 .header h1{font-size:1.9rem;font-weight:800;letter-spacing:-.03em;margin-bottom:6px}
 .header p{color:var(--muted);font-size:.9rem}
 .risk-badge{padding:10px 22px;border-radius:9999px;font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
@@ -577,6 +606,79 @@ a:hover{text-decoration:underline}
 .badge-high{background:rgba(251,146,60,.15);color:var(--high);border:1px solid rgba(251,146,60,.35)}
 .badge-medium{background:rgba(251,191,36,.15);color:var(--medium);border:1px solid rgba(251,191,36,.35)}
 .badge-low{background:rgba(52,211,153,.15);color:var(--low);border:1px solid rgba(52,211,153,.35)}
+
+/* Controls styling */
+.controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 28px;
+  align-items: center;
+}
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn:hover {
+  background: var(--border);
+}
+.sev-checkboxes {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+.sev-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.select-input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px}
 .scard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;transition:.2s}
 .scard:hover{border-color:var(--accent);transform:translateY(-2px)}
@@ -594,11 +696,11 @@ a:hover{text-decoration:underline}
 .guide h2{font-size:1rem;font-weight:800;color:var(--accent);margin-bottom:16px}
 .guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
 .gstep{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative}
-.gstep-num{position:absolute;top:-10px;left:-10px;width:24px;height:24px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;box-shadow:0 0 8px var(--primary)}
+.gstep-num{position:absolute;top:-10px;left:-10px;width:24px;height:24px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem}
 .gstep h3{font-size:.9rem;font-weight:700;margin:4px 0 6px}
 .gstep p,.gstep li{font-size:.8rem;color:var(--muted)}
 .gstep ul{padding-left:12px}
-.gstep code{background:rgba(99,102,241,.18);color:#a5b4fc;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.76rem}
+.gstep code{background:rgba(59,130,246,.15);color:#93c5fd;padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.76rem}
 .section-title{font-size:1.2rem;font-weight:800;margin-bottom:18px;padding-bottom:10px;border-bottom:2px solid var(--border)}
 .finding{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:20px;overflow:hidden;transition:.2s}
 .finding:hover{box-shadow:0 12px 28px rgba(0,0,0,.3)}
@@ -609,16 +711,16 @@ a:hover{text-decoration:underline}
 .sev-badge{padding:4px 11px;border-radius:9999px;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
 .score-pill{background:var(--surface2);border:1px solid var(--border);border-radius:9999px;padding:3px 11px;font-size:.76rem;color:var(--muted)}
 .score-pill strong{color:var(--text)}
-.toggle-icon{font-size:1rem;color:var(--muted);transition:.2s;margin-left:6px}
+.toggle-icon{font-size:0.75rem;color:var(--muted);transition:.2s;margin-left:6px}
 .finding-body{padding:0 22px 22px;display:none;border-top:1px solid var(--border)}
 .finding-body.open{display:block}
 .fsection{margin-top:18px}
 .fsection-label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:8px}
 .reasons-list{list-style:none;display:flex;flex-direction:column;gap:5px}
 .reasons-list li{padding-left:16px;position:relative;font-size:.88rem;color:#cbd5e1}
-.reasons-list li::before{content:"›";position:absolute;left:0;color:var(--primary)}
+.reasons-list li::before{content:">";position:absolute;left:0;color:var(--primary)}
 .tag-list{display:flex;flex-wrap:wrap;gap:7px}
-.tag{background:rgba(99,102,241,.1);color:#a5b4fc;border:1px solid rgba(99,102,241,.2);border-radius:9999px;padding:2px 9px;font-size:.72rem;font-weight:600}
+.tag{background:rgba(59,130,246,.1);color:#93c5fd;border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:2px 9px;font-size:.72rem;font-weight:600}
 .evidence-list{list-style:none;display:flex;flex-direction:column;gap:5px}
 .evidence-list li{font-size:.8rem}
 .evidence-list a{font-family:monospace;color:var(--accent);word-break:break-all}
@@ -627,7 +729,7 @@ a:hover{text-decoration:underline}
 .checklist li label:hover{color:var(--text)}
 .checklist li input{width:1.05em;height:1.05em;accent-color:var(--primary);cursor:pointer;flex-shrink:0;margin-top:2px}
 .checklist li input:checked+span{text-decoration:line-through;opacity:.45}
-.next-action{border-left:4px solid var(--primary);background:rgba(99,102,241,.05);border-radius:0 8px 8px 0;padding:13px 16px;margin-top:16px;font-size:.86rem;color:#e2e8f0}
+.next-action{border-left:4px solid var(--primary);background:rgba(59,130,246,.05);border-radius:0 8px 8px 0;padding:13px 16px;margin-top:16px;font-size:.86rem;color:#e2e8f0}
 .next-action.sev-critical,.next-action.sev-high{border-left-color:var(--high)}
 .next-action.sev-medium{border-left-color:var(--medium)}
 .next-action.sev-low{border-left-color:var(--low)}
@@ -644,10 +746,13 @@ footer{text-align:center;padding:36px 0 16px;color:var(--muted);font-size:.8rem;
 
 <header class="header">
   <div>
-    <h1>🛡 BBPTS Recon Report</h1>
+    <h1>BBPTS Recon Report</h1>
     <p>Generated ` + report.GeneratedAt.Format("2006-01-02 15:04 UTC") + ` &nbsp;·&nbsp; ` + fmt.Sprintf("%d targets", report.TargetCount) + `</p>
   </div>
-  <span class="risk-badge ` + riskBadgeClass + `">Overall Risk: ` + report.Executive.OverallRisk + `</span>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button onclick="toggleTheme()" class="btn" style="border-radius:20px;">🌗 Theme</button>
+    <span class="risk-badge ` + riskBadgeClass + `">Overall Risk: ` + report.Executive.OverallRisk + `</span>
+  </div>
 </header>
 
 <div class="summary-grid">
@@ -657,6 +762,34 @@ footer{text-align:center;padding:36px 0 16px;color:var(--muted);font-size:.8rem;
   <div class="scard m"><div class="num">` + fmt.Sprintf("%d", report.MediumCount) + `</div><div class="lbl">Medium</div></div>
   <div class="scard l"><div class="num">` + fmt.Sprintf("%d", report.LowCount) + `</div><div class="lbl">Low</div></div>
   <div class="scard"><div class="num">` + fmt.Sprintf("%d", report.FindingCount) + `</div><div class="lbl">Total</div></div>
+</div>
+
+<!-- Search & Filtering Controls -->
+<div class="controls-bar">
+  <input type="text" id="global-search" placeholder="Search targets, tags, findings..." oninput="filterFindings()" class="search-input">
+  
+  <div class="filter-group">
+    <span class="filter-label">Severity</span>
+    <div class="sev-checkboxes">
+      <label><input type="checkbox" value="critical" class="sev-checkbox" onchange="filterFindings()"> Critical</label>
+      <label><input type="checkbox" value="high" class="sev-checkbox" onchange="filterFindings()"> High</label>
+      <label><input type="checkbox" value="medium" class="sev-checkbox" onchange="filterFindings()"> Medium</label>
+      <label><input type="checkbox" value="low" class="sev-checkbox" onchange="filterFindings()"> Low</label>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Tag</span>
+    <select id="tag-filter" onchange="filterFindings()" class="select-input">
+      <option value="all">All Tags</option>
+      <!-- Tags populated dynamically -->
+    </select>
+  </div>
+
+  <div style="margin-left:auto; display:flex; gap:8px;">
+    <button onclick="expandAll()" class="btn">Expand All</button>
+    <button onclick="collapseAll()" class="btn">Collapse All</button>
+  </div>
 </div>
 
 <div class="chart-section">
@@ -684,7 +817,7 @@ footer{text-align:center;padding:36px 0 16px;color:var(--muted);font-size:.8rem;
 </div>
 
 <div class="guide">
-  <h2>🚀 What To Do With This Report</h2>
+  <h2>What To Do With This Report</h2>
   <div class="guide-grid">
     <div class="gstep"><div class="gstep-num">1</div><h3>Import Into Proxy</h3><ul><li><strong>Burp:</strong> Project &rarr; Import scan items &rarr; <code>burp-import.xml</code></li><li><strong>Caido:</strong> Workspaces &rarr; Import &rarr; <code>caido-import.json</code></li><li><strong>ZAP:</strong> Import <code>zap-import.xml</code></li></ul></div>
     <div class="gstep"><div class="gstep-num">2</div><h3>Understand the Score</h3><p>Each finding has a Risk Score (0&ndash;100). Higher = more attack surface signals. Start with anything above 70.</p></div>
@@ -693,23 +826,93 @@ footer{text-align:center;padding:36px 0 16px;color:var(--muted);font-size:.8rem;
   </div>
 </div>
 
-<div class="section-title">🔍 Detailed Findings</div>
+<div class="section-title">Detailed Findings</div>
+<div id="findings-container">
 ` + findingsHTML + `
+</div>
 
 <div class="recs">
-  <div class="section-title">🛠 Recommendations</div>
+  <div class="section-title">Recommendations</div>
   <ol>` + recsHTML + `</ol>
 </div>
 
 <footer>BBPTS &mdash; Bug Bounty Pipeline &amp; Tracking System</footer>
 </div>
 <script>
+// Collapsible headers
 document.querySelectorAll('.finding-head').forEach(function(h){
   h.addEventListener('click',function(){
     var b=h.nextElementSibling,i=h.querySelector('.toggle-icon');
     if(b){b.classList.toggle('open');if(i)i.textContent=b.classList.contains('open')?'▲':'▼'}
   });
 });
+
+// Expand / Collapse all
+function expandAll() {
+  document.querySelectorAll('.finding-body').forEach(b => b.classList.add('open'));
+  document.querySelectorAll('.toggle-icon').forEach(i => i.textContent = '▲');
+}
+function collapseAll() {
+  document.querySelectorAll('.finding-body').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.toggle-icon').forEach(i => i.textContent = '▼');
+}
+
+// Dynamic tag list population
+const allTags = new Set();
+document.querySelectorAll('.tag').forEach(t => allTags.add(t.textContent.trim()));
+const tagFilterSelect = document.getElementById('tag-filter');
+allTags.forEach(tag => {
+  const opt = document.createElement('option');
+  opt.value = tag;
+  opt.textContent = tag;
+  tagFilterSelect.appendChild(opt);
+});
+
+// Theme management
+function toggleTheme() {
+  document.body.classList.toggle('light-theme');
+  const isLight = document.body.classList.contains('light-theme');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light-theme');
+}
+
+// Global filter logic
+function filterFindings() {
+  const query = document.getElementById('global-search').value.toLowerCase();
+  const sevFilter = Array.from(document.querySelectorAll('.sev-checkbox:checked')).map(cb => cb.value);
+  const tagFilter = document.getElementById('tag-filter').value;
+
+  document.querySelectorAll('.finding').forEach(card => {
+    const text = card.textContent.toLowerCase();
+    const matchesSearch = text.includes(query);
+
+    let matchesSev = true;
+    if (sevFilter.length > 0) {
+      matchesSev = false;
+      sevFilter.forEach(s => {
+        if (card.classList.contains('sev-' + s)) matchesSev = true;
+      });
+    }
+
+    let matchesTag = true;
+    if (tagFilter !== 'all') {
+      matchesTag = false;
+      card.querySelectorAll('.tag').forEach(tagSpan => {
+        if (tagSpan.textContent.trim() === tagFilter) matchesTag = true;
+      });
+    }
+
+    if (matchesSearch && matchesSev && matchesTag) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+// Auto-expand high/critical findings initially
 var exp=0;
 document.querySelectorAll('.finding').forEach(function(card){
   if(exp>=3)return;
@@ -744,7 +947,9 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 	var sb strings.Builder
 	for idx, f := range findings {
 		sev := strings.ToLower(f.Severity)
-		if sev == "" { sev = "info" }
+		if sev == "" {
+			sev = "info"
+		}
 		color := severityColor(sev)
 		targetURL := makeURL(f.Target)
 		cbPrefix := fmt.Sprintf("f%d", idx)
@@ -756,21 +961,25 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		sb.WriteString(fmt.Sprintf(`<span class="sev-badge" style="background:rgba(%s,.12);color:%s;border:1px solid rgba(%s,.3)">%s</span>`,
 			hexToRGBComponents(color), color, hexToRGBComponents(color), strings.ToUpper(sev)))
 		sb.WriteString(fmt.Sprintf(`<span class="score-pill">Score <strong>%d</strong>/100</span>`, f.Score))
-		sb.WriteString(`<span class="toggle-icon">▼</span>`)
+		sb.WriteString(`<span class="toggle-icon">v</span>`)
 		sb.WriteString(`</div></div>`)
 
 		sb.WriteString(`<div class="finding-body">`)
 
 		reasons := filterEmpty(strings.Split(f.Description, "; "))
 		if len(reasons) > 0 {
-			sb.WriteString(`<div class="fsection"><div class="fsection-label">🔍 Why This Scored High</div><ul class="reasons-list">`)
-			for _, r := range reasons { sb.WriteString(fmt.Sprintf(`<li>%s</li>`, r)) }
+			sb.WriteString(`<div class="fsection"><div class="fsection-label">Why This Scored High</div><ul class="reasons-list">`)
+			for _, r := range reasons {
+				sb.WriteString(fmt.Sprintf(`<li>%s</li>`, r))
+			}
 			sb.WriteString(`</ul></div>`)
 		}
 
 		if len(f.Tags) > 0 {
-			sb.WriteString(`<div class="fsection"><div class="fsection-label">🏷 Attack Surface Tags</div><div class="tag-list">`)
-			for _, tag := range f.Tags { sb.WriteString(fmt.Sprintf(`<span class="tag">%s</span>`, tag)) }
+			sb.WriteString(`<div class="fsection"><div class="fsection-label">Attack Surface Tags</div><div class="tag-list">`)
+			for _, tag := range f.Tags {
+				sb.WriteString(fmt.Sprintf(`<span class="tag">%s</span>`, tag))
+			}
 			sb.WriteString(`</div></div>`)
 		}
 
@@ -780,17 +989,31 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 			discoveredBy := ""
 			for _, p := range parts {
 				p = strings.TrimSpace(p)
-				if strings.HasPrefix(p, "Discovered by:") { discoveredBy = p } else if p != "" { urls = append(urls, p) }
+				if strings.HasPrefix(p, "Discovered by:") {
+					discoveredBy = p
+				} else if p != "" {
+					urls = append(urls, p)
+				}
 			}
 			if len(urls) > 0 || discoveredBy != "" {
-				sb.WriteString(`<div class="fsection"><div class="fsection-label">🔗 Discovered URLs</div>`)
-				if discoveredBy != "" { sb.WriteString(fmt.Sprintf(`<div class="sources-row">%s</div>`, discoveredBy)) }
+				sb.WriteString(`<div class="fsection"><div class="fsection-label">Discovered URLs</div>`)
+				if discoveredBy != "" {
+					sb.WriteString(fmt.Sprintf(`<div class="sources-row">%s</div>`, discoveredBy))
+				}
 				if len(urls) > 0 {
-					shown := urls; extra := 0
-					if len(shown) > 20 { extra = len(shown) - 20; shown = shown[:20] }
+					shown := urls
+					extra := 0
+					if len(shown) > 20 {
+						extra = len(shown) - 20
+						shown = shown[:20]
+					}
 					sb.WriteString(`<ul class="evidence-list">`)
-					for _, u := range shown { sb.WriteString(fmt.Sprintf(`<li><a href="%s" target="_blank" rel="noopener">%s</a></li>`, makeURL(u), u)) }
-					if extra > 0 { sb.WriteString(fmt.Sprintf(`<li style="color:var(--muted)">… and %d more (see JSON report for full list)</li>`, extra)) }
+					for _, u := range shown {
+						sb.WriteString(fmt.Sprintf(`<li><a href="%s" target="_blank" rel="noopener">%s</a></li>`, makeURL(u), u))
+					}
+					if extra > 0 {
+						sb.WriteString(fmt.Sprintf(`<li style="color:var(--muted)">... and %d more (see JSON report for full list)</li>`, extra))
+					}
 					sb.WriteString(`</ul>`)
 				}
 				sb.WriteString(`</div>`)
@@ -798,12 +1021,14 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		}
 
 		if f.Remediation != "" {
-			sb.WriteString(`<div class="fsection"><div class="fsection-label">📝 Testing Checklist</div><ul class="checklist">`)
+			sb.WriteString(`<div class="fsection"><div class="fsection-label">Testing Checklist</div><ul class="checklist">`)
 			if strings.HasPrefix(f.Remediation, "Suggested security tests: ") {
 				tests := strings.TrimPrefix(f.Remediation, "Suggested security tests: ")
 				for i, test := range strings.Split(tests, "\x00") {
 					test = strings.TrimSpace(test)
-					if test == "" { continue }
+					if test == "" {
+						continue
+					}
 					cbID := fmt.Sprintf("%s-cb%d", cbPrefix, i)
 					sb.WriteString(fmt.Sprintf(`<li><label for="%s"><input type="checkbox" id="%s"><span>%s</span></label></li>`, cbID, cbID, test))
 				}
@@ -816,11 +1041,11 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		sb.WriteString(fmt.Sprintf(`<div class="next-action sev-%s">`, sev))
 		switch sev {
 		case "critical", "high":
-			sb.WriteString(`<strong>🔴 Next Action:</strong> High-value target. Enable your proxy (Burp/Caido), open the target link, and run through the checklist. Focus on parameterized URLs — send to Repeater and try SQLi, SSRF, IDOR payloads. Any /admin or /api paths get tested for auth bypass.`)
+			sb.WriteString(`<strong>Next Action:</strong> High-value target. Enable your proxy (Burp/Caido), open the target link, and run through the checklist. Focus on parameterized URLs — send to Repeater and try SQLi, SSRF, IDOR payloads. Any /admin or /api paths get tested for auth bypass.`)
 		case "medium":
-			sb.WriteString(`<strong>🟡 Next Action:</strong> Interesting target. Check if you can access it unauthenticated. Look for IDOR on numeric IDs in the path. Test CORS headers on API endpoints. Try parameter pollution.`)
+			sb.WriteString(`<strong>Next Action:</strong> Interesting target. Check if you can access it unauthenticated. Look for IDOR on numeric IDs in the path. Test CORS headers on API endpoints. Try parameter pollution.`)
 		default:
-			sb.WriteString(`<strong>🔵 Next Action:</strong> Recon data. Verify security headers (CSP, HSTS, X-Frame-Options). Check for exposed directory listings or subdomain takeover opportunities. Look for technology version disclosure.`)
+			sb.WriteString(`<strong>Next Action:</strong> Recon data. Verify security headers (CSP, HSTS, X-Frame-Options). Check for exposed directory listings or subdomain takeover opportunities. Look for technology version disclosure.`)
 		}
 		sb.WriteString(`</div>`)
 
@@ -836,7 +1061,9 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 // hexToRGBComponents converts a #RRGGBB hex color to "R,G,B" for use in rgba().
 func hexToRGBComponents(hex string) string {
 	hex = strings.TrimPrefix(hex, "#")
-	if len(hex) != 6 { return "148,163,184" }
+	if len(hex) != 6 {
+		return "148,163,184"
+	}
 	var r, g, b uint8
 	fmt.Sscanf(hex[:2], "%02x", &r)
 	fmt.Sscanf(hex[2:4], "%02x", &g)
@@ -847,18 +1074,27 @@ func hexToRGBComponents(hex string) string {
 // filterEmpty removes blank strings from a slice.
 func filterEmpty(ss []string) []string {
 	out := make([]string, 0, len(ss))
-	for _, s := range ss { if strings.TrimSpace(s) != "" { out = append(out, s) } }
+	for _, s := range ss {
+		if strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
 	return out
 }
 
 // severityColor returns a CSS hex color for the given severity label.
 func severityColor(sev string) string {
 	switch strings.ToLower(sev) {
-	case "critical": return "#ef4444"
-	case "high":     return "#fb923c"
-	case "medium":   return "#fbbf24"
-	case "low":      return "#34d399"
-	default:         return "#94a3b8"
+	case "critical":
+		return "#ef4444"
+	case "high":
+		return "#fb923c"
+	case "medium":
+		return "#fbbf24"
+	case "low":
+		return "#34d399"
+	default:
+		return "#94a3b8"
 	}
 }
 func (rg *ReportGenerator) exportForBurp(report *Report) error {

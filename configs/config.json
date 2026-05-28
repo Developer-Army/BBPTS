@@ -33,6 +33,12 @@
   "submit": {
     "platform": ""
   },
+  "web_ender": "",
+  "dashboard_tls": {
+    "enabled": false,
+    "cert_file": "",
+    "key_file": ""
+  },
   "fleet": {
     "enabled": false,
     "fleet_name": "bbpts-fleet",

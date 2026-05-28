@@ -5,6 +5,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"os/exec"
@@ -41,6 +42,46 @@ func prepareCommand(ctx context.Context, name string, args ...string) commandHan
 	safeCPUs := int(math.Round(float64(numCPUs) * 0.9))
 	if safeCPUs < 1 {
 		safeCPUs = 1
+	}
+
+	if ContainerModeFromCtx(ctx) {
+		var containerRuntime string
+		if _, err := exec.LookPath("docker"); err == nil {
+			containerRuntime = "docker"
+		} else if _, err := exec.LookPath("podman"); err == nil {
+			containerRuntime = "podman"
+		}
+
+		if containerRuntime != "" {
+			image := name + ":latest"
+			if images := DockerImagesFromCtx(ctx); images != nil {
+				if img, found := images[name]; found && img != "" {
+					image = img
+				}
+			}
+
+			dockerArgs := []string{"run", "--rm", "-i"}
+
+			// Mount current working directory
+			if cwd, err := os.Getwd(); err == nil {
+				dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s", cwd, cwd), "-w", cwd)
+			}
+
+			// Mount home directory if it exists
+			if home, err := os.UserHomeDir(); err == nil {
+				dockerArgs = append(dockerArgs, "-v", fmt.Sprintf("%s:%s", home, home))
+			}
+
+			dockerArgs = append(dockerArgs, image)
+			dockerArgs = append(dockerArgs, args...)
+
+			slog.Debug("executing tool in container", "runtime", containerRuntime, "image", image, "tool", name)
+			cmd := exec.CommandContext(ctx, containerRuntime, dockerArgs...)
+			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			return cmd
+		} else {
+			slog.Warn("ContainerMode enabled but neither docker nor podman is available in PATH. Falling back to local execution.")
+		}
 	}
 
 	cmd := exec.CommandContext(ctx, binaryPath, args...)

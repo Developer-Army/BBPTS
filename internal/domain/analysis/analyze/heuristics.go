@@ -113,6 +113,20 @@ func applyPropertyHeuristics(ev recon.Event, insight *Insight) {
 	if strings.Contains(server, "php") || strings.Contains(server, "apache") {
 		addReason(insight, "Server identifying as dynamic stack: "+ev.Properties["server"])
 	}
+
+	// Wildcard SSL detection
+	if subject, ok := ev.Properties["ssl_subject"]; ok && strings.Contains(subject, "*.") {
+		addTag(insight, "wildcard-ssl")
+		addReason(insight, "Wildcard SSL certificate subject: "+subject)
+		insight.Score += 2
+	}
+
+	// Mock response / parking page check
+	if title != "" && isMockResponse(title) {
+		addTag(insight, "mock-response")
+		addReason(insight, "Parked page / mock response false positive title: "+ev.Properties["title"])
+		insight.Score -= 30
+	}
 }
 
 func isSQLiParam(key string, values []string) bool {
@@ -137,5 +151,27 @@ func isSQLiParam(key string, values []string) bool {
 		}
 	}
 
+	return false
+}
+
+func isMockResponse(title string) bool {
+	title = strings.ToLower(title)
+	signatures := []string{
+		"domain parked",
+		"parked domain",
+		"cpanel",
+		"under construction",
+		"iis windows server",
+		"apache2 ubuntu default page",
+		"welcome to nginx",
+		"default web site page",
+		"404 not found",
+		"site not found",
+	}
+	for _, sig := range signatures {
+		if strings.Contains(title, sig) {
+			return true
+		}
+	}
 	return false
 }

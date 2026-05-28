@@ -41,11 +41,10 @@ func NewTriageEngine() *TriageEngine {
 			// Common wildcards and placeholders
 			"*.example", "*.test", "*.local", "*.internal",
 			// Generated/test subdomains
-			"test", "staging", "dev", "tmp", "temp",
+			"test", "tmp", "temp",
 			"docker", "k8s", "lab", "sandbox",
 			// Common CDN/3rd party
 			"static", "media", "assets", "images",
-			"api-stg", "api-dev", "api-test",
 		},
 
 		// Known noise patterns for ports

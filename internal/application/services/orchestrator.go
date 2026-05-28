@@ -104,6 +104,12 @@ type Config struct {
 
 	// AutoUpdate controls whether Nuclei templates are updated automatically.
 	AutoUpdate bool
+
+	// ContainerMode executes external tools in container environments.
+	ContainerMode bool
+
+	// DockerImages maps tool names to docker images to use.
+	DockerImages map[string]string
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -269,6 +275,8 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = WithRateLimit(ctx, o.config.RateLimit)
 	ctx = WithToolRateLimits(ctx, o.config.ToolRateLimits)
 	ctx = WithAutoUpdate(ctx, o.config.AutoUpdate)
+	ctx = WithContainerMode(ctx, o.config.ContainerMode)
+	ctx = WithDockerImages(ctx, o.config.DockerImages)
 
 	if err := o.ensureTmpResultsDir(); err != nil {
 		slog.Warn("failed to initialize tmp results directory", "dir", o.config.TmpResultsDir, "error", err)

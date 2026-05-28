@@ -85,6 +85,18 @@ type Config struct {
 	// ReportTemplatePath is an optional path to a custom Go text/template file
 	// for generating the HTML report. When empty, the built-in template is used.
 	ReportTemplatePath string `json:"report_template"`
+
+	// ContainerMode executes external tools in container environments.
+	ContainerMode bool `json:"container_mode"`
+
+	// DockerImages maps tool names to docker images to use.
+	DockerImages map[string]string `json:"docker_images"`
+
+	// DashboardTLS configuration for securing the web dashboard.
+	DashboardTLS TLSConfig `json:"dashboard_tls"`
+
+	// WebEnder holds a custom research identifier tag (e.g., H1{username}).
+	WebEnder string `json:"web_ender"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -119,6 +131,14 @@ type FleetConfig struct {
 	FleetName   string `json:"fleet_name"`
 	FleetSize   int    `json:"fleet_size"`
 	DeleteAfter bool   `json:"delete_after"`
+	SyncToken   string `json:"sync_token"`
+}
+
+// TLSConfig holds configuration for securing the web server/manager with HTTPS.
+type TLSConfig struct {
+	Enabled  bool   `json:"enabled"`
+	CertFile string `json:"cert_file"`
+	KeyFile  string `json:"key_file"`
 }
 
 // ResourceLimitsConfig holds configuration for CPU, memory, and GC limits.
@@ -153,8 +173,19 @@ func DefaultConfig() *Config {
 		AutoUpdate:     false,
 		Ports:          "",
 		BatchSize:      1,
-		StateDir:       filepath.Join(home, ".bbpts", "state"),
-		WordlistsDir:   filepath.Join(".", "wordlists"),
+		ContainerMode:  false,
+		DockerImages: map[string]string{
+			"nuclei":    "projectdiscovery/nuclei:v3.2.9",
+			"subfinder": "projectdiscovery/subfinder:v2.6.6",
+			"katana":    "projectdiscovery/katana:v1.1.0",
+			"httpx":     "projectdiscovery/httpx:v1.6.4",
+			"dnsx":      "projectdiscovery/dnsx:v1.2.1",
+			"naabu":     "projectdiscovery/naabu:v2.3.1",
+			"tlsx":      "projectdiscovery/tlsx:v1.1.6",
+			"amass":     "caffix/amass:v4.2.0",
+		},
+		StateDir:     filepath.Join(home, ".bbpts", "state"),
+		WordlistsDir: filepath.Join(".", "wordlists"),
 		Wordlists: WordlistConfig{
 			DNS:       "dns-5k.txt",
 			Directory: "raft-small-files.txt",
@@ -339,4 +370,29 @@ func WriteDefault(path string) error {
 	}
 
 	return os.WriteFile(path, data, 0600)
+}
+
+// ResolveWebEnder parses a tag format like NAME{value} and populates headers.
+func ResolveWebEnder(webEnder string, headers map[string]string) map[string]string {
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	if webEnder == "" {
+		return headers
+	}
+	if strings.Contains(webEnder, "{") && strings.HasSuffix(webEnder, "}") {
+		parts := strings.SplitN(webEnder, "{", 2)
+		name := strings.ToUpper(strings.TrimSpace(parts[0]))
+		val := strings.TrimSuffix(parts[1], "}")
+		if name != "" && val != "" {
+			headers["X-Research-Tag"] = webEnder
+			headers[fmt.Sprintf("X-%s-Research", name)] = val
+			if ua, ok := headers["User-Agent"]; ok {
+				headers["User-Agent"] = ua + " " + webEnder
+			} else {
+				headers["User-Agent"] = "BBPTS " + webEnder
+			}
+		}
+	}
+	return headers
 }

@@ -72,7 +72,7 @@ func TestStartWithNilDB(t *testing.T) {
 	}
 
 	// This will fail to start properly due to nil db, but we can test the structure
-	err := Start(cfg, nil)
+	err := Start(cfg, nil, "", "")
 
 	if err == nil {
 		t.Error("Expected error when db is nil")
@@ -303,6 +303,21 @@ func TestDashboardHTMLLength(t *testing.T) {
 	// DashboardHTML should be substantial
 	if len(DashboardHTML) < 1000 {
 		t.Errorf("Expected DashboardHTML to be at least 1000 characters, got %d", len(DashboardHTML))
+	}
+}
+
+func TestGenerateSelfSignedCert(t *testing.T) {
+	cert, err := generateSelfSignedCert()
+	if err != nil {
+		t.Fatalf("failed to generate self-signed certificate: %v", err)
+	}
+
+	if len(cert.Certificate) == 0 {
+		t.Error("expected certificate to contain at least one certificate block")
+	}
+
+	if cert.PrivateKey == nil {
+		t.Error("expected certificate to contain a private key")
 	}
 }
 

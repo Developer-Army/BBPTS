@@ -31,14 +31,24 @@ type BurpIssues struct {
 func splitHostAndPath(target string) (string, string) {
 	target = strings.TrimSpace(target)
 	if !strings.Contains(target, "://") {
+		var host, path string
 		if idx := strings.IndexByte(target, '/'); idx >= 0 {
-			return target[:idx], target[idx:]
+			host, path = target[:idx], target[idx:]
+		} else {
+			host, path = target, "/"
 		}
-		return target, "/"
+		if idx := strings.IndexByte(host, ':'); idx >= 0 {
+			host = host[:idx]
+		}
+		return host, path
 	}
 	u, err := url.Parse(target)
 	if err != nil {
-		return target, "/"
+		host := target
+		if idx := strings.IndexByte(host, ':'); idx >= 0 {
+			host = host[:idx]
+		}
+		return host, "/"
 	}
 	path := u.EscapedPath()
 	if u.RawQuery != "" {
@@ -47,7 +57,7 @@ func splitHostAndPath(target string) (string, string) {
 	if path == "" {
 		path = "/"
 	}
-	return u.Host, path
+	return u.Hostname(), path
 }
 
 // ExportToBurpXML generates an XML file that can be imported into Burp Suite.

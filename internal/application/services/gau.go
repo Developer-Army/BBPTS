@@ -24,8 +24,6 @@ func (t *GauTool) Run(ctx context.Context, targets []string, threads int) ([]Eve
 		return nil, fmt.Errorf("gau execution failed: %w", err)
 	}
 
-
-
 	return NewEventsFromLinesFunc(lines, t.Name(), func(value string) map[string]string {
 		return map[string]string{"history_url": value}
 	}), nil

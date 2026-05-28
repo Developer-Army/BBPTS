@@ -371,7 +371,7 @@ func main() {
 			mdBuilder.WriteString("\n")
 		}
 	} else {
-		mdBuilder.WriteString("## All Tests Passed Successfully! 🎉\n")
+		mdBuilder.WriteString("## All Tests Passed Successfully!\n")
 	}
 
 	if *mdPath != "" {

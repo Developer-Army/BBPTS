@@ -146,7 +146,7 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 	}
 
 	fmt.Printf(" Target Evaluated: %s\n", targetItem.Host)
-	fmt.Printf("📈 Finding Priority: %s | Score: %d\n\n", targetItem.Priority, targetItem.Score)
+	fmt.Printf(" Finding Priority: %s | Score: %d\n\n", targetItem.Priority, targetItem.Score)
 
 	fmt.Printf(" True Positives (Found expected findings): %d\n", len(tp))
 	for _, v := range tp {
@@ -169,7 +169,7 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 	}
 	fmt.Println()
 
-	fmt.Printf("️ False Negatives (Missed findings): %d\n", len(fn))
+	fmt.Printf(" False Negatives (Missed findings): %d\n", len(fn))
 	if len(fn) == 0 {
 		fmt.Println("   (Perfect! Caught everything expected)")
 	} else {
@@ -311,7 +311,7 @@ func evaluateLegacy(expected Expected, actualPath, mode, failuresPath string) {
 	}
 	fmt.Println()
 
-	fmt.Printf("️ False Negatives (Missed): %d\n", len(fn))
+	fmt.Printf(" False Negatives (Missed): %d\n", len(fn))
 	if len(fn) == 0 {
 		fmt.Println("   (Perfect! Caught everything)")
 	} else {

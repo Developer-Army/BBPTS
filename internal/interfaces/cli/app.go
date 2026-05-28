@@ -84,8 +84,11 @@ type Options struct {
 	LightMode         bool
 	FullMode          bool
 	RunWorker         bool
-	DryRun            bool
-	AutoSubmit        bool
+	Submit            bool
+	TLSEnabled        bool
+	TLSCertFile       string
+	TLSKeyFile        string
+	WebEnder          string
 	ShowVersion       bool
 	EnableMetrics     bool
 	MetricsPort       int
@@ -411,6 +414,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			EventBus:       eventBus,
 			Timeout:        scanTimeout(opts.Timeout, len(toolNames)),
 			CacheEnabled:   true,
+			ContainerMode:  cfg.ContainerMode,
+			DockerImages:   cfg.DockerImages,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
 				WorkerMesh:  cfg.Fleet.WorkerMesh,
@@ -586,6 +591,12 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			} else {
 				slog.Info("diff markdown report written", "path", diffPath)
 			}
+			if opts.CronInterval > 0 && (len(diff.NewTargets) > 0 || len(diff.NewEvents) > 0) {
+				fmt.Println("\n=== DIFFERENTIAL RECONNAISSANCE REPORT ===")
+				fmt.Print(diffMD)
+				fmt.Println("==========================================")
+				fmt.Println()
+			}
 		}
 		if diff != nil && opts.DiffOnly {
 			events = diff.NewEvents
@@ -611,7 +622,31 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			if storage := store.GetDB(); storage != nil {
 				go func() {
 					defer close(dashboardDone)
-					if err := server.Start(server.Config{Port: opts.DashboardPort}, storage); err != nil {
+					dbType := cfg.Database.Type
+					if dbType == "" {
+						dbType = "sqlite3"
+					}
+					dbSource := cfg.Database.DSN
+					if dbSource == "" && (dbType == "sqlite3" || dbType == "sqlite") {
+						home, _ := os.UserHomeDir()
+						dbSource = filepath.Join(home, ".bbpts", "bbpts.db")
+					}
+					tlsEnabled := opts.TLSEnabled || cfg.DashboardTLS.Enabled
+					certFile := opts.TLSCertFile
+					if certFile == "" {
+						certFile = cfg.DashboardTLS.CertFile
+					}
+					keyFile := opts.TLSKeyFile
+					if keyFile == "" {
+						keyFile = cfg.DashboardTLS.KeyFile
+					}
+					serverCfg := server.Config{
+						Port:        opts.DashboardPort,
+						TLSEnabled:  tlsEnabled,
+						TLSCertFile: certFile,
+						TLSKeyFile:  keyFile,
+					}
+					if err := server.Start(serverCfg, storage, opts.ConfigPath, dbSource); err != nil {
 						slog.Error("dashboard server error", "error", err)
 					}
 				}()
@@ -986,12 +1021,14 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, e
 
 		if len(triagedTargets) > 0 {
 			reconConfig := services.Config{
-				ToolNames:    triggeredTools,
-				Threads:      threads,
-				RateLimit:    opts.RateLimit,
-				Proxies:      cfg.Proxies,
-				APIKeys:      cfg.APIKeys,
-				WordlistsDir: cfg.WordlistsDir,
+				ToolNames:     triggeredTools,
+				Threads:       threads,
+				RateLimit:     opts.RateLimit,
+				Proxies:       cfg.Proxies,
+				APIKeys:       cfg.APIKeys,
+				WordlistsDir:  cfg.WordlistsDir,
+				ContainerMode: cfg.ContainerMode,
+				DockerImages:  cfg.DockerImages,
 			}
 			orchestrator := services.NewOrchestrator(reconConfig)
 			if orchestrator != nil {
@@ -1081,10 +1118,10 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		}
 	}
 
-	if opts.AutoSubmit || opts.DryRun {
+	if opts.Submit {
 		for _, in := range insights {
 			if in.Priority == "high" || in.Score >= 25 {
-				handleAutoSubmit(opts, cfg, in)
+				handleSubmit(opts, cfg, in)
 			}
 		}
 	}
@@ -1220,13 +1257,13 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 	}
 }
 
-func handleAutoSubmit(opts Options, cfg *config.Config, in analyze.Insight) {
+func handleSubmit(opts Options, cfg *config.Config, in analyze.Insight) {
 	if opts.Scope == "" {
 		return
 	}
 	platform := strings.TrimSpace(cfg.Submit.Platform)
 	if platform == "" {
-		slog.Warn("auto-submit skipped: submit.platform is not configured", "host", in.Host)
+		slog.Warn("submit skipped: submit.platform is not configured", "host", in.Host)
 		return
 	}
 
@@ -1234,24 +1271,20 @@ func handleAutoSubmit(opts Options, cfg *config.Config, in analyze.Insight) {
 	desc := fmt.Sprintf("Host: %s\nPriority: %s\nTags: %v\n\nReasons:\n%s", in.Host, in.Priority, in.Tags, strings.Join(in.Reasons, "\n"))
 	hash := submissionHash(platform, opts.Scope, in)
 
-	if opts.DryRun {
-		slog.Info("dry-run: would submit finding", "platform", platform, "program", opts.Scope, "host", in.Host, "hash", hash, "title", title)
-		return
-	}
-	if !opts.AutoSubmit {
+	if !opts.Submit {
 		return
 	}
 	if alreadySubmitted(cfg.StateDir, hash) {
-		slog.Info("auto-submit skipped: finding already submitted", "platform", platform, "host", in.Host, "hash", hash)
+		slog.Info("submit skipped: finding already submitted", "platform", platform, "host", in.Host, "hash", hash)
 		return
 	}
 
 	if err := utils.AutoSubmit(platform, opts.Scope, title, desc, "high"); err != nil {
-		slog.Warn("auto-submit failed", "platform", platform, "host", in.Host, "error", err)
+		slog.Warn("submit failed", "platform", platform, "host", in.Host, "error", err)
 		return
 	}
 	if err := markSubmitted(cfg.StateDir, hash); err != nil {
-		slog.Warn("failed to record auto-submit marker", "hash", hash, "error", err)
+		slog.Warn("failed to record submit marker", "hash", hash, "error", err)
 	}
 }
 

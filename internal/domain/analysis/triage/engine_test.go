@@ -143,14 +143,16 @@ func TestAnalyzeSubdomain(t *testing.T) {
 		{
 			name:      "staging subdomain",
 			target:    "staging.acme-corp.io",
-			wantNoise: true,
-			wantSev:   "info",
+			wantNoise: false,
+			wantSev:   "medium",
+			wantConf:  0.8,
 		},
 		{
 			name:      "dev subdomain",
 			target:    "dev.acme-corp.io",
-			wantNoise: true,
-			wantSev:   "info",
+			wantNoise: false,
+			wantSev:   "medium",
+			wantConf:  0.8,
 		},
 		{
 			name:      "cdn subdomain",

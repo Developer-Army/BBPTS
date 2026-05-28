@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -75,23 +74,13 @@ func newJSONRequest(method, url string, payload []byte) (*http.Request, error) {
 }
 
 // AutoSubmit iterates through configured platforms and submits the report.
+// Note: Real submissions are currently gated/disabled to protect accounts from being banned.
 func AutoSubmit(platformName, program, title, description, severity string) error {
-	var platform Platform
-
-	switch strings.ToLower(platformName) {
-	case "hackerone":
-		platform = NewHackerOneClient(program)
-	case "bugcrowd":
-		platform = NewBugcrowdClient(program)
-	default:
-		slog.Warn("Unsupported bug bounty platform for auto-submit", "platform", platformName)
-		return nil
-	}
-
-	if !platform.IsConfigured() {
-		slog.Debug("Auto-submit skipped: credentials not configured", "platform", platformName)
-		return nil
-	}
-
-	return platform.SubmitReport(title, description, severity)
+	slog.Info("[DRY-RUN] AutoSubmit finding (real submissions disabled to protect account)",
+		"platform", platformName,
+		"program", program,
+		"title", title,
+		"severity", severity,
+	)
+	return nil
 }

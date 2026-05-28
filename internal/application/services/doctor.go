@@ -121,6 +121,9 @@ var toolInstallInstructions = map[string]string{
 	"feroxbuster": "curl -sLo install-feroxbuster.sh https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh && chmod +x install-feroxbuster.sh && ./install-feroxbuster.sh",
 	"massdns":     "git clone https://github.com/blechschmidt/massdns.git && cd massdns && make && sudo cp bin/massdns /usr/local/bin/",
 	"trufflehog":  "curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin",
+	"whois":       "sudo apt-get install -y whois || brew install whois",
+	"wafw00f":     "pip install wafw00f",
+	"shodan":      "pip install shodan",
 }
 
 // RunHealthChecks performs health checks on all registered recon tools.

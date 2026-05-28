@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewAPI(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	if api == nil {
 		t.Fatal("NewAPI returned nil")
@@ -20,7 +20,7 @@ func TestNewAPI(t *testing.T) {
 }
 
 func TestGetStats(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/stats", nil)
 	w := httptest.NewRecorder()
@@ -43,7 +43,7 @@ func TestGetStats(t *testing.T) {
 }
 
 func TestGetScans(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/scans", nil)
 	w := httptest.NewRecorder()
@@ -56,7 +56,7 @@ func TestGetScans(t *testing.T) {
 }
 
 func TestGetEventsMissingScanID(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/events", nil)
 	w := httptest.NewRecorder()
@@ -79,7 +79,7 @@ func TestGetEventsMissingScanID(t *testing.T) {
 }
 
 func TestGetEventsInvalidScanID(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/events?scan_id=invalid", nil)
 	w := httptest.NewRecorder()
@@ -102,7 +102,7 @@ func TestGetEventsInvalidScanID(t *testing.T) {
 }
 
 func TestGetEventsValidScanID(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/events?scan_id=123", nil)
 	w := httptest.NewRecorder()
@@ -198,7 +198,7 @@ func TestRespondWithJSONComplexPayload(t *testing.T) {
 }
 
 func TestGetEventsWithNegativeScanID(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/events?scan_id=-1", nil)
 	w := httptest.NewRecorder()
@@ -212,7 +212,7 @@ func TestGetEventsWithNegativeScanID(t *testing.T) {
 }
 
 func TestGetEventsWithZeroScanID(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/events?scan_id=0", nil)
 	w := httptest.NewRecorder()
@@ -226,7 +226,7 @@ func TestGetEventsWithZeroScanID(t *testing.T) {
 }
 
 func TestGetEventsWithLargeScanID(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	req := httptest.NewRequest("GET", "/api/events?scan_id=999999999999", nil)
 	w := httptest.NewRecorder()
@@ -240,7 +240,7 @@ func TestGetEventsWithLargeScanID(t *testing.T) {
 }
 
 func TestGetStatsMethod(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	// Test POST method (should still work, but typically would be GET)
 	req := httptest.NewRequest("POST", "/api/stats", nil)
@@ -255,7 +255,7 @@ func TestGetStatsMethod(t *testing.T) {
 }
 
 func TestGetScansMethod(t *testing.T) {
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	// Test POST method
 	req := httptest.NewRequest("POST", "/api/scans", nil)
@@ -272,7 +272,7 @@ func TestGetScansMethod(t *testing.T) {
 func TestAPIWithMockDB(t *testing.T) {
 	// This would require mocking the storage.DB interface
 	// For now, we just test the structure
-	api := NewAPI(nil)
+	api := NewAPI(nil, "", "")
 
 	if api.db != nil {
 		t.Error("Expected db to be nil")

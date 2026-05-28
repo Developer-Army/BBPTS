@@ -32,6 +32,12 @@ BBPTS uses two main configuration files:
   "wordlists_dir": "./wordlists",
   "submit": {
     "platform": ""
+  },
+  "web_ender": "H1{username}",
+  "dashboard_tls": {
+    "enabled": false,
+    "cert_file": "",
+    "key_file": ""
   }
 }
 ```

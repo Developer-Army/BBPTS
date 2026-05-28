@@ -33,8 +33,8 @@ if ! command -v go &> /dev/null; then
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         wget https://go.dev/dl/go1.23.0.linux-amd64.tar.gz -O /tmp/go.tar.gz
         sudo tar -C /usr/local -xzf /tmp/go.tar.gz
-        echo 'export PATH=$PATH:/usr/local/go/bin:~/go/bin' >> ~/.bashrc
-        export PATH=$PATH:/usr/local/go/bin:~/go/bin
+        echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin' >> ~/.bashrc
+        export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin
         rm /tmp/go.tar.gz
         echo " Go installed successfully for Linux."
     elif [[ "$OSTYPE" == "darwin"* ]]; then

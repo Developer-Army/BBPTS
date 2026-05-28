@@ -107,7 +107,6 @@ func DeriveInsights(targets []string, events []recon.Event) []Insight {
 			sourcesPerHost[host][src] = struct{}{}
 		}
 
-		addReason(insight, "source: "+ev.Source)
 		for _, a := range analyzers {
 			a.Analyze(ev, insight)
 		}
@@ -115,16 +114,22 @@ func DeriveInsights(targets []string, events []recon.Event) []Insight {
 
 	result := make([]Insight, 0, len(insights))
 	for _, insight := range insights {
+		insight.Sources = sortedKeys(sourcesPerHost[insight.Host])
+		for _, src := range insight.Sources {
+			addReason(insight, "source: "+src)
+		}
 		consolidateParamReasons(insight)
 		enrichSuggestedTests(insight)
 		insight.DedupeKey = strings.ToLower(strings.TrimSpace(insight.Host))
-		insight.Sources = sortedKeys(sourcesPerHost[insight.Host])
 		insight.Confidence = computeInsightConfidence(insight)
 		result = append(result, *insight)
 	}
 
 	// Cluster-based scoring boost (must happen after result built, before normalization)
 	clusterAnalyzer.PostProcess(result, events)
+
+	// Group subdomain sibling findings
+	clusterSubdomainSiblings(result)
 
 	// Normalize all raw scores to 0–100 using log-scale so that
 	// scores reflect suspicion level rather than data volume.
@@ -774,4 +779,73 @@ func consolidateParamReasons(insight *Insight) {
 		cleaned = append(cleaned, summary)
 	}
 	insight.Reasons = cleaned
+}
+
+func clusterSubdomainSiblings(insights []Insight) {
+	byApex := make(map[string][]*Insight)
+	for i := range insights {
+		apex := getApexDomain(insights[i].Host)
+		byApex[apex] = append(byApex[apex], &insights[i])
+	}
+
+	for apex, list := range byApex {
+		if len(list) < 2 {
+			continue
+		}
+
+		// Cluster list elements by matching path or vulnerability tags
+		for i := 0; i < len(list); i++ {
+			for j := i + 1; j < len(list); j++ {
+				var matchedTags []string
+				for _, tagI := range list[i].Tags {
+					if isFilterableTag(tagI) {
+						for _, tagJ := range list[j].Tags {
+							if tagI == tagJ {
+								matchedTags = append(matchedTags, tagI)
+							}
+						}
+					}
+				}
+
+				if len(matchedTags) > 0 {
+					addTag(list[i], "sibling-group")
+					addTag(list[j], "sibling-group")
+					addReason(list[i], fmt.Sprintf("Subdomain sibling cluster (*.%s) matching tags: %s", apex, strings.Join(matchedTags, ", ")))
+					addReason(list[j], fmt.Sprintf("Subdomain sibling cluster (*.%s) matching tags: %s", apex, strings.Join(matchedTags, ", ")))
+				}
+			}
+		}
+	}
+}
+
+func isFilterableTag(tag string) bool {
+	tags := map[string]bool{
+		"sqli-candidate":  true,
+		"ssrf-candidate":  true,
+		"lfi-candidate":   true,
+		"cors-risk":       true,
+		"sensitive":       true,
+		"sensitive-asset": true,
+		"interesting-js":  true,
+		"auth":            true,
+		"api":             true,
+		"db-error":        true,
+	}
+	return tags[tag]
+}
+
+func getApexDomain(host string) string {
+	if ip := net.ParseIP(host); ip != nil {
+		return host
+	}
+	parts := strings.Split(host, ".")
+	if len(parts) <= 2 {
+		return host
+	}
+	// Check for double extensions like co.uk, com.br
+	secondToLast := parts[len(parts)-2]
+	if secondToLast == "com" || secondToLast == "co" || secondToLast == "org" || secondToLast == "net" || secondToLast == "gov" || secondToLast == "edu" {
+		return strings.Join(parts[len(parts)-3:], ".")
+	}
+	return strings.Join(parts[len(parts)-2:], ".")
 }

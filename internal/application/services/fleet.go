@@ -4,6 +4,7 @@ package services
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
+	_ "modernc.org/sqlite"
 )
 
 // AxiomConfig holds the Axiom fleet configuration.
@@ -236,4 +238,157 @@ func (r *AxiomRunner) Status(ctx context.Context) (*StatusReport, error) {
 		return &StatusReport{}, nil
 	}
 	return &report, nil
+}
+
+// ImportAndMergeDatabase merges target state, scans, targets, events, and insights
+// from an incoming SQLite database into the master SQLite database.
+func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
+	// Open connection to master database
+	masterDB, err := sql.Open("sqlite", masterDBPath)
+	if err != nil {
+		return fmt.Errorf("failed to open master database: %w", err)
+	}
+	defer masterDB.Close()
+
+	// Open connection to incoming database
+	incomingDB, err := sql.Open("sqlite", incomingDBPath)
+	if err != nil {
+		return fmt.Errorf("failed to open incoming database: %w", err)
+	}
+	defer incomingDB.Close()
+
+	// Start a transaction on master database to ensure atomicity
+	tx, err := masterDB.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction on master database: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// 1. Query all scans from incoming database
+	scanRows, err := incomingDB.Query("SELECT id, scope, start_time, end_time, status FROM scans")
+	if err != nil {
+		// Scans table might not exist if schema is empty
+		return fmt.Errorf("failed to query scans from incoming database: %w", err)
+	}
+	defer scanRows.Close()
+
+	type scanRecord struct {
+		id        int64
+		scope     string
+		startTime string
+		endTime   sql.NullString
+		status    string
+	}
+	var scans []scanRecord
+	for scanRows.Next() {
+		var s scanRecord
+		if err := scanRows.Scan(&s.id, &s.scope, &s.startTime, &s.endTime, &s.status); err != nil {
+			return fmt.Errorf("failed to scan scan row: %w", err)
+		}
+		scans = append(scans, s)
+	}
+	scanRows.Close()
+
+	// Map old scan ID -> new scan ID in master
+	scanIDMap := make(map[int64]int64)
+
+	for _, s := range scans {
+		// Check if a scan with the same scope, start_time already exists in master
+		var existingID int64
+		err := tx.QueryRow("SELECT id FROM scans WHERE scope = ? AND start_time = ?", s.scope, s.startTime).Scan(&existingID)
+		if err == nil {
+			// Scan already exists in master
+			scanIDMap[s.id] = existingID
+			continue
+		} else if err != sql.ErrNoRows {
+			return fmt.Errorf("failed to check existing scan in master: %w", err)
+		}
+
+		// Insert scan into master
+		res, err := tx.Exec("INSERT INTO scans (scope, start_time, end_time, status) VALUES (?, ?, ?, ?)",
+			s.scope, s.startTime, s.endTime, s.status)
+		if err != nil {
+			return fmt.Errorf("failed to insert scan into master: %w", err)
+		}
+		newID, err := res.LastInsertId()
+		if err != nil {
+			return fmt.Errorf("failed to get last insert id: %w", err)
+		}
+		scanIDMap[s.id] = newID
+	}
+
+	// 2. Query and merge targets
+	targetRows, err := incomingDB.Query("SELECT scan_id, host, is_new FROM targets")
+	if err == nil {
+		defer targetRows.Close()
+		for targetRows.Next() {
+			var scanID int64
+			var host string
+			var isNew sql.NullBool
+			if err := targetRows.Scan(&scanID, &host, &isNew); err != nil {
+				return fmt.Errorf("failed to scan target row: %w", err)
+			}
+			newScanID, ok := scanIDMap[scanID]
+			if !ok {
+				continue // Scan not found, skip
+			}
+			// Insert if not exists in master for this scan
+			_, err = tx.Exec("INSERT OR IGNORE INTO targets (scan_id, host, is_new) VALUES (?, ?, ?)",
+				newScanID, host, isNew)
+			if err != nil {
+				return fmt.Errorf("failed to insert target into master: %w", err)
+			}
+		}
+	}
+
+	// 3. Query and merge events
+	eventRows, err := incomingDB.Query("SELECT scan_id, target, source, type, properties FROM events")
+	if err == nil {
+		defer eventRows.Close()
+		for eventRows.Next() {
+			var scanID int64
+			var target, source, eventType, properties string
+			if err := eventRows.Scan(&scanID, &target, &source, &eventType, &properties); err != nil {
+				return fmt.Errorf("failed to scan event row: %w", err)
+			}
+			newScanID, ok := scanIDMap[scanID]
+			if !ok {
+				continue
+			}
+			// Insert or ignore if duplicate target+source+type for this scan
+			_, err = tx.Exec("INSERT OR IGNORE INTO events (scan_id, target, source, type, properties) VALUES (?, ?, ?, ?, ?)",
+				newScanID, target, source, eventType, properties)
+			if err != nil {
+				return fmt.Errorf("failed to insert event into master: %w", err)
+			}
+		}
+	}
+
+	// 4. Query and merge insights
+	insightRows, err := incomingDB.Query("SELECT scan_id, host, priority, score, tags FROM insights")
+	if err == nil {
+		defer insightRows.Close()
+		for insightRows.Next() {
+			var scanID int64
+			var host string
+			var priority sql.NullString
+			var score sql.NullInt64
+			var tags sql.NullString
+			if err := insightRows.Scan(&scanID, &host, &priority, &score, &tags); err != nil {
+				return fmt.Errorf("failed to scan insight row: %w", err)
+			}
+			newScanID, ok := scanIDMap[scanID]
+			if !ok {
+				continue
+			}
+			// Insert or replace insight
+			_, err = tx.Exec("INSERT OR REPLACE INTO insights (scan_id, host, priority, score, tags) VALUES (?, ?, ?, ?, ?)",
+				newScanID, host, priority, score, tags)
+			if err != nil {
+				return fmt.Errorf("failed to insert/replace insight in master: %w", err)
+			}
+		}
+	}
+
+	return tx.Commit()
 }

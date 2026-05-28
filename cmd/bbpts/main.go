@@ -15,6 +15,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	app "github.com/Developer-Army/BBPTS/internal/interfaces/cli"
+	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/server"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
@@ -29,6 +30,14 @@ var (
 )
 
 func main() {
+	// Prepend $HOME/go/bin and $HOME/.local/bin to PATH so target tools are found
+	if home, err := os.UserHomeDir(); err == nil {
+		path := os.Getenv("PATH")
+		goBin := filepath.Join(home, "go", "bin")
+		localBin := filepath.Join(home, ".local", "bin")
+		os.Setenv("PATH", goBin+string(os.PathListSeparator)+localBin+string(os.PathListSeparator)+path)
+	}
+
 	utils.InitializeResourceGuard()
 	opts := parseFlags()
 
@@ -76,6 +85,15 @@ func main() {
 				cfg.Headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 			}
 		}
+	}
+
+	// Apply web_ender / header_tag if provided
+	webEnder := opts.WebEnder
+	if webEnder == "" {
+		webEnder = cfg.WebEnder
+	}
+	if webEnder != "" {
+		cfg.Headers = config.ResolveWebEnder(webEnder, cfg.Headers)
 	}
 	app.ApplyPresetAndProfileDefaults(&opts, cfg)
 
@@ -132,6 +150,8 @@ func main() {
 			logWriter = os.Stderr
 		}
 	}
+
+	logWriter = &server.LogBroadcasterWriter{Original: logWriter}
 
 	level := resolveLogLevel(opts)
 	baseHandler := slog.NewTextHandler(logWriter, &slog.HandlerOptions{Level: level})
@@ -220,8 +240,13 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.EvidencePath, "evidence", "", "Write compact JSON evidence bundle for top insights")
 	flag.IntVar(&opts.EvidenceTopN, "evidence-top", 0, "Max insights in evidence bundle (default 25)")
 	flag.BoolVar(&opts.RunWorker, "worker", false, "Run as a distributed worker listening to the event bus")
-	flag.BoolVar(&opts.DryRun, "dry-run", false, "Log actions that would be taken without submitting reports")
-	flag.BoolVar(&opts.AutoSubmit, "auto-submit", false, "Submit high-priority findings to the configured bug bounty platform")
+	flag.BoolVar(&opts.Submit, "submit", false, "Submit high-priority findings to the configured bug bounty platform")
+	flag.BoolVar(&opts.TLSEnabled, "https", false, "Start dashboard with HTTPS/TLS")
+	flag.BoolVar(&opts.TLSEnabled, "tls", false, "Alias for -https")
+	flag.StringVar(&opts.TLSCertFile, "tls-cert", "", "Path to TLS certificate file")
+	flag.StringVar(&opts.TLSKeyFile, "tls-key", "", "Path to TLS key file")
+	flag.StringVar(&opts.WebEnder, "web-ender", "", "Custom research identifier tag (e.g. H1{username})")
+	flag.StringVar(&opts.WebEnder, "header-tag", "", "Alias for -web-ender")
 
 	flag.BoolVar(&opts.Resume, "resume", false, "Resume from previous checkpoint")
 	flag.BoolVar(&opts.Resume, "r", false, "Short for -resume")
