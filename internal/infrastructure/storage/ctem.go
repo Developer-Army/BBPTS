@@ -21,12 +21,13 @@ type Owner struct {
 }
 
 type AssetOwnership struct {
-	ID        int64      `json:"id"`
-	AssetID   string     `json:"asset_id"`
-	OwnerID   *int64     `json:"owner_id,omitempty"`
-	TeamID    *int64     `json:"team_id,omitempty"`
-	StartTime time.Time  `json:"start_time"`
-	EndTime   *time.Time `json:"end_time,omitempty"`
+	ID           int64      `json:"id"`
+	AssetID      string     `json:"asset_id"`
+	OwnerID      *int64     `json:"owner_id,omitempty"`
+	TeamID       *int64     `json:"team_id,omitempty"`
+	StartTime    time.Time  `json:"start_time"`
+	EndTime      *time.Time `json:"end_time,omitempty"`
+	ChangeReason string     `json:"change_reason,omitempty"`
 }
 
 type SLAPolicy struct {
@@ -35,6 +36,10 @@ type SLAPolicy struct {
 	Severity     string    `json:"severity"`
 	DurationDays int       `json:"duration_days"`
 	CreatedAt    time.Time `json:"created_at"`
+	AssetClass   string    `json:"asset_class,omitempty"`
+	BusinessUnit string    `json:"business_unit,omitempty"`
+	Environment  string    `json:"environment,omitempty"`
+	Program      string    `json:"program,omitempty"`
 }
 
 type FindingAssignment struct {
@@ -130,7 +135,7 @@ func (s *Storage) GetOwner(id int64) (*Owner, error) {
 }
 
 // SetAssetOwner sets the owner of an asset using SCD Type 2.
-func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64) error {
+func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64, changeReason string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -149,11 +154,11 @@ func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64) e
 	}
 
 	// 2. Insert new ownership record
-	insertQuery := "INSERT INTO asset_ownership (asset_id, owner_id, team_id, start_time, end_time) VALUES (?, ?, ?, ?, ?)"
+	insertQuery := "INSERT INTO asset_ownership (asset_id, owner_id, team_id, start_time, end_time, change_reason) VALUES (?, ?, ?, ?, ?, ?)"
 	if s.dbType == "postgres" {
-		insertQuery = "INSERT INTO asset_ownership (asset_id, owner_id, team_id, start_time, end_time) VALUES ($1, $2, $3, $4, $5)"
+		insertQuery = "INSERT INTO asset_ownership (asset_id, owner_id, team_id, start_time, end_time, change_reason) VALUES ($1, $2, $3, $4, $5, $6)"
 	}
-	if _, err := tx.Exec(insertQuery, assetID, ownerID, teamID, now, nil); err != nil {
+	if _, err := tx.Exec(insertQuery, assetID, ownerID, teamID, now, nil, changeReason); err != nil {
 		return err
 	}
 
@@ -162,15 +167,17 @@ func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64) e
 	}
 
 	// 3. Mirror in asset graph nodes and edges
-	s.syncOwnershipToGraph(assetID, ownerID, teamID)
+	if err := s.syncOwnershipToGraph(assetID, ownerID, teamID); err != nil {
+		return fmt.Errorf("failed to sync ownership to graph: %w", err)
+	}
 	return nil
 }
 
 // GetAssetOwners retrieves all ownership records for an asset (both past and present).
 func (s *Storage) GetAssetOwners(assetID string) ([]AssetOwnership, error) {
-	query := "SELECT id, asset_id, owner_id, team_id, start_time, end_time FROM asset_ownership WHERE asset_id = ? ORDER BY start_time DESC"
+	query := "SELECT id, asset_id, owner_id, team_id, start_time, end_time, change_reason FROM asset_ownership WHERE asset_id = ? ORDER BY start_time DESC"
 	if s.dbType == "postgres" {
-		query = "SELECT id, asset_id, owner_id, team_id, start_time, end_time FROM asset_ownership WHERE asset_id = $1 ORDER BY start_time DESC"
+		query = "SELECT id, asset_id, owner_id, team_id, start_time, end_time, change_reason FROM asset_ownership WHERE asset_id = $1 ORDER BY start_time DESC"
 	}
 	rows, err := s.db.Query(query, assetID)
 	if err != nil {
@@ -181,8 +188,12 @@ func (s *Storage) GetAssetOwners(assetID string) ([]AssetOwnership, error) {
 	var list []AssetOwnership
 	for rows.Next() {
 		var o AssetOwnership
-		if err := rows.Scan(&o.ID, &o.AssetID, &o.OwnerID, &o.TeamID, &o.StartTime, &o.EndTime); err != nil {
+		var cr sql.NullString
+		if err := rows.Scan(&o.ID, &o.AssetID, &o.OwnerID, &o.TeamID, &o.StartTime, &o.EndTime, &cr); err != nil {
 			return nil, err
+		}
+		if cr.Valid {
+			o.ChangeReason = cr.String
 		}
 		list = append(list, o)
 	}
@@ -207,33 +218,133 @@ func (s *Storage) AddSLAPolicy(name, severity string, durationDays int) (int64, 
 
 // GetSLAPolicy retrieves an SLA policy by ID.
 func (s *Storage) GetSLAPolicy(id int64) (*SLAPolicy, error) {
-	query := "SELECT id, name, severity, duration_days, created_at FROM sla_policies WHERE id = ?"
+	query := "SELECT id, name, severity, duration_days, created_at, asset_class, business_unit, environment, program FROM sla_policies WHERE id = ?"
 	if s.dbType == "postgres" {
-		query = "SELECT id, name, severity, duration_days, created_at FROM sla_policies WHERE id = $1"
+		query = "SELECT id, name, severity, duration_days, created_at, asset_class, business_unit, environment, program FROM sla_policies WHERE id = $1"
 	}
 	p := &SLAPolicy{}
-	err := s.db.QueryRow(query, id).Scan(&p.ID, &p.Name, &p.Severity, &p.DurationDays, &p.CreatedAt)
+	var ac, bu, env, prog sql.NullString
+	err := s.db.QueryRow(query, id).Scan(&p.ID, &p.Name, &p.Severity, &p.DurationDays, &p.CreatedAt, &ac, &bu, &env, &prog)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	return p, err
+	if err != nil {
+		return nil, err
+	}
+	p.AssetClass = ac.String
+	p.BusinessUnit = bu.String
+	p.Environment = env.String
+	p.Program = prog.String
+	return p, nil
+}
+
+// AddSLAPolicyExt inserts a new SLA policy with rich matching criteria.
+func (s *Storage) AddSLAPolicyExt(name, severity string, durationDays int, assetClass, businessUnit, environment, program string) (int64, error) {
+	query := "INSERT INTO sla_policies (name, severity, duration_days, created_at, asset_class, business_unit, environment, program) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	if s.dbType == "postgres" {
+		query = "INSERT INTO sla_policies (name, severity, duration_days, created_at, asset_class, business_unit, environment, program) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id"
+		var id int64
+		err := s.db.QueryRow(query, name, severity, durationDays, time.Now().UTC(), assetClass, businessUnit, environment, program).Scan(&id)
+		return id, err
+	}
+	res, err := s.db.Exec(query, name, severity, durationDays, time.Now().UTC(), assetClass, businessUnit, environment, program)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+// GetMatchingSLAPolicy matches SLA policy using the most specific criteria.
+func (s *Storage) GetMatchingSLAPolicy(severity, assetClass, businessUnit, environment, program string) (*SLAPolicy, error) {
+	query := `
+		SELECT id, name, severity, duration_days, created_at, asset_class, business_unit, environment, program
+		FROM sla_policies
+		WHERE severity = ?
+		  AND (asset_class IS NULL OR asset_class = ? OR asset_class = '')
+		  AND (business_unit IS NULL OR business_unit = ? OR business_unit = '')
+		  AND (environment IS NULL OR environment = ? OR environment = '')
+		  AND (program IS NULL OR program = ? OR program = '')
+		ORDER BY
+		  (CASE WHEN asset_class = ? THEN 1 ELSE 0 END +
+		   CASE WHEN business_unit = ? THEN 1 ELSE 0 END +
+		   CASE WHEN environment = ? THEN 1 ELSE 0 END +
+		   CASE WHEN program = ? THEN 1 ELSE 0 END) DESC, id DESC
+		LIMIT 1
+	`
+	if s.dbType == "postgres" {
+		query = `
+			SELECT id, name, severity, duration_days, created_at, asset_class, business_unit, environment, program
+			FROM sla_policies
+			WHERE severity = $1
+			  AND (asset_class IS NULL OR asset_class = $2 OR asset_class = '')
+			  AND (business_unit IS NULL OR business_unit = $3 OR business_unit = '')
+			  AND (environment IS NULL OR environment = $4 OR environment = '')
+			  AND (program IS NULL OR program = $5 OR program = '')
+			ORDER BY
+			  (CASE WHEN asset_class = $2 THEN 1 ELSE 0 END +
+			   CASE WHEN business_unit = $3 THEN 1 ELSE 0 END +
+			   CASE WHEN environment = $4 THEN 1 ELSE 0 END +
+			   CASE WHEN program = $5 THEN 1 ELSE 0 END) DESC, id DESC
+			LIMIT 1
+		`
+	}
+
+	p := &SLAPolicy{}
+	var ac, bu, env, prog sql.NullString
+	var err error
+	if s.dbType == "postgres" {
+		err = s.db.QueryRow(query, severity, assetClass, businessUnit, environment, program).Scan(&p.ID, &p.Name, &p.Severity, &p.DurationDays, &p.CreatedAt, &ac, &bu, &env, &prog)
+	} else {
+		err = s.db.QueryRow(query, severity, assetClass, businessUnit, environment, program, assetClass, businessUnit, environment, program).Scan(&p.ID, &p.Name, &p.Severity, &p.DurationDays, &p.CreatedAt, &ac, &bu, &env, &prog)
+	}
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	p.AssetClass = ac.String
+	p.BusinessUnit = bu.String
+	p.Environment = env.String
+	p.Program = prog.String
+	return p, nil
 }
 
 // AssignFinding assigns a finding to a team and/or owner and computes the due date based on SLA policies.
 func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, severity string) (int64, error) {
-	// 1. Query SLA policy duration for severity
-	policyQuery := "SELECT duration_days FROM sla_policies WHERE severity = ? ORDER BY id DESC LIMIT 1"
+	// Query the target from the finding in db
+	var target string
+	err := s.db.QueryRow("SELECT target FROM findings WHERE id = ?", findingID).Scan(&target)
 	if s.dbType == "postgres" {
-		policyQuery = "SELECT duration_days FROM sla_policies WHERE severity = $1 ORDER BY id DESC LIMIT 1"
+		err = s.db.QueryRow("SELECT target FROM findings WHERE id = $1", findingID).Scan(&target)
+	}
+	if err != nil {
+		return 0, err
 	}
 
-	var durationDays int
-	err := s.db.QueryRow(policyQuery, severity).Scan(&durationDays)
-	if err == sql.ErrNoRows {
-		// Default to 14 days if no SLA policy exists
-		durationDays = 14
-	} else if err != nil {
-		return 0, err
+	// Fetch target node properties to extract matching criteria
+	var assetClass, businessUnit, environment, program string
+	targetNodeID := GenerateNodeID("target", target, "")
+	var propsJSON string
+	err = s.db.QueryRow("SELECT properties FROM asset_nodes WHERE id = ?", targetNodeID).Scan(&propsJSON)
+	if s.dbType == "postgres" {
+		err = s.db.QueryRow("SELECT properties FROM asset_nodes WHERE id = $1", targetNodeID).Scan(&propsJSON)
+	}
+	if err == nil && propsJSON != "" {
+		var props map[string]string
+		if json.Unmarshal([]byte(propsJSON), &props) == nil {
+			assetClass = props["asset_class"]
+			businessUnit = props["business_unit"]
+			environment = props["environment"]
+			program = props["program"]
+		}
+	}
+
+	// Match the most specific SLA policy
+	durationDays := 14
+	policy, err := s.GetMatchingSLAPolicy(severity, assetClass, businessUnit, environment, program)
+	if err == nil && policy != nil {
+		durationDays = policy.DurationDays
 	}
 
 	now := time.Now().UTC()
@@ -263,7 +374,9 @@ func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, 
 	}
 
 	// 2. Mirror assignment to the graph
-	s.syncAssignmentToGraph(findingID, teamID, ownerID)
+	if err := s.syncAssignmentToGraph(findingID, teamID, ownerID); err != nil {
+		return lastID, fmt.Errorf("failed to sync assignment to graph: %w", err)
+	}
 	return lastID, nil
 }
 
@@ -369,86 +482,128 @@ func (s *Storage) GetEscalationRules(policyID int64) ([]EscalationRule, error) {
 	return list, nil
 }
 
-func (s *Storage) syncOwnershipToGraph(assetID string, ownerID *int64, teamID *int64) {
-	assetNodeID := GenerateNodeID("target", assetID)
-	_, _ = s.SaveNode("target", assetID, nil)
+func (s *Storage) syncOwnershipToGraph(assetID string, ownerID *int64, teamID *int64) error {
+	assetNodeID, err := s.SaveNode("target", assetID, nil, "", "", 1.0)
+	if err != nil {
+		return fmt.Errorf("failed to save asset node: %w", err)
+	}
 
 	if ownerID != nil {
 		owner, err := s.GetOwner(*ownerID)
-		if err == nil && owner != nil {
+		if err != nil {
+			return fmt.Errorf("failed to get owner: %w", err)
+		}
+		if owner != nil {
 			ownerNodeID, err := s.SaveNode("owner", owner.Email, map[string]string{
 				"name": owner.Name,
-			})
-			if err == nil {
-				_ = s.SaveEdge(assetNodeID, ownerNodeID, "owned_by_owner")
+			}, "", "", 1.0)
+			if err != nil {
+				return fmt.Errorf("failed to save owner node: %w", err)
+			}
+			if err := s.SaveEdge(assetNodeID, ownerNodeID, "owned_by_owner", 1.0, ""); err != nil {
+				return fmt.Errorf("failed to save owned_by_owner edge: %w", err)
+			}
+			if err := s.SaveEdge(ownerNodeID, assetNodeID, "owns", 1.0, ""); err != nil {
+				return fmt.Errorf("failed to save owns edge: %w", err)
 			}
 		}
 	}
 
 	if teamID != nil {
 		team, err := s.GetTeam(*teamID)
-		if err == nil && team != nil {
-			teamNodeID, err := s.SaveNode("team", team.Name, nil)
-			if err == nil {
-				_ = s.SaveEdge(assetNodeID, teamNodeID, "owned_by_team")
+		if err != nil {
+			return fmt.Errorf("failed to get team: %w", err)
+		}
+		if team != nil {
+			teamNodeID, err := s.SaveNode("team", team.Name, nil, "", "", 1.0)
+			if err != nil {
+				return fmt.Errorf("failed to save team node: %w", err)
+			}
+			if err := s.SaveEdge(assetNodeID, teamNodeID, "owned_by_team", 1.0, ""); err != nil {
+				return fmt.Errorf("failed to save owned_by_team edge: %w", err)
+			}
+			if err := s.SaveEdge(teamNodeID, assetNodeID, "owns", 1.0, ""); err != nil {
+				return fmt.Errorf("failed to save owns edge: %w", err)
+			}
 
-				if ownerID != nil {
-					owner, err := s.GetOwner(*ownerID)
-					if err == nil && owner != nil {
-						ownerNodeID, errOwner := s.SaveNode("owner", owner.Email, map[string]string{"name": owner.Name})
-						if errOwner == nil {
-							_ = s.SaveEdge(ownerNodeID, teamNodeID, "member_of")
-						}
+			if ownerID != nil {
+				owner, err := s.GetOwner(*ownerID)
+				if err != nil {
+					return fmt.Errorf("failed to get owner for team: %w", err)
+				}
+				if owner != nil {
+					ownerNodeID, errOwner := s.SaveNode("owner", owner.Email, map[string]string{"name": owner.Name}, "", "", 1.0)
+					if errOwner != nil {
+						return fmt.Errorf("failed to save owner node for team membership: %w", errOwner)
+					}
+					if err := s.SaveEdge(ownerNodeID, teamNodeID, "member_of", 1.0, ""); err != nil {
+						return fmt.Errorf("failed to save member_of edge: %w", err)
 					}
 				}
 			}
 		}
 	}
+	return nil
 }
 
-func (s *Storage) syncAssignmentToGraph(findingID int64, teamID *int64, ownerID *int64) {
+func (s *Storage) syncAssignmentToGraph(findingID int64, teamID *int64, ownerID *int64) error {
 	var target, title string
 	err := s.db.QueryRow("SELECT target, title FROM findings WHERE id = ?", findingID).Scan(&target, &title)
 	if s.dbType == "postgres" {
 		err = s.db.QueryRow("SELECT target, title FROM findings WHERE id = $1", findingID).Scan(&target, &title)
 	}
 	if err != nil {
-		return
+		return fmt.Errorf("failed to query finding %d: %w", findingID, err)
 	}
 
 	findingNodeID, err := s.SaveNode("vulnerability", title, map[string]string{
 		"finding_id": fmt.Sprintf("%d", findingID),
 		"target":     target,
-	})
+	}, "", "", 1.0)
 	if err != nil {
-		return
+		return fmt.Errorf("failed to save finding node: %w", err)
 	}
 
 	// Link finding/vuln to target/asset
-	targetNodeID := GenerateNodeID("target", target)
-	_ = s.SaveEdge(targetNodeID, findingNodeID, "is_vulnerable_to")
+	targetNodeID := GenerateNodeID("target", target, "")
+	if err := s.SaveEdge(targetNodeID, findingNodeID, "is_vulnerable_to", 1.0, ""); err != nil {
+		return fmt.Errorf("failed to save is_vulnerable_to edge: %w", err)
+	}
 
 	if ownerID != nil {
 		owner, err := s.GetOwner(*ownerID)
-		if err == nil && owner != nil {
+		if err != nil {
+			return fmt.Errorf("failed to get owner: %w", err)
+		}
+		if owner != nil {
 			ownerNodeID, err := s.SaveNode("owner", owner.Email, map[string]string{
 				"name": owner.Name,
-			})
-			if err == nil {
-				_ = s.SaveEdge(findingNodeID, ownerNodeID, "assigned_to_owner")
+			}, "", "", 1.0)
+			if err != nil {
+				return fmt.Errorf("failed to save owner node: %w", err)
+			}
+			if err := s.SaveEdge(findingNodeID, ownerNodeID, "assigned_to_owner", 1.0, ""); err != nil {
+				return fmt.Errorf("failed to save assigned_to_owner edge: %w", err)
 			}
 		}
 	}
 
 	if teamID != nil {
 		team, err := s.GetTeam(*teamID)
-		if err == nil && team != nil {
-			teamNodeID, err := s.SaveNode("team", team.Name, nil)
-			if err == nil {
-				_ = s.SaveEdge(findingNodeID, teamNodeID, "assigned_to_team")
+		if err != nil {
+			return fmt.Errorf("failed to get team: %w", err)
+		}
+		if team != nil {
+			teamNodeID, err := s.SaveNode("team", team.Name, nil, "", "", 1.0)
+			if err != nil {
+				return fmt.Errorf("failed to save team node: %w", err)
+			}
+			if err := s.SaveEdge(findingNodeID, teamNodeID, "assigned_to_team", 1.0, ""); err != nil {
+				return fmt.Errorf("failed to save assigned_to_team edge: %w", err)
 			}
 		}
 	}
+	return nil
 }
 
 // GetEscalationRulesForSeverity queries all escalation rules linked to a policy of a given severity.

@@ -33,7 +33,7 @@ func TestEscalatorBreach(t *testing.T) {
 	ownerID, _ := store.AddOwner("Bob", "bob@corp.com")
 
 	// Set asset owner
-	_ = store.SetAssetOwner("db.corp.com", &ownerID, &teamID)
+	_ = store.SetAssetOwner("db.corp.com", &ownerID, &teamID, "Initial allocation")
 
 	// 2. Setup mock server to receive webhook escalation alert
 	receivedAlert := make(chan string, 1)

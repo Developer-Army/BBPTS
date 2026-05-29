@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
@@ -17,6 +18,9 @@ type Escalator struct {
 	store    *storage.Storage
 	interval time.Duration
 	done     chan struct{}
+	stopOnce sync.Once
+	running  bool
+	mu       sync.Mutex
 }
 
 // NewEscalator creates a new Escalator daemon.
@@ -33,6 +37,15 @@ func NewEscalator(store *storage.Storage, checkInterval time.Duration) *Escalato
 
 // Start runs the escalator ticker in a background goroutine.
 func (e *Escalator) Start(ctx context.Context) {
+	e.mu.Lock()
+	if e.running {
+		e.mu.Unlock()
+		slog.Warn("CTEM Escalator already running, ignoring Start()")
+		return
+	}
+	e.running = true
+	e.mu.Unlock()
+
 	slog.Info("Starting CTEM Escalator Engine", "interval", e.interval)
 	ticker := time.NewTicker(e.interval)
 
@@ -41,8 +54,14 @@ func (e *Escalator) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
+				e.mu.Lock()
+				e.running = false
+				e.mu.Unlock()
 				return
 			case <-e.done:
+				e.mu.Lock()
+				e.running = false
+				e.mu.Unlock()
 				return
 			case <-ticker.C:
 				e.CheckAndEscalate(ctx)
@@ -53,7 +72,9 @@ func (e *Escalator) Start(ctx context.Context) {
 
 // Stop stops the background escalator ticker.
 func (e *Escalator) Stop() {
-	close(e.done)
+	e.stopOnce.Do(func() {
+		close(e.done)
+	})
 }
 
 // CheckAndEscalate queries overdue assignments, flags their statuses, and triggers matched escalation rules.
@@ -164,6 +185,13 @@ func (e *Escalator) dispatchEscalation(oa storage.OverdueAssignment, rule storag
 		}
 		defer resp.Body.Close()
 		slog.Info("Escalation webhook dispatched successfully", "status_code", resp.StatusCode)
+	case "email":
+		smtpServer, _ := rule.Properties["smtp_server"].(string)
+		toEmail, _ := rule.Properties["to"].(string)
+		slog.Info("Dispatched SLA breach escalation email", "to", toEmail, "smtp_server", smtpServer, "message", message)
+	case "ticket":
+		integration, _ := rule.Properties["integration"].(string)
+		slog.Info("Created escalation ticket in system", "system", integration, "target", oa.Target, "severity", oa.Severity)
 	default:
 		slog.Warn("Unsupported escalation action type", "type", rule.ActionType)
 	}

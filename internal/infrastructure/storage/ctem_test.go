@@ -37,7 +37,7 @@ func TestCTEMBasic(t *testing.T) {
 
 	// 3. Asset Ownership (SCD Type 2)
 	assetID := "api.corp.com"
-	err = s.SetAssetOwner(assetID, &ownerID, &teamID)
+	err = s.SetAssetOwner(assetID, &ownerID, &teamID, "Initial assignment")
 	if err != nil {
 		t.Fatalf("SetAssetOwner failed: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestCTEMBasic(t *testing.T) {
 
 	// Set new owner
 	owner2ID, _ := s.AddOwner("Bob", "bob@corp.com")
-	err = s.SetAssetOwner(assetID, &owner2ID, &teamID)
+	err = s.SetAssetOwner(assetID, &owner2ID, &teamID, "Ownership transfer to Bob")
 	if err != nil {
 		t.Fatalf("Second SetAssetOwner failed: %v", err)
 	}
@@ -65,8 +65,14 @@ func TestCTEMBasic(t *testing.T) {
 	if *owners[0].OwnerID != owner2ID || owners[0].EndTime != nil {
 		t.Errorf("Expected Bob as active owner")
 	}
+	if owners[0].ChangeReason != "Ownership transfer to Bob" {
+		t.Errorf("Expected Bob ownership change reason, got: %s", owners[0].ChangeReason)
+	}
 	if *owners[1].OwnerID != ownerID || owners[1].EndTime == nil {
 		t.Errorf("Expected Alice as closed/past owner")
+	}
+	if owners[1].ChangeReason != "Initial assignment" {
+		t.Errorf("Expected Alice ownership change reason, got: %s", owners[1].ChangeReason)
 	}
 
 	// 4. SLA Policies & Escalation Rules
@@ -136,7 +142,7 @@ func TestCTEMBasic(t *testing.T) {
 
 	// 6. Graph Mirroring verification
 	// Check that target node is linked to Bob (owner2ID) and team
-	assetNodeID := GenerateNodeID("target", assetID)
+	assetNodeID := GenerateNodeID("target", assetID, "")
 	edges, err := s.GetGraphPaths(assetNodeID, 3)
 	if err != nil {
 		t.Fatalf("GetGraphPaths failed: %v", err)
@@ -159,3 +165,50 @@ func TestCTEMBasic(t *testing.T) {
 		t.Errorf("Ownership links missing in graph path: owner=%t, team=%t", foundOwnerLink, foundTeamLink)
 	}
 }
+
+func TestSLAMatching(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_sla.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	// Add a generic policy: duration 14 days
+	_, _ = s.AddSLAPolicyExt("Generic Critical Policy", "critical", 14, "", "", "", "")
+
+	// Add a more specific policy matching asset_class = "Payment System": duration 2 days
+	_, _ = s.AddSLAPolicyExt("Critical Payment Policy", "critical", 2, "Payment System", "", "", "")
+
+	// Add another specific policy matching business_unit = "Finance": duration 5 days
+	_, _ = s.AddSLAPolicyExt("Finance Critical Policy", "critical", 5, "", "Finance", "", "")
+
+	// Match payment system policy
+	policy1, err := s.GetMatchingSLAPolicy("critical", "Payment System", "Marketing", "production", "main")
+	if err != nil || policy1 == nil {
+		t.Fatalf("GetMatchingSLAPolicy failed: %v", err)
+	}
+	if policy1.DurationDays != 2 {
+		t.Errorf("Expected duration 2 for Payment System, got %d", policy1.DurationDays)
+	}
+
+	// Match finance policy
+	policy2, err := s.GetMatchingSLAPolicy("critical", "API Endpoint", "Finance", "production", "main")
+	if err != nil || policy2 == nil {
+		t.Fatalf("GetMatchingSLAPolicy failed: %v", err)
+	}
+	if policy2.DurationDays != 5 {
+		t.Errorf("Expected duration 5 for Finance, got %d", policy2.DurationDays)
+	}
+
+	// Match generic policy
+	policy3, err := s.GetMatchingSLAPolicy("critical", "API Endpoint", "Marketing", "production", "main")
+	if err != nil || policy3 == nil {
+		t.Fatalf("GetMatchingSLAPolicy failed: %v", err)
+	}
+	if policy3.DurationDays != 14 {
+		t.Errorf("Expected duration 14 for generic matching, got %d", policy3.DurationDays)
+	}
+}
+
