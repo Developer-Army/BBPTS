@@ -211,6 +211,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	var validationEvents []recon.Event
 	var matches []recon.Match
 	var triggeredTools []string
+	var store *storage.Storage
+
 
 	reconThreads := cfg.Threads
 	if opts.Threads > 0 {
@@ -444,7 +446,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			dbSource = filepath.Join(home, ".bbpts", "bbpts.db")
 		}
 
-		store, err := storage.NewStorage(dbType, dbSource)
+		var err error
+		store, err = storage.NewStorage(dbType, dbSource)
 		if err == nil {
 			defer store.Close()
 			sub := storage.NewEventSubscriber(store, orchestrator.Bus())
@@ -599,7 +602,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			} else {
 				slog.Info("diff markdown report written", "path", diffPath)
 			}
-			if opts.CronInterval > 0 && (len(diff.NewTargets) > 0 || len(diff.NewEvents) > 0) {
+			if opts.CronInterval > 0 && (len(diff.NewTargets) > 0 || len(diff.NewEvents) > 0 || len(diff.RiskChanges) > 0 || len(diff.NewlyExposed) > 0) {
 				fmt.Println("\n=== DIFFERENTIAL RECONNAISSANCE REPORT ===")
 				fmt.Print(diffMD)
 				fmt.Println("==========================================")
@@ -664,7 +667,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 
 	// --- Final Intelligence & Reporting ---
 	events = handleIntelligence(runCtx, opts, cfg, events, matches, triggeredTools, reconThreads, bridge)
-	handleReporting(runCtx, opts, cfg, normalized, events, matches, bridge)
+	handleReporting(runCtx, opts, cfg, store, normalized, events, matches, bridge)
 
 	// If dashboard is enabled and not in cron mode, wait for it
 	if opts.EnableDashboard && opts.CronInterval <= 0 && dashboardDone != nil {
@@ -1010,6 +1013,15 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, e
 				ev.Properties["scorer_score"] = fmt.Sprintf("%d", score.Score)
 				ev.Properties["scorer_severity"] = score.Severity
 				ev.Properties["scorer_justification"] = strings.Join(score.Justification, ", ")
+				ev.Properties["scorer_exposure"] = fmt.Sprintf("%d", score.ExposureScore)
+				ev.Properties["scorer_attackability"] = fmt.Sprintf("%d", score.AttackabilityScore)
+				ev.Properties["scorer_business_impact"] = fmt.Sprintf("%d", score.BusinessImpactScore)
+				ev.Properties["scorer_confidence"] = fmt.Sprintf("%d", score.ConfidenceScore)
+				ev.Properties["scorer_freshness"] = fmt.Sprintf("%d", score.FreshnessScore)
+				ev.Properties["scorer_path_score"] = fmt.Sprintf("%d", score.PathScore)
+				if vectorJSON, err := json.Marshal(score.Risk); err == nil {
+					ev.Properties["scorer_risk_vector"] = string(vectorJSON)
+				}
 			}
 		}
 		triagedEvents = append(triagedEvents, ev)
@@ -1056,7 +1068,7 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, e
 	return triagedEvents
 }
 
-func handleReporting(ctx context.Context, opts Options, cfg *config.Config, normalized []string, events []recon.Event, matches []recon.Match, bridge *tui.Bridge) {
+func handleReporting(ctx context.Context, opts Options, cfg *config.Config, store *storage.Storage, normalized []string, events []recon.Event, matches []recon.Match, bridge *tui.Bridge) {
 	// Wire BaselineStore for continuous monitoring
 	scope := opts.Scope
 	if scope == "" {
@@ -1224,7 +1236,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 		MinimumScore: 0,
 		TemplatePath: templatePath,
 	})
-	if err := gen.GenerateFullReport(insights, events); err != nil {
+	if err := gen.GenerateFullReport(insights, events, store); err != nil {
 		slog.Warn("failed to generate detailed report bundle", "dir", reportDir, "error", err)
 	}
 
@@ -1243,7 +1255,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 			MinimumScore: 0,
 			TemplatePath: templatePath,
 		})
-		if err := genOutput.GenerateFullReport(insights, events); err != nil {
+		if err := genOutput.GenerateFullReport(insights, events, store); err != nil {
 			slog.Warn("failed to generate output report bundle", "dir", outputDir, "error", err)
 		}
 	}
@@ -1259,8 +1271,43 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, norm
 			MinimumScore: 0,
 			TemplatePath: templatePath,
 		})
-		if err := genGlobal.GenerateFullReport(insights, events); err != nil {
+		if err := genGlobal.GenerateFullReport(insights, events, store); err != nil {
 			slog.Warn("failed to generate global detailed report bundle", "dir", globalReportDir, "error", err)
+		}
+	}
+
+	if store != nil && !opts.JSONOutput {
+		nodes, errNodes := store.GetAllAssetNodes()
+		edges, errEdges := store.GetAllAssetEdges()
+		if errNodes == nil && errEdges == nil {
+			topTargets := analyze.RecommendTargets(nodes, edges)
+			if len(topTargets) > 0 {
+				fmt.Println("\n=== TOP 10 INVESTIGATION TARGETS (SNIPER SCOPE) ===")
+				for i, t := range topTargets {
+					fmt.Printf("%d. %s\n", i+1, t.AssetID)
+					fmt.Println("Why:")
+					for _, w := range t.Why {
+						fmt.Printf("✓ %s\n", strings.TrimPrefix(strings.TrimPrefix(w, "✓"), " "))
+					}
+					fmt.Printf("Score: %.0f\n\n", t.FinalScore)
+				}
+				fmt.Println("==================================================")
+			}
+
+			paths := analyze.GetAttackPaths(nodes, edges)
+			topPaths := analyze.RankAttackPaths(paths)
+			if len(topPaths) > 10 {
+				topPaths = topPaths[:10]
+			}
+			if len(topPaths) > 0 {
+				fmt.Println("\n=== TOP ATTACK PATHS ===")
+				for i, p := range topPaths {
+					fmt.Printf("%d. [%.0f] %s\n", i+1, p.Score, formatPathValues(p.Path, store))
+				}
+				fmt.Println("========================")
+			}
+		} else {
+			slog.Warn("failed to fetch nodes/edges for sniper scope/attack path scoring", "errNodes", errNodes, "errEdges", errEdges)
 		}
 	}
 }
@@ -1469,3 +1516,31 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 	slog.Info("Target validation completed successfully", "active_targets", len(validated))
 	return validated, convertServicesEventsToRecon(events)
 }
+
+func formatPathValues(path []string, store *storage.Storage) string {
+	if len(path) == 0 {
+		return ""
+	}
+	if store == nil {
+		return strings.Join(path, " -> ")
+	}
+	nodes, err := store.GetNodesByIDs(path)
+	if err != nil || len(nodes) == 0 {
+		return strings.Join(path, " -> ")
+	}
+	nodeMap := make(map[string]string)
+	for _, n := range nodes {
+		nodeMap[n.ID] = n.Value
+	}
+	var resolved []string
+	for _, id := range path {
+		val, exists := nodeMap[id]
+		if exists {
+			resolved = append(resolved, val)
+		} else {
+			resolved = append(resolved, id)
+		}
+	}
+	return strings.Join(resolved, " -> ")
+}
+

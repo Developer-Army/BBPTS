@@ -74,7 +74,7 @@ func (t *SecretsTool) Run(ctx context.Context, targets []string, threads int) ([
 			}
 			defer resp.Body.Close()
 
-			body, _ := io.ReadAll(resp.Body)
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 			content := string(body)
 
 			for name, re := range secretPatterns {

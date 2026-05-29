@@ -66,7 +66,7 @@ func TestJSONReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, events)
+	err := generator.GenerateFullReport(insights, events, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestMarkdownReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{})
+	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate Markdown report: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestHTMLReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{})
+	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate HTML report: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestZAPReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{})
+	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate ZAP report: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestReportWithMultipleSeverities(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{})
+	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestReportFiltering(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{})
+	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -287,7 +287,7 @@ func TestReportStatistics(t *testing.T) {
 		{Host: "admin.acme-corp.io", Score: 60, Priority: "medium"},
 	}
 
-	report := generator.buildReport(insights, []recon.Event{})
+	report := generator.buildReport(insights, []recon.Event{}, nil)
 
 	if report.TargetCount != 3 {
 		t.Fatalf("Expected 3 targets, got %d", report.TargetCount)
@@ -317,7 +317,7 @@ func TestReportTimestamp(t *testing.T) {
 		{Host: "acme-corp.io", Score: 70, Priority: "medium"},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{})
+	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestToolSpecificExports(t *testing.T) {
 		},
 	}
 
-	if err := generator.GenerateFullReport(insights, events); err != nil {
+	if err := generator.GenerateFullReport(insights, events, nil); err != nil {
 		t.Fatalf("failed to generate tool-specific exports: %v", err)
 	}
 
@@ -426,3 +426,54 @@ func validateZAPExport(t *testing.T, path string) {
 		t.Fatal("ZAP export contains no alert items")
 	}
 }
+
+func TestReportScoreBreakdown(t *testing.T) {
+	tempDir := t.TempDir()
+	config := ReportConfig{
+		OutputPath:  tempDir,
+		IncludeHTML: true,
+	}
+	generator := NewReportGenerator(config)
+
+	insights := []analyze.Insight{
+		{
+			Host:                "acme-corp.io",
+			Score:               90,
+			Priority:            "critical",
+			ExposureScore:       100,
+			AttackabilityScore:  90,
+			BusinessImpactScore: 95,
+			ConfidenceScore:     100,
+			FreshnessScore:      100,
+			PathScore:           80,
+		},
+	}
+
+	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	if err != nil {
+		t.Fatalf("Failed to generate report: %v", err)
+	}
+
+	// Verify Markdown content has the breakdown
+	mdPath := filepath.Join(tempDir, "report.md")
+	mdData, err := os.ReadFile(mdPath)
+	if err != nil {
+		t.Fatalf("Failed to read report.md: %v", err)
+	}
+	mdStr := string(mdData)
+	if !strings.Contains(mdStr, "Risk Vectors Breakdown") || !strings.Contains(mdStr, "Exposure:") || !strings.Contains(mdStr, "Attackability:") {
+		t.Errorf("Markdown report does not contain risk vectors breakdown: %s", mdStr)
+	}
+
+	// Verify HTML content has the breakdown
+	htmlPath := filepath.Join(tempDir, "report.html")
+	htmlData, err := os.ReadFile(htmlPath)
+	if err != nil {
+		t.Fatalf("Failed to read report.html: %v", err)
+	}
+	htmlStr := string(htmlData)
+	if !strings.Contains(htmlStr, "Risk Vectors Breakdown") || !strings.Contains(htmlStr, "Exposure") || !strings.Contains(htmlStr, "Attackability") {
+		t.Errorf("HTML report does not contain risk vectors breakdown: %s", htmlStr)
+	}
+}
+

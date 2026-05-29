@@ -95,13 +95,8 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 			continue
 		}
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			continue
-		}
-
 		var shodanResp shodanResponse
-		if err := json.Unmarshal(body, &shodanResp); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 10 * 1024 * 1024)).Decode(&shodanResp); err != nil {
 			slog.Debug("Failed to parse Shodan response", "error", err)
 			continue
 		}

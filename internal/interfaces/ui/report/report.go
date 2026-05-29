@@ -18,6 +18,7 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
 // ReportConfig holds configuration for report generation
@@ -49,8 +50,10 @@ type Report struct {
 	LowCount        int               `json:"low_count"`
 	Findings        []DetailedFinding `json:"findings"`
 	Statistics      ReportStatistics  `json:"statistics"`
-	Recommendations []string          `json:"recommendations"`
-	Executive       ExecutiveSummary  `json:"executive_summary"`
+	Recommendations []string                      `json:"recommendations"`
+	Executive       ExecutiveSummary              `json:"executive_summary"`
+	TopTargets      []analyze.InvestigationTarget `json:"top_targets,omitempty"`
+	AttackPaths     []analyze.AttackPath          `json:"attack_paths,omitempty"`
 }
 
 // DetailedFinding represents a single finding with comprehensive details
@@ -70,6 +73,15 @@ type DetailedFinding struct {
 	DiscoveredAt time.Time `json:"discovered_at"`
 	Effort       string    `json:"effort"` // "low", "medium", "high"
 	Priority     string    `json:"priority"`
+
+	ExposureScore       int `json:"exposure_score"`
+	AttackabilityScore  int `json:"attackability_score"`
+	BusinessImpactScore int `json:"business_impact_score"`
+	ConfidenceScore     int `json:"confidence_score"`
+	FreshnessScore      int `json:"freshness_score"`
+	PathScore           int `json:"path_score"`
+
+	Risk recon.RiskVector `json:"risk_vector"`
 }
 
 // ReportStatistics holds statistical information about the scan
@@ -104,8 +116,8 @@ func NewReportGenerator(config ReportConfig) *ReportGenerator {
 }
 
 // GenerateFullReport creates comprehensive reports in all configured formats
-func (rg *ReportGenerator) GenerateFullReport(insights []analyze.Insight, events []recon.Event) error {
-	report := rg.buildReport(insights, events)
+func (rg *ReportGenerator) GenerateFullReport(insights []analyze.Insight, events []recon.Event, store *storage.Storage) error {
+	report := rg.buildReport(insights, events, store)
 
 	// Generate JSON report
 	if rg.config.IncludeJSON {
@@ -191,7 +203,7 @@ func (rg *ReportGenerator) generateCustomTemplateReport(report *Report) error {
 }
 
 // buildReport constructs the report structure from insights and events
-func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []recon.Event) *Report {
+func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []recon.Event, store *storage.Storage) *Report {
 	findings := rg.convertInsightsToFindings(insights, events)
 
 	// Count severities
@@ -222,6 +234,38 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		return findings[i].Score > findings[j].Score
 	})
 
+	var topTargets []analyze.InvestigationTarget
+	var topPaths []analyze.AttackPath
+	if store != nil {
+		nodes, errNodes := store.GetAllAssetNodes()
+		edges, errEdges := store.GetAllAssetEdges()
+		if errNodes == nil && errEdges == nil {
+			topTargets = analyze.RecommendTargets(nodes, edges)
+			paths := analyze.GetAttackPaths(nodes, edges)
+			topPaths = analyze.RankAttackPaths(paths)
+			if len(topPaths) > 10 {
+				topPaths = topPaths[:10]
+			}
+
+			// Translate path IDs to node values
+			nodeMap := make(map[string]string)
+			for _, n := range nodes {
+				nodeMap[n.ID] = n.Value
+			}
+			for i, p := range topPaths {
+				var resolved []string
+				for _, id := range p.Path {
+					if val, ok := nodeMap[id]; ok {
+						resolved = append(resolved, val)
+					} else {
+						resolved = append(resolved, id)
+					}
+				}
+				topPaths[i].Path = resolved
+			}
+		}
+	}
+
 	report := &Report{
 		Title:           fmt.Sprintf("BBPTS Security Assessment Report - %s", time.Now().Format("2006-01-02")),
 		Description:     "Comprehensive reconnaissance and vulnerability assessment report",
@@ -236,6 +280,8 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		Statistics:      rg.buildStatistics(insights, events),
 		Recommendations: rg.buildRecommendations(findings),
 		Executive:       rg.buildExecutiveSummary(findings),
+		TopTargets:      topTargets,
+		AttackPaths:     topPaths,
 	}
 
 	return report
@@ -294,6 +340,13 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			Sources:      sourceList,
 			DiscoveredAt: time.Now(),
 			Priority:     insight.Priority,
+			ExposureScore:       insight.ExposureScore,
+			AttackabilityScore:  insight.AttackabilityScore,
+			BusinessImpactScore: insight.BusinessImpactScore,
+			ConfidenceScore:     insight.ConfidenceScore,
+			FreshnessScore:      insight.FreshnessScore,
+			PathScore:           insight.PathScore,
+			Risk:                insight.Risk,
 		}
 
 		// Store suggested tests directly as structured data for checklist rendering.
@@ -429,6 +482,24 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 		content += fmt.Sprintf("- %s\n", highlight)
 	}
 
+	if len(report.TopTargets) > 0 {
+		content += "\n### Top Investigation Targets (Sniper Scope)\n"
+		for i, t := range report.TopTargets {
+			content += fmt.Sprintf("%d. **%s** (Score: %.0f)  \n", i+1, t.AssetID, t.FinalScore)
+			content += "   Why:\n"
+			for _, w := range t.Why {
+				content += fmt.Sprintf("   * %s\n", w)
+			}
+		}
+	}
+
+	if len(report.AttackPaths) > 0 {
+		content += "\n### Top Attack Paths\n"
+		for i, p := range report.AttackPaths {
+			content += fmt.Sprintf("%d. `[%.0f]` %s\n", i+1, p.Score, strings.Join(p.Path, " -> "))
+		}
+	}
+
 	content += "\n---\n\n##  Detailed Findings\n\n"
 
 	for _, finding := range report.Findings {
@@ -447,6 +518,16 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 		targetURL := makeURL(finding.Target)
 		content += fmt.Sprintf("<details>\n<summary><b>%s<a href=\"%s\">%s</a></b> (Score: %d)</summary>\n\n",
 			severityPrefix, targetURL, finding.Target, finding.Score)
+
+		if finding.ExposureScore > 0 || finding.AttackabilityScore > 0 || finding.BusinessImpactScore > 0 || finding.ConfidenceScore > 0 || finding.PathScore > 0 {
+			content += "### Risk Vectors Breakdown\n"
+			content += fmt.Sprintf("- **Exposure:** %d/100\n", finding.ExposureScore)
+			content += fmt.Sprintf("- **Attackability:** %d/100\n", finding.AttackabilityScore)
+			content += fmt.Sprintf("- **Business Impact:** %d/100\n", finding.BusinessImpactScore)
+			content += fmt.Sprintf("- **Confidence:** %d/100\n", finding.ConfidenceScore)
+			content += fmt.Sprintf("- **Path Score:** %d/100\n", finding.PathScore)
+			content += "\n"
+		}
 
 		content += "### Security Analysis\n"
 		for _, reason := range strings.Split(finding.Description, "; ") {
@@ -529,6 +610,55 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 
 	findingsHTML := rg.generateFindingsHTML(report.Findings)
 	recsHTML := rg.generateRecommendationsHTML(report.Recommendations)
+
+	targetsHTML := ""
+	if len(report.TopTargets) > 0 {
+		targetsHTML += `
+<div class="chart-section" style="margin-bottom: 28px;">
+  <h2>Top Investigation Targets (Sniper Scope)</h2>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+    <thead>
+      <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+        <th style="padding: 10px; font-weight: 700;">Target</th>
+        <th style="padding: 10px; font-weight: 700;">Score</th>
+        <th style="padding: 10px; font-weight: 700;">Why</th>
+      </tr>
+    </thead>
+    <tbody>`
+		for _, t := range report.TopTargets {
+			whyBadges := ""
+			for _, w := range t.Why {
+				whyBadges += fmt.Sprintf(`<span class="tag" style="margin-right: 5px; background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.35);">%s</span>`, w)
+			}
+			targetsHTML += fmt.Sprintf(`
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 12px 10px; font-weight: 600;">%s</td>
+        <td style="padding: 12px 10px;"><strong style="color: var(--high);">%.0f</strong></td>
+        <td style="padding: 12px 10px;">%s</td>
+      </tr>`, t.AssetID, t.FinalScore, whyBadges)
+		}
+		targetsHTML += `
+    </tbody>
+  </table>
+</div>`
+	}
+
+	pathsHTML := ""
+	if len(report.AttackPaths) > 0 {
+		pathsHTML += `
+<div class="chart-section" style="margin-bottom: 28px;">
+  <h2>Top Attack Paths</h2>
+  <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">`
+		for _, p := range report.AttackPaths {
+			pathsHTML += fmt.Sprintf(`
+    <li style="background: var(--surface2); padding: 12px 16px; border-radius: 8px; border-left: 4px solid var(--primary); font-size: 0.9rem;">
+      <strong style="color: var(--accent); margin-right: 10px;">Score: %.0f</strong> %s
+    </li>`, p.Score, strings.Join(p.Path, " &rarr; "))
+		}
+		pathsHTML += `
+  </ul>
+</div>`
+	}
 
 	maxCount := report.CriticalCount
 	if report.HighCount > maxCount {
@@ -823,8 +953,9 @@ footer{text-align:center;padding:36px 0 16px;color:var(--muted);font-size:.8rem;
     <div class="gstep"><div class="gstep-num">2</div><h3>Understand the Score</h3><p>Each finding has a Risk Score (0&ndash;100). Higher = more attack surface signals. Start with anything above 70.</p></div>
     <div class="gstep"><div class="gstep-num">3</div><h3>Expand a Finding</h3><p>Click any card below to expand it. You&rsquo;ll see exactly <em>why</em> it scored high and what to test.</p></div>
     <div class="gstep"><div class="gstep-num">4</div><h3>Work the Checklist</h3><p>Each finding has checkboxes. Tick off tests as you go. Critical/High first. Look for parameterized URLs &mdash; main attack surface.</p></div>
-  </div>
 </div>
+
+` + targetsHTML + pathsHTML + `
 
 <div class="section-title">Detailed Findings</div>
 <div id="findings-container">
@@ -965,6 +1096,16 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		sb.WriteString(`</div></div>`)
 
 		sb.WriteString(`<div class="finding-body">`)
+
+		if f.ExposureScore > 0 || f.AttackabilityScore > 0 || f.BusinessImpactScore > 0 || f.ConfidenceScore > 0 || f.PathScore > 0 {
+			sb.WriteString(`<div class="fsection"><div class="fsection-label">Risk Vectors Breakdown</div><div class="risk-breakdown" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:8px;margin-bottom:12px;">`)
+			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Exposure</span><strong>%d/100</strong></div>`, f.ExposureScore))
+			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Attackability</span><strong>%d/100</strong></div>`, f.AttackabilityScore))
+			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Business Impact</span><strong>%d/100</strong></div>`, f.BusinessImpactScore))
+			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Confidence</span><strong>%d/100</strong></div>`, f.ConfidenceScore))
+			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Path Score</span><strong>%d/100</strong></div>`, f.PathScore))
+			sb.WriteString(`</div></div>`)
+		}
 
 		reasons := filterEmpty(strings.Split(f.Description, "; "))
 		if len(reasons) > 0 {

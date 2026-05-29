@@ -3,8 +3,10 @@ package services
 import (
 	"context"
 	"log/slog"
+	"sort"
 	"sync"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
@@ -39,9 +41,26 @@ func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx 
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+
+	// Prioritize high-value targets first using Scorer
+	scorer := recon.NewScorer()
+	type scoredTarget struct {
+		target string
+		score  int
+	}
+	scored := make([]scoredTarget, len(targets))
+	for i, t := range targets {
+		scoreRes := scorer.ScoreEndpoint(t, false, "")
+		scored[i] = scoredTarget{target: t, score: scoreRes.Score}
+	}
+	// Sort by score descending (high score first)
+	sort.Slice(scored, func(i, j int) bool {
+		return scored[i].score > scored[j].score
+	})
+
 	targetChan := make(chan string, len(targets))
-	for _, t := range targets {
-		targetChan <- t
+	for _, st := range scored {
+		targetChan <- st.target
 	}
 	close(targetChan)
 

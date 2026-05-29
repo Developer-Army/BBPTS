@@ -34,10 +34,26 @@ type Fingerprinter struct {
 // New creates a Fingerprinter with sensible defaults.
 func New() *Fingerprinter {
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // intentional for recon
 		DialContext: (&net.Dialer{
 			Timeout: 8 * time.Second,
 		}).DialContext,
+	}
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			host = addr
+		}
+		skipVerify := false
+		if val := ctx.Value("insecure"); val != nil {
+			if b, ok := val.(bool); ok {
+				skipVerify = b
+			}
+		}
+		dialer := &net.Dialer{Timeout: 8 * time.Second}
+		return tls.DialWithDialer(dialer, network, addr, &tls.Config{
+			ServerName:         host,
+			InsecureSkipVerify: skipVerify,
+		})
 	}
 	return &Fingerprinter{
 		httpClient: &http.Client{
@@ -103,12 +119,18 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 
 	result.JARMHash = f.jarmHash(ctx, tlsHost)
 
+	skipVerify := false
+	if val := ctx.Value("insecure"); val != nil {
+		if b, ok := val.(bool); ok {
+			skipVerify = b
+		}
+	}
 	// --- TLS Cert Info ---
 	conn, err := tls.DialWithDialer(
 		&net.Dialer{Timeout: f.timeout},
 		"tcp",
 		tlsHost,
-		&tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		&tls.Config{InsecureSkipVerify: skipVerify}, //nolint:gosec
 	)
 	if err == nil {
 		defer conn.Close()
@@ -167,8 +189,14 @@ func (f *Fingerprinter) jarmHash(ctx context.Context, hostPort string) string {
 			break
 		default:
 		}
+		skipVerify := false
+		if val := ctx.Value("insecure"); val != nil {
+			if b, ok := val.(bool); ok {
+				skipVerify = b
+			}
+		}
 		conf := &tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec
+			InsecureSkipVerify: skipVerify, //nolint:gosec
 			MinVersion:         ver,
 			MaxVersion:         ver,
 		}

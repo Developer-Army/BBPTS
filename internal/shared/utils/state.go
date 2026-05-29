@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
@@ -24,14 +25,32 @@ type Snapshot struct {
 	Events    []recon.Event `json:"events"`
 }
 
+// RiskChange tracks risk score and severity changes for an asset.
+type RiskChange struct {
+	Host          string `json:"host"`
+	PreviousScore int    `json:"previous_score"`
+	CurrentScore  int    `json:"current_score"`
+	PreviousSev   string `json:"previous_severity"`
+	CurrentSev    string `json:"current_severity"`
+}
+
+// NewlyExposed tracks newly open ports or new vulnerability tags on an asset.
+type NewlyExposed struct {
+	Host        string   `json:"host"`
+	ExposedItem string   `json:"exposed_item"`
+	Why         []string `json:"why"`
+}
+
 // Diff represents changes between two consecutive scans.
 type Diff struct {
-	NewTargets     []string      `json:"new_targets"`
-	RemovedTargets []string      `json:"removed_targets"`
-	NewEvents      []recon.Event `json:"new_events"`
-	RemovedEvents  []recon.Event `json:"removed_events"`
-	Timestamp      time.Time     `json:"timestamp"`
-	PreviousTime   time.Time     `json:"previous_time"`
+	NewTargets     []string       `json:"new_targets"`
+	RemovedTargets []string       `json:"removed_targets"`
+	NewEvents      []recon.Event  `json:"new_events"`
+	RemovedEvents  []recon.Event  `json:"removed_events"`
+	RiskChanges    []RiskChange   `json:"risk_changes"`
+	NewlyExposed   []NewlyExposed `json:"newly_exposed"`
+	Timestamp      time.Time      `json:"timestamp"`
+	PreviousTime   time.Time      `json:"previous_time"`
 }
 
 // Store manages persistent scan state on disk.
@@ -138,6 +157,21 @@ func (s *Store) Save(scope string, targets []string, events []recon.Event) error
 				return err
 			}
 
+			// Save insights for historical trend tracking
+			currInsights := analyze.DeriveInsights(targets, events)
+			dbInsights := make([]storage.InsightRecord, len(currInsights))
+			for i, in := range currInsights {
+				dbInsights[i] = storage.InsightRecord{
+					Host:     in.Host,
+					Priority: in.Priority,
+					Score:    in.Score,
+					Tags:     in.Tags,
+				}
+			}
+			if err := s.db.SaveInsights(context.Background(), scanID, dbInsights); err != nil {
+				return err
+			}
+
 			if err := s.db.FinishScan(context.Background(), scanID); err != nil {
 				return err
 			}
@@ -233,6 +267,84 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 	sort.Strings(diff.NewTargets)
 	sort.Strings(diff.RemovedTargets)
 
+	// Compute insights for both previous and current scans
+	prevInsights := analyze.DeriveInsights(prev.Targets, prev.Events)
+	currInsights := analyze.DeriveInsights(currentTargets, currentEvents)
+
+	prevInsightMap := make(map[string]analyze.Insight)
+	for _, in := range prevInsights {
+		prevInsightMap[in.Host] = in
+	}
+
+	currInsightMap := make(map[string]analyze.Insight)
+	for _, in := range currInsights {
+		currInsightMap[in.Host] = in
+	}
+
+	// 1. Calculate Risk Changes (What got riskier)
+	var riskChanges []RiskChange
+	for host, currIn := range currInsightMap {
+		if prevIn, ok := prevInsightMap[host]; ok {
+			if currIn.Score > prevIn.Score {
+				riskChanges = append(riskChanges, RiskChange{
+					Host:          host,
+					PreviousScore: prevIn.Score,
+					CurrentScore:  currIn.Score,
+					PreviousSev:   prevIn.Priority,
+					CurrentSev:    currIn.Priority,
+				})
+			}
+		}
+	}
+	diff.RiskChanges = riskChanges
+
+	// 2. Calculate Newly Exposed
+	var newlyExposed []NewlyExposed
+	for host, currIn := range currInsightMap {
+		prevIn, ok := prevInsightMap[host]
+		if !ok {
+			continue
+		}
+
+		prevTags := make(map[string]bool)
+		for _, tag := range prevIn.Tags {
+			prevTags[tag] = true
+		}
+		var newTags []string
+		for _, tag := range currIn.Tags {
+			if !prevTags[tag] {
+				newTags = append(newTags, tag)
+			}
+		}
+
+		prevEv := make(map[string]bool)
+		for _, ev := range prevIn.Evidence {
+			prevEv[ev] = true
+		}
+		var newEvs []string
+		for _, ev := range currIn.Evidence {
+			if !prevEv[ev] {
+				newEvs = append(newEvs, ev)
+			}
+		}
+
+		if len(newTags) > 0 || len(newEvs) > 0 {
+			why := []string{}
+			for _, tag := range newTags {
+				why = append(why, fmt.Sprintf("New feature/vulnerability: %s", tag))
+			}
+			for _, ev := range newEvs {
+				why = append(why, fmt.Sprintf("New exposed path/service: %s", ev))
+			}
+			newlyExposed = append(newlyExposed, NewlyExposed{
+				Host:         host,
+				ExposedItem:  "New vulnerabilities or endpoints detected",
+				Why:          why,
+			})
+		}
+	}
+	diff.NewlyExposed = newlyExposed
+
 	// Persist the diff
 	data, err := json.MarshalIndent(diff, "", "  ")
 	if err == nil {
@@ -292,7 +404,9 @@ func (d *Diff) ToMarkdown(scope string) string {
 	sb.WriteString(fmt.Sprintf("- **New Targets:** %d\n", len(d.NewTargets)))
 	sb.WriteString(fmt.Sprintf("- **Removed Targets:** %d\n", len(d.RemovedTargets)))
 	sb.WriteString(fmt.Sprintf("- **New Events:** %d\n", len(d.NewEvents)))
-	sb.WriteString(fmt.Sprintf("- **Removed Events:** %d\n\n", len(d.RemovedEvents)))
+	sb.WriteString(fmt.Sprintf("- **Removed Events:** %d\n", len(d.RemovedEvents)))
+	sb.WriteString(fmt.Sprintf("- **Riskier Assets:** %d\n", len(d.RiskChanges)))
+	sb.WriteString(fmt.Sprintf("- **Newly Exposed Assets:** %d\n\n", len(d.NewlyExposed)))
 
 	if len(d.NewTargets) > 0 {
 		sb.WriteString("## New Targets\n\n")
@@ -306,6 +420,25 @@ func (d *Diff) ToMarkdown(scope string) string {
 		sb.WriteString("## New Events\n\n")
 		for _, ev := range d.NewEvents {
 			sb.WriteString(fmt.Sprintf("- **%s** `%s` (from %s)\n", ev.Type, ev.Target, ev.Source))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(d.RiskChanges) > 0 {
+		sb.WriteString("## Riskier Assets\n\n")
+		for _, rc := range d.RiskChanges {
+			sb.WriteString(fmt.Sprintf("- **%s**: Score %d (%s) -> %d (%s)\n", rc.Host, rc.PreviousScore, rc.PreviousSev, rc.CurrentScore, rc.CurrentSev))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(d.NewlyExposed) > 0 {
+		sb.WriteString("## Newly Exposed Assets\n\n")
+		for _, ne := range d.NewlyExposed {
+			sb.WriteString(fmt.Sprintf("- **%s**: %s\n", ne.Host, ne.ExposedItem))
+			for _, w := range ne.Why {
+				sb.WriteString(fmt.Sprintf("  - %s\n", w))
+			}
 		}
 		sb.WriteString("\n")
 	}

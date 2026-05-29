@@ -304,10 +304,10 @@ func WithInsecure(ctx context.Context, insecure bool) context.Context {
 func InsecureFromCtx(ctx context.Context) bool {
 	val := ctx.Value(insecureContextKey)
 	if val == nil {
-		return true // Default to true if not set
+		return false // Default to false if not set
 	}
 	if insecure, ok := val.(bool); ok {
 		return insecure
 	}
-	return true
+	return false
 }

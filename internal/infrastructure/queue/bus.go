@@ -1,9 +1,9 @@
-// Package queue implements event bus and queue infrastructure
 package queue
 
 import (
 	"log/slog"
 	"sync"
+	"time"
 )
 
 // Event represents a generic recon event. It mirrors the recon.Event struct but is kept
@@ -75,7 +75,7 @@ func (b *InMemoryBus) Unsubscribe(ch Subscriber) {
 }
 
 // Publish sends an event to all matching subscribers. If a subscriber's channel is full,
-// the event is dropped for that subscriber and a warning is logged.
+// it blocks for up to 5 seconds to apply backpressure before dropping the event.
 func (b *InMemoryBus) Publish(ev Event) {
 	b.mu.RLock()
 	subs, ok := b.subscribers[ev.Type]
@@ -86,8 +86,8 @@ func (b *InMemoryBus) Publish(ev Event) {
 	for _, sub := range subs {
 		select {
 		case sub <- ev:
-		default:
-			slog.Warn("event dropped: subscriber channel full",
+		case <-time.After(5 * time.Second):
+			slog.Error("event dropped: subscriber channel full after 5s backpressure timeout",
 				"event_type", ev.Type,
 				"target", ev.Target,
 			)

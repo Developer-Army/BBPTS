@@ -99,6 +99,11 @@ func (s *Storage) initSchema() error {
 		node_type TEXT NOT NULL,
 		value TEXT NOT NULL,
 		properties TEXT,
+		scope_id TEXT DEFAULT '',
+		first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+		last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+		source TEXT DEFAULT '',
+		confidence REAL DEFAULT 1.0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -108,6 +113,9 @@ func (s *Storage) initSchema() error {
 		relation TEXT NOT NULL,
 		first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
 		last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+		confidence REAL DEFAULT 1.0,
+		observed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		evidence_id TEXT DEFAULT '',
 		PRIMARY KEY (source_id, target_id, relation),
 		FOREIGN KEY (source_id) REFERENCES asset_nodes(id) ON DELETE CASCADE,
 		FOREIGN KEY (target_id) REFERENCES asset_nodes(id) ON DELETE CASCADE
@@ -176,7 +184,28 @@ func (s *Storage) initSchema() error {
 	}
 
 	_, err := s.db.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Dynamic column migrations for Phase 3
+	_, _ = s.db.Exec("ALTER TABLE asset_ownership ADD COLUMN change_reason TEXT")
+	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN asset_class TEXT")
+	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN business_unit TEXT")
+	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN environment TEXT")
+	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN program TEXT")
+
+	// Dynamic migrations for rich asset graph metadata
+	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN scope_id TEXT DEFAULT ''")
+	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN first_seen DATETIME DEFAULT CURRENT_TIMESTAMP")
+	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN last_seen DATETIME DEFAULT CURRENT_TIMESTAMP")
+	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN source TEXT DEFAULT ''")
+	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN confidence REAL DEFAULT 1.0")
+	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN confidence REAL DEFAULT 1.0")
+	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN observed_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN evidence_id TEXT DEFAULT ''")
+
+	return nil
 }
 
 // SaveEvent stores a recon event in the database.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 )
 
 // QueueBackend defines the interface for queue backends (NATS or Redis).
@@ -139,12 +140,30 @@ func (tc *TaskConsumer) Start(ctx context.Context, subject string) error {
 			status = "failed"
 			task.RetryCount++
 			if task.RetryCount < task.MaxRetries {
-				// Re-queue for retry
-				slog.Warn("Task failed, re-queueing for retry", "task_id", task.TaskID, "retry", task.RetryCount, "error", err)
+				// Exponential backoff delay
+				backoff := time.Duration(1<<uint(task.RetryCount-1)) * time.Second
+				if backoff > 30*time.Second {
+					backoff = 30 * time.Second
+				}
+				slog.Warn("Task failed, waiting backoff and re-queueing", "task_id", task.TaskID, "backoff", backoff, "retry", task.RetryCount, "error", err)
+				
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(backoff):
+				}
+
 				if publishErr := tc.adapter.PublishTask(subject, task); publishErr != nil {
 					slog.Error("Failed to re-queue task", "task_id", task.TaskID, "error", publishErr)
 				}
 				return err
+			} else {
+				// DLQ support
+				dlqSubject := subject + ".dlq"
+				slog.Error("Task max retries reached. Publishing to DLQ", "task_id", task.TaskID, "dlq", dlqSubject)
+				if dlqErr := tc.adapter.PublishTask(dlqSubject, task); dlqErr != nil {
+					slog.Error("Failed to publish to DLQ", "task_id", task.TaskID, "error", dlqErr)
+				}
 			}
 		}
 

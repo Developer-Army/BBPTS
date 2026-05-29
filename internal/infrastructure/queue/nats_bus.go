@@ -94,8 +94,8 @@ func (b *NatsBus) subscribeInternal(eventType, queue string) Subscriber {
 		select {
 		case ch <- ev:
 			m.Ack()
-		default:
-			slog.Warn("event dropped: NATS subscriber channel full",
+		case <-time.After(5 * time.Second):
+			slog.Error("event dropped: NATS subscriber channel full after 5s backpressure timeout",
 				"event_type", ev.Type,
 				"target", ev.Target,
 			)

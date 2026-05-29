@@ -88,13 +88,8 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 				return
 			}
 
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return
-			}
-
 			var searchResp githubSearchResponse
-			if err := json.Unmarshal(body, &searchResp); err != nil {
+			if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&searchResp); err != nil {
 				return
 			}
 
@@ -131,7 +126,7 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 					continue
 				}
 
-				fileBody, err := io.ReadAll(rawResp.Body)
+				fileBody, err := io.ReadAll(io.LimitReader(rawResp.Body, 5*1024*1024))
 				rawResp.Body.Close()
 				if err != nil {
 					continue

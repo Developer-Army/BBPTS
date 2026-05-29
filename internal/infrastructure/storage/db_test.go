@@ -446,3 +446,117 @@ func mustSaveEvents(t *testing.T, ctx context.Context, db *DB, scanID int64, eve
 		t.Fatalf("Failed to save events: %v", err)
 	}
 }
+
+func TestHistoricalTrends(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	db := mustOpen(t, dir)
+	defer db.Close()
+
+	// Create and save two scans
+	// Scan 1
+	id1 := mustStartScanScope(t, ctx, db, "program-x")
+	mustSaveTargets(t, ctx, db, id1, []string{"target1.com"})
+	mustSaveEvents(t, ctx, db, id1, []EventRecord{
+		{Target: "target1.com", Source: "subfinder", Type: "subdomain"},
+	})
+	insights1 := []InsightRecord{
+		{Host: "target1.com", Priority: "medium", Score: 50, Tags: []string{"subdomain"}},
+	}
+	if err := db.SaveInsights(ctx, id1, insights1); err != nil {
+		t.Fatalf("Failed to save insights 1: %v", err)
+	}
+	mustFinishScan(t, ctx, db, id1)
+	_, _ = db.db.Exec(`UPDATE scans SET start_time = '2026-06-12 10:00:00' WHERE id = ?`, id1)
+
+	// Scan 2
+	id2 := mustStartScanScope(t, ctx, db, "program-x")
+	mustSaveTargets(t, ctx, db, id2, []string{"target1.com", "target2.com"})
+	mustSaveEvents(t, ctx, db, id2, []EventRecord{
+		{Target: "target1.com", Source: "subfinder", Type: "subdomain"},
+		{Target: "target2.com", Source: "httpx", Type: "service"},
+	})
+	insights2 := []InsightRecord{
+		{Host: "target1.com", Priority: "high", Score: 80, Tags: []string{"subdomain", "vulnerable"}},
+		{Host: "target2.com", Priority: "low", Score: 20, Tags: []string{"service"}},
+	}
+	if err := db.SaveInsights(ctx, id2, insights2); err != nil {
+		t.Fatalf("Failed to save insights 2: %v", err)
+	}
+	mustFinishScan(t, ctx, db, id2)
+	_, _ = db.db.Exec(`UPDATE scans SET start_time = '2026-06-12 10:05:00' WHERE id = ?`, id2)
+
+	// 1. Test GetRiskHistory
+	riskHistory, err := db.GetRiskHistory(ctx, "target1.com")
+	if err != nil {
+		t.Fatalf("Failed to get risk history: %v", err)
+	}
+	if len(riskHistory) != 2 {
+		t.Fatalf("Expected 2 risk history entries, got %d", len(riskHistory))
+	}
+	if riskHistory[0].Score != 50 || riskHistory[1].Score != 80 {
+		t.Errorf("Unexpected scores in history: %v", riskHistory)
+	}
+
+	// 2. Test GetRiskTrend
+	riskTrend, err := db.GetRiskTrend(ctx, "program-x")
+	if err != nil {
+		t.Fatalf("Failed to get risk trend: %v", err)
+	}
+	if len(riskTrend) != 2 {
+		t.Fatalf("Expected 2 risk trend entries, got %d", len(riskTrend))
+	}
+
+	// 3. Test GetTechTrend
+	techTrend, err := db.GetTechTrend(ctx, "program-x")
+	if err != nil {
+		t.Fatalf("Failed to get tech trend: %v", err)
+	}
+	if len(techTrend) != 2 {
+		t.Fatalf("Expected 2 tech trend entries, got %d", len(techTrend))
+	}
+
+	// 4. Test GetAssetHistory
+	assetHistory, err := db.GetAssetHistory(ctx, "target1.com")
+	if err != nil {
+		t.Fatalf("Failed to get asset history: %v", err)
+	}
+	if len(assetHistory) != 2 {
+		t.Fatalf("Expected 2 asset history entries, got %d", len(assetHistory))
+	}
+
+	// 5. Test GetFindingHistory
+	findingHistory, err := db.GetFindingHistory(ctx, "target1.com")
+	if err != nil {
+		t.Fatalf("Failed to get finding history: %v", err)
+	}
+	if len(findingHistory) != 2 {
+		t.Fatalf("Expected 2 finding history entries, got %d", len(findingHistory))
+	}
+
+	// 6. Test GetOwnershipHistory
+	// First manually insert teams, owners and ownership mappings
+	_, err = db.db.Exec(`INSERT INTO teams (name) VALUES ('Team A')`)
+	if err != nil {
+		t.Fatalf("Failed to insert team: %v", err)
+	}
+	_, err = db.db.Exec(`INSERT INTO owners (name, email) VALUES ('Owner A', 'owner@a.com')`)
+	if err != nil {
+		t.Fatalf("Failed to insert owner: %v", err)
+	}
+	_, err = db.db.Exec(`INSERT INTO asset_ownership (asset_id, owner_id, team_id, start_time, change_reason) VALUES ('target1.com', 1, 1, CURRENT_TIMESTAMP, 'initial assignment')`)
+	if err != nil {
+		t.Fatalf("Failed to insert asset ownership: %v", err)
+	}
+
+	ownHistory, err := db.GetOwnershipHistory(ctx, "target1.com")
+	if err != nil {
+		t.Fatalf("Failed to get ownership history: %v", err)
+	}
+	if len(ownHistory) != 1 {
+		t.Fatalf("Expected 1 ownership history entry, got %d", len(ownHistory))
+	}
+	if ownHistory[0].OwnerName != "Owner A" || ownHistory[0].TeamName != "Team A" || ownHistory[0].ChangeReason != "initial assignment" {
+		t.Errorf("Unexpected ownership details: %+v", ownHistory[0])
+	}
+}

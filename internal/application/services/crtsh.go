@@ -77,7 +77,7 @@ func (t *CrtshTool) Run(ctx context.Context, targets []string, threads int) ([]E
 				continue
 			}
 
-			body, err = io.ReadAll(resp.Body)
+			body, err = io.ReadAll(io.LimitReader(resp.Body, 15*1024*1024))
 			resp.Body.Close()
 			if err == nil {
 				break

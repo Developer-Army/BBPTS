@@ -220,7 +220,7 @@ func (rl *RateLimiter) Do(ctx context.Context, req *http.Request) (*http.Respons
 		var body []byte
 		if resp.Body != nil {
 			var err error
-			body, err = io.ReadAll(resp.Body)
+			body, err = io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 			resp.Body = io.NopCloser(bytes.NewReader(body))
 			if err != nil {
 				return resp, nil

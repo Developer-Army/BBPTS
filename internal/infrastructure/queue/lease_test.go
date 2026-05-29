@@ -178,6 +178,17 @@ func (m *mockKeyValue) Delete(key string, opts ...nats.DeleteOpt) error {
 	return nil
 }
 
+func (m *mockKeyValue) Keys(opts ...nats.WatchOpt) ([]string, error) {
+	var keys []string
+	for k := range m.data {
+		keys = append(keys, k)
+	}
+	if len(keys) == 0 {
+		return nil, nats.ErrNoKeysFound
+	}
+	return keys, nil
+}
+
 type mockEntry struct {
 	value []byte
 }

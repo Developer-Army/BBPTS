@@ -42,10 +42,26 @@ type JSAnalyzer struct {
 // NewJSAnalyzer creates a JSAnalyzer with sensible defaults.
 func NewJSAnalyzer() *JSAnalyzer {
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 		DialContext: (&net.Dialer{
 			Timeout: 8 * time.Second,
 		}).DialContext,
+	}
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			host = addr
+		}
+		skipVerify := false
+		if val := ctx.Value("insecure"); val != nil {
+			if b, ok := val.(bool); ok {
+				skipVerify = b
+			}
+		}
+		dialer := &net.Dialer{Timeout: 8 * time.Second}
+		return tls.DialWithDialer(dialer, network, addr, &tls.Config{
+			ServerName:         host,
+			InsecureSkipVerify: skipVerify,
+		})
 	}
 	return &JSAnalyzer{
 		httpClient: &http.Client{

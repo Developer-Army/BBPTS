@@ -180,7 +180,7 @@ func DefaultConfig() *Config {
 		RateLimit:      50,
 		ToolRateLimits: make(map[string]int),
 		AutoUpdate:     false,
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: false,
 		Ports:          "",
 		BatchSize:      1,
 		ContainerMode:  false,

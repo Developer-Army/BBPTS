@@ -159,6 +159,7 @@ func (db *Storage) migrate(ctx context.Context) error {
 			return err
 		}
 	}
+	_, _ = db.db.ExecContext(ctx, "ALTER TABLE asset_ownership ADD COLUMN change_reason TEXT")
 	return nil
 }
 
@@ -243,7 +244,7 @@ type ScanRecord struct {
 
 // GetScans returns all scans from the database.
 func (db *Storage) GetScans(ctx context.Context) ([]ScanRecord, error) {
-	rows, err := db.db.QueryContext(ctx, "SELECT id, scope, start_time, end_time, status FROM scans ORDER BY start_time DESC")
+	rows, err := db.db.QueryContext(ctx, "SELECT id, scope, start_time, end_time, status FROM scans ORDER BY start_time DESC LIMIT 100")
 	if err != nil {
 		return nil, err
 	}
@@ -435,4 +436,277 @@ func (db *Storage) GetStats(ctx context.Context) (Stats, error) {
 	}
 
 	return stats, nil
+}
+
+// InsightRecord represents an insight record in the database.
+type InsightRecord struct {
+	Host     string   `json:"host"`
+	Priority string   `json:"priority"`
+	Score    int      `json:"score"`
+	Tags     []string `json:"tags"`
+}
+
+// SaveInsights bulk inserts insight records.
+func (db *Storage) SaveInsights(ctx context.Context, scanID int64, insights []InsightRecord) error {
+	tx, err := db.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO insights (scan_id, host, priority, score, tags) VALUES (?, ?, ?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, in := range insights {
+		tagsJSON, _ := json.Marshal(in.Tags)
+		if _, err := stmt.ExecContext(ctx, scanID, in.Host, in.Priority, in.Score, string(tagsJSON)); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// RiskHistoryRecord represents a host's risk score at a scan time.
+type RiskHistoryRecord struct {
+	Host      string    `json:"host"`
+	Score     int       `json:"score"`
+	Priority  string    `json:"priority"`
+	ScanTime  time.Time `json:"scan_time"`
+}
+
+// GetRiskHistory returns risk history for a specific host.
+func (db *Storage) GetRiskHistory(ctx context.Context, host string) ([]RiskHistoryRecord, error) {
+	query := `
+		SELECT i.host, i.score, i.priority, s.start_time
+		FROM insights i
+		JOIN scans s ON i.scan_id = s.id
+		WHERE i.host = ? AND s.status = 'completed'
+		ORDER BY s.start_time ASC
+		LIMIT 1000
+	`
+	rows, err := db.db.QueryContext(ctx, query, host)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []RiskHistoryRecord
+	for rows.Next() {
+		var r RiskHistoryRecord
+		if err := rows.Scan(&r.Host, &r.Score, &r.Priority, &r.ScanTime); err != nil {
+			return nil, err
+		}
+		r.ScanTime = r.ScanTime.UTC()
+		history = append(history, r)
+	}
+	return history, nil
+}
+
+// GetRiskTrend returns the average and maximum risk scores for all scans in a scope.
+func (db *Storage) GetRiskTrend(ctx context.Context, scope string) ([]map[string]interface{}, error) {
+	query := `
+		SELECT s.id, s.start_time, AVG(i.score) as avg_score, MAX(i.score) as max_score, COUNT(i.id) as host_count
+		FROM scans s
+		JOIN insights i ON i.scan_id = s.id
+		WHERE s.scope = ? AND s.status = 'completed'
+		GROUP BY s.id, s.start_time
+		ORDER BY s.start_time ASC
+		LIMIT 1000
+	`
+	rows, err := db.db.QueryContext(ctx, query, scope)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trend []map[string]interface{}
+	for rows.Next() {
+		var id int64
+		var t time.Time
+		var avg float64
+		var max int
+		var count int
+		if err := rows.Scan(&id, &t, &avg, &max, &count); err != nil {
+			return nil, err
+		}
+		trend = append(trend, map[string]interface{}{
+			"scan_id":    id,
+			"scan_time":  t.UTC(),
+			"avg_score":  avg,
+			"max_score":  max,
+			"host_count": count,
+		})
+	}
+	return trend, nil
+}
+
+// TechHistoryRecord represents technology tag counts for a scan.
+type TechHistoryRecord struct {
+	ScanTime time.Time      `json:"scan_time"`
+	Techs    map[string]int `json:"techs"`
+}
+
+// GetTechTrend returns technology tag occurrence counts over time for a scope.
+func (db *Storage) GetTechTrend(ctx context.Context, scope string) ([]TechHistoryRecord, error) {
+	query := `
+		SELECT s.start_time, i.tags
+		FROM scans s
+		JOIN insights i ON i.scan_id = s.id
+		WHERE s.scope = ? AND s.status = 'completed'
+		ORDER BY s.start_time ASC
+		LIMIT 1000
+	`
+	rows, err := db.db.QueryContext(ctx, query, scope)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	groups := make(map[time.Time][]string)
+	var timeSequence []time.Time
+
+	for rows.Next() {
+		var t time.Time
+		var tagsJSON string
+		if err := rows.Scan(&t, &tagsJSON); err != nil {
+			return nil, err
+		}
+		t = t.UTC()
+		var tags []string
+		if tagsJSON != "" && tagsJSON != "null" {
+			_ = json.Unmarshal([]byte(tagsJSON), &tags)
+		}
+		if _, ok := groups[t]; !ok {
+			timeSequence = append(timeSequence, t)
+		}
+		groups[t] = append(groups[t], tags...)
+	}
+
+	var trend []TechHistoryRecord
+	for _, t := range timeSequence {
+		techCounts := make(map[string]int)
+		for _, tag := range groups[t] {
+			techCounts[tag]++
+		}
+		trend = append(trend, TechHistoryRecord{
+			ScanTime: t,
+			Techs:    techCounts,
+		})
+	}
+	return trend, nil
+}
+
+// OwnershipHistoryRecord represents ownership history of an asset.
+type OwnershipHistoryRecord struct {
+	AssetID      string     `json:"asset_id"`
+	OwnerName    string     `json:"owner_name"`
+	OwnerEmail   string     `json:"owner_email"`
+	TeamName     string     `json:"team_name"`
+	StartTime    time.Time  `json:"start_time"`
+	EndTime      *time.Time `json:"end_time,omitempty"`
+	ChangeReason string     `json:"change_reason,omitempty"`
+}
+
+// GetOwnershipHistory returns ownership changes over time for an asset.
+func (db *Storage) GetOwnershipHistory(ctx context.Context, assetID string) ([]OwnershipHistoryRecord, error) {
+	query := `
+		SELECT ao.asset_id, COALESCE(o.name, ''), COALESCE(o.email, ''), COALESCE(t.name, ''), ao.start_time, ao.end_time, COALESCE(ao.change_reason, '')
+		FROM asset_ownership ao
+		LEFT JOIN owners o ON ao.owner_id = o.id
+		LEFT JOIN teams t ON ao.team_id = t.id
+		WHERE ao.asset_id = ?
+		ORDER BY ao.start_time ASC
+		LIMIT 1000
+	`
+	rows, err := db.db.QueryContext(ctx, query, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []OwnershipHistoryRecord
+	for rows.Next() {
+		var h OwnershipHistoryRecord
+		if err := rows.Scan(&h.AssetID, &h.OwnerName, &h.OwnerEmail, &h.TeamName, &h.StartTime, &h.EndTime, &h.ChangeReason); err != nil {
+			return nil, err
+		}
+		h.StartTime = h.StartTime.UTC()
+		if h.EndTime != nil {
+			utcEnd := h.EndTime.UTC()
+			h.EndTime = &utcEnd
+		}
+		history = append(history, h)
+	}
+	return history, nil
+}
+
+// GetAssetHistory returns scan presence history for a specific asset.
+func (db *Storage) GetAssetHistory(ctx context.Context, host string) ([]map[string]interface{}, error) {
+	query := `
+		SELECT s.id, s.start_time, s.status
+		FROM scans s
+		JOIN targets t ON t.scan_id = s.id
+		WHERE t.host = ?
+		ORDER BY s.start_time ASC
+		LIMIT 1000
+	`
+	rows, err := db.db.QueryContext(ctx, query, host)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []map[string]interface{}
+	for rows.Next() {
+		var id int64
+		var t time.Time
+		var status string
+		if err := rows.Scan(&id, &t, &status); err != nil {
+			return nil, err
+		}
+		history = append(history, map[string]interface{}{
+			"scan_id":   id,
+			"scan_time": t.UTC(),
+			"status":    status,
+		})
+	}
+	return history, nil
+}
+
+// GetFindingHistory returns historical scan observations of a specific finding.
+func (db *Storage) GetFindingHistory(ctx context.Context, target string) ([]map[string]interface{}, error) {
+	query := `
+		SELECT s.id, s.start_time, e.source, e.type
+		FROM scans s
+		JOIN events e ON e.scan_id = s.id
+		WHERE e.target = ?
+		ORDER BY s.start_time ASC
+		LIMIT 1000
+	`
+	rows, err := db.db.QueryContext(ctx, query, target)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var history []map[string]interface{}
+	for rows.Next() {
+		var id int64
+		var t time.Time
+		var source, eventType string
+		if err := rows.Scan(&id, &t, &source, &eventType); err != nil {
+			return nil, err
+		}
+		history = append(history, map[string]interface{}{
+			"scan_id":    id,
+			"scan_time":  t.UTC(),
+			"source":     source,
+			"event_type": eventType,
+		})
+	}
+	return history, nil
 }

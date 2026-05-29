@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -261,8 +262,32 @@ func (srl *SessionReplayLog) LogTaskInSession(sessionID, taskID, status string, 
 }
 
 // GetSessionTasks retrieves all tasks executed in a session (useful for audit/replay).
-// Note: Full session audit would require external analytics layer (ClickHouse, Elasticsearch).
 func (srl *SessionReplayLog) GetSessionTasks(sessionID string) ([]map[string]interface{}, error) {
-	slog.Debug("Session audit trail retrieval (integrate with analytics)", "session_id", sessionID)
-	return []map[string]interface{}{}, nil
+	if srl.kv == nil {
+		return nil, errors.New("kv store is nil")
+	}
+
+	keys, err := srl.kv.Keys()
+	if err != nil {
+		if errors.Is(err, nats.ErrNoKeysFound) {
+			return []map[string]interface{}{}, nil
+		}
+		return nil, err
+	}
+
+	var tasks []map[string]interface{}
+	prefix := fmt.Sprintf("session:%s:task:", sessionID)
+	for _, key := range keys {
+		if strings.HasPrefix(key, prefix) {
+			entry, err := srl.kv.Get(key)
+			if err != nil {
+				continue
+			}
+			var task map[string]interface{}
+			if err := json.Unmarshal(entry.Value(), &task); err == nil {
+				tasks = append(tasks, task)
+			}
+		}
+	}
+	return tasks, nil
 }

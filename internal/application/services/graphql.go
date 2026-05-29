@@ -176,7 +176,7 @@ func (g *GraphQLScanner) testEndpoint(ctx context.Context, url string) (bool, st
 		return false, "", nil
 	}
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
 	if err != nil {
 		return false, "", err
 	}

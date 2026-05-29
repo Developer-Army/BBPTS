@@ -2,6 +2,7 @@ package utils
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
@@ -99,5 +100,80 @@ func TestStorePaths(t *testing.T) {
 	}
 	if got := store.diffPath("scope1"); got != filepath.Join(base, "scope1_diff.json") {
 		t.Fatalf("unexpected diff path: %s", got)
+	}
+}
+
+func TestStoreComputeDiff_RiskChangesAndNewlyExposed(t *testing.T) {
+	store, err := NewStore(t.TempDir(), false)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	initialTargets := []string{"a.com", "b.com"}
+	// a.com gets a jenkins finding (raw score 30), b.com is clean
+	initialEvents := []recon.Event{
+		{Target: "http://a.com/jenkins", Source: "httpx", Type: "service"},
+		{Target: "http://b.com/", Source: "httpx", Type: "service"},
+	}
+	if err := store.Save("program-c", initialTargets, initialEvents); err != nil {
+		t.Fatalf("failed to save initial snapshot: %v", err)
+	}
+
+	updatedTargets := []string{"a.com", "b.com"}
+	// b.com gets jenkins and .env findings (raw score 30+50 = 80)
+	updatedEvents := []recon.Event{
+		{Target: "http://a.com/jenkins", Source: "httpx", Type: "service"},
+		{Target: "http://b.com/", Source: "httpx", Type: "service"},
+		{Target: "http://b.com/jenkins", Source: "httpx", Type: "service"},
+		{Target: "http://b.com/.env", Source: "httpx", Type: "service"},
+	}
+	if err := store.Save("program-c", updatedTargets, updatedEvents); err != nil {
+		t.Fatalf("failed to save updated snapshot: %v", err)
+	}
+
+	diff, err := store.ComputeDiff("program-c", updatedTargets, updatedEvents)
+	if err != nil {
+		t.Fatalf("failed to compute diff: %v", err)
+	}
+
+	if diff == nil {
+		t.Fatal("expected non-nil diff")
+	}
+
+	// Verify RiskChanges
+	if len(diff.RiskChanges) != 1 {
+		t.Fatalf("expected exactly 1 risk change, got %d", len(diff.RiskChanges))
+	}
+	rc := diff.RiskChanges[0]
+	if rc.Host != "b.com" {
+		t.Errorf("expected risk change host to be b.com, got %s", rc.Host)
+	}
+	if rc.CurrentScore <= rc.PreviousScore {
+		t.Errorf("expected current score (%d) to be greater than previous score (%d)", rc.CurrentScore, rc.PreviousScore)
+	}
+
+	// Verify NewlyExposed
+	if len(diff.NewlyExposed) != 1 {
+		t.Fatalf("expected exactly 1 newly exposed asset, got %d", len(diff.NewlyExposed))
+	}
+	ne := diff.NewlyExposed[0]
+	if ne.Host != "b.com" {
+		t.Errorf("expected newly exposed host to be b.com, got %s", ne.Host)
+	}
+	if len(ne.Why) == 0 {
+		t.Error("expected explanation reasons in Why field")
+	}
+
+	// Verify Markdown output contains sections
+	md := diff.ToMarkdown("program-c")
+	if !strings.Contains(md, "Riskier Assets") {
+		t.Error("expected markdown to contain 'Riskier Assets' section")
+	}
+	if !strings.Contains(md, "Newly Exposed Assets") {
+		t.Error("expected markdown to contain 'Newly Exposed Assets' section")
+	}
+	if !strings.Contains(md, "b.com") {
+		t.Error("expected markdown to mention b.com")
 	}
 }
