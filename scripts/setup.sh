@@ -117,15 +117,31 @@ go install github.com/szybnev/uro-go/cmd/uro@v0.1.0 || echo " Warning: Failed to
 
 # 3. RUST-BASED TOOLS (feroxbuster)
 if ! command -v feroxbuster &> /dev/null; then
-    echo "Installing feroxbuster (Rust binary)..."
-    curl -sLo /tmp/install-feroxbuster.sh https://raw.githubusercontent.com/epi052/feroxbuster/master/install-nix.sh || true
-    if [ -f /tmp/install-feroxbuster.sh ]; then
-        if [ -w /usr/local/bin ]; then
-            bash /tmp/install-feroxbuster.sh /usr/local/bin || true
-        else
-            mkdir -p ~/.local/bin && bash /tmp/install-feroxbuster.sh ~/.local/bin || true
+    echo "Installing feroxbuster (Rust binary) with checksum verification..."
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        curl -sLo /tmp/feroxbuster.zip https://github.com/epi052/feroxbuster/releases/download/v2.10.3/x86_64-linux-feroxbuster.zip || true
+        if [ -f /tmp/feroxbuster.zip ]; then
+            echo "e2c842e74de8ca9ff1d56f61b03a8ee26615b13d2de8c54170685b85a3c20db2  /tmp/feroxbuster.zip" | sha256sum -c - &>/dev/null
+            if [ $? -eq 0 ]; then
+                mkdir -p /tmp/ferox_extracted
+                unzip -q /tmp/feroxbuster.zip -d /tmp/ferox_extracted || true
+                if [ -f /tmp/ferox_extracted/feroxbuster ]; then
+                    if [ -w /usr/local/bin ]; then
+                        mv /tmp/ferox_extracted/feroxbuster /usr/local/bin/ && chmod +x /usr/local/bin/feroxbuster || true
+                    else
+                        mkdir -p ~/.local/bin && mv /tmp/ferox_extracted/feroxbuster ~/.local/bin/ && chmod +x ~/.local/bin/feroxbuster || true
+                    fi
+                fi
+                rm -rf /tmp/ferox_extracted
+            else
+                echo "Warning: Checksum verification failed for feroxbuster!"
+            fi
+            rm -f /tmp/feroxbuster.zip
         fi
-        rm /tmp/install-feroxbuster.sh
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v brew &> /dev/null; then
+            brew install feroxbuster || true
+        fi
     fi
 fi
 
@@ -212,21 +228,22 @@ echo -e "\n Setting up wordlists..."
 WORDLISTS_DIR="$PROJECT_ROOT/wordlists"
 mkdir -p "$WORDLISTS_DIR"
 
-# Download essential wordlists
+# Download essential wordlists from pinned SecLists revision
 echo "Downloading DNS wordlist (5k entries)..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/dns-Jhaddix.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo " Failed to download DNS wordlist"
+SECLISTS_COMMIT="120a1db49fa279bb945d8b74c51483bf9e47f25e"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_COMMIT}/Discovery/DNS/dns-Jhaddix.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo " Failed to download DNS wordlist"
 
 echo "Downloading directory wordlist (small)..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-small-files.txt" -o "$WORDLISTS_DIR/raft-small-files.txt" || echo " Failed to download directory wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_COMMIT}/Discovery/Web-Content/raft-small-files.txt" -o "$WORDLISTS_DIR/raft-small-files.txt" || echo " Failed to download directory wordlist"
 
 echo "Downloading subdomain wordlist..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt" -o "$WORDLISTS_DIR/subdomains-top1million-5000.txt" || echo " Failed to download subdomain wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_COMMIT}/Discovery/DNS/subdomains-top1million-5000.txt" -o "$WORDLISTS_DIR/subdomains-top1million-5000.txt" || echo " Failed to download subdomain wordlist"
 
 echo "Downloading API endpoints wordlist..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt" -o "$WORDLISTS_DIR/api-endpoints.txt" || echo " Failed to download API wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_COMMIT}/Discovery/Web-Content/api/api-endpoints.txt" -o "$WORDLISTS_DIR/api-endpoints.txt" || echo " Failed to download API wordlist"
 
 echo "Downloading common web content wordlist..."
-curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt" -o "$WORDLISTS_DIR/seclists_common.txt" || echo " Failed to download common wordlist"
+curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_COMMIT}/Discovery/Web-Content/common.txt" -o "$WORDLISTS_DIR/seclists_common.txt" || echo " Failed to download common wordlist"
 
 echo " WORDLISTS SETUP COMPLETE!"
 
