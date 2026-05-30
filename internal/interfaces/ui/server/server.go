@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -13,13 +14,12 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
-	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
 //go:embed static/*
@@ -39,9 +39,11 @@ type LogBroadcasterWriter struct {
 }
 
 func (lw *LogBroadcasterWriter) Write(p []byte) (n int, err error) {
-	n, err = lw.Original.Write(p)
-	BroadcastLog(string(p))
-	return n, err
+	redactedStr := security.RedactSecrets(string(p))
+	redactedBytes := []byte(redactedStr)
+	_, err = lw.Original.Write(redactedBytes)
+	BroadcastLog(redactedStr)
+	return len(p), err
 }
 
 var (
@@ -113,33 +115,41 @@ func generateSelfSignedCert() (tls.Certificate, error) {
 	return cert, nil
 }
 
-func generateRandomToken() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "bbpts-default-token-1234"
+// Check permissions based on path and role
+func hasPermission(path string, method string, role string) bool {
+	// Admin has access to everything
+	if role == "admin" {
+		return true
 	}
-	return fmt.Sprintf("%x", b)
+
+	// Operator has access to everything EXCEPT writing config (POST /api/config)
+	if role == "operator" {
+		if path == "/api/config" && method == http.MethodPost {
+			return false
+		}
+		return true
+	}
+
+	// Readonly has access to stats, scans, events, history, logs/stream, logout, and frontend
+	if role == "readonly" {
+		if path == "/api/config" {
+			return false
+		}
+		// Deny editing or anything else that changes state
+		if method != http.MethodGet && path != "/api/logout" {
+			return false
+		}
+		return true
+	}
+
+	return false
 }
 
-func authMiddleware(configPath string, generatedToken string, next http.Handler) http.Handler {
+func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Allow static assets, main UI page, and auth/sync endpoints to bypass token validation
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" || strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/api/auth" || r.URL.Path == "/api/fleet/sync" {
 			next.ServeHTTP(w, r)
-			return
-		}
-
-		// Retrieve expected token
-		expectedToken := generatedToken
-		if cfgFile, err := config.LoadFromFile(configPath); err == nil && cfgFile.DashboardToken != "" {
-			expectedToken = cfgFile.DashboardToken
-		}
-
-		// If no token exists, return 401
-		if expectedToken == "" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error": "unauthorized: dashboard token not configured"}`))
 			return
 		}
 
@@ -157,14 +167,32 @@ func authMiddleware(configPath string, generatedToken string, next http.Handler)
 			}
 		}
 
-		if receivedToken != expectedToken {
+		if receivedToken == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error": "unauthorized: invalid dashboard token"}`))
+			w.Write([]byte(`{"error": "unauthorized: session token required"}`))
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		username, role, err := ValidateSession(db, receivedToken)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "unauthorized: invalid or expired session"}`))
+			return
+		}
+
+		// Enforce role-based access control (RBAC) permissions
+		if !hasPermission(r.URL.Path, r.Method, role) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(`{"error": "forbidden: insufficient permissions"}`))
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), UsernameKey, username)
+		ctx = context.WithValue(ctx, RoleKey, role)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -174,25 +202,12 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 		return fmt.Errorf("database client is required")
 	}
 
-	// Load token or generate on startup
-	var generatedToken string
-	cfgFile, err := config.LoadFromFile(configPath)
-	if err == nil && cfgFile.DashboardToken != "" {
-		slog.Info("dashboard server: using token from config")
-	} else {
-		generatedToken = generateRandomToken()
-		slog.Info("==========================================================")
-		slog.Info("DASHBOARD SECURITY TOKEN GENERATED:")
-		slog.Info("Token saved to local .bbpts_token file (0600 permissions).")
-		slog.Info("URL:   http://127.0.0.1:" + fmt.Sprintf("%d", cfg.Port) + "/")
-		slog.Info("==========================================================")
-		if wErr := os.WriteFile(".bbpts_token", []byte(generatedToken), 0600); wErr != nil {
-			slog.Error("failed to write generated token to .bbpts_token", "error", wErr)
-		}
+	// Bootstrap default admin user
+	if err := BootstrapAdminUser(db); err != nil {
+		slog.Error("failed to bootstrap admin user", "error", err)
 	}
 
 	api := NewAPI(db, configPath, masterDBPath)
-	api.SetGeneratedToken(generatedToken)
 
 	mux := http.NewServeMux()
 
@@ -201,6 +216,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 
 	// API Routes
 	mux.HandleFunc("/api/auth", api.Authenticate)
+	mux.HandleFunc("/api/logout", api.Logout)
 	mux.HandleFunc("/api/stats", api.GetStats)
 	mux.HandleFunc("/api/scans", api.GetScans)
 	mux.HandleFunc("/api/events", api.GetEvents)
@@ -227,7 +243,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
 
-	handler := authMiddleware(configPath, generatedToken, mux)
+	handler := authMiddleware(db, mux)
 
 	if cfg.TLSEnabled {
 		slog.Info("dashboard server starting with TLS", "addr", "https://"+addr)
@@ -305,13 +321,14 @@ const DashboardHTML = `
         </nav>
 
         <div class="mt-auto pt-6 border-t border-slate-800/50">
-            <div class="flex items-center gap-3 px-2">
-                <div class="w-8 h-8 rounded-full bg-accent-purple/20 flex items-center justify-center text-accent-purple text-xs font-bold">DA</div>
+            <div class="flex items-center gap-3 px-2 mb-4">
+                <div class="w-8 h-8 rounded-full bg-accent-purple/20 flex items-center justify-center text-accent-purple text-xs font-bold" id="user-avatar">DA</div>
                 <div>
-                    <p class="text-xs font-semibold">Developer-Army</p>
-                    <p class="text-[10px] text-slate-500">Security Operator</p>
+                    <p class="text-xs font-semibold" id="user-display-name">Developer-Army</p>
+                    <p class="text-[10px] text-slate-500 uppercase" id="user-display-role">Operator</p>
                 </div>
             </div>
+            <button onclick="logout()" class="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-rose-400 py-1.5 rounded-lg text-xs font-medium transition-colors border border-slate-800">Logout</button>
         </div>
     </aside>
 
@@ -515,7 +532,8 @@ const DashboardHTML = `
         <div class="glass p-8 rounded-2xl w-full max-w-md border border-slate-800 text-center animate-fade-in">
             <h1 class="text-2xl font-bold tracking-tighter mb-2"><span class="accent-purple">BBPTS</span><span class="text-slate-500 font-light">.io</span></h1>
             <p class="text-slate-400 text-xs uppercase tracking-wider mb-6">Mission Control Access</p>
-            <input type="password" id="login-token" placeholder="Security Token" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none mb-4 text-center">
+            <input type="text" id="login-username" placeholder="Username" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none mb-4 text-center text-slate-200">
+            <input type="password" id="login-password" placeholder="Password" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none mb-4 text-center text-slate-200">
             <button onclick="submitLogin()" class="w-full bg-purple-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-purple-700 transition-colors">Authenticate</button>
             <p id="login-error" class="text-rose-500 text-xs mt-3 hidden"></p>
         </div>
@@ -523,6 +541,11 @@ const DashboardHTML = `
 
     <script>
         async function fetchAPI(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            const token = localStorage.getItem('bbpts_token');
+            if (token) {
+                options.headers['Authorization'] = 'Bearer ' + token;
+            }
             const response = await fetch(url, options);
             if (response.status === 401) {
                 document.getElementById('login-modal').classList.remove('hidden');
@@ -532,17 +555,23 @@ const DashboardHTML = `
         }
 
         async function submitLogin() {
-            const tokenVal = document.getElementById('login-token').value;
+            const userVal = document.getElementById('login-username').value;
+            const passVal = document.getElementById('login-password').value;
             const errEl = document.getElementById('login-error');
             errEl.classList.add('hidden');
             try {
                 const response = await fetch('/api/auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: tokenVal })
+                    body: JSON.stringify({ username: userVal, password: passVal })
                 });
                 if (response.ok) {
+                    const data = await response.json();
                     document.getElementById('login-modal').classList.add('hidden');
+                    localStorage.setItem('bbpts_token', data.token);
+                    localStorage.setItem('bbpts_username', data.username);
+                    localStorage.setItem('bbpts_role', data.role);
+                    updateUserUI();
                     refreshData();
                     startLogStream();
                 } else {
@@ -553,6 +582,28 @@ const DashboardHTML = `
             } catch (e) {
                 errEl.innerText = 'Network error: ' + e.message;
                 errEl.classList.remove('hidden');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetchAPI('/api/logout', { method: 'POST' });
+            } catch (e) {
+                console.error(e);
+            }
+            localStorage.removeItem('bbpts_token');
+            localStorage.removeItem('bbpts_username');
+            localStorage.removeItem('bbpts_role');
+            document.getElementById('login-modal').classList.remove('hidden');
+        }
+
+        function updateUserUI() {
+            const username = localStorage.getItem('bbpts_username') || 'Guest';
+            const role = localStorage.getItem('bbpts_role') || 'Unknown';
+            document.getElementById('user-display-name').innerText = username;
+            document.getElementById('user-display-role').innerText = role.toUpperCase() + ' OPERATOR';
+            if (username && username.length > 0) {
+                document.getElementById('user-avatar').innerText = username.substring(0, 2).toUpperCase();
             }
         }
 
@@ -761,6 +812,7 @@ const DashboardHTML = `
         }
 
         window.onload = () => {
+            updateUserUI();
             refreshData().then(() => {
                 startLogStream();
             }).catch(() => {

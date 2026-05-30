@@ -14,26 +14,21 @@ import (
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
 // API wraps the database and provides HTTP handlers.
 type API struct {
-	db             *storage.DB
-	configPath     string
-	masterDBPath   string
-	generatedToken string
+	db           *storage.DB
+	configPath   string
+	masterDBPath string
 }
 
 // NewAPI creates a new API instance.
 func NewAPI(db *storage.DB, configPath, masterDBPath string) *API {
 	return &API{db: db, configPath: configPath, masterDBPath: masterDBPath}
-}
-
-// SetGeneratedToken sets the temporary runtime generated token.
-func (a *API) SetGeneratedToken(token string) {
-	a.generatedToken = token
 }
 
 // GetStats returns aggregate system statistics.
@@ -56,7 +51,18 @@ func (a *API) GetScans(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
 		return
 	}
-	scans, err := a.db.GetScans(r.Context())
+
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	var limit, offset int
+	if limitStr != "" {
+		limit, _ = strconv.Atoi(limitStr)
+	}
+	if offsetStr != "" {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+
+	scans, err := a.db.GetScans(r.Context(), limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -82,7 +88,18 @@ func (a *API) GetEvents(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
 		return
 	}
-	events, err := a.db.GetEvents(r.Context(), scanID)
+
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	var limit, offset int
+	if limitStr != "" {
+		limit, _ = strconv.Atoi(limitStr)
+	}
+	if offsetStr != "" {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+
+	events, err := a.db.GetEvents(r.Context(), scanID, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -93,9 +110,10 @@ func (a *API) GetEvents(w http.ResponseWriter, r *http.Request) {
 // respondWithJSON is a helper to send JSON responses.
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, _ := json.Marshal(payload)
+	redacted := []byte(security.RedactSecrets(string(response)))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	if _, err := w.Write(response); err != nil {
+	if _, err := w.Write(redacted); err != nil {
 		slog.Warn("failed to write json response", "error", err)
 	}
 }
@@ -520,7 +538,7 @@ func isRateLimited(ip string) bool {
 	return false
 }
 
-// Authenticate verifies the login token and sets a secure session cookie.
+// Authenticate verifies the user credentials and sets a secure session cookie.
 func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -538,7 +556,8 @@ func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Token string `json:"token"`
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 	// Limit request body to 1KB to prevent resource exhaustion attacks
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
@@ -547,21 +566,85 @@ func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expectedToken := a.generatedToken
-	if cfgFile, err := config.LoadFromFile(a.configPath); err == nil && cfgFile.DashboardToken != "" {
-		expectedToken = cfgFile.DashboardToken
-	}
-
-	if expectedToken == "" || req.Token != expectedToken {
-		respondWithError(w, http.StatusUnauthorized, "invalid token")
+	if req.Username == "" || req.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "username and password are required")
 		return
 	}
 
+	role, err := AuthenticateUser(a.db, req.Username, req.Password)
+	if err != nil {
+		LogAuditEvent(a.db, req.Username, "unknown", "login", "session", ip, "failed")
+		respondWithError(w, http.StatusUnauthorized, "invalid username or password")
+		return
+	}
+
+	token, err := CreateSession(a.db, req.Username, role, 24*time.Hour)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to create session")
+		return
+	}
+
+	LogAuditEvent(a.db, req.Username, role, "login", "session", ip, "success")
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "bbpts_session",
-		Value:    req.Token,
+		Value:    token,
 		Path:     "/",
 		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	respondWithJSON(w, http.StatusOK, map[string]string{
+		"status":   "success",
+		"token":    token,
+		"username": req.Username,
+		"role":     role,
+	})
+}
+
+// Logout revokes the current session.
+func (a *API) Logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+
+	var receivedToken string
+	if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+		receivedToken = strings.TrimPrefix(authHeader, "Bearer ")
+	}
+	if receivedToken == "" {
+		receivedToken = r.Header.Get("X-Dashboard-Token")
+	}
+	if receivedToken == "" {
+		if cookie, err := r.Cookie("bbpts_session"); err == nil {
+			receivedToken = cookie.Value
+		}
+	}
+
+	username, _ := r.Context().Value(UsernameKey).(string)
+	role, _ := r.Context().Value(RoleKey).(string)
+
+	if receivedToken != "" {
+		_ = RevokeSession(a.db, receivedToken)
+		if username != "" {
+			LogAuditEvent(a.db, username, role, "logout", "session", ip, "success")
+		}
+	}
+
+	// Delete cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "bbpts_session",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
