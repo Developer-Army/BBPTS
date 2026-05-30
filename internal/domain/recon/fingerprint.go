@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
 )
 
 // Result holds the fingerprint data for a single host.
@@ -34,14 +36,19 @@ type Fingerprinter struct {
 // New creates a Fingerprinter with sensible defaults.
 func New() *Fingerprinter {
 	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: 8 * time.Second,
-		}).DialContext,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			pinnedAddr, _, err := security.ResolveAndValidateAddr(ctx, addr)
+			if err != nil {
+				return nil, err
+			}
+			dialer := &net.Dialer{Timeout: 8 * time.Second}
+			return dialer.DialContext(ctx, network, pinnedAddr)
+		},
 	}
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		host, _, err := net.SplitHostPort(addr)
+		pinnedAddr, host, err := security.ResolveAndValidateAddr(ctx, addr)
 		if err != nil {
-			host = addr
+			return nil, err
 		}
 		skipVerify := false
 		if val := ctx.Value("insecure"); val != nil {
@@ -50,7 +57,7 @@ func New() *Fingerprinter {
 			}
 		}
 		dialer := &net.Dialer{Timeout: 8 * time.Second}
-		return tls.DialWithDialer(dialer, network, addr, &tls.Config{
+		return tls.DialWithDialer(dialer, network, pinnedAddr, &tls.Config{
 			ServerName:         host,
 			InsecureSkipVerify: skipVerify,
 		})
@@ -117,7 +124,13 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 		tlsHost += ":443"
 	}
 
-	result.JARMHash = f.jarmHash(ctx, tlsHost)
+	pinnedAddr, hostOnly, err := security.ResolveAndValidateAddr(ctx, tlsHost)
+	if err != nil {
+		slog.Warn("SSRF check blocked fingerprinting target", "target", target, "error", err)
+		return result
+	}
+
+	result.JARMHash = f.jarmHash(ctx, pinnedAddr, hostOnly)
 
 	skipVerify := false
 	if val := ctx.Value("insecure"); val != nil {
@@ -129,8 +142,11 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 	conn, err := tls.DialWithDialer(
 		&net.Dialer{Timeout: f.timeout},
 		"tcp",
-		tlsHost,
-		&tls.Config{InsecureSkipVerify: skipVerify}, //nolint:gosec
+		pinnedAddr,
+		&tls.Config{
+			ServerName:         hostOnly,
+			InsecureSkipVerify: skipVerify,
+		},
 	)
 	if err == nil {
 		defer conn.Close()
@@ -161,20 +177,7 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 
 // jarmHash generates a simplified JARM-inspired hash by performing multiple
 // TLS probes with different cipher/extension configurations.
-//
-// NOTE: This is a lightweight approximation, not a full JARM implementation.
-// True JARM (https://github.com/salesforce/jarm) sends 10 specially crafted
-// TLS ClientHello packets and hashes the server's TLS handshake responses.
-// That requires raw socket access and is outside the scope of this package.
-//
-// This implementation instead hashes observable TLS metadata (issuer, subject,
-// SANs) using FNV-128 to produce a stable per-host identifier suitable for
-// asset correlation and change detection. It is NOT interoperable with the
-// official JARM tool output.
-//
-// To get real JARM hashes, run `jarm` from https://github.com/hdm/jarm-go
-// and correlate results via the Shodan or Censys API integrations.
-func (f *Fingerprinter) jarmHash(ctx context.Context, hostPort string) string {
+func (f *Fingerprinter) jarmHash(ctx context.Context, pinnedAddr string, host string) string {
 	// Probe with different TLS versions to generate a distinguishing signature
 	versions := []uint16{
 		tls.VersionTLS13,
@@ -196,12 +199,13 @@ func (f *Fingerprinter) jarmHash(ctx context.Context, hostPort string) string {
 			}
 		}
 		conf := &tls.Config{
-			InsecureSkipVerify: skipVerify, //nolint:gosec
+			ServerName:         host,
+			InsecureSkipVerify: skipVerify,
 			MinVersion:         ver,
 			MaxVersion:         ver,
 		}
 		dialer := &net.Dialer{Timeout: 4 * time.Second}
-		conn, err := tls.DialWithDialer(dialer, "tcp", hostPort, conf)
+		conn, err := tls.DialWithDialer(dialer, "tcp", pinnedAddr, conf)
 		if err != nil {
 			fmt.Fprintf(h, "err_%d", ver)
 			continue

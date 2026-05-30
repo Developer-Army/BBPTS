@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"encoding/json"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
 )
 
 // Config holds all runtime configuration for the BBPTS toolkit.
@@ -235,6 +237,7 @@ func LoadFromFile(path string) (*Config, error) {
 		if os.IsNotExist(err) {
 			// safe to ignore: writing default config helper is non-critical for running with defaults
 			_ = WriteDefault(path)
+			cfg.RegisterSecrets()
 			return cfg, nil // No config file is fine, use defaults
 		}
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
@@ -255,6 +258,7 @@ func LoadFromFile(path string) (*Config, error) {
 		}
 	}
 
+	cfg.RegisterSecrets()
 	return cfg, nil
 }
 
@@ -343,6 +347,7 @@ func (c *Config) LoadFromEnv() {
 			c.ResourceLimits.GCPercent = gc
 		}
 	}
+	c.RegisterSecrets()
 }
 
 // GetAPIKey returns the API key for a given provider, or empty string if not set.
@@ -408,3 +413,31 @@ func ResolveWebEnder(webEnder string, headers map[string]string) map[string]stri
 	}
 	return headers
 }
+
+// RegisterSecrets registers sensitive configuration fields with the security package redactor.
+func (c *Config) RegisterSecrets() {
+	if c.DashboardToken != "" {
+		security.RegisterSecretToRedact(c.DashboardToken)
+	}
+	if c.Fleet.SyncToken != "" {
+		security.RegisterSecretToRedact(c.Fleet.SyncToken)
+	}
+	if c.Notify.TelegramBotToken != "" {
+		security.RegisterSecretToRedact(c.Notify.TelegramBotToken)
+	}
+	if c.Notify.TelegramChatID != "" {
+		security.RegisterSecretToRedact(c.Notify.TelegramChatID)
+	}
+	if c.Notify.DiscordWebhook != "" {
+		security.RegisterSecretToRedact(c.Notify.DiscordWebhook)
+	}
+	if c.Notify.SlackWebhook != "" {
+		security.RegisterSecretToRedact(c.Notify.SlackWebhook)
+	}
+	for _, key := range c.APIKeys {
+		if key != "" {
+			security.RegisterSecretToRedact(key)
+		}
+	}
+}
+

@@ -34,13 +34,17 @@ func CheckEnvironment() []ToolStatus {
 			if t == "amass" {
 				versionCmd = "version"
 			}
-			cmd := exec.Command(t, versionCmd)
-			out, err := cmd.CombinedOutput()
-			if err != nil && t == "httpx" {
+			cmd, cmdErr := PrepareSecureCommand(nil, t, versionCmd)
+			var out []byte
+			if cmdErr == nil {
+				out, err = cmd.CombinedOutput()
+			}
+			if (err != nil || cmdErr != nil) && t == "httpx" {
 				// Try Python httpx version check as fallback/detection
-				cmd = exec.Command(t, "--version")
-				// safe to ignore: fallback command error check is best-effort version extraction
-				out, _ = cmd.CombinedOutput()
+				cmd2, cmd2Err := PrepareSecureCommand(nil, t, "--version")
+				if cmd2Err == nil {
+					out, _ = cmd2.CombinedOutput()
+				}
 			}
 
 			if err == nil || (t == "httpx" && strings.Contains(string(out), "httpx")) {

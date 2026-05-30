@@ -830,3 +830,17 @@ func TestIsInternalURL(t *testing.T) {
 		})
 	}
 }
+
+func TestRedactSecrets(t *testing.T) {
+	RegisterSecretToRedact("SuperSecretTokenString123")
+	RegisterSecretToRedact("Short") // Should be ignored (too short)
+
+	input := "AWS key is AKIA1234567890123456 and token is SuperSecretTokenString123 but Short is preserved"
+	expected := "AWS key is ●●●●●●●● and token is ●●●●●●●● but Short is preserved"
+
+	redacted := RedactSecrets(input)
+	if redacted != expected {
+		t.Errorf("RedactSecrets() = %q, want %q", redacted, expected)
+	}
+}
+

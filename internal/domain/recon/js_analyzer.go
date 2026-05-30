@@ -19,6 +19,8 @@ import (
 
 	"github.com/dop251/goja/ast"
 	"github.com/dop251/goja/parser"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
 )
 
 // JSFinding represents a single finding from JavaScript analysis.
@@ -42,14 +44,19 @@ type JSAnalyzer struct {
 // NewJSAnalyzer creates a JSAnalyzer with sensible defaults.
 func NewJSAnalyzer() *JSAnalyzer {
 	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: 8 * time.Second,
-		}).DialContext,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			pinnedAddr, _, err := security.ResolveAndValidateAddr(ctx, addr)
+			if err != nil {
+				return nil, err
+			}
+			dialer := &net.Dialer{Timeout: 8 * time.Second}
+			return dialer.DialContext(ctx, network, pinnedAddr)
+		},
 	}
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		host, _, err := net.SplitHostPort(addr)
+		pinnedAddr, host, err := security.ResolveAndValidateAddr(ctx, addr)
 		if err != nil {
-			host = addr
+			return nil, err
 		}
 		skipVerify := false
 		if val := ctx.Value("insecure"); val != nil {
@@ -58,7 +65,7 @@ func NewJSAnalyzer() *JSAnalyzer {
 			}
 		}
 		dialer := &net.Dialer{Timeout: 8 * time.Second}
-		return tls.DialWithDialer(dialer, network, addr, &tls.Config{
+		return tls.DialWithDialer(dialer, network, pinnedAddr, &tls.Config{
 			ServerName:         host,
 			InsecureSkipVerify: skipVerify,
 		})

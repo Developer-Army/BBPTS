@@ -73,3 +73,7 @@ bbpts.log
 internal/interfaces/cli/output/
 internal/interfaces/cli/results/
 
+# Local audit and credentials
+internal/interfaces/ui/server/audit.log
+internal/interfaces/ui/server/admin_bootstrap.txt
+

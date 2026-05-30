@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -581,4 +582,49 @@ func ResolveAndValidateAddr(ctx context.Context, addr string) (string, string, e
 	pinnedAddr := net.JoinHostPort(ips[0].String(), port)
 	return pinnedAddr, host, nil
 }
+
+var secretRegexes = []*regexp.Regexp{
+	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                  // AWS Key
+	regexp.MustCompile(`AIza[0-9A-Za-z-_]{35}`),             // Google API Key
+	regexp.MustCompile(`xox[baprs]-[0-9a-zA-Z]{10,48}`),      // Slack Token
+	regexp.MustCompile(`gh[pso]_[a-zA-Z0-9]{36}`),            // GitHub Token
+	regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24}`),           // Stripe Key
+	regexp.MustCompile(`(?i)(http|https)://(discord\.com/api/webhooks/|hooks\.slack\.com/services/)[^\s"']+`), // Webhooks
+}
+
+var (
+	customSecretsMu sync.RWMutex
+	customSecrets   []string
+)
+
+// RegisterSecretToRedact registers a specific sensitive value to be masked.
+func RegisterSecretToRedact(secret string) {
+	s := strings.TrimSpace(secret)
+	if len(s) < 6 || s == "●●●●●●●●" {
+		return // Avoid registering short/common keys or already redacted values
+	}
+	customSecretsMu.Lock()
+	defer customSecretsMu.Unlock()
+	// Prevent duplicate entries
+	for _, existing := range customSecrets {
+		if existing == s {
+			return
+		}
+	}
+	customSecrets = append(customSecrets, s)
+}
+
+// RedactSecrets scans a string and masks any detected secrets.
+func RedactSecrets(text string) string {
+	for _, re := range secretRegexes {
+		text = re.ReplaceAllString(text, "●●●●●●●●")
+	}
+	customSecretsMu.RLock()
+	defer customSecretsMu.RUnlock()
+	for _, secret := range customSecrets {
+		text = strings.ReplaceAll(text, secret, "●●●●●●●●")
+	}
+	return text
+}
+
 

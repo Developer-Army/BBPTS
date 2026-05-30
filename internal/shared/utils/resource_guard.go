@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"math"
 	"os"
-	"os/exec"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -127,27 +126,33 @@ func getSystemTotalMemory() int64 {
 
 	case "darwin":
 		// macOS: sysctl -n hw.memsize
-		out, err := exec.Command("sysctl", "-n", "hw.memsize").Output()
-		if err == nil {
-			val, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+		cmd, cmdErr := PrepareSecureCommand(nil, "sysctl", "-n", "hw.memsize")
+		if cmdErr == nil {
+			out, err := cmd.Output()
 			if err == nil {
-				return val
+				val, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+				if err == nil {
+					return val
+				}
 			}
 		}
 
 	case "windows":
 		// Windows: wmic computersystem get TotalPhysicalMemory
-		out, err := exec.Command("wmic", "computersystem", "get", "TotalPhysicalMemory").Output()
-		if err == nil {
-			lines := strings.Split(string(out), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line == "" || strings.Contains(line, "TotalPhysicalMemory") {
-					continue
-				}
-				val, err := strconv.ParseInt(line, 10, 64)
-				if err == nil {
-					return val
+		cmd, cmdErr := PrepareSecureCommand(nil, "wmic", "computersystem", "get", "TotalPhysicalMemory")
+		if cmdErr == nil {
+			out, err := cmd.Output()
+			if err == nil {
+				lines := strings.Split(string(out), "\n")
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if line == "" || strings.Contains(line, "TotalPhysicalMemory") {
+						continue
+					}
+					val, err := strconv.ParseInt(line, 10, 64)
+					if err == nil {
+						return val
+					}
 				}
 			}
 		}
