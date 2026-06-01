@@ -309,3 +309,47 @@ func TestScorer_ScoreEndpoint_MultiFactorFields(t *testing.T) {
 		t.Errorf("expected PathScore = 100, got %d", result.PathScore)
 	}
 }
+
+func TestScorer_Phase4Adjustments(t *testing.T) {
+	// Test Staging environment adjustment (75% score reduction)
+	sStaging := NewScorer()
+	sStaging.AssetEnvironment = "staging"
+	resStaging := sStaging.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+
+	sProd := NewScorer()
+	resProd := sProd.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+
+	expectedStagingScore := int(float64(resProd.Score) * 0.75)
+	if resStaging.Score != expectedStagingScore {
+		t.Errorf("expected staging score %d, got %d", expectedStagingScore, resStaging.Score)
+	}
+
+	// Test Dev environment adjustment (50% score reduction)
+	sDev := NewScorer()
+	sDev.AssetEnvironment = "dev"
+	resDev := sDev.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+
+	expectedDevScore := int(float64(resProd.Score) * 0.50)
+	if resDev.Score != expectedDevScore {
+		t.Errorf("expected dev score %d, got %d", expectedDevScore, resDev.Score)
+	}
+
+	// Test BlastRadius adjustment
+	sBlast := NewScorer()
+	sBlast.BlastRadius = 0.5
+	resBlast := sBlast.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+	if resBlast.BusinessImpactScore != int(100.0 * 0.5) {
+		t.Errorf("expected business impact 50, got %d", resBlast.BusinessImpactScore)
+	}
+
+	// Test SourceConfidence & Reproducibility adjustment
+	sConf := NewScorer()
+	sConf.SourceConfidence = 0.8
+	sConf.Reproducibility = 0.5
+	resConf := sConf.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+	// Base confidence is 95 or 100 (let's check resProd.ConfidenceScore, which should be 95)
+	expectedConf := int(float64(resProd.ConfidenceScore) * 0.8 * 0.5)
+	if resConf.ConfidenceScore != expectedConf {
+		t.Errorf("expected confidence score %d, got %d", expectedConf, resConf.ConfidenceScore)
+	}
+}

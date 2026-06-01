@@ -287,3 +287,37 @@ func TestGraphNode_Properties(t *testing.T) {
 		t.Errorf("expected property Value 'acme-corp.io', got '%s'", node.Properties["Value"])
 	}
 }
+
+func TestMemoryGraph_PropagateRisk(t *testing.T) {
+	graph := NewMemoryGraph()
+
+	node1 := &GraphNode{ID: "subdomain", Type: "Subdomain", Confidence: 0.9}
+	node2 := &GraphNode{ID: "js_file", Type: "JS_File", Confidence: 0.8}
+	node3 := &GraphNode{ID: "secret_leak", Type: "Secret_Leak", Confidence: 1.0}
+
+	graph.AddNode(node1)
+	graph.AddNode(node2)
+	graph.AddNode(node3)
+
+	graph.edges = append(graph.edges, GraphEdge{SourceID: "subdomain", TargetID: "js_file", Relation: "LOADS", Weight: 80, Confidence: 0.9})
+	graph.edges = append(graph.edges, GraphEdge{SourceID: "js_file", TargetID: "secret_leak", Relation: "EXPOSES", Weight: 100, Confidence: 1.0})
+
+	initialRisk := map[string]float64{
+		"secret_leak": 100.0,
+	}
+
+	propagated := graph.PropagateRisk(initialRisk)
+
+	if propagated["secret_leak"] != 100.0 {
+		t.Errorf("expected secret_leak risk to be 100.0, got %f", propagated["secret_leak"])
+	}
+
+	if propagated["js_file"] != 100.0 {
+		t.Errorf("expected js_file risk to be 100.0, got %f", propagated["js_file"])
+	}
+
+	expectedRisk := 100.0 * 0.8 * 0.9 * 0.8
+	if propagated["subdomain"] != expectedRisk {
+		t.Errorf("expected subdomain risk to be %f, got %f", expectedRisk, propagated["subdomain"])
+	}
+}

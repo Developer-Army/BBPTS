@@ -11,14 +11,17 @@ type GraphNode struct {
 	ID         string
 	Type       string // e.g., "Domain", "Subdomain", "JS_File", "GraphQL_Endpoint", "IP"
 	Properties map[string]string
+	Provenance string  // source tool/track (Phase 4)
+	Confidence float64 // confidence value (0.0 to 1.0) (Phase 4)
 }
 
 // GraphEdge represents a relationship between two entities.
 type GraphEdge struct {
-	SourceID string
-	TargetID string
-	Relation string // e.g., "RESOLVES_TO", "LOADS", "EXPOSES", "REFERENCES"
-	Weight   int
+	SourceID   string
+	TargetID   string
+	Relation   string  // e.g., "RESOLVES_TO", "LOADS", "EXPOSES", "REFERENCES"
+	Weight     int
+	Confidence float64 // edge confidence (Phase 4)
 }
 
 // MemoryGraph is an in-memory graph to cluster relationships.
@@ -95,4 +98,47 @@ func (g *MemoryGraph) FindPivots(startID string) []*GraphNode {
 		}
 	}
 	return results
+}
+
+// PropagateRisk calculates risk scores of nodes by propagating risk dynamically across adjacent edges.
+func (g *MemoryGraph) PropagateRisk(initialRisk map[string]float64) map[string]float64 {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	propagated := make(map[string]float64)
+	for k, v := range initialRisk {
+		propagated[k] = v
+	}
+
+	// Two-pass propagation to handle transitive edges
+	for pass := 0; pass < 2; pass++ {
+		for _, edge := range g.edges {
+			targetRisk := propagated[edge.TargetID]
+			if targetRisk > 0 {
+				edgeFactor := 0.2
+				if edge.Weight > 0 {
+					edgeFactor = float64(edge.Weight) / 100.0
+				}
+				// Factor in edge confidence
+				edgeConf := edge.Confidence
+				if edgeConf <= 0 {
+					edgeConf = 1.0 // default confidence
+				}
+
+				targetConf := 1.0
+				if targetNode, ok := g.nodes[edge.TargetID]; ok {
+					if targetNode.Confidence > 0 {
+						targetConf = targetNode.Confidence
+					}
+				}
+
+				propRisk := targetRisk * edgeFactor * edgeConf * targetConf
+				if propRisk > propagated[edge.SourceID] {
+					propagated[edge.SourceID] = propRisk
+				}
+			}
+		}
+	}
+
+	return propagated
 }

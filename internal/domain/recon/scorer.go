@@ -33,10 +33,20 @@ type IntelligenceScore struct {
 }
 
 // Scorer evaluates nodes and assigns intelligence priority scores.
-type Scorer struct{}
+type Scorer struct {
+	SourceConfidence float64 // 0.0 to 1.0 (default 1.0)
+	Reproducibility  float64 // 0.0 to 1.0 (default 1.0)
+	AssetEnvironment string  // "prod", "staging", "dev" (default "prod")
+	BlastRadius      float64 // 0.0 to 1.0 (default 1.0)
+}
 
 func NewScorer() *Scorer {
-	return &Scorer{}
+	return &Scorer{
+		SourceConfidence: 1.0,
+		Reproducibility:  1.0,
+		AssetEnvironment: "prod",
+		BlastRadius:      1.0,
+	}
 }
 
 // ScoreEndpoint evaluates the heuristic probability of a URL being a high-value bug bounty target.
@@ -95,6 +105,8 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 	}
 
 	result.Justification = append(result.Justification, fmt.Sprintf("Asset class identified: %s", assetClass))
+	// Adjust business impact by blast radius
+	classImpact = int(float64(classImpact) * s.BlastRadius)
 	result.BusinessImpactScore = classImpact
 
 	// 1. Exposure Score (0-100)
@@ -160,6 +172,8 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 	if hasSensitiveParam {
 		confidence = 100
 	}
+	// Adjust confidence score with source confidence and reproducibility
+	confidence = int(float64(confidence) * s.SourceConfidence * s.Reproducibility)
 	result.ConfidenceScore = confidence
 
 	// 4. Freshness Score (0-100)
@@ -207,6 +221,14 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 		(float64(result.Risk.PathRisk) * 0.10)
 
 	result.Score = int(weightedScore)
+	if s.AssetEnvironment == "staging" {
+		result.Score = int(float64(result.Score) * 0.75)
+		result.Justification = append(result.Justification, "Score adjusted down: Staging environment")
+	} else if s.AssetEnvironment == "dev" {
+		result.Score = int(float64(result.Score) * 0.50)
+		result.Justification = append(result.Justification, "Score adjusted down: Dev/Local environment")
+	}
+
 	if result.Score > 100 {
 		result.Score = 100
 	}
