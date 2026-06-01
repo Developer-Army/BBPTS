@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -354,15 +355,21 @@ func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, 
 		INSERT INTO finding_assignments (finding_id, team_id, owner_id, status, assigned_at, due_at, resolved_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
 	var lastID int64
 	if s.dbType == "postgres" {
 		insertQuery = `
 			INSERT INTO finding_assignments (finding_id, team_id, owner_id, status, assigned_at, due_at, resolved_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
 		`
-		err = s.db.QueryRow(insertQuery, findingID, teamID, ownerID, "assigned", now, dueAt, nil).Scan(&lastID)
+		err = tx.QueryRow(insertQuery, findingID, teamID, ownerID, "Assigned", now, dueAt, nil).Scan(&lastID)
 	} else {
-		res, errExec := s.db.Exec(insertQuery, findingID, teamID, ownerID, "assigned", now, dueAt, nil)
+		res, errExec := tx.Exec(insertQuery, findingID, teamID, ownerID, "Assigned", now, dueAt, nil)
 		if errExec != nil {
 			return 0, errExec
 		}
@@ -370,6 +377,24 @@ func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, 
 	}
 
 	if err != nil {
+		return 0, err
+	}
+
+	historyQuery := `
+		INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	if s.dbType == "postgres" {
+		historyQuery = `
+			INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`
+	}
+	if _, err := tx.Exec(historyQuery, findingID, "Discovered", "Assigned", now, "Initial assignment", "system"); err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
 
@@ -382,23 +407,66 @@ func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, 
 
 // UpdateAssignmentStatus updates status and resolved_at timestamp.
 func (s *Storage) UpdateAssignmentStatus(id int64, status string) error {
-	var query string
-	now := time.Now().UTC()
-	if status == "resolved" {
-		query = "UPDATE finding_assignments SET status = ?, resolved_at = ? WHERE id = ?"
-		if s.dbType == "postgres" {
-			query = "UPDATE finding_assignments SET status = $1, resolved_at = $2 WHERE id = $3"
-		}
-		_, err := s.db.Exec(query, status, now, id)
+	normalized := normalizeCTEMState(status)
+
+	// Fetch current status and finding_id
+	var oldStatus string
+	var findingID int64
+	var querySelect string
+	if s.dbType == "postgres" {
+		querySelect = "SELECT status, finding_id FROM finding_assignments WHERE id = $1"
+	} else {
+		querySelect = "SELECT status, finding_id FROM finding_assignments WHERE id = ?"
+	}
+	err := s.db.QueryRow(querySelect, id).Scan(&oldStatus, &findingID)
+	if err != nil {
 		return err
 	}
 
-	query = "UPDATE finding_assignments SET status = ? WHERE id = ?"
-	if s.dbType == "postgres" {
-		query = "UPDATE finding_assignments SET status = $1 WHERE id = $2"
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
 	}
-	_, err := s.db.Exec(query, status, id)
-	return err
+	defer tx.Rollback()
+
+	now := time.Now().UTC()
+	var queryUpdate string
+	if normalized == "Verified" {
+		if s.dbType == "postgres" {
+			queryUpdate = "UPDATE finding_assignments SET status = $1, resolved_at = $2 WHERE id = $3"
+		} else {
+			queryUpdate = "UPDATE finding_assignments SET status = ?, resolved_at = ? WHERE id = ?"
+		}
+		if _, err := tx.Exec(queryUpdate, normalized, now, id); err != nil {
+			return err
+		}
+	} else {
+		if s.dbType == "postgres" {
+			queryUpdate = "UPDATE finding_assignments SET status = $1 WHERE id = $2"
+		} else {
+			queryUpdate = "UPDATE finding_assignments SET status = ? WHERE id = ?"
+		}
+		if _, err := tx.Exec(queryUpdate, normalized, id); err != nil {
+			return err
+		}
+	}
+
+	// Insert status history record
+	historyQuery := `
+		INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	if s.dbType == "postgres" {
+		historyQuery = `
+			INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`
+	}
+	if _, err := tx.Exec(historyQuery, findingID, normalizeCTEMState(oldStatus), normalized, now, "Status updated", "system"); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // GetOverdueAssignments queries assignments that have passed their due_at date.
@@ -407,14 +475,14 @@ func (s *Storage) GetOverdueAssignments() ([]OverdueAssignment, error) {
 		SELECT fa.id, fa.finding_id, f.title, f.severity, f.target, fa.team_id, fa.owner_id, fa.due_at, fa.status
 		FROM finding_assignments fa
 		JOIN findings f ON fa.finding_id = f.id
-		WHERE fa.status != 'resolved' AND fa.due_at < ?
+		WHERE fa.status NOT IN ('resolved', 'Verified') AND fa.due_at < ?
 	`
 	if s.dbType == "postgres" {
 		query = `
 			SELECT fa.id, fa.finding_id, f.title, f.severity, f.target, fa.team_id, fa.owner_id, fa.due_at, fa.status
 			FROM finding_assignments fa
 			JOIN findings f ON fa.finding_id = f.id
-			WHERE fa.status != 'resolved' AND fa.due_at < $1
+			WHERE fa.status NOT IN ('resolved', 'Verified') AND fa.due_at < $1
 		`
 	}
 	rows, err := s.db.Query(query, time.Now().UTC())
@@ -688,4 +756,74 @@ func (s *Storage) GetAssignmentStatusForTest(assignmentID int64) (string, error)
 	var status string
 	err := s.db.QueryRow(query, assignmentID).Scan(&status)
 	return status, err
+}
+
+type FindingStatusHistory struct {
+	ID        int64     `json:"id"`
+	FindingID int64     `json:"finding_id"`
+	OldStatus string    `json:"old_status"`
+	NewStatus string    `json:"new_status"`
+	ChangedAt time.Time `json:"changed_at"`
+	Comment   string    `json:"comment"`
+	ChangedBy string    `json:"changed_by"`
+}
+
+func normalizeCTEMState(status string) string {
+	switch strings.ToLower(status) {
+	case "discovered":
+		return "Discovered"
+	case "triaged":
+		return "Triaged"
+	case "assigned":
+		return "Assigned"
+	case "remediating", "acknowledged":
+		return "Acknowledged"
+	case "remediated":
+		return "Remediated"
+	case "resolved", "verified":
+		return "Verified"
+	case "reopened":
+		return "Reopened"
+	case "exempted":
+		return "Exempted"
+	case "expired":
+		return "Expired"
+	default:
+		return status
+	}
+}
+
+// GetFindingStatusHistory retrieves the status history for a finding.
+func (s *Storage) GetFindingStatusHistory(findingID int64) ([]FindingStatusHistory, error) {
+	query := `
+		SELECT id, finding_id, old_status, new_status, changed_at, COALESCE(comment, ''), COALESCE(changed_by, '')
+		FROM finding_status_history
+		WHERE finding_id = ?
+		ORDER BY changed_at ASC
+	`
+	if s.dbType == "postgres" {
+		query = `
+			SELECT id, finding_id, old_status, new_status, changed_at, COALESCE(comment, ''), COALESCE(changed_by, '')
+			FROM finding_status_history
+			WHERE finding_id = $1
+			ORDER BY changed_at ASC
+		`
+	}
+
+	rows, err := s.db.Query(query, findingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []FindingStatusHistory
+	for rows.Next() {
+		var h FindingStatusHistory
+		if err := rows.Scan(&h.ID, &h.FindingID, &h.OldStatus, &h.NewStatus, &h.ChangedAt, &h.Comment, &h.ChangedBy); err != nil {
+			return nil, err
+		}
+		h.ChangedAt = h.ChangedAt.UTC()
+		list = append(list, h)
+	}
+	return list, nil
 }

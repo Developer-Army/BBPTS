@@ -136,8 +136,23 @@ func TestCTEMBasic(t *testing.T) {
 	if err != nil || len(overdue) != 1 {
 		t.Fatalf("GetOverdueAssignments failed: %v, len: %d", err, len(overdue))
 	}
-	if overdue[0].AssignmentID != assignmentID || overdue[0].Status != "remediating" {
-		t.Errorf("Unexpected overdue assignment properties")
+	if overdue[0].AssignmentID != assignmentID || overdue[0].Status != "Acknowledged" {
+		t.Errorf("Unexpected overdue assignment properties: got status %s, expected Acknowledged", overdue[0].Status)
+	}
+
+	// Verify audit trail status history
+	history, err := s.GetFindingStatusHistory(findingID)
+	if err != nil {
+		t.Fatalf("GetFindingStatusHistory failed: %v", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("Expected 2 history records, got %d", len(history))
+	}
+	if history[0].OldStatus != "Discovered" || history[0].NewStatus != "Assigned" {
+		t.Errorf("First transition mismatch: %s -> %s", history[0].OldStatus, history[0].NewStatus)
+	}
+	if history[1].OldStatus != "Assigned" || history[1].NewStatus != "Acknowledged" {
+		t.Errorf("Second transition mismatch: %s -> %s", history[1].OldStatus, history[1].NewStatus)
 	}
 
 	// 6. Graph Mirroring verification

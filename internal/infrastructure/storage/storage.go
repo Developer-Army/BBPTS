@@ -176,7 +176,45 @@ func (s *Storage) initSchema() error {
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY(policy_id) REFERENCES sla_policies(id) ON DELETE CASCADE
 	);
-	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
+
+	CREATE TABLE IF NOT EXISTS dashboard_users (
+		id INTEGER PRIMARY KEY %s,
+		username TEXT NOT NULL UNIQUE,
+		password_hash TEXT NOT NULL,
+		role TEXT NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS user_sessions (
+		token TEXT PRIMARY KEY,
+		username TEXT NOT NULL,
+		role TEXT NOT NULL,
+		expires_at TIMESTAMP NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS audit_logs (
+		id INTEGER PRIMARY KEY %s,
+		timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		username TEXT NOT NULL,
+		role TEXT NOT NULL,
+		action TEXT NOT NULL,
+		resource TEXT NOT NULL,
+		ip_address TEXT NOT NULL,
+		status TEXT NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS finding_status_history (
+		id INTEGER PRIMARY KEY %s,
+		finding_id INTEGER NOT NULL,
+		old_status TEXT NOT NULL,
+		new_status TEXT NOT NULL,
+		changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		comment TEXT,
+		changed_by TEXT,
+		FOREIGN KEY(finding_id) REFERENCES findings(id) ON DELETE CASCADE
+	);
+	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
 
 	if s.dbType == "postgres" {
 		schema = strings.ReplaceAll(schema, "INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY")
@@ -277,4 +315,9 @@ func (s *Storage) Close() error {
 		return s.db.Close()
 	}
 	return nil
+}
+
+// GetDB returns the raw sql.DB connection.
+func (s *Storage) GetDB() *sql.DB {
+	return s.db
 }

@@ -150,6 +150,18 @@ func (db *Storage) migrate(ctx context.Context) error {
 		FOREIGN KEY(policy_id) REFERENCES sla_policies(id) ON DELETE CASCADE
 	);
 	`,
+		`
+	CREATE TABLE IF NOT EXISTS finding_status_history (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		finding_id INTEGER NOT NULL,
+		old_status TEXT NOT NULL,
+		new_status TEXT NOT NULL,
+		changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		comment TEXT,
+		changed_by TEXT,
+		FOREIGN KEY(finding_id) REFERENCES findings(id) ON DELETE CASCADE
+	);
+	`,
 	}
 	for version, migration := range migrations {
 		if _, err := db.db.ExecContext(ctx, migration); err != nil {
@@ -242,9 +254,18 @@ type ScanRecord struct {
 	Status    string     `json:"status"`
 }
 
-// GetScans returns all scans from the database.
-func (db *Storage) GetScans(ctx context.Context) ([]ScanRecord, error) {
-	rows, err := db.db.QueryContext(ctx, "SELECT id, scope, start_time, end_time, status FROM scans ORDER BY start_time DESC LIMIT 100")
+// GetScans returns scans from the database with pagination.
+func (db *Storage) GetScans(ctx context.Context, limit, offset int) ([]ScanRecord, error) {
+	query := "SELECT id, scope, start_time, end_time, status FROM scans ORDER BY start_time DESC, id DESC"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else {
+		query += " LIMIT 100"
+	}
+	rows, err := db.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -261,9 +282,16 @@ func (db *Storage) GetScans(ctx context.Context) ([]ScanRecord, error) {
 	return scans, nil
 }
 
-// GetTargets returns all targets for a given scan.
-func (db *Storage) GetTargets(ctx context.Context, scanID int64) ([]string, error) {
-	rows, err := db.db.QueryContext(ctx, "SELECT host FROM targets WHERE scan_id = ? ORDER BY id", scanID)
+// GetTargets returns targets for a given scan with pagination.
+func (db *Storage) GetTargets(ctx context.Context, scanID int64, limit, offset int) ([]string, error) {
+	query := "SELECT host FROM targets WHERE scan_id = ? ORDER BY id"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
+	rows, err := db.db.QueryContext(ctx, query, scanID)
 	if err != nil {
 		return nil, err
 	}
@@ -280,9 +308,16 @@ func (db *Storage) GetTargets(ctx context.Context, scanID int64) ([]string, erro
 	return targets, nil
 }
 
-// GetEvents returns all events for a given scan.
-func (db *Storage) GetEvents(ctx context.Context, scanID int64) ([]EventRecord, error) {
-	rows, err := db.db.QueryContext(ctx, "SELECT target, source, type, properties FROM events WHERE scan_id = ?", scanID)
+// GetEvents returns events for a given scan with pagination.
+func (db *Storage) GetEvents(ctx context.Context, scanID int64, limit, offset int) ([]EventRecord, error) {
+	query := "SELECT target, source, type, properties FROM events WHERE scan_id = ?"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
+	rows, err := db.db.QueryContext(ctx, query, scanID)
 	if err != nil {
 		return nil, err
 	}

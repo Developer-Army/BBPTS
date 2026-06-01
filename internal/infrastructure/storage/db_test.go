@@ -73,7 +73,7 @@ func TestSaveTargets(t *testing.T) {
 		t.Fatalf("Failed to save targets: %v", err)
 	}
 
-	saved, err := db.GetTargets(ctx, scanID)
+	saved, err := db.GetTargets(ctx, scanID, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get targets: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestSaveEvents(t *testing.T) {
 		t.Fatalf("Failed to save events: %v", err)
 	}
 
-	saved, err := db.GetEvents(ctx, scanID)
+	saved, err := db.GetEvents(ctx, scanID, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get events: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestSaveEventsWithNilProperties(t *testing.T) {
 		t.Fatalf("Failed to save events with nil properties: %v", err)
 	}
 
-	saved, err := db.GetEvents(ctx, scanID)
+	saved, err := db.GetEvents(ctx, scanID, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get events: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestGetScans(t *testing.T) {
 	mustFinishScan(t, ctx, db, 1)
 	mustFinishScan(t, ctx, db, 2)
 
-	scans, err := db.GetScans(ctx)
+	scans, err := db.GetScans(ctx, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get scans: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestConcurrentAccess(t *testing.T) {
 		}
 	}
 
-	scans, err := db.GetScans(ctx)
+	scans, err := db.GetScans(ctx, 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get scans: %v", err)
 	}
@@ -558,5 +558,59 @@ func TestHistoricalTrends(t *testing.T) {
 	}
 	if ownHistory[0].OwnerName != "Owner A" || ownHistory[0].TeamName != "Team A" || ownHistory[0].ChangeReason != "initial assignment" {
 		t.Errorf("Unexpected ownership details: %+v", ownHistory[0])
+	}
+}
+
+func TestPagination(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	db := mustOpen(t, dir)
+	defer db.Close()
+
+	// 1. Pagination for GetScans
+	id1 := mustStartScanScope(t, ctx, db, "scope1")
+	mustFinishScan(t, ctx, db, id1)
+	id2 := mustStartScanScope(t, ctx, db, "scope2")
+	mustFinishScan(t, ctx, db, id2)
+	id3 := mustStartScanScope(t, ctx, db, "scope3")
+	mustFinishScan(t, ctx, db, id3)
+
+	scans, err := db.GetScans(ctx, 2, 1)
+	if err != nil {
+		t.Fatalf("Failed to get scans with pagination: %v", err)
+	}
+	// order is DESC (id3 first, then id2, then id1)
+	// limit 2, offset 1 should give: id2, id1
+	if len(scans) != 2 {
+		t.Fatalf("Expected 2 scans, got %d", len(scans))
+	}
+	if scans[0].ID != id2 || scans[1].ID != id1 {
+		t.Errorf("Unexpected page contents: scan 0 is ID %d, scan 1 is ID %d", scans[0].ID, scans[1].ID)
+	}
+
+	// 2. Pagination for GetTargets
+	mustSaveTargets(t, ctx, db, id1, []string{"t1", "t2", "t3", "t4"})
+	targets, err := db.GetTargets(ctx, id1, 2, 1)
+	if err != nil {
+		t.Fatalf("Failed to get targets with pagination: %v", err)
+	}
+	// limit 2, offset 1 should give: t2, t3
+	if len(targets) != 2 || targets[0] != "t2" || targets[1] != "t3" {
+		t.Errorf("Unexpected targets page contents: %v", targets)
+	}
+
+	// 3. Pagination for GetEvents
+	mustSaveEvents(t, ctx, db, id1, []EventRecord{
+		{Target: "t1", Source: "src1", Type: "type1"},
+		{Target: "t2", Source: "src2", Type: "type2"},
+		{Target: "t3", Source: "src3", Type: "type3"},
+	})
+	events, err := db.GetEvents(ctx, id1, 1, 1)
+	if err != nil {
+		t.Fatalf("Failed to get events with pagination: %v", err)
+	}
+	// limit 1, offset 1 should give: t2
+	if len(events) != 1 || events[0].Target != "t2" {
+		t.Errorf("Unexpected events page contents: %v", events)
 	}
 }
