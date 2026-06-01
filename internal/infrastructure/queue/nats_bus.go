@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
 // NatsBus implements EventBus using NATS JetStream for guaranteed delivery.
@@ -87,18 +89,21 @@ func (b *NatsBus) subscribeInternal(eventType, queue string) Subscriber {
 		var ev Event
 		if err := json.Unmarshal(m.Data, &ev); err != nil {
 			slog.Warn("failed to unmarshal NATS event", "error", err)
+			telemetry.QueueDroppedMessages.WithLabelValues("unknown", "nats", "unmarshal_error").Inc()
 			m.Nak()
 			return
 		}
 
 		select {
 		case ch <- ev:
+			telemetry.QueueMessageRate.WithLabelValues(ev.Type, "nats", "subscribe").Inc()
 			m.Ack()
 		case <-time.After(5 * time.Second):
 			slog.Error("event dropped: NATS subscriber channel full after 5s backpressure timeout",
 				"event_type", ev.Type,
 				"target", ev.Target,
 			)
+			telemetry.QueueDroppedMessages.WithLabelValues(ev.Type, "nats", "timeout").Inc()
 			m.Nak()
 		}
 	}
@@ -159,11 +164,15 @@ func (b *NatsBus) Publish(ev Event) {
 	data, err := json.Marshal(ev)
 	if err != nil {
 		slog.Error("failed to marshal event for NATS", "error", err)
+		telemetry.QueueDroppedMessages.WithLabelValues(ev.Type, "nats", "marshal_error").Inc()
 		return
 	}
 
 	if _, err := b.js.Publish(mapSubject(ev.Type), data); err != nil {
 		slog.Error("failed to publish event to NATS JetStream", "error", err)
+		telemetry.QueueDroppedMessages.WithLabelValues(ev.Type, "nats", "publish_error").Inc()
+	} else {
+		telemetry.QueueMessageRate.WithLabelValues(ev.Type, "nats", "publish").Inc()
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
 // QueueBackend defines the interface for queue backends (NATS or Redis).
@@ -109,8 +111,11 @@ func (tc *TaskConsumer) Start(ctx context.Context, subject string) error {
 		var task TaskEvent
 		if err := json.Unmarshal(data, &task); err != nil {
 			slog.Error("Failed to unmarshal task", "error", err)
+			telemetry.QueueDroppedMessages.WithLabelValues(subject, tc.adapter.backendType, "unmarshal_error").Inc()
 			return err
 		}
+
+		telemetry.QueueMessageRate.WithLabelValues(task.TaskType, tc.adapter.backendType, "subscribe").Inc()
 
 		// Check idempotency - skip if already processed
 		alreadyProcessed, err := tc.idempotency.HasBeenProcessed(task.TaskID)
@@ -119,6 +124,7 @@ func (tc *TaskConsumer) Start(ctx context.Context, subject string) error {
 		}
 		if alreadyProcessed {
 			slog.Debug("Task already processed, skipping", "task_id", task.TaskID)
+			telemetry.QueueDroppedMessages.WithLabelValues(task.TaskType, tc.adapter.backendType, "duplicate").Inc()
 			return nil
 		}
 
@@ -126,13 +132,16 @@ func (tc *TaskConsumer) Start(ctx context.Context, subject string) error {
 		if err := tc.idempotency.Register(ctx, task.TaskID, tc.consumerName); err != nil {
 			if err == ErrTaskAlreadyProcessed {
 				slog.Debug("Task already claimed by another worker", "task_id", task.TaskID)
+				telemetry.QueueDroppedMessages.WithLabelValues(task.TaskType, tc.adapter.backendType, "claimed").Inc()
 				return nil
 			}
 			return err
 		}
 
+		startTime := time.Now()
 		// Handle the task
 		err = tc.handler.HandleTask(ctx, &task)
+		duration := time.Since(startTime).Seconds()
 
 		// Record completion
 		status := "success"
@@ -147,6 +156,9 @@ func (tc *TaskConsumer) Start(ctx context.Context, subject string) error {
 				}
 				slog.Warn("Task failed, waiting backoff and re-queueing", "task_id", task.TaskID, "backoff", backoff, "retry", task.RetryCount, "error", err)
 				
+				telemetry.QueueRetryCount.WithLabelValues(subject, tc.adapter.backendType).Inc()
+				telemetry.WorkerTaskErrors.WithLabelValues(tc.consumerName, task.TaskType, "retry").Inc()
+
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
@@ -161,10 +173,15 @@ func (tc *TaskConsumer) Start(ctx context.Context, subject string) error {
 				// DLQ support
 				dlqSubject := subject + ".dlq"
 				slog.Error("Task max retries reached. Publishing to DLQ", "task_id", task.TaskID, "dlq", dlqSubject)
+				telemetry.QueueDroppedMessages.WithLabelValues(subject, tc.adapter.backendType, "dlq").Inc()
+				telemetry.WorkerTaskErrors.WithLabelValues(tc.consumerName, task.TaskType, "dlq").Inc()
 				if dlqErr := tc.adapter.PublishTask(dlqSubject, task); dlqErr != nil {
 					slog.Error("Failed to publish to DLQ", "task_id", task.TaskID, "error", dlqErr)
 				}
 			}
+		} else {
+			telemetry.QueueMessageRate.WithLabelValues(task.TaskType, tc.adapter.backendType, "process_success").Inc()
+			telemetry.WorkerTaskDuration.WithLabelValues(tc.consumerName, task.TaskType).Observe(duration)
 		}
 
 		// Mark as complete

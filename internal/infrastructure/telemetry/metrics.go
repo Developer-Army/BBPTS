@@ -28,6 +28,16 @@ var (
 		Help: "Total number of messages processed through the queue",
 	}, []string{"queue", "backend", "direction"})
 
+	QueueDroppedMessages = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "bbpts_queue_dropped_messages_total",
+		Help: "Total number of messages dropped due to timeouts or errors",
+	}, []string{"queue", "backend", "reason"})
+
+	QueueRetryCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "bbpts_queue_retries_total",
+		Help: "Total number of queue message retries",
+	}, []string{"queue", "backend"})
+
 	// Worker Metrics
 	WorkerCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "bbpts_worker_count",

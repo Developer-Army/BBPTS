@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
 // Event represents a generic recon event. It mirrors the recon.Event struct but is kept
@@ -86,11 +88,13 @@ func (b *InMemoryBus) Publish(ev Event) {
 	for _, sub := range subs {
 		select {
 		case sub <- ev:
+			telemetry.QueueMessageRate.WithLabelValues(ev.Type, "in-memory", "publish").Inc()
 		case <-time.After(5 * time.Second):
 			slog.Error("event dropped: subscriber channel full after 5s backpressure timeout",
 				"event_type", ev.Type,
 				"target", ev.Target,
 			)
+			telemetry.QueueDroppedMessages.WithLabelValues(ev.Type, "in-memory", "timeout").Inc()
 		}
 	}
 }
