@@ -598,7 +598,6 @@ func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]string{
 		"status":   "success",
-		"token":    token,
 		"username": req.Username,
 		"role":     role,
 	})

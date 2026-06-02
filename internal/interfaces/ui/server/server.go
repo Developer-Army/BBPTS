@@ -541,11 +541,6 @@ const DashboardHTML = `
 
     <script>
         async function fetchAPI(url, options = {}) {
-            if (!options.headers) options.headers = {};
-            const token = localStorage.getItem('bbpts_token');
-            if (token) {
-                options.headers['Authorization'] = 'Bearer ' + token;
-            }
             const response = await fetch(url, options);
             if (response.status === 401) {
                 document.getElementById('login-modal').classList.remove('hidden');
@@ -568,7 +563,6 @@ const DashboardHTML = `
                 if (response.ok) {
                     const data = await response.json();
                     document.getElementById('login-modal').classList.add('hidden');
-                    localStorage.setItem('bbpts_token', data.token);
                     localStorage.setItem('bbpts_username', data.username);
                     localStorage.setItem('bbpts_role', data.role);
                     updateUserUI();
@@ -591,7 +585,6 @@ const DashboardHTML = `
             } catch (e) {
                 console.error(e);
             }
-            localStorage.removeItem('bbpts_token');
             localStorage.removeItem('bbpts_username');
             localStorage.removeItem('bbpts_role');
             document.getElementById('login-modal').classList.remove('hidden');
