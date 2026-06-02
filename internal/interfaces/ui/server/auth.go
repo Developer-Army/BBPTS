@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // AuthenticateUser verifies username and password, returning the user role.
@@ -73,23 +74,19 @@ func GenerateRandomString(length int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// HashPassword hashes a password using SHA-256 with salt and iterations.
+// HashPassword hashes a password using bcrypt with salt.
 func HashPassword(password, salt string) string {
-	hasher := sha256.New()
-	hasher.Write([]byte(salt + password))
-	hash := hasher.Sum(nil)
-	// Iterate 10000 times for brute-force resistance
-	for i := 0; i < 10000; i++ {
-		h := sha256.New()
-		h.Write(hash)
-		hash = h.Sum(nil)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(salt+password), bcrypt.DefaultCost)
+	if err != nil {
+		return ""
 	}
-	return hex.EncodeToString(hash)
+	return string(hashed)
 }
 
 // VerifyPassword checks if a password matches the stored hash and salt.
 func VerifyPassword(password, salt, storedHash string) bool {
-	return HashPassword(password, salt) == storedHash
+	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(salt+password))
+	return err == nil
 }
 
 // BootstrapAdminUser checks if users table is empty and creates a default admin user if so.
