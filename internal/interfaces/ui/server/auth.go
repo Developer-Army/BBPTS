@@ -138,12 +138,18 @@ func BootstrapAdminUser(db *storage.DB) error {
 	return nil
 }
 
+func hashToken(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:])
+}
+
 // ValidateSession retrieves the session from database, validating expiration.
 func ValidateSession(db *storage.DB, token string) (string, string, error) {
 	rawDB := db.GetDB()
 	var username, role string
 	var expiresAtStr string
-	err := rawDB.QueryRow("SELECT username, role, expires_at FROM user_sessions WHERE token = ?", token).Scan(&username, &role, &expiresAtStr)
+	hashed := hashToken(token)
+	err := rawDB.QueryRow("SELECT username, role, expires_at FROM user_sessions WHERE token = ?", hashed).Scan(&username, &role, &expiresAtStr)
 	if err == sql.ErrNoRows {
 		return "", "", fmt.Errorf("session not found")
 	} else if err != nil {
@@ -164,7 +170,7 @@ func ValidateSession(db *storage.DB, token string) (string, string, error) {
 
 	if time.Now().After(expiresAt) {
 		// Clean up expired session
-		_, _ = rawDB.Exec("DELETE FROM user_sessions WHERE token = ?", token)
+		_, _ = rawDB.Exec("DELETE FROM user_sessions WHERE token = ?", hashed)
 		return "", "", fmt.Errorf("session expired")
 	}
 
@@ -178,6 +184,7 @@ func CreateSession(db *storage.DB, username, role string, duration time.Duration
 		return "", err
 	}
 
+	hashed := hashToken(token)
 	expiresAt := time.Now().Add(duration)
 	rawDB := db.GetDB()
 
@@ -185,7 +192,7 @@ func CreateSession(db *storage.DB, username, role string, duration time.Duration
 	_, _ = rawDB.Exec("DELETE FROM user_sessions WHERE username = ?", username)
 
 	_, err = rawDB.Exec("INSERT INTO user_sessions (token, username, role, expires_at) VALUES (?, ?, ?, ?)",
-		token, username, role, expiresAt.Format(time.RFC3339))
+		hashed, username, role, expiresAt.Format(time.RFC3339))
 	if err != nil {
 		return "", err
 	}
@@ -196,7 +203,8 @@ func CreateSession(db *storage.DB, username, role string, duration time.Duration
 // RevokeSession deletes the session from the database.
 func RevokeSession(db *storage.DB, token string) error {
 	rawDB := db.GetDB()
-	_, err := rawDB.Exec("DELETE FROM user_sessions WHERE token = ?", token)
+	hashed := hashToken(token)
+	_, err := rawDB.Exec("DELETE FROM user_sessions WHERE token = ?", hashed)
 	return err
 }
 
