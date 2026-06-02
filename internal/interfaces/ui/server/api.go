@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -649,5 +650,116 @@ func (a *API) Logout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
+	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
+
+// GetSetupToken returns the setup token if no admin/user is registered and query is local.
+func (a *API) GetSetupToken(w http.ResponseWriter, r *http.Request) {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+
+	// Restrict strictly to localhost loopback
+	if ip != "127.0.0.1" && ip != "::1" && ip != "localhost" {
+		respondWithError(w, http.StatusForbidden, "forbidden: setup token is only accessible from localhost")
+		return
+	}
+
+	rawDB := a.db.GetDB()
+	var userCount int
+	_ = rawDB.QueryRow("SELECT COUNT(*) FROM dashboard_users").Scan(&userCount)
+	if userCount > 0 {
+		respondWithError(w, http.StatusForbidden, "forbidden: application already bootstrapped")
+		return
+	}
+
+	var token string
+	err = rawDB.QueryRow("SELECT token FROM setup_tokens LIMIT 1").Scan(&token)
+	if err == sql.ErrNoRows {
+		respondWithError(w, http.StatusNotFound, "no active setup token found")
+		return
+	} else if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"token": token})
+}
+
+// EnrollAdmin creates the initial admin user using a valid setup token.
+func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1024)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request payload")
+		return
+	}
+
+	if req.Token == "" || req.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "token and password are required")
+		return
+	}
+
+	rawDB := a.db.GetDB()
+	var userCount int
+	_ = rawDB.QueryRow("SELECT COUNT(*) FROM dashboard_users").Scan(&userCount)
+	if userCount > 0 {
+		respondWithError(w, http.StatusForbidden, "forbidden: application already bootstrapped")
+		return
+	}
+
+	var storedToken string
+	err := rawDB.QueryRow("SELECT token FROM setup_tokens WHERE token = ?", req.Token).Scan(&storedToken)
+	if err == sql.ErrNoRows {
+		respondWithError(w, http.StatusForbidden, "invalid setup token")
+		return
+	} else if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	salt, err := GenerateRandomString(16)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to generate salt")
+		return
+	}
+	hash := HashPassword(req.Password, salt)
+	storedValue := salt + "." + hash
+
+	tx, err := rawDB.Begin()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec("INSERT INTO dashboard_users (username, password_hash, role) VALUES (?, ?, ?)", "admin", storedValue, "admin")
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to insert admin user")
+		return
+	}
+
+	_, _ = tx.Exec("DELETE FROM setup_tokens WHERE token = ?", req.Token)
+
+	if err := tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+
+	LogAuditEvent(a.db, "SYSTEM", "admin", "enroll_admin", "dashboard_users/admin", ip, "success")
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }

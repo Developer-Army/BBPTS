@@ -162,6 +162,12 @@ func (db *Storage) migrate(ctx context.Context) error {
 		FOREIGN KEY(finding_id) REFERENCES findings(id) ON DELETE CASCADE
 	);
 	`,
+		`
+	CREATE TABLE IF NOT EXISTS setup_tokens (
+		token TEXT PRIMARY KEY,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	`,
 	}
 	for version, migration := range migrations {
 		if _, err := db.db.ExecContext(ctx, migration); err != nil {

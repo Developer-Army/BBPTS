@@ -147,8 +147,8 @@ func hasPermission(path string, method string, role string) bool {
 
 func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow static assets, main UI page, and auth/sync endpoints to bypass token validation
-		if r.URL.Path == "/" || r.URL.Path == "/index.html" || strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/api/auth" || r.URL.Path == "/api/fleet/sync" {
+		// Allow static assets, main UI page, auth/sync, and setup-token/enroll endpoints to bypass token validation
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" || strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/api/auth" || r.URL.Path == "/api/fleet/sync" || r.URL.Path == "/api/setup-token" || r.URL.Path == "/api/enroll" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -223,6 +223,8 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	mux.HandleFunc("/api/config", api.HandleConfig)
 	mux.HandleFunc("/api/logs/stream", api.StreamLogs)
 	mux.HandleFunc("/api/fleet/sync", api.HandleFleetSync)
+	mux.HandleFunc("/api/setup-token", api.GetSetupToken)
+	mux.HandleFunc("/api/enroll", api.EnrollAdmin)
 	mux.HandleFunc("/api/history/risk", api.GetRiskHistory)
 	mux.HandleFunc("/api/history/tech", api.GetTechTrend)
 	mux.HandleFunc("/api/history/ownership", api.GetOwnershipHistory)

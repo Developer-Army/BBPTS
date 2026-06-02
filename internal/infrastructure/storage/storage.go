@@ -214,6 +214,11 @@ func (s *Storage) initSchema() error {
 		changed_by TEXT,
 		FOREIGN KEY(finding_id) REFERENCES findings(id) ON DELETE CASCADE
 	);
+
+	CREATE TABLE IF NOT EXISTS setup_tokens (
+		token TEXT PRIMARY KEY,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
 	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
 
 	if s.dbType == "postgres" {

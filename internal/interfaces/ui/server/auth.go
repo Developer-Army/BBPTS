@@ -102,36 +102,51 @@ func BootstrapAdminUser(db *storage.DB) error {
 		return nil // Admin already exists
 	}
 
-	password, err := GenerateRandomString(12)
+	// 1. Out-of-band secret provisioning via environment variable
+	if envPassword := os.Getenv("BBPTS_ADMIN_PASSWORD"); envPassword != "" {
+		salt, err := GenerateRandomString(16)
+		if err != nil {
+			return fmt.Errorf("failed to generate password salt: %w", err)
+		}
+		hash := HashPassword(envPassword, salt)
+		storedValue := salt + "." + hash
+		_, err = rawDB.Exec("INSERT INTO dashboard_users (username, password_hash, role) VALUES (?, ?, ?)", "admin", storedValue, "admin")
+		if err != nil {
+			return fmt.Errorf("failed to create bootstrap admin user: %w", err)
+		}
+		slog.Info("Authentication System: bootstrapped admin user using BBPTS_ADMIN_PASSWORD.")
+		LogAuditEvent(db, "SYSTEM", "admin", "create_user", "dashboard_users/admin", "127.0.0.1", "success")
+		return nil
+	}
+
+	// 2. Generate a one-time setup token for localhost UI/enrollment
+	var tokenCount int
+	err = rawDB.QueryRow("SELECT COUNT(*) FROM setup_tokens").Scan(&tokenCount)
 	if err != nil {
-		return fmt.Errorf("failed to generate bootstrap admin password: %w", err)
+		return fmt.Errorf("failed to query setup tokens count: %w", err)
+	}
+	if tokenCount > 0 {
+		return nil // Token already generated
 	}
 
-	salt, err := GenerateRandomString(16)
+	token, err := GenerateRandomString(32)
 	if err != nil {
-		return fmt.Errorf("failed to generate password salt: %w", err)
+		return fmt.Errorf("failed to generate setup token: %w", err)
 	}
 
-	hash := HashPassword(password, salt)
-	storedValue := salt + "." + hash
-
-	_, err = rawDB.Exec("INSERT INTO dashboard_users (username, password_hash, role) VALUES (?, ?, ?)", "admin", storedValue, "admin")
+	_, err = rawDB.Exec("INSERT INTO setup_tokens (token) VALUES (?)", token)
 	if err != nil {
-		return fmt.Errorf("failed to create bootstrap admin user: %w", err)
+		return fmt.Errorf("failed to save setup token: %w", err)
 	}
 
-	bootstrapFile := "admin_bootstrap.txt"
-	bootstrapContent := fmt.Sprintf("Username: admin\nPassword: %s\nRole: admin\nCreated: %s\n", password, time.Now().Format(time.RFC3339))
-	if errWrite := os.WriteFile(bootstrapFile, []byte(bootstrapContent), 0600); errWrite != nil {
-		slog.Error("failed to write admin bootstrap file", "error", errWrite)
-	}
+	slog.Info("--------------------------------------------------------------------------------")
+	slog.Info("Authentication System: NO admin user exists.")
+	slog.Info("Authentication System: Bootstrapping via one-time setup token.")
+	slog.Info("One-Time Setup Token: " + token)
+	slog.Info("To complete enrollment, access the dashboard from localhost or use BBPTS_ADMIN_PASSWORD.")
+	slog.Info("--------------------------------------------------------------------------------")
 
-	slog.Info("Authentication System: created default admin user.")
-	slog.Info("Authentication System: credentials written to admin_bootstrap.txt (permissions 0600). DO NOT commit this file.")
-
-	// Log audit event for bootstrap creation
-	LogAuditEvent(db, "SYSTEM", "admin", "create_user", "dashboard_users/admin", "127.0.0.1", "success")
-
+	LogAuditEvent(db, "SYSTEM", "admin", "generate_setup_token", "setup_tokens", "127.0.0.1", "success")
 	return nil
 }
 
