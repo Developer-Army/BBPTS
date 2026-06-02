@@ -215,8 +215,8 @@ func DefaultConfig() *Config {
 			DSN:  "", // Defaults to <TmpResultsDir>/bbpts.db in app.go
 		},
 		EventBus: EventBusConfig{
-			Type: "in-memory",
-			URL:  "",
+			Type: "nats",
+			URL:  "nats://127.0.0.1:4222",
 		},
 		ResourceLimits: ResourceLimitsConfig{
 			MaxCPUPercent: 90,
