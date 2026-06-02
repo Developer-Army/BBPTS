@@ -1277,8 +1277,8 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 	}
 
 	if store != nil && !opts.JSONOutput {
-		nodes, errNodes := store.GetAllAssetNodes()
-		edges, errEdges := store.GetAllAssetEdges()
+		nodes, errNodes := store.GetAllAssetNodes(0, 0)
+		edges, errEdges := store.GetAllAssetEdges(0, 0)
 		if errNodes == nil && errEdges == nil {
 			topTargets := analyze.RecommendTargets(nodes, edges)
 			if len(topTargets) > 0 {

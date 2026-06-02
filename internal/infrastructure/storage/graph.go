@@ -319,8 +319,16 @@ func (s *Storage) GetTeamOverdueFindings() (map[string][]OverdueAssignment, erro
 }
 
 // GetAllAssetNodes retrieves all asset nodes.
-func (s *Storage) GetAllAssetNodes() ([]AssetNode, error) {
-	query := "SELECT id, node_type, value, properties, scope_id, first_seen, last_seen, source, confidence FROM asset_nodes LIMIT 5000"
+func (s *Storage) GetAllAssetNodes(limit, offset int) ([]AssetNode, error) {
+	query := "SELECT id, node_type, value, properties, scope_id, first_seen, last_seen, source, confidence FROM asset_nodes"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else if offset > 0 {
+		query += fmt.Sprintf(" LIMIT -1 OFFSET %d", offset)
+	}
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -341,8 +349,16 @@ func (s *Storage) GetAllAssetNodes() ([]AssetNode, error) {
 }
 
 // GetAllAssetEdges retrieves all asset edges.
-func (s *Storage) GetAllAssetEdges() ([]AssetEdge, error) {
-	query := "SELECT source_id, target_id, relation, first_seen, last_seen, confidence, observed_at, evidence_id FROM asset_edges LIMIT 5000"
+func (s *Storage) GetAllAssetEdges(limit, offset int) ([]AssetEdge, error) {
+	query := "SELECT source_id, target_id, relation, first_seen, last_seen, confidence, observed_at, evidence_id FROM asset_edges"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else if offset > 0 {
+		query += fmt.Sprintf(" LIMIT -1 OFFSET %d", offset)
+	}
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, err

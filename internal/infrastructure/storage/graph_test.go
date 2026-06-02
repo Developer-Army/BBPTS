@@ -109,3 +109,56 @@ func TestGraphAdvancedQueries(t *testing.T) {
 		t.Errorf("Expected 1 overdue finding for DevTeam, got %d", len(overdueMap["DevTeam"]))
 	}
 }
+
+func TestGraphPagination(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_graph_pagination.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	// Save nodes
+	id1, _ := s.SaveNode("target", "node1.acme.com", nil, "", "", 1.0)
+	id2, _ := s.SaveNode("target", "node2.acme.com", nil, "", "", 1.0)
+	id3, _ := s.SaveNode("target", "node3.acme.com", nil, "", "", 1.0)
+
+	// Save edges
+	_ = s.SaveEdge(id1, id2, "links", 1.0, "")
+	_ = s.SaveEdge(id2, id3, "links", 1.0, "")
+
+	// Test GetAllAssetNodes pagination
+	nodes, err := s.GetAllAssetNodes(2, 0)
+	if err != nil {
+		t.Fatalf("GetAllAssetNodes with limit failed: %v", err)
+	}
+	if len(nodes) != 2 {
+		t.Errorf("Expected 2 nodes, got %d", len(nodes))
+	}
+
+	nodes, err = s.GetAllAssetNodes(2, 2)
+	if err != nil {
+		t.Fatalf("GetAllAssetNodes with offset failed: %v", err)
+	}
+	if len(nodes) != 1 {
+		t.Errorf("Expected 1 node, got %d", len(nodes))
+	}
+
+	// Test GetAllAssetEdges pagination
+	edges, err := s.GetAllAssetEdges(1, 0)
+	if err != nil {
+		t.Fatalf("GetAllAssetEdges with limit failed: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Errorf("Expected 1 edge, got %d", len(edges))
+	}
+
+	edges, err = s.GetAllAssetEdges(1, 1)
+	if err != nil {
+		t.Fatalf("GetAllAssetEdges with offset failed: %v", err)
+	}
+	if len(edges) != 1 {
+		t.Errorf("Expected 1 edge, got %d", len(edges))
+	}
+}

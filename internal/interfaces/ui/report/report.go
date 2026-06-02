@@ -237,8 +237,8 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 	var topTargets []analyze.InvestigationTarget
 	var topPaths []analyze.AttackPath
 	if store != nil {
-		nodes, errNodes := store.GetAllAssetNodes()
-		edges, errEdges := store.GetAllAssetEdges()
+		nodes, errNodes := store.GetAllAssetNodes(0, 0)
+		edges, errEdges := store.GetAllAssetEdges(0, 0)
 		if errNodes == nil && errEdges == nil {
 			topTargets = analyze.RecommendTargets(nodes, edges)
 			paths := analyze.GetAttackPaths(nodes, edges)
