@@ -227,3 +227,68 @@ func TestSLAMatching(t *testing.T) {
 	}
 }
 
+func TestCTEMStateTransitions(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_ctem_transitions.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	// Add dummy finding
+	res, err := s.db.Exec(`
+		INSERT INTO findings (title, description, severity, target, metadata, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, "Test Title", "Test Desc", "high", "test.corp.com", "", time.Now().UTC())
+	if err != nil {
+		t.Fatalf("Failed to insert mock finding: %v", err)
+	}
+	findingID, _ := res.LastInsertId()
+
+	teamID, _ := s.AddTeam("Team")
+	ownerID, _ := s.AddOwner("Alice", "alice@corp.com")
+
+	assignmentID, err := s.AssignFinding(findingID, &teamID, &ownerID, "high")
+	if err != nil {
+		t.Fatalf("AssignFinding failed: %v", err)
+	}
+
+	// Initial status is Assigned.
+	// Try invalid transition: Assigned -> Verified
+	err = s.UpdateAssignmentStatus(assignmentID, "Verified")
+	if err == nil {
+		t.Errorf("Expected error for invalid transition Assigned -> Verified, got nil")
+	}
+
+	// Try valid transition: Assigned -> Acknowledged (remediating)
+	err = s.UpdateAssignmentStatus(assignmentID, "remediating")
+	if err != nil {
+		t.Errorf("Unexpected error for valid transition Assigned -> Acknowledged: %v", err)
+	}
+
+	// Try valid transition: Acknowledged -> Remediated
+	err = s.UpdateAssignmentStatus(assignmentID, "Remediated")
+	if err != nil {
+		t.Errorf("Unexpected error for valid transition Acknowledged -> Remediated: %v", err)
+	}
+
+	// Try valid transition: Remediated -> Verified
+	err = s.UpdateAssignmentStatus(assignmentID, "Verified")
+	if err != nil {
+		t.Errorf("Unexpected error for valid transition Remediated -> Verified: %v", err)
+	}
+
+	// Try invalid transition: Verified -> Acknowledged
+	err = s.UpdateAssignmentStatus(assignmentID, "Acknowledged")
+	if err == nil {
+		t.Errorf("Expected error for invalid transition Verified -> Acknowledged, got nil")
+	}
+
+	// Try valid transition: Verified -> Reopened
+	err = s.UpdateAssignmentStatus(assignmentID, "Reopened")
+	if err != nil {
+		t.Errorf("Unexpected error for valid transition Verified -> Reopened: %v", err)
+	}
+}
+

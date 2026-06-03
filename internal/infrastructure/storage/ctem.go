@@ -423,6 +423,11 @@ func (s *Storage) UpdateAssignmentStatus(id int64, status string) error {
 		return err
 	}
 
+	normalizedOld := normalizeCTEMState(oldStatus)
+	if !isValidTransition(normalizedOld, normalized) {
+		return fmt.Errorf("invalid CTEM state transition from %s to %s", normalizedOld, normalized)
+	}
+
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -790,6 +795,35 @@ func normalizeCTEMState(status string) string {
 		return "Expired"
 	default:
 		return status
+	}
+}
+
+func isValidTransition(from, to string) bool {
+	if from == to {
+		return true
+	}
+	switch from {
+	case "Discovered":
+		return to == "Triaged" || to == "Assigned" || to == "Exempted"
+	case "Triaged":
+		return to == "Assigned" || to == "Exempted"
+	case "Assigned":
+		return to == "Acknowledged" || to == "Exempted" || to == "Expired"
+	case "Acknowledged":
+		return to == "Remediated" || to == "Assigned" || to == "Exempted" || to == "Expired"
+	case "Remediated":
+		return to == "Verified" || to == "Reopened"
+	case "Verified":
+		return to == "Reopened"
+	case "Exempted":
+		return to == "Expired" || to == "Reopened" || to == "Assigned"
+	case "Expired":
+		return to == "Reopened" || to == "Assigned"
+	case "Reopened":
+		return to == "Assigned" || to == "Triaged" || to == "Exempted"
+	default:
+		// Default fallback for any other transition (like empty/uninitialized legacy states)
+		return true
 	}
 }
 
