@@ -21,7 +21,7 @@ bin/
 
 # Environment
 .env
-.env.local
+.env.*
 
 # Test coverage
 *.out
@@ -42,15 +42,22 @@ scratch/
 .kilo/
 .codex/
 .agents/
+.gemini/
+
+# Runtime databases — never track state files
+*.db
+*.sqlite
+*.storage
+*.storage-shm
+*.storage-wal
 
 # Runtime output
 results/*
 !results/.gitkeep
-*.storage
-*.storage-shm
-*.storage-wal
+output/
+internal/interfaces/cli/output/
+internal/interfaces/cli/results/
 gosec-report.json
-
 
 # Test Results
 tests/actual_output.txt
@@ -60,20 +67,21 @@ tests/reports/
 tests/test_result.json
 tests/test_report.md
 
+# Logs
 bbpts.log
+*.log
+
+# CSV exports
 *.csv
 
-# Wordlists
+# Wordlists (downloaded at build/runtime)
 /wordlists/*
 !/wordlists/.gitkeep
 
 # Local enterprise configs & outputs
 /bbpts_enterprise/
-/output/
-internal/interfaces/cli/output/
-internal/interfaces/cli/results/
 
 # Local audit and credentials
-internal/interfaces/ui/server/audit.log
-internal/interfaces/ui/server/admin_bootstrap.txt
+audit.log
+admin_bootstrap.txt
 

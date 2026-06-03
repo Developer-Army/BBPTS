@@ -1,0 +1,64 @@
+# Version control
+.git
+.github
+
+# Runtime state — never belongs in images
+*.db
+*.sqlite
+*.storage
+*.storage-shm
+*.storage-wal
+results/
+output/
+scratch/
+*.log
+*.tmp
+audit.log
+admin_bootstrap.txt
+
+# Credentials and environment
+.env
+.env.*
+
+# IDE and editor state
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# AI agent state
+.kilo/
+.codex/
+.agents/
+.gemini/
+
+# Build artifacts (already produced inside builder stage)
+bin/
+dist/
+build/
+
+# Test artifacts
+tests/actual_output.txt
+tests/failed_tests.log
+tests/targets/
+tests/reports/
+tests/test_result.json
+tests/test_report.md
+coverage/
+coverage.html
+benchmark.txt
+*.out
+
+# Documentation images (not needed at runtime)
+docs/*.png
+
+# Local enterprise configs
+bbpts_enterprise/
+
+# CSV exports
+*.csv
