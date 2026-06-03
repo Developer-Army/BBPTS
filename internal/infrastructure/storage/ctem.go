@@ -774,7 +774,8 @@ type FindingStatusHistory struct {
 }
 
 func normalizeCTEMState(status string) string {
-	switch strings.ToLower(status) {
+	lower := strings.ToLower(status)
+	switch lower {
 	case "discovered":
 		return "Discovered"
 	case "triaged":
@@ -793,24 +794,45 @@ func normalizeCTEMState(status string) string {
 		return "Exempted"
 	case "expired":
 		return "Expired"
+	case "overdue":
+		return "Overdue"
 	default:
+		// Handle escalated_lvl_N states (preserve level number)
+		if strings.HasPrefix(lower, "escalated_lvl_") {
+			return status
+		}
 		return status
 	}
+}
+
+func isEscalatedState(s string) bool {
+	return strings.HasPrefix(strings.ToLower(s), "escalated_lvl_")
 }
 
 func isValidTransition(from, to string) bool {
 	if from == to {
 		return true
 	}
+
+	// Escalation-level states can always promote to higher levels,
+	// move to Remediated (fix applied), or be Acknowledged.
+	if isEscalatedState(from) {
+		return isEscalatedState(to) || to == "Remediated" || to == "Acknowledged" || to == "Exempted"
+	}
+
 	switch from {
 	case "Discovered":
 		return to == "Triaged" || to == "Assigned" || to == "Exempted"
 	case "Triaged":
 		return to == "Assigned" || to == "Exempted"
 	case "Assigned":
-		return to == "Acknowledged" || to == "Exempted" || to == "Expired"
+		return to == "Acknowledged" || to == "Exempted" || to == "Expired" ||
+			to == "Overdue" || isEscalatedState(to)
 	case "Acknowledged":
-		return to == "Remediated" || to == "Assigned" || to == "Exempted" || to == "Expired"
+		return to == "Remediated" || to == "Assigned" || to == "Exempted" || to == "Expired" ||
+			to == "Overdue" || isEscalatedState(to)
+	case "Overdue":
+		return isEscalatedState(to) || to == "Remediated" || to == "Acknowledged" || to == "Exempted"
 	case "Remediated":
 		return to == "Verified" || to == "Reopened"
 	case "Verified":
