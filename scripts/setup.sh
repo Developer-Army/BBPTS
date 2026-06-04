@@ -1,23 +1,100 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-## BBPTS Elite Setup Script - Optimized for Low-Resource Hardware
+## BBPTS Setup Script - Optimized for User & Developer Profiles
 # Part of the "Top 50 in the World" framework initiative.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo " Starting BBPTS Elite Tooling Setup..."
+# Default setup mode
+MODE="user"
+
+# Parse CLI options
+for arg in "$@"; do
+    case $arg in
+        --user|-u)
+            MODE="user"
+            shift
+            ;;
+        --dev|-d|--full)
+            MODE="dev"
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--user | --dev]"
+            exit 0
+            ;;
+    esac
+done
+
+# Prompt interactively if no argument passed and stdin is TTY
+if [ -t 0 ] && [ -z "${1:-}" ]; then
+    echo "Select Setup Profile:"
+    echo "  1) User Mode      (Core tools only: subfinder, dnsx, httpx, nuclei, anew, uro-go + wordlists)"
+    echo "  2) Developer Mode (Full: All 25+ tools, compilers, massdns, rust tools, etc.)"
+    read -p "Select option [1/2, default: 1]: " choice
+    if [[ "$choice" == "2" ]]; then
+        MODE="dev"
+    else
+        MODE="user"
+    fi
+fi
+
+echo "Starting BBPTS Setup in [$MODE] mode..."
 echo ""
-echo " Installing the following Go-based tools:"
-echo "   * Subdomain & DNS: subfinder, amass, assetfinder, puredns"
-echo "   * Probing & Ports: httpx, dnsx, naabu"
-echo "   * Discovery & Crawling: katana, gau, hakrawler, gobuster"
-echo "   * Vulnerability Scanning: nuclei, dalfox, interactsh-client"
-echo "   * Data Processing & Fuzzing: anew, ffuf, trufflehog"
-echo ""
-echo " Installing Python-based tools:"
-echo "   * uro (URL deduplication), wafw00f (Optional)"
+
+# Define tool arrays based on selected profile
+if [ "$MODE" = "user" ]; then
+    GO_TOOLS=(
+        "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
+        "github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
+        "github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
+        "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
+        "github.com/tomnomnom/anew@v0.1.1"
+    )
+    echo " Installing core Go-based tools:"
+    echo "   * subfinder, dnsx, httpx, nuclei, anew"
+else
+    GO_TOOLS=(
+        # --- Recon & Subdomains ---
+        "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
+        "github.com/projectdiscovery/chaos-client/cmd/chaos@v0.2.1"
+        "github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
+        "github.com/projectdiscovery/tlsx/cmd/tlsx@v1.1.6"
+        "github.com/d3mondev/puredns/v2@v2.2.0"
+        "github.com/owasp-amass/amass/v4/cmd/amass@v4.2.0"
+        "github.com/tomnomnom/assetfinder@v0.1.1"
+        
+        # --- Probing & Ports ---
+        "github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
+        "github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.0"
+        
+        # --- Discovery, Crawling & Fuzzing ---
+        "github.com/projectdiscovery/katana/cmd/katana@v1.1.0"
+        "github.com/lc/gau/v2/cmd/gau@v2.2.3"
+        "github.com/ffuf/ffuf/v2@v2.1.0"
+        "github.com/hakluke/hakrawler@v2.4.0"
+        
+        # --- Vulnerability, XSS & OOB ---
+        "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
+        "github.com/projectdiscovery/interactsh/cmd/interactsh-client@v1.1.9"
+        "github.com/hahwul/dalfox/v2@v2.9.0"
+        "github.com/sensepost/gowitness@v3.0.3"
+        
+        # --- Data Processing & Manipulation ---
+        "github.com/tomnomnom/anew@v0.1.1"
+        "github.com/tomnomnom/unfurl@v0.4.3"
+        "github.com/tomnomnom/qsreplace@v0.0.3"
+    )
+    echo " Installing developer Go-based tools:"
+    echo "   * Subdomain & DNS: subfinder, amass, assetfinder, puredns, chaos, tlsx"
+    echo "   * Probing & Ports: httpx, dnsx, naabu"
+    echo "   * Discovery & Crawling: katana, gau, hakrawler"
+    echo "   * Vulnerability Scanning: nuclei, dalfox, interactsh-client, gowitness"
+    echo "   * Data Processing & Fuzzing: anew, ffuf, unfurl, qsreplace"
+fi
+
 echo ""
 echo " Installing wordlists:"
 echo "   * dns-5k.txt (5k DNS entries)"
@@ -53,54 +130,18 @@ else
     echo " 'go' is installed."
 fi
 
-for cmd in git docker make gcc; do
-    if ! command -v $cmd &> /dev/null; then
-        echo "  Warning: '$cmd' is not installed. Some advanced BBPTS features may require it."
-    else
-        echo " '$cmd' is installed."
-    fi
-done
+if [ "$MODE" = "dev" ]; then
+    for cmd in git docker make gcc; do
+        if ! command -v $cmd &> /dev/null; then
+            echo "  Warning: '$cmd' is not installed. Some advanced BBPTS features may require it."
+        else
+            echo " '$cmd' is installed."
+        fi
+    done
+fi
 echo ""
 
 # 1. GO-BASED ELITE TOOLS
-GO_TOOLS=(
-    # --- Recon & Subdomains ---
-    "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
-    "github.com/projectdiscovery/chaos-client/cmd/chaos@v0.2.1"
-    "github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
-    "github.com/projectdiscovery/tlsx/cmd/tlsx@v1.1.6"
-    "github.com/d3mondev/puredns/v2@v2.2.0"
-    "github.com/owasp-amass/amass/v4/cmd/amass@v4.2.0"
-    "github.com/tomnomnom/assetfinder@v0.1.1"
-    
-    # --- Probing & Ports ---
-    "github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
-    "github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.0"
-    
-    # --- Discovery, Crawling & Fuzzing ---
-    "github.com/projectdiscovery/katana/cmd/katana@v1.1.0"
-    "github.com/lc/gau/v2/cmd/gau@v2.2.3"
-    "github.com/ffuf/ffuf/v2@v2.1.0"
-    "github.com/hakluke/hakrawler@v2.4.0"
-    
-    # --- Vulnerability, XSS & OOB ---
-    "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
-    "github.com/projectdiscovery/interactsh/cmd/interactsh-client@v1.1.9"
-    "github.com/hahwul/dalfox/v2@v2.9.0"
-    "github.com/sensepost/gowitness@v3.0.3"
-    
-    # --- Data Processing & Manipulation ---
-    "github.com/tomnomnom/anew@v0.1.1"
-    "github.com/tomnomnom/unfurl@v0.4.3"
-    "github.com/tomnomnom/qsreplace@v0.0.3"
-)
-
-# Native crt.sh Bash Function
-crt_sh() {
-    local TARGET=$1
-    curl -s "https://crt.sh/?q=%25.$TARGET&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u
-}
-
 install_go_tool() {
     local tool=$1
     echo "Installing $tool..."
@@ -115,114 +156,114 @@ done
 echo "Installing uro (Golang port szybnev)..."
 go install github.com/szybnev/uro-go/cmd/uro@v0.1.0 || echo " Warning: Failed to install Go uro"
 
-# 3. RUST-BASED TOOLS (feroxbuster)
-if ! command -v feroxbuster &> /dev/null; then
-    echo "Installing feroxbuster (Rust binary) with checksum verification..."
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        curl -sLo /tmp/feroxbuster.zip https://github.com/epi052/feroxbuster/releases/download/v2.10.3/x86_64-linux-feroxbuster.zip || true
-        if [ -f /tmp/feroxbuster.zip ]; then
-            echo "e2c842e74de8ca9ff1d56f61b03a8ee26615b13d2de8c54170685b85a3c20db2  /tmp/feroxbuster.zip" | sha256sum -c - &>/dev/null
-            if [ $? -eq 0 ]; then
-                mkdir -p /tmp/ferox_extracted
-                unzip -q /tmp/feroxbuster.zip -d /tmp/ferox_extracted || true
-                if [ -f /tmp/ferox_extracted/feroxbuster ]; then
-                    if [ -w /usr/local/bin ]; then
-                        mv /tmp/ferox_extracted/feroxbuster /usr/local/bin/ && chmod +x /usr/local/bin/feroxbuster || true
-                    else
-                        mkdir -p ~/.local/bin && mv /tmp/ferox_extracted/feroxbuster ~/.local/bin/ && chmod +x ~/.local/bin/feroxbuster || true
+# Developer-only installations
+if [ "$MODE" = "dev" ]; then
+    # 3. RUST-BASED TOOLS (feroxbuster)
+    if ! command -v feroxbuster &> /dev/null; then
+        echo "Installing feroxbuster (Rust binary) with checksum verification..."
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            curl -sLo /tmp/feroxbuster.zip https://github.com/epi052/feroxbuster/releases/download/v2.10.3/x86_64-linux-feroxbuster.zip || true
+            if [ -f /tmp/feroxbuster.zip ]; then
+                echo "e2c842e74de8ca9ff1d56f61b03a8ee26615b13d2de8c54170685b85a3c20db2  /tmp/feroxbuster.zip" | sha256sum -c - &>/dev/null
+                if [ $? -eq 0 ]; then
+                    mkdir -p /tmp/ferox_extracted
+                    unzip -q /tmp/feroxbuster.zip -d /tmp/ferox_extracted || true
+                    if [ -f /tmp/ferox_extracted/feroxbuster ]; then
+                        if [ -w /usr/local/bin ]; then
+                            mv /tmp/ferox_extracted/feroxbuster /usr/local/bin/ && chmod +x /usr/local/bin/feroxbuster || true
+                        else
+                            mkdir -p ~/.local/bin && mv /tmp/ferox_extracted/feroxbuster ~/.local/bin/ && chmod +x ~/.local/bin/feroxbuster || true
+                        fi
                     fi
+                    rm -rf /tmp/ferox_extracted
+                else
+                    echo "Warning: Checksum verification failed for feroxbuster!"
                 fi
-                rm -rf /tmp/ferox_extracted
-            else
-                echo "Warning: Checksum verification failed for feroxbuster!"
+                rm -f /tmp/feroxbuster.zip
             fi
-            rm -f /tmp/feroxbuster.zip
-        fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        if command -v brew &> /dev/null; then
-            brew install feroxbuster || true
-        fi
-    fi
-fi
-
-
-# 4. ADDITIONAL NON-GO TOOLS
-# --- Install massdns from source ---
-if ! command -v massdns &> /dev/null; then
-    echo "Installing massdns..."
-    git clone https://github.com/blechschmidt/massdns.git /tmp/massdns || true
-    if [ -d /tmp/massdns ]; then
-        (cd /tmp/massdns && make) || true
-        if [ -f /tmp/massdns/bin/massdns ]; then
-            if [ -w /usr/local/bin ]; then
-                mv /tmp/massdns/bin/massdns /usr/local/bin/ || true
-            else
-                mkdir -p ~/.local/bin && mv /tmp/massdns/bin/massdns ~/.local/bin/ || true
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            if command -v brew &> /dev/null; then
+                brew install feroxbuster || true
             fi
         fi
-        rm -rf /tmp/massdns
     fi
-fi
 
-
-
-# --- Install whois ---
-if ! command -v whois &> /dev/null; then
-    echo "Installing whois..."
-    if command -v apt-get &> /dev/null; then
-        sudo apt-get update && sudo apt-get install -y whois || true
-    elif command -v yum &> /dev/null; then
-        sudo yum install -y whois || true
-    elif command -v pacman &> /dev/null; then
-        sudo pacman -S --noconfirm whois || true
+    # 4. ADDITIONAL NON-GO TOOLS
+    # --- Install massdns from source ---
+    if ! command -v massdns &> /dev/null; then
+        echo "Installing massdns..."
+        git clone https://github.com/blechschmidt/massdns.git /tmp/massdns || true
+        if [ -d /tmp/massdns ]; then
+            (cd /tmp/massdns && make) || true
+            if [ -f /tmp/massdns/bin/massdns ]; then
+                if [ -w /usr/local/bin ]; then
+                    mv /tmp/massdns/bin/massdns /usr/local/bin/ || true
+                else
+                    mkdir -p ~/.local/bin && mv /tmp/massdns/bin/massdns ~/.local/bin/ || true
+                fi
+            fi
+            rm -rf /tmp/massdns
+        fi
     fi
-fi
 
-# --- Install shodan CLI (Optional, requires API key) ---
-if [ -n "${SHODAN_API_KEY:-}" ]; then
-    echo "Installing Shodan CLI..."
-    if command -v pip &> /dev/null; then
-        pip install shodan || true
-        shodan init "$SHODAN_API_KEY" || true
-    elif command -v pip3 &> /dev/null; then
-        pip3 install shodan || true
-        shodan init "$SHODAN_API_KEY" || true
-    fi
-else
-    echo " Note: Shodan CLI installation skipped (requires SHODAN_API_KEY environment variable to be set)."
-fi
-
-# --- Install wafw00f (Optional) ---
-if ! command -v wafw00f &> /dev/null; then
-    echo "Installing wafw00f (Optional)..."
-    if ! command -v pip &> /dev/null && ! command -v pip3 &> /dev/null; then
+    # --- Install whois ---
+    if ! command -v whois &> /dev/null; then
+        echo "Installing whois..."
         if command -v apt-get &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y python3-pip || true
+            sudo apt-get update && sudo apt-get install -y whois || true
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y whois || true
         elif command -v pacman &> /dev/null; then
-            sudo pacman -S --noconfirm python-pip || true
+            sudo pacman -S --noconfirm whois || true
         fi
     fi
-    PIP_CMD="pip"
-    if ! command -v pip &> /dev/null && command -v pip3 &> /dev/null; then
-        PIP_CMD="pip3"
-    fi
-    if command -v $PIP_CMD &> /dev/null; then
-        $PIP_CMD install --break-system-packages --user wafw00f || $PIP_CMD install wafw00f || true
+
+    # --- Install shodan CLI (Optional, requires API key) ---
+    if [ -n "${SHODAN_API_KEY:-}" ]; then
+        echo "Installing Shodan CLI..."
+        if command -v pip &> /dev/null; then
+            pip install shodan || true
+            shodan init "$SHODAN_API_KEY" || true
+        elif command -v pip3 &> /dev/null; then
+            pip3 install shodan || true
+            shodan init "$SHODAN_API_KEY" || true
+        fi
     else
-        python3 -m pip install --break-system-packages --user wafw00f 2>/dev/null || python3 -m pip install wafw00f 2>/dev/null || true
+        echo " Note: Shodan CLI installation skipped (requires SHODAN_API_KEY environment variable to be set)."
+    fi
+
+    # --- Install wafw00f (Optional) ---
+    if ! command -v wafw00f &> /dev/null; then
+        echo "Installing wafw00f (Optional)..."
+        if ! command -v pip &> /dev/null && ! command -v pip3 &> /dev/null; then
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y python3-pip || true
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -S --noconfirm python-pip || true
+            fi
+        fi
+        PIP_CMD="pip"
+        if ! command -v pip &> /dev/null && command -v pip3 &> /dev/null; then
+            PIP_CMD="pip3"
+        fi
+        if command -v $PIP_CMD &> /dev/null; then
+            $PIP_CMD install --break-system-packages --user wafw00f || $PIP_CMD install wafw00f || true
+        else
+            python3 -m pip install --break-system-packages --user wafw00f 2>/dev/null || python3 -m pip install wafw00f 2>/dev/null || true
+        fi
+    fi
+
+    if command -v gowitness &> /dev/null; then
+        echo " Note: gowitness requires Chrome/Chromium to be installed on your system to take screenshots."
     fi
 fi
 
-if command -v gowitness &> /dev/null; then
-    echo " Note: gowitness requires Chrome/Chromium to be installed on your system to take screenshots."
-fi
-
-echo -e "\n BBPTS ELITE TOOLS INSTALLED!"
+echo -e "\n BBPTS TOOLS INSTALLED!"
 echo "--------------------------------------------------"
 echo " WEAK PC TIPS: Use '-t 10' and always pipe to 'anew'."
 echo "To build main app: go build ./cmd/bbpts"
 
-# 4. WORDLISTS SETUP
+# 5. WORDLISTS SETUP
 echo -e "\n Setting up wordlists..."
 
 WORDLISTS_DIR="$PROJECT_ROOT/wordlists"
