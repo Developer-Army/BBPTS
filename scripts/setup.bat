@@ -91,34 +91,26 @@ echo.
 
 echo [2/3] Installing Go-based Tools...
 set "TOOLS="
-if "!MODE!"=="user" (
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
-    set "TOOLS=!TOOLS! github.com/tomnomnom/anew@v0.1.1"
-) else (
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/chaos-client/cmd/chaos@v0.2.1"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/tlsx/cmd/tlsx@v1.1.6"
-    set "TOOLS=!TOOLS! github.com/d3mondev/puredns/v2@v2.2.0"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.0"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/katana/cmd/katana@v1.1.0"
-    set "TOOLS=!TOOLS! github.com/lc/gau/v2/cmd/gau@v2.2.3"
-    set "TOOLS=!TOOLS! github.com/ffuf/ffuf/v2@v2.1.0"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
-    set "TOOLS=!TOOLS! github.com/projectdiscovery/interactsh/cmd/interactsh-client@v1.1.9"
-    set "TOOLS=!TOOLS! github.com/hahwul/dalfox/v2@v2.9.0"
-    set "TOOLS=!TOOLS! github.com/sensepost/gowitness@v3.0.3"
-    set "TOOLS=!TOOLS! github.com/tomnomnom/anew@v0.1.1"
-    set "TOOLS=!TOOLS! github.com/tomnomnom/unfurl@v0.4.3"
-    set "TOOLS=!TOOLS! github.com/tomnomnom/qsreplace@v0.0.3"
-    set "TOOLS=!TOOLS! github.com/owasp-amass/amass/v4/cmd/amass@v4.2.0"
-    set "TOOLS=!TOOLS! github.com/tomnomnom/assetfinder@v0.1.1"
-    set "TOOLS=!TOOLS! github.com/hakluke/hakrawler@v2.4.0"
-)
+set "TOOLS=!TOOLS! github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/chaos-client/cmd/chaos@v0.2.1"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/tlsx/cmd/tlsx@v1.1.6"
+set "TOOLS=!TOOLS! github.com/d3mondev/puredns/v2@v2.2.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/katana/cmd/katana@v1.1.0"
+set "TOOLS=!TOOLS! github.com/lc/gau/v2/cmd/gau@v2.2.3"
+set "TOOLS=!TOOLS! github.com/ffuf/ffuf/v2@v2.1.0"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
+set "TOOLS=!TOOLS! github.com/projectdiscovery/interactsh/cmd/interactsh-client@v1.1.9"
+set "TOOLS=!TOOLS! github.com/hahwul/dalfox/v2@v2.9.0"
+set "TOOLS=!TOOLS! github.com/sensepost/gowitness@v3.0.3"
+set "TOOLS=!TOOLS! github.com/tomnomnom/anew@v0.1.1"
+set "TOOLS=!TOOLS! github.com/tomnomnom/unfurl@v0.4.3"
+set "TOOLS=!TOOLS! github.com/tomnomnom/qsreplace@v0.0.3"
+set "TOOLS=!TOOLS! github.com/owasp-amass/amass/v4/cmd/amass@v4.2.0"
+set "TOOLS=!TOOLS! github.com/tomnomnom/assetfinder@v0.1.1"
+set "TOOLS=!TOOLS! github.com/hakluke/hakrawler@v2.4.0"
 
 for %%T in (!TOOLS!) do (
     set "TOOL_PATH=%%T"
@@ -153,50 +145,48 @@ for %%T in (!TOOLS!) do (
 echo [3/3] Installing Go-based uro...
 go install github.com/szybnev/uro-go/cmd/uro@v0.1.0
 
-if "!MODE!"=="dev" (
-    echo.
-    echo Installing additional tools...
-    
-    if defined SHODAN_API_KEY (
-        where shodan >nul 2>nul
-        if !errorlevel! neq 0 (
-            echo Installing Shodan CLI...
-            pip install shodan || pip3 install shodan
-            shodan init %SHODAN_API_KEY%
-        )
+echo.
+echo Installing additional tools...
+
+if defined SHODAN_API_KEY (
+    where shodan >nul 2>nul
+    if !errorlevel! neq 0 (
+        echo Installing Shodan CLI...
+        pip install shodan || pip3 install shodan
+        shodan init %SHODAN_API_KEY%
+    )
+) else (
+    echo [INFO] Shodan CLI requires SHODAN_API_KEY environment variable. Skipping.
+)
+
+where wafw00f >nul 2>nul
+if !errorlevel! neq 0 (
+    echo Installing wafw00f (Optional)...
+    pip install wafw00f || pip3 install wafw00f
+)
+
+where whois >nul 2>nul
+if !errorlevel! neq 0 (
+    echo Installing whois for Windows from Sysinternals...
+    if not exist "%USERPROFILE%\go\bin" mkdir "%USERPROFILE%\go\bin"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://live.sysinternals.com/whois.exe' -OutFile '%USERPROFILE%\go\bin\whois.exe'" 2>nul
+    if !errorlevel! neq 0 (
+        echo [WARNING] Failed to download whois.exe.
     ) else (
-        echo [INFO] Shodan CLI requires SHODAN_API_KEY environment variable. Skipping.
+        echo Accepting whois EULA silently...
+        powershell -Command "New-Item -Path 'HKCU:\Software\Sysinternals' -Force 2>nul; New-Item -Path 'HKCU:\Software\Sysinternals\Whois' -Force 2>nul; Set-ItemProperty -Path 'HKCU:\Software\Sysinternals\Whois' -Name 'EulaAccepted' -Value 1 -Type DWord -Force" 2>nul
+        echo [OK] whois installed successfully!
     )
-    
-    where wafw00f >nul 2>nul
-    if !errorlevel! neq 0 (
-        echo Installing wafw00f (Optional)...
-        pip install wafw00f || pip3 install wafw00f
-    )
-    
-    where whois >nul 2>nul
-    if !errorlevel! neq 0 (
-        echo Installing whois for Windows from Sysinternals...
-        if not exist "%USERPROFILE%\go\bin" mkdir "%USERPROFILE%\go\bin"
-        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://live.sysinternals.com/whois.exe' -OutFile '%USERPROFILE%\go\bin\whois.exe'" 2>nul
-        if !errorlevel! neq 0 (
-            echo [WARNING] Failed to download whois.exe.
-        ) else (
-            echo Accepting whois EULA silently...
-            powershell -Command "New-Item -Path 'HKCU:\Software\Sysinternals' -Force 2>nul; New-Item -Path 'HKCU:\Software\Sysinternals\Whois' -Force 2>nul; Set-ItemProperty -Path 'HKCU:\Software\Sysinternals\Whois' -Name 'EulaAccepted' -Value 1 -Type DWord -Force" 2>nul
-            echo [OK] whois installed successfully!
-        )
-    )
-    
-    where massdns >nul 2>nul
-    if !errorlevel! neq 0 (
-        echo [WARNING] 'massdns' not found. Please install massdns manually or ignore on Windows.
-    )
-    
-    where feroxbuster >nul 2>nul
-    if !errorlevel! neq 0 (
-        echo [WARNING] 'feroxbuster' not found. Please install feroxbuster manually or ignore on Windows.
-    )
+)
+
+where massdns >nul 2>nul
+if !errorlevel! neq 0 (
+    echo [WARNING] 'massdns' not found. Please install massdns manually or ignore on Windows.
+)
+
+where feroxbuster >nul 2>nul
+if !errorlevel! neq 0 (
+    echo [WARNING] 'feroxbuster' not found. Please install feroxbuster manually or ignore on Windows.
 )
 
 echo.
