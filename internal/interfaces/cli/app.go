@@ -370,26 +370,29 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		}
 
 		var eventBus queue.EventBus
-		if cfg.EventBus.Type == "nats" {
-			if cfg.EventBus.URL == "" {
-				slog.Warn("NATS event bus configured but no URL provided; falling back to in-memory bus")
+		busType := cfg.EventBus.Type
+		if busType == "" {
+			busType = "nats"
+		}
+		if busType == "nats" {
+			url := cfg.EventBus.URL
+			if url == "" {
+				url = "nats://127.0.0.1:4222"
+			}
+			var err error
+			eventBus, err = queue.NewNatsBus(url)
+			if err != nil {
+				if cfg.Fleet.WorkerMesh {
+					slog.Error("NATS event bus required for worker mesh but unavailable", "error", err)
+					os.Exit(1)
+				}
+				slog.Warn("NATS event bus unavailable (not compiled or server unreachable); falling back to in-memory bus", "error", err)
 				eventBus = queue.New()
 			} else {
-				var err error
-				eventBus, err = queue.NewNatsBus(cfg.EventBus.URL)
-				if err != nil {
-					if cfg.Fleet.WorkerMesh {
-						slog.Error("NATS event bus required for worker mesh but unavailable", "error", err)
-						os.Exit(1)
-					}
-					slog.Warn("NATS event bus unavailable (not compiled or server unreachable); falling back to in-memory bus", "error", err)
-					eventBus = queue.New()
-				} else {
-					defer eventBus.Close()
-					slog.Info("NATS event bus enabled", "url", cfg.EventBus.URL)
-				}
+				defer eventBus.Close()
+				slog.Info("NATS event bus enabled", "url", url)
 			}
-		} else if cfg.EventBus.Type == "in-memory" || cfg.EventBus.Type == "" {
+		} else if busType == "in-memory" {
 			eventBus = queue.New()
 		} else {
 			slog.Error("Invalid event bus type", "type", cfg.EventBus.Type)
