@@ -8,12 +8,12 @@ require (
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/mattn/go-isatty v0.0.20
-	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/nats-io/nats.go v1.37.0
 	github.com/playwright-community/playwright-go v0.5700.1
 	github.com/prometheus/client_golang v1.23.0
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/refraction-networking/utls v1.6.7
+	golang.org/x/crypto v0.36.0
 	golang.org/x/sync v0.14.0
 	golang.org/x/time v0.11.0
 	modernc.org/sqlite v1.36.3
@@ -55,7 +55,6 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
