@@ -246,3 +246,38 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 
 	return result
 }
+
+// AdjustScoreWithHistory boosts confidence and recomputes the score based on historical findings.
+func (s *Scorer) AdjustScoreWithHistory(score *IntelligenceScore, historyCount int) {
+	if historyCount > 0 {
+		score.ConfidenceScore += historyCount * 5
+		if score.ConfidenceScore > 100 {
+			score.ConfidenceScore = 100
+		}
+		score.Risk.Confidence = score.ConfidenceScore
+
+		score.Justification = append(score.Justification, fmt.Sprintf("Confidence boosted by historical findings evidence count: %d", historyCount))
+
+		weightedScore := (float64(score.Risk.Exposure) * 0.20) +
+			(float64(score.Risk.Attackability) * 0.25) +
+			(float64(score.Risk.BusinessImpact) * 0.30) +
+			(float64(score.Risk.Confidence) * 0.10) +
+			(float64(score.Risk.Freshness) * 0.05) +
+			(float64(score.Risk.PathRisk) * 0.10)
+
+		score.Score = int(weightedScore)
+		if score.Score > 100 {
+			score.Score = 100
+		}
+
+		if score.Score >= 80 {
+			score.Severity = "CRITICAL"
+		} else if score.Score >= 50 {
+			score.Severity = "HIGH"
+		} else if score.Score >= 25 {
+			score.Severity = "MEDIUM"
+		} else {
+			score.Severity = "LOW"
+		}
+	}
+}

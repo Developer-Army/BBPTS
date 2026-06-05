@@ -353,3 +353,19 @@ func TestScorer_Phase4Adjustments(t *testing.T) {
 		t.Errorf("expected confidence score %d, got %d", expectedConf, resConf.ConfidenceScore)
 	}
 }
+
+func TestScorer_AdjustScoreWithHistory(t *testing.T) {
+	scorer := NewScorer()
+	result := scorer.ScoreEndpoint("https://acme-corp.io/api", false, "")
+	initialScore := result.Score
+	initialConf := result.ConfidenceScore
+
+	scorer.AdjustScoreWithHistory(result, 5)
+
+	if result.ConfidenceScore <= initialConf {
+		t.Errorf("expected confidence score to increase from %d, got %d", initialConf, result.ConfidenceScore)
+	}
+	if result.Score <= initialScore {
+		t.Errorf("expected final score to increase from %d, got %d", initialScore, result.Score)
+	}
+}

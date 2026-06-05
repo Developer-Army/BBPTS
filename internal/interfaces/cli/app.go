@@ -669,7 +669,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	}
 
 	// --- Final Intelligence & Reporting ---
-	events = handleIntelligence(runCtx, opts, cfg, events, matches, triggeredTools, reconThreads, bridge)
+	events = handleIntelligence(runCtx, opts, cfg, store, events, matches, triggeredTools, reconThreads, bridge)
 	handleReporting(runCtx, opts, cfg, store, normalized, events, matches, bridge)
 
 	// If dashboard is enabled and not in cron mode, wait for it
@@ -966,7 +966,7 @@ func handlePersistence(opts Options, cfg *config.Config, normalized []string, ev
 	return diff, nil
 }
 
-func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, events []recon.Event, matches []recon.Match, triggeredTools []string, threads int, bridge *tui.Bridge) []recon.Event {
+func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, store *storage.Storage, events []recon.Event, matches []recon.Match, triggeredTools []string, threads int, bridge *tui.Bridge) []recon.Event {
 	slog.Info("Running Advanced Offensive Intelligence Engine")
 
 	te := triage.NewTriageEngine()
@@ -1008,6 +1008,11 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, e
 
 		if strings.HasPrefix(ev.Target, "http") {
 			score := scorer.ScoreEndpoint(ev.Target, false, "")
+			if store != nil {
+				if history, err := store.GetFindingHistory(ctx, ev.Target, 50, 0); err == nil {
+					scorer.AdjustScoreWithHistory(score, len(history))
+				}
+			}
 			if score.Score > 0 {
 				slog.Info("High Value Target Prioritized", "target", ev.Target, "severity", score.Severity, "score", score.Score, "reasons", score.Justification)
 				if ev.Properties == nil {
