@@ -1,30 +1,25 @@
-# 🛡️ BBPTS v1.3.0
+# BBPTS v1.3.0
 > **Bug Bounty Recon on Autopilot.** Point it at target domains, gather intelligence, and get prioritized, actionable findings instantly.
-
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/Developer-Army/BBPTS)
-[![Go Version](https://img.shields.io/badge/go-1.23+-00ADD8.svg)](https://golang.org/)
-[![Build Status](https://github.com/Developer-Army/BBPTS/workflows/CI/badge.svg)](https://github.com/Developer-Army/BBPTS/actions)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 BBPTS automates the execution of **25+ elite penetration testing and reconnaissance tools** in a highly structured pipeline. It correlates, cleans, and deduplicates the results into a unified interactive report, scoring findings by risk severity so you know exactly where to start testing.
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-* **⚡ Automated Pipeline**: Orchestrates recon stages sequentially (Subdomains ➔ DNS/Ports ➔ Web Probing ➔ Vuln Scanning).
-* **🎛️ Setup Profiles**: Choose between **User Mode** (core tools) and **Developer Mode** (full suite + dev environments).
-* **📊 Unified Reporting**: Generates interactive HTML dashboards, structured JSON/CSV logs, and XML templates ready for Burp Suite, OWASP ZAP, and Caido.
-* **🎯 Smart Scoring**: Prioritizes findings using an internal risk analyzer to highlight high-value targets.
-* **🔔 Live Notifications**: Connect webhooks to receive real-time alerts via Discord, Slack, or Telegram.
+* **Automated Pipeline**: Orchestrates recon stages sequentially (Subdomains ➔ DNS/Ports ➔ Web Probing ➔ Vuln Scanning).
+* **Setup Profiles**: Choose between **User Mode** (core tools) and **Developer Mode** (full suite + dev environments).
+* **Unified Reporting**: Generates interactive HTML dashboards, structured JSON/CSV logs, and XML templates ready for Burp Suite, OWASP ZAP, and Caido.
+* **Smart Scoring**: Prioritizes findings using an internal risk analyzer to highlight high-value targets.
+* **Live Notifications**: Connect webhooks to receive real-time alerts via Discord, Slack, or Telegram.
 
 ---
 
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 BBPTS uses a profile-based setup to let you customize your environment.
 
-### 🐧 Linux / macOS
+### Linux / macOS
 
 ```bash
 # Clone the repository
@@ -40,7 +35,7 @@ go build -o bbpts ./cmd/bbpts
 sudo cp bbpts /usr/local/bin/    # System-wide installation
 ```
 
-### 🪟 Windows
+### Windows
 
 ```batch
 # Clone the repository
@@ -55,7 +50,7 @@ scripts\setup.bat --user
 go build -o bbpts.exe .\cmd\bbpts
 ```
 
-### 🐳 Docker (Containerized)
+### Docker (Containerized)
 
 ```bash
 # Build the Docker image
@@ -67,7 +62,7 @@ docker run --rm -v $(pwd)/results:/app/results bbpts -i targets.txt
 
 ---
 
-## 🎯 Quick Start
+## Quick Start
 
 ### 1. Create a targets file (`targets.txt`)
 ```text
@@ -80,12 +75,6 @@ https://api.example.com
 ```bash
 # Run a default medium-mode scan
 bbpts -i targets.txt
-
-# Run a quick, passive-only light scan
-bbpts -i targets.txt --light
-
-# Run a comprehensive deep scan
-bbpts -i targets.txt --full
 ```
 
 ### 3. Review Results
@@ -96,7 +85,7 @@ Your scan reports are saved under the `./results/` directory:
 
 ---
 
-## ⚙️ Scan Profiles
+## Scan Profiles
 
 | Profile / Mode | Setup CLI Flag | Go Tools Installed | Additional Dependencies Checked |
 | :--- | :--- | :--- | :--- |
@@ -105,7 +94,7 @@ Your scan reports are saved under the `./results/` directory:
 
 ---
 
-## 🛠️ Integrated Recon Stages (25+ Tools)
+## Integrated Recon Stages (25+ Tools)
 
 ```
                      [ targets.txt ]
@@ -134,7 +123,7 @@ Your scan reports are saved under the `./results/` directory:
 
 ---
 
-## 📋 CLI Flag Reference
+## CLI Flag Reference
 
 | Flag | Short | Description |
 | :--- | :--- | :--- |
@@ -153,23 +142,23 @@ Your scan reports are saved under the `./results/` directory:
 
 ---
 
-## 🔒 Security & Safety Notes
+## Security & Safety Notes
 
-> ⚠️ **Warning**: Active scanning generates substantial network traffic. Do not run intensive scans from shared CI/CD runners (like GitHub Actions free runners) to avoid platform bans. Use a dedicated VPS.
+> **Warning**: Active scanning generates substantial network traffic. Do not run intensive scans from shared CI/CD runners (like GitHub Actions free runners) to avoid platform bans. Use a dedicated VPS.
 
-> ⚠️ **Scope Control**: Ensure you have explicit authorization to scan target networks. Keep scan targets strictly within your bounty program scope.
-
----
-
-## 📖 Additional Documentation
-
-* 📘 [User Guide](docs/user_guide.md) — Detailed configuration and usage walkthroughs.
-* 🛠️ [Developer Guide](docs/developer_guide.md) — Code architecture and contribution guidelines.
-* 📦 [Containerization Roadmap](docs/CONTAINERIZATION.md) — Deploying BBPTS in Docker environments.
+> **Scope Control**: Ensure you have explicit authorization to scan target networks. Keep scan targets strictly within your bounty program scope.
 
 ---
 
-## ⚖️ License & Credits
+## Additional Documentation
+
+* [User Guide](docs/user_guide.md) — Detailed configuration and usage walkthroughs.
+* [Developer Guide](docs/developer_guide.md) — Code architecture and contribution guidelines.
+* [Containerization Roadmap](docs/CONTAINERIZATION.md) — Deploying BBPTS in Docker environments.
+
+---
+
+## License & Credits
 
 * **License**: Licensed under the [MIT License](LICENSE).
-* **Credits**: Built with respect for the incredible open-source creations from Project Discovery, OWASP, and the security community. 🙏
+* **Credits**: Built with respect for the incredible open-source creations from Project Discovery, OWASP, and the security community.
