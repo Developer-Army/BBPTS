@@ -487,7 +487,7 @@ func TestHistoricalTrends(t *testing.T) {
 	_, _ = db.db.Exec(`UPDATE scans SET start_time = '2026-06-12 10:05:00' WHERE id = ?`, id2)
 
 	// 1. Test GetRiskHistory
-	riskHistory, err := db.GetRiskHistory(ctx, "target1.com")
+	riskHistory, err := db.GetRiskHistory(ctx, "target1.com", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get risk history: %v", err)
 	}
@@ -499,7 +499,7 @@ func TestHistoricalTrends(t *testing.T) {
 	}
 
 	// 2. Test GetRiskTrend
-	riskTrend, err := db.GetRiskTrend(ctx, "program-x")
+	riskTrend, err := db.GetRiskTrend(ctx, "program-x", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get risk trend: %v", err)
 	}
@@ -508,7 +508,7 @@ func TestHistoricalTrends(t *testing.T) {
 	}
 
 	// 3. Test GetTechTrend
-	techTrend, err := db.GetTechTrend(ctx, "program-x")
+	techTrend, err := db.GetTechTrend(ctx, "program-x", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get tech trend: %v", err)
 	}
@@ -517,7 +517,7 @@ func TestHistoricalTrends(t *testing.T) {
 	}
 
 	// 4. Test GetAssetHistory
-	assetHistory, err := db.GetAssetHistory(ctx, "target1.com")
+	assetHistory, err := db.GetAssetHistory(ctx, "target1.com", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get asset history: %v", err)
 	}
@@ -526,7 +526,7 @@ func TestHistoricalTrends(t *testing.T) {
 	}
 
 	// 5. Test GetFindingHistory
-	findingHistory, err := db.GetFindingHistory(ctx, "target1.com")
+	findingHistory, err := db.GetFindingHistory(ctx, "target1.com", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get finding history: %v", err)
 	}
@@ -549,7 +549,7 @@ func TestHistoricalTrends(t *testing.T) {
 		t.Fatalf("Failed to insert asset ownership: %v", err)
 	}
 
-	ownHistory, err := db.GetOwnershipHistory(ctx, "target1.com")
+	ownHistory, err := db.GetOwnershipHistory(ctx, "target1.com", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get ownership history: %v", err)
 	}

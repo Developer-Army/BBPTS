@@ -521,3 +521,27 @@ func TestConfigUpdateSecrets(t *testing.T) {
 		t.Errorf("Expected fleet sync token to be preserved, got %s", cfgFile.Fleet.SyncToken)
 	}
 }
+
+func TestGraphAPI(t *testing.T) {
+	api := NewAPI(nil, "", "")
+
+	// Test GetGraphNodes
+	{
+		req := httptest.NewRequest("GET", "/api/graph/nodes", nil)
+		w := httptest.NewRecorder()
+		api.GetGraphNodes(w, req)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500 for GetGraphNodes, got %d", w.Code)
+		}
+	}
+
+	// Test GetGraphEdges
+	{
+		req := httptest.NewRequest("GET", "/api/graph/edges", nil)
+		w := httptest.NewRecorder()
+		api.GetGraphEdges(w, req)
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Expected status 500 for GetGraphEdges, got %d", w.Code)
+		}
+	}
+}

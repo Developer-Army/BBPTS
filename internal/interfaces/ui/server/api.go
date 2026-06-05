@@ -46,13 +46,7 @@ func (a *API) GetStats(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, stats)
 }
 
-// GetScans returns a list of recent scans.
-func (a *API) GetScans(w http.ResponseWriter, r *http.Request) {
-	if a.db == nil {
-		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
-		return
-	}
-
+func getLimitOffset(r *http.Request) (int, int) {
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	var limit, offset int
@@ -62,11 +56,30 @@ func (a *API) GetScans(w http.ResponseWriter, r *http.Request) {
 	if offsetStr != "" {
 		offset, _ = strconv.Atoi(offsetStr)
 	}
+	return limit, offset
+}
+
+// GetScans returns a list of recent scans.
+func (a *API) GetScans(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+
+	limit, offset := getLimitOffset(r)
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 100
+	}
 
 	scans, err := a.db.GetScans(r.Context(), limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if len(scans) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
 	}
 	respondWithJSON(w, http.StatusOK, scans)
 }
@@ -90,20 +103,16 @@ func (a *API) GetEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limitStr := r.URL.Query().Get("limit")
-	offsetStr := r.URL.Query().Get("offset")
-	var limit, offset int
-	if limitStr != "" {
-		limit, _ = strconv.Atoi(limitStr)
-	}
-	if offsetStr != "" {
-		offset, _ = strconv.Atoi(offsetStr)
-	}
+	limit, offset := getLimitOffset(r)
 
 	events, err := a.db.GetEvents(r.Context(), scanID, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if limit > 0 && len(events) == limit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+limit))
 	}
 	respondWithJSON(w, http.StatusOK, events)
 }
@@ -419,12 +428,21 @@ func (a *API) GetRiskHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	host := r.URL.Query().Get("host")
 	scope := r.URL.Query().Get("scope")
+	limit, offset := getLimitOffset(r)
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 1000
+	}
 
 	if host != "" {
-		history, err := a.db.GetRiskHistory(r.Context(), host)
+		history, err := a.db.GetRiskHistory(r.Context(), host, limit, offset)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 			return
+		}
+		if len(history) == useLimit {
+			w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+			w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
 		}
 		respondWithJSON(w, http.StatusOK, history)
 		return
@@ -433,10 +451,14 @@ func (a *API) GetRiskHistory(w http.ResponseWriter, r *http.Request) {
 	if scope == "" {
 		scope = "default_run"
 	}
-	trend, err := a.db.GetRiskTrend(r.Context(), scope)
+	trend, err := a.db.GetRiskTrend(r.Context(), scope, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if len(trend) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
 	}
 	respondWithJSON(w, http.StatusOK, trend)
 }
@@ -451,10 +473,19 @@ func (a *API) GetTechTrend(w http.ResponseWriter, r *http.Request) {
 	if scope == "" {
 		scope = "default_run"
 	}
-	trend, err := a.db.GetTechTrend(r.Context(), scope)
+	limit, offset := getLimitOffset(r)
+	trend, err := a.db.GetTechTrend(r.Context(), scope, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 1000
+	}
+	if len(trend) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
 	}
 	respondWithJSON(w, http.StatusOK, trend)
 }
@@ -470,10 +501,19 @@ func (a *API) GetOwnershipHistory(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
 		return
 	}
-	history, err := a.db.GetOwnershipHistory(r.Context(), assetID)
+	limit, offset := getLimitOffset(r)
+	history, err := a.db.GetOwnershipHistory(r.Context(), assetID, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 1000
+	}
+	if len(history) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
 	}
 	respondWithJSON(w, http.StatusOK, history)
 }
@@ -489,10 +529,19 @@ func (a *API) GetAssetHistory(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
 		return
 	}
-	history, err := a.db.GetAssetHistory(r.Context(), host)
+	limit, offset := getLimitOffset(r)
+	history, err := a.db.GetAssetHistory(r.Context(), host, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 1000
+	}
+	if len(history) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
 	}
 	respondWithJSON(w, http.StatusOK, history)
 }
@@ -508,12 +557,67 @@ func (a *API) GetFindingHistory(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
 		return
 	}
-	history, err := a.db.GetFindingHistory(r.Context(), target)
+	limit, offset := getLimitOffset(r)
+	history, err := a.db.GetFindingHistory(r.Context(), target, limit, offset)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 1000
+	}
+	if len(history) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
+	}
 	respondWithJSON(w, http.StatusOK, history)
+}
+
+// GetGraphNodes returns paged asset nodes.
+func (a *API) GetGraphNodes(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+	limit, offset := getLimitOffset(r)
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 100
+	}
+	nodes, err := a.db.GetAllAssetNodes(limit, offset)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if len(nodes) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
+	}
+	respondWithJSON(w, http.StatusOK, nodes)
+}
+
+// GetGraphEdges returns paged asset edges.
+func (a *API) GetGraphEdges(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+	limit, offset := getLimitOffset(r)
+	useLimit := limit
+	if useLimit <= 0 {
+		useLimit = 100
+	}
+	edges, err := a.db.GetAllAssetEdges(limit, offset)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if len(edges) == useLimit {
+		w.Header().Set("X-Warning", "Data truncated. Use pagination parameters (limit and offset) to retrieve more records.")
+		w.Header().Set("X-Continuation-Token", strconv.Itoa(offset+useLimit))
+	}
+	respondWithJSON(w, http.StatusOK, edges)
 }
 
 var (

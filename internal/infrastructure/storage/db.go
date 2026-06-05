@@ -520,15 +520,25 @@ type RiskHistoryRecord struct {
 }
 
 // GetRiskHistory returns risk history for a specific host.
-func (db *Storage) GetRiskHistory(ctx context.Context, host string) ([]RiskHistoryRecord, error) {
+func (db *Storage) GetRiskHistory(ctx context.Context, host string, limit, offset int) ([]RiskHistoryRecord, error) {
 	query := `
 		SELECT i.host, i.score, i.priority, s.start_time
 		FROM insights i
 		JOIN scans s ON i.scan_id = s.id
 		WHERE i.host = ? AND s.status = 'completed'
 		ORDER BY s.start_time ASC
-		LIMIT 1000
 	`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else {
+		query += " LIMIT 1000"
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
 	rows, err := db.db.QueryContext(ctx, query, host)
 	if err != nil {
 		return nil, err
@@ -548,7 +558,7 @@ func (db *Storage) GetRiskHistory(ctx context.Context, host string) ([]RiskHisto
 }
 
 // GetRiskTrend returns the average and maximum risk scores for all scans in a scope.
-func (db *Storage) GetRiskTrend(ctx context.Context, scope string) ([]map[string]interface{}, error) {
+func (db *Storage) GetRiskTrend(ctx context.Context, scope string, limit, offset int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT s.id, s.start_time, AVG(i.score) as avg_score, MAX(i.score) as max_score, COUNT(i.id) as host_count
 		FROM scans s
@@ -556,8 +566,18 @@ func (db *Storage) GetRiskTrend(ctx context.Context, scope string) ([]map[string
 		WHERE s.scope = ? AND s.status = 'completed'
 		GROUP BY s.id, s.start_time
 		ORDER BY s.start_time ASC
-		LIMIT 1000
 	`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else {
+		query += " LIMIT 1000"
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
 	rows, err := db.db.QueryContext(ctx, query, scope)
 	if err != nil {
 		return nil, err
@@ -592,15 +612,25 @@ type TechHistoryRecord struct {
 }
 
 // GetTechTrend returns technology tag occurrence counts over time for a scope.
-func (db *Storage) GetTechTrend(ctx context.Context, scope string) ([]TechHistoryRecord, error) {
+func (db *Storage) GetTechTrend(ctx context.Context, scope string, limit, offset int) ([]TechHistoryRecord, error) {
 	query := `
 		SELECT s.start_time, i.tags
 		FROM scans s
 		JOIN insights i ON i.scan_id = s.id
 		WHERE s.scope = ? AND s.status = 'completed'
 		ORDER BY s.start_time ASC
-		LIMIT 1000
 	`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else {
+		query += " LIMIT 1000"
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
 	rows, err := db.db.QueryContext(ctx, query, scope)
 	if err != nil {
 		return nil, err
@@ -653,7 +683,7 @@ type OwnershipHistoryRecord struct {
 }
 
 // GetOwnershipHistory returns ownership changes over time for an asset.
-func (db *Storage) GetOwnershipHistory(ctx context.Context, assetID string) ([]OwnershipHistoryRecord, error) {
+func (db *Storage) GetOwnershipHistory(ctx context.Context, assetID string, limit, offset int) ([]OwnershipHistoryRecord, error) {
 	query := `
 		SELECT ao.asset_id, COALESCE(o.name, ''), COALESCE(o.email, ''), COALESCE(t.name, ''), ao.start_time, ao.end_time, COALESCE(ao.change_reason, '')
 		FROM asset_ownership ao
@@ -661,8 +691,18 @@ func (db *Storage) GetOwnershipHistory(ctx context.Context, assetID string) ([]O
 		LEFT JOIN teams t ON ao.team_id = t.id
 		WHERE ao.asset_id = ?
 		ORDER BY ao.start_time ASC
-		LIMIT 1000
 	`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else {
+		query += " LIMIT 1000"
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
 	rows, err := db.db.QueryContext(ctx, query, assetID)
 	if err != nil {
 		return nil, err
@@ -686,15 +726,25 @@ func (db *Storage) GetOwnershipHistory(ctx context.Context, assetID string) ([]O
 }
 
 // GetAssetHistory returns scan presence history for a specific asset.
-func (db *Storage) GetAssetHistory(ctx context.Context, host string) ([]map[string]interface{}, error) {
+func (db *Storage) GetAssetHistory(ctx context.Context, host string, limit, offset int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT s.id, s.start_time, s.status
 		FROM scans s
 		JOIN targets t ON t.scan_id = s.id
 		WHERE t.host = ?
 		ORDER BY s.start_time ASC
-		LIMIT 1000
 	`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else {
+		query += " LIMIT 1000"
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
 	rows, err := db.db.QueryContext(ctx, query, host)
 	if err != nil {
 		return nil, err
@@ -719,15 +769,25 @@ func (db *Storage) GetAssetHistory(ctx context.Context, host string) ([]map[stri
 }
 
 // GetFindingHistory returns historical scan observations of a specific finding.
-func (db *Storage) GetFindingHistory(ctx context.Context, target string) ([]map[string]interface{}, error) {
+func (db *Storage) GetFindingHistory(ctx context.Context, target string, limit, offset int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT s.id, s.start_time, e.source, e.type
 		FROM scans s
 		JOIN events e ON e.scan_id = s.id
 		WHERE e.target = ?
 		ORDER BY s.start_time ASC
-		LIMIT 1000
 	`
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	} else {
+		query += " LIMIT 1000"
+		if offset > 0 {
+			query += fmt.Sprintf(" OFFSET %d", offset)
+		}
+	}
 	rows, err := db.db.QueryContext(ctx, query, target)
 	if err != nil {
 		return nil, err

@@ -230,6 +230,8 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	mux.HandleFunc("/api/history/ownership", api.GetOwnershipHistory)
 	mux.HandleFunc("/api/history/asset", api.GetAssetHistory)
 	mux.HandleFunc("/api/history/finding", api.GetFindingHistory)
+	mux.HandleFunc("/api/graph/nodes", api.GetGraphNodes)
+	mux.HandleFunc("/api/graph/edges", api.GetGraphEdges)
 
 	// Static Frontend (Embedded or simply served from a string for now)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
