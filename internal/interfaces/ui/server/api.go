@@ -867,3 +867,20 @@ func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
 	LogAuditEvent(a.db, "SYSTEM", "admin", "enroll_admin", "dashboard_users/admin", ip, "success")
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
+
+// GetCurrentUser returns the username and role of the currently logged-in user.
+func (a *API) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	username, _ := r.Context().Value(UsernameKey).(string)
+	role, _ := r.Context().Value(RoleKey).(string)
+
+	if username == "" {
+		respondWithError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{
+		"username": username,
+		"role":     role,
+		"status":   "success",
+	})
+}

@@ -217,6 +217,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	// API Routes
 	mux.HandleFunc("/api/auth", api.Authenticate)
 	mux.HandleFunc("/api/logout", api.Logout)
+	mux.HandleFunc("/api/me", api.GetCurrentUser)
 	mux.HandleFunc("/api/stats", api.GetStats)
 	mux.HandleFunc("/api/scans", api.GetScans)
 	mux.HandleFunc("/api/events", api.GetEvents)
@@ -544,6 +545,8 @@ const DashboardHTML = `
     </div>
 
     <script>
+        let currentUser = null;
+
         async function fetchAPI(url, options = {}) {
             const response = await fetch(url, options);
             if (response.status === 401) {
@@ -551,6 +554,24 @@ const DashboardHTML = `
                 throw new Error('Unauthorized');
             }
             return response;
+        }
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data;
+                    document.getElementById('login-modal').classList.add('hidden');
+                    updateUserUI();
+                    refreshData();
+                    startLogStream();
+                } else {
+                    document.getElementById('login-modal').classList.remove('hidden');
+                }
+            } catch (e) {
+                document.getElementById('login-modal').classList.remove('hidden');
+            }
         }
 
         async function submitLogin() {
@@ -565,13 +586,8 @@ const DashboardHTML = `
                     body: JSON.stringify({ username: userVal, password: passVal })
                 });
                 if (response.ok) {
-                    const data = await response.json();
                     document.getElementById('login-modal').classList.add('hidden');
-                    localStorage.setItem('bbpts_username', data.username);
-                    localStorage.setItem('bbpts_role', data.role);
-                    updateUserUI();
-                    refreshData();
-                    startLogStream();
+                    await checkAuth();
                 } else {
                     const data = await response.json();
                     errEl.innerText = data.error || 'Authentication failed';
@@ -589,14 +605,13 @@ const DashboardHTML = `
             } catch (e) {
                 console.error(e);
             }
-            localStorage.removeItem('bbpts_username');
-            localStorage.removeItem('bbpts_role');
+            currentUser = null;
             document.getElementById('login-modal').classList.remove('hidden');
         }
 
         function updateUserUI() {
-            const username = localStorage.getItem('bbpts_username') || 'Guest';
-            const role = localStorage.getItem('bbpts_role') || 'Unknown';
+            const username = (currentUser && currentUser.username) || 'Guest';
+            const role = (currentUser && currentUser.role) || 'Unknown';
             document.getElementById('user-display-name').innerText = username;
             document.getElementById('user-display-role').innerText = role.toUpperCase() + ' OPERATOR';
             if (username && username.length > 0) {
@@ -809,12 +824,7 @@ const DashboardHTML = `
         }
 
         window.onload = () => {
-            updateUserUI();
-            refreshData().then(() => {
-                startLogStream();
-            }).catch(() => {
-                // Ignore initial load failure if unauthorized, modal will cover it
-            });
+            checkAuth();
         };
         setInterval(refreshData, 10000);
     </script>

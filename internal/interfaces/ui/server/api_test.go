@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -542,6 +543,43 @@ func TestGraphAPI(t *testing.T) {
 		api.GetGraphEdges(w, req)
 		if w.Code != http.StatusInternalServerError {
 			t.Errorf("Expected status 500 for GetGraphEdges, got %d", w.Code)
+		}
+	}
+}
+
+func TestGetCurrentUser(t *testing.T) {
+	api := NewAPI(nil, "", "")
+
+	// Test unauthorized
+	{
+		req := httptest.NewRequest("GET", "/api/me", nil)
+		w := httptest.NewRecorder()
+		api.GetCurrentUser(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("Expected status 401 for unauthorized GetCurrentUser, got %d", w.Code)
+		}
+	}
+
+	// Test authorized with context keys
+	{
+		req := httptest.NewRequest("GET", "/api/me", nil)
+		ctx := req.Context()
+		ctx = context.WithValue(ctx, UsernameKey, "admin")
+		ctx = context.WithValue(ctx, RoleKey, "admin")
+		req = req.WithContext(ctx)
+
+		w := httptest.NewRecorder()
+		api.GetCurrentUser(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for authorized GetCurrentUser, got %d", w.Code)
+		}
+
+		var res map[string]string
+		if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+			t.Fatalf("Failed to parse body: %v", err)
+		}
+		if res["username"] != "admin" || res["role"] != "admin" {
+			t.Errorf("Expected user details admin, got %v", res)
 		}
 	}
 }
