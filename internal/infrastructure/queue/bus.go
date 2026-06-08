@@ -8,6 +8,17 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
+// Event types representing the event-driven core.
+const (
+	EventAssetDiscovered = "AssetDiscovered"
+	EventHostAlive       = "HostAlive"
+	EventFindingCreated  = "FindingCreated"
+	EventFindingVerified = "FindingVerified"
+	EventFindingClosed   = "FindingClosed"
+	EventRiskChanged     = "RiskChanged"
+	EventOwnerAssigned   = "OwnerAssigned"
+)
+
 // Event represents a generic recon event. It mirrors the recon.Event struct but is kept
 // lightweight for the internal bus.
 type Event struct {

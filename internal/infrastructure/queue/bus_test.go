@@ -456,3 +456,21 @@ func TestMultipleEventTypes(t *testing.T) {
 		t.Error("sub3 did not receive event")
 	}
 }
+
+func TestEventConstants(t *testing.T) {
+	expected := []string{
+		EventAssetDiscovered,
+		EventHostAlive,
+		EventFindingCreated,
+		EventFindingVerified,
+		EventFindingClosed,
+		EventRiskChanged,
+		EventOwnerAssigned,
+	}
+
+	for _, name := range expected {
+		if name == "" {
+			t.Error("Event constant name is empty")
+		}
+	}
+}
