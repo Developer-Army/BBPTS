@@ -51,12 +51,18 @@ func NewScorer() *Scorer {
 
 // ScoreEndpoint evaluates the heuristic probability of a URL being a high-value bug bounty target.
 func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody string) *IntelligenceScore {
+	return s.ScoreEndpointAdvanced(url, isAuthRequired, responseBody, false, false, 0, 0)
+}
+
+// ScoreEndpointAdvanced evaluates the risk of a target incorporating evidence, exposure, business impact, ownership, attack paths, exploitability, and confidence.
+func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, responseBody string, hasOwner bool, hasAttackPath bool, evidenceCount int, exploitability int) *IntelligenceScore {
 	result := &IntelligenceScore{
 		Score:         0,
 		Justification: make([]string, 0),
 	}
 
 	lowerURL := strings.ToLower(url)
+	lowerBody := strings.ToLower(responseBody)
 
 	// Determine Hostname exposure context
 	host := url
@@ -68,10 +74,9 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 	}
 	lowerHost := strings.ToLower(host)
 
-	// Determine Asset Class and Business Impact (0-100)
+	// 1. Business Impact Score (0-100)
 	assetClass := "Default"
 	classImpact := 20
-	
 	if strings.Contains(lowerURL, "jenkins") || strings.Contains(lowerURL, "gitlab") || strings.Contains(lowerURL, "github") || strings.Contains(lowerURL, "git-") || strings.Contains(lowerURL, "/git") {
 		assetClass = "CI/CD System"
 		classImpact = 100
@@ -96,20 +101,18 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 	} else if strings.Contains(lowerURL, "/api/v1") || strings.Contains(lowerURL, "/api/v2") || strings.Contains(lowerURL, "/api/") || strings.Contains(lowerURL, "graphql") || strings.Contains(lowerURL, "/rpc") || strings.Contains(lowerURL, "/xmlrpc") || strings.Contains(lowerURL, "/rest/") {
 		assetClass = "API Endpoint"
 		classImpact = 60
-	} else if strings.Contains(lowerURL, "internal") || strings.Contains(lowerURL, "localhost") || strings.Contains(lowerURL, "private") || strings.Contains(lowerURL, "corp") || strings.Contains(lowerURL, "local") {
+	} else if strings.Contains(lowerURL, "internal") || strings.Contains(lowerURL, "local") || strings.Contains(lowerURL, "localhost") || strings.Contains(lowerURL, "private") || strings.Contains(lowerURL, "corp") {
 		assetClass = "Internal Service"
 		classImpact = 40
 	} else if strings.Contains(lowerURL, "s3.amazonaws.com") || strings.Contains(lowerURL, "blob.core.windows.net") || strings.Contains(lowerURL, "storage.googleapis.com") || strings.Contains(lowerURL, "cloudfront") || strings.Contains(lowerURL, "kubernetes") || strings.Contains(lowerURL, "k8s") || strings.Contains(lowerURL, "docker") {
 		assetClass = "Cloud Control Plane"
 		classImpact = 85
 	}
-
 	result.Justification = append(result.Justification, fmt.Sprintf("Asset class identified: %s", assetClass))
-	// Adjust business impact by blast radius
 	classImpact = int(float64(classImpact) * s.BlastRadius)
 	result.BusinessImpactScore = classImpact
 
-	// 1. Exposure Score (0-100)
+	// 2. Exposure Score (0-100)
 	exposure := 100
 	if strings.Contains(lowerHost, "internal") || strings.Contains(lowerHost, "local") || strings.Contains(lowerHost, "localhost") || strings.Contains(lowerHost, "private") || strings.Contains(lowerHost, "dev") || strings.Contains(lowerHost, "test") || strings.Contains(lowerHost, "staging") {
 		exposure = 40
@@ -119,76 +122,131 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 	}
 	result.ExposureScore = exposure
 
-	// 2. Attackability Score (0-100)
-	attackability := 30
-	if isAuthRequired {
-		attackability += 30
-		result.Justification = append(result.Justification, "Authenticated surface (increases attackability score)")
-	}
-	if strings.Contains(lowerURL, "/upload") || strings.Contains(lowerURL, "/file") || strings.Contains(lowerURL, "/download") {
-		attackability += 20
-		result.Justification = append(result.Justification, "Contains upload/download endpoint")
-	}
-	if strings.Contains(lowerURL, "graphql") || strings.Contains(lowerURL, "swagger") || strings.Contains(lowerURL, "openapi") || strings.Contains(lowerURL, "api-docs") {
-		attackability += 20
-		result.Justification = append(result.Justification, "API documentation / Query interface present")
-	}
-	sensitiveExts := []string{".bak", ".sql", ".env", ".log", ".conf", ".config", ".old", ".orig", ".backup", ".dump", ".git", ".svn"}
+	// 3. Exploitability Score (0-100)
 	hasSensitiveExt := false
-	for _, ext := range sensitiveExts {
-		if strings.Contains(lowerURL, ext) {
-			attackability += 40
-			hasSensitiveExt = true
-			result.Justification = append(result.Justification, fmt.Sprintf("Sensitive file extension: %s", ext))
-			break
-		}
-	}
-	if hasSensitiveExt && (strings.Contains(lowerURL, ".env") || strings.Contains(lowerURL, ".git")) {
-		attackability += 30 // extra boost for credential-bearing extensions
-	}
-
-	sensitiveParams := []string{"token", "key", "secret", "password", "passwd", "auth", "api_key", "access_token"}
 	hasSensitiveParam := false
-	for _, param := range sensitiveParams {
-		if strings.Contains(lowerURL, param+"=") || strings.Contains(lowerURL, param+"[") {
-			attackability += 45
-			hasSensitiveParam = true
-			result.Justification = append(result.Justification, fmt.Sprintf("Sensitive parameter: %s", param))
-			break
+	if exploitability <= 0 {
+		exploitability = 30
+		if isAuthRequired {
+			exploitability += 30
+			result.Justification = append(result.Justification, "Authenticated surface (increases exploitability score)")
+		}
+		if strings.Contains(lowerURL, "/upload") || strings.Contains(lowerURL, "/file") || strings.Contains(lowerURL, "/download") {
+			exploitability += 20
+			result.Justification = append(result.Justification, "Contains upload/download endpoint")
+		}
+		if strings.Contains(lowerURL, "graphql") || strings.Contains(lowerURL, "swagger") || strings.Contains(lowerURL, "openapi") || strings.Contains(lowerURL, "api-docs") {
+			exploitability += 20
+			result.Justification = append(result.Justification, "API documentation / Query interface present")
+		}
+		sensitiveExts := []string{".bak", ".sql", ".env", ".log", ".conf", ".config", ".old", ".orig", ".backup", ".dump", ".git", ".svn"}
+		for _, ext := range sensitiveExts {
+			if strings.Contains(lowerURL, ext) {
+				exploitability += 40
+				hasSensitiveExt = true
+				result.Justification = append(result.Justification, fmt.Sprintf("Sensitive file extension: %s", ext))
+				break
+			}
+		}
+		if strings.Contains(lowerURL, ".env") || strings.Contains(lowerURL, ".git") {
+			exploitability += 30
+		}
+		sensitiveParams := []string{"token", "key", "secret", "password", "passwd", "auth", "api_key", "access_token"}
+		for _, param := range sensitiveParams {
+			if strings.Contains(lowerURL, param+"=") || strings.Contains(lowerURL, param+"[") {
+				exploitability += 45
+				hasSensitiveParam = true
+				result.Justification = append(result.Justification, fmt.Sprintf("Sensitive parameter: %s", param))
+				break
+			}
+		}
+		if exploitability > 100 {
+			exploitability = 100
+		}
+	}
+	result.AttackabilityScore = exploitability // Maps to Attackability in the vector
+
+	// 4. Evidence Score (0-100)
+	evidenceScore := 10
+	if assetClass == "Sensitive File Leak" || assetClass == "CI/CD System" {
+		evidenceScore = 80
+	}
+	if evidenceCount > 0 {
+		evidenceScore += evidenceCount * 10
+		if evidenceScore > 50 && evidenceScore < 80 {
+			evidenceScore = 50
 		}
 	}
 
-	if attackability > 100 {
-		attackability = 100
+	// Scan responseBody or indicators for verified vulnerability proof
+	hasConcreteEvidence := false
+	if len(lowerBody) > 0 {
+		if strings.Contains(lowerURL, "jenkins") && (strings.Contains(lowerBody, "manage jenkins") || strings.Contains(lowerBody, "jenkins dashboard") || strings.Contains(lowerBody, "credential") || strings.Contains(lowerBody, "script console")) {
+			evidenceScore = 100
+			hasConcreteEvidence = true
+			result.Justification = append(result.Justification, "Concrete evidence: unauthenticated Jenkins management dashboard/console found")
+		} else if strings.Contains(lowerBody, "db_password") || strings.Contains(lowerBody, "aws_secret_access_key") || strings.Contains(lowerBody, "api_key") || strings.Contains(lowerBody, "private key") {
+			evidenceScore = 100
+			hasConcreteEvidence = true
+			result.Justification = append(result.Justification, "Concrete evidence: credential leak exposed in response body")
+		} else if strings.Contains(lowerBody, "index of /") {
+			evidenceScore = 90
+			hasConcreteEvidence = true
+			result.Justification = append(result.Justification, "Concrete evidence: directory listing exposed")
+		} else if strings.Contains(lowerBody, "cve-") {
+			evidenceScore = 90
+			hasConcreteEvidence = true
+			result.Justification = append(result.Justification, "Concrete evidence: vulnerable version match (CVE reference)")
+		}
 	}
-	result.AttackabilityScore = attackability
 
-	// 3. Confidence Score (0-100)
-	confidence := 80
+	if hasConcreteEvidence {
+		exploitability = 100
+		result.AttackabilityScore = 100
+	}
+
+	// 5. Ownership Score (0-100)
+	// If owner is unknown (hasOwner = false), risk is higher
+	ownershipScore := 100
+	if hasOwner {
+		ownershipScore = 40
+		result.Justification = append(result.Justification, "Asset owner is identified (mitigates risk)")
+	} else {
+		result.Justification = append(result.Justification, "Asset owner is unknown (escalates risk)")
+	}
+
+	// 6. Attack Path Score (0-100)
+	attackPathScore := 20
+	if hasAttackPath {
+		attackPathScore = 100
+		result.Justification = append(result.Justification, "Asset has active attack-path propagation")
+	}
+
+	// 7. Confidence Score (0-100)
+	confidence := 70
 	if strings.Contains(lowerURL, "admin") || strings.Contains(lowerURL, "jenkins") || strings.Contains(lowerURL, ".env") || strings.Contains(lowerURL, ".git") {
 		confidence = 95
-		result.Justification = append(result.Justification, "High confidence indicators matched")
 	}
 	if hasSensitiveParam {
 		confidence = 100
 	}
-	// Adjust confidence score with source confidence and reproducibility
+	if hasConcreteEvidence {
+		confidence = 100
+	}
 	confidence = int(float64(confidence) * s.SourceConfidence * s.Reproducibility)
 	result.ConfidenceScore = confidence
 
-	// 4. Freshness Score (0-100)
+	// Freshness
 	result.FreshnessScore = 100
 
-	// 5. Path Score (0-100)
+	// Path Risk
 	pathScore := 30
 	paramCount := strings.Count(url, "&") + strings.Count(url, "?")
 	if paramCount > 0 {
 		pathScore += paramCount * 20
-		result.Justification = append(result.Justification, fmt.Sprintf("Path contains %d query parameters", paramCount))
 	}
 	if strings.Contains(lowerURL, "/internal/") || strings.Contains(lowerURL, "/private/") || strings.Contains(lowerURL, "/secret/") {
 		pathScore += 30
-		result.Justification = append(result.Justification, "Path contains internal/private segment")
 	}
 	if strings.Contains(lowerURL, "/admin/") || strings.Contains(lowerURL, "/config") {
 		pathScore += 20
@@ -204,23 +262,39 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 	// Populate RiskVector
 	result.Risk = RiskVector{
 		Exposure:       exposure,
-		Attackability:  attackability,
+		Attackability:  exploitability,
 		BusinessImpact: classImpact,
 		Confidence:     confidence,
 		Freshness:      100,
 		PathRisk:       pathScore,
 	}
 
-	// Calculate final score using weighted multi-factor risk model from the vector:
-	// FinalScore = (Exposure * 0.20) + (Attackability * 0.25) + (BusinessImpact * 0.30) + (Confidence * 0.10) + (Freshness * 0.05) + (PathRisk * 0.10)
-	weightedScore := (float64(result.Risk.Exposure) * 0.20) +
-		(float64(result.Risk.Attackability) * 0.25) +
-		(float64(result.Risk.BusinessImpact) * 0.30) +
-		(float64(result.Risk.Confidence) * 0.10) +
-		(float64(result.Risk.Freshness) * 0.05) +
-		(float64(result.Risk.PathRisk) * 0.10)
+	// Combine components using the formula:
+	// RiskScore = (Evidence * 0.25) + (Exposure * 0.15) + (BusinessImpact * 0.20) + (Exploitability * 0.15) + (Confidence * 0.10) + (AttackPath * 0.05) + (Ownership * 0.10)
+	weightedScore := (float64(evidenceScore) * 0.25) +
+		(float64(exposure) * 0.15) +
+		(float64(classImpact) * 0.20) +
+		(float64(exploitability) * 0.15) +
+		(float64(confidence) * 0.10) +
+		(float64(attackPathScore) * 0.05) +
+		(float64(ownershipScore) * 0.10)
 
 	result.Score = int(weightedScore)
+
+	if hasSensitiveParam && (strings.Contains(lowerURL, "admin") || strings.Contains(lowerURL, "config") || assetClass == "CI/CD System") {
+		result.Score = 100
+	}
+
+	// Apply caps / adjustments
+	// If 403 response with no proof: cap risk score at 10
+	if !hasConcreteEvidence && (strings.Contains(lowerBody, "403") || strings.Contains(lowerBody, "401") || strings.Contains(lowerBody, "forbidden")) {
+		if strings.Contains(lowerURL, "jenkins") || strings.Contains(lowerURL, "admin") {
+			result.Score = 10
+			result.Justification = append(result.Justification, "Risk score capped at 10: access restricted (HTTP 403/401) with no proof of vulnerability/bypass")
+		}
+	}
+
+	// Staging/Dev environment adjustments
 	if s.AssetEnvironment == "staging" {
 		result.Score = int(float64(result.Score) * 0.75)
 		result.Justification = append(result.Justification, "Score adjusted down: Staging environment")
@@ -231,6 +305,9 @@ func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody str
 
 	if result.Score > 100 {
 		result.Score = 100
+	}
+	if result.Score < 0 {
+		result.Score = 0
 	}
 
 	// Calculate severity tier
@@ -258,12 +335,13 @@ func (s *Scorer) AdjustScoreWithHistory(score *IntelligenceScore, historyCount i
 
 		score.Justification = append(score.Justification, fmt.Sprintf("Confidence boosted by historical findings evidence count: %d", historyCount))
 
-		weightedScore := (float64(score.Risk.Exposure) * 0.20) +
-			(float64(score.Risk.Attackability) * 0.25) +
-			(float64(score.Risk.BusinessImpact) * 0.30) +
+		weightedScore := (float64(score.Risk.Exposure) * 0.15) +
+			(float64(score.Risk.Attackability) * 0.15) +
+			(float64(score.Risk.BusinessImpact) * 0.20) +
 			(float64(score.Risk.Confidence) * 0.10) +
 			(float64(score.Risk.Freshness) * 0.05) +
-			(float64(score.Risk.PathRisk) * 0.10)
+			(float64(score.Risk.PathRisk) * 0.10) +
+			(float64(score.ConfidenceScore) * 0.25)
 
 		score.Score = int(weightedScore)
 		if score.Score > 100 {
