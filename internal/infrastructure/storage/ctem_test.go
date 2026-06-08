@@ -136,8 +136,8 @@ func TestCTEMBasic(t *testing.T) {
 	if err != nil || len(overdue) != 1 {
 		t.Fatalf("GetOverdueAssignments failed: %v, len: %d", err, len(overdue))
 	}
-	if overdue[0].AssignmentID != assignmentID || overdue[0].Status != "Acknowledged" {
-		t.Errorf("Unexpected overdue assignment properties: got status %s, expected Acknowledged", overdue[0].Status)
+	if overdue[0].AssignmentID != assignmentID || overdue[0].Status != "Remediating" {
+		t.Errorf("Unexpected overdue assignment properties: got status %s, expected Remediating", overdue[0].Status)
 	}
 
 	// Verify audit trail status history
@@ -151,7 +151,7 @@ func TestCTEMBasic(t *testing.T) {
 	if history[0].OldStatus != "Discovered" || history[0].NewStatus != "Assigned" {
 		t.Errorf("First transition mismatch: %s -> %s", history[0].OldStatus, history[0].NewStatus)
 	}
-	if history[1].OldStatus != "Assigned" || history[1].NewStatus != "Acknowledged" {
+	if history[1].OldStatus != "Assigned" || history[1].NewStatus != "Remediating" {
 		t.Errorf("Second transition mismatch: %s -> %s", history[1].OldStatus, history[1].NewStatus)
 	}
 
@@ -289,6 +289,66 @@ func TestCTEMStateTransitions(t *testing.T) {
 	err = s.UpdateAssignmentStatus(assignmentID, "Reopened")
 	if err != nil {
 		t.Errorf("Unexpected error for valid transition Verified -> Reopened: %v", err)
+	}
+}
+
+func TestVerifyFindingFixAndApproveRiskException(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_ctem_hardening.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	teamID, _ := s.AddTeam("Security")
+	ownerID, _ := s.AddOwner("Alice", "alice@corp.com")
+	findingID, _ := s.AddFindingForTest("SQL Injection", "desc", "critical", "acme.com")
+
+	assignmentID, err := s.AssignFinding(findingID, &teamID, &ownerID, "critical")
+	if err != nil {
+		t.Fatalf("AssignFinding failed: %v", err)
+	}
+
+	// 1. Test VerifyFindingFix from Assigned (should auto-remediate first then verify)
+	err = s.VerifyFindingFix(assignmentID, "Verified resolved by scanning", "verifier@acme.com")
+	if err != nil {
+		t.Fatalf("VerifyFindingFix failed: %v", err)
+	}
+
+	history, err := s.GetFindingStatusHistory(findingID)
+	if err != nil {
+		t.Fatalf("GetFindingStatusHistory failed: %v", err)
+	}
+
+	// Should have Discovered -> Assigned, Assigned -> Remediating, Remediating -> Remediated, Remediated -> Verified
+	if len(history) != 4 {
+		t.Errorf("Expected 4 history items, got %d", len(history))
+	}
+
+	// 2. Reopen it
+	err = s.UpdateAssignmentStatus(assignmentID, "Reopened")
+	if err != nil {
+		t.Fatalf("Reopen failed: %v", err)
+	}
+
+	// 3. Test ApproveRiskException
+	err = s.ApproveRiskException(assignmentID, "SLA Exception approved due to legacy system constraint", "approver@acme.com")
+	if err != nil {
+		t.Fatalf("ApproveRiskException failed: %v", err)
+	}
+
+	// Verify the status is SLA Exception
+	_, err = s.GetTeamOverdueFindings()
+	if err != nil {
+		t.Fatalf("GetTeamOverdueFindings failed: %v", err)
+	}
+	// The assignment shouldn't show up as overdue or should have the status "SLA Exception"
+	var foundStatus string
+	query := "SELECT status FROM finding_assignments WHERE id = ?"
+	_ = s.db.QueryRow(query, assignmentID).Scan(&foundStatus)
+	if foundStatus != "SLA Exception" {
+		t.Errorf("Expected status to be SLA Exception, got %s", foundStatus)
 	}
 }
 

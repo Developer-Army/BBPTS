@@ -782,7 +782,9 @@ func normalizeCTEMState(status string) string {
 		return "Triaged"
 	case "assigned":
 		return "Assigned"
-	case "remediating", "acknowledged":
+	case "remediating":
+		return "Remediating"
+	case "acknowledged":
 		return "Acknowledged"
 	case "remediated":
 		return "Remediated"
@@ -790,8 +792,8 @@ func normalizeCTEMState(status string) string {
 		return "Verified"
 	case "reopened":
 		return "Reopened"
-	case "exempted":
-		return "Exempted"
+	case "exempted", "sla exception", "sla_exception":
+		return "SLA Exception"
 	case "expired":
 		return "Expired"
 	case "overdue":
@@ -815,34 +817,37 @@ func isValidTransition(from, to string) bool {
 	}
 
 	// Escalation-level states can always promote to higher levels,
-	// move to Remediated (fix applied), or be Acknowledged.
+	// move to Remediated/Remediating, or be Acknowledged/SLA Exception.
 	if isEscalatedState(from) {
-		return isEscalatedState(to) || to == "Remediated" || to == "Acknowledged" || to == "Exempted"
+		return isEscalatedState(to) || to == "Remediated" || to == "Remediating" || to == "Acknowledged" || to == "SLA Exception"
 	}
 
 	switch from {
 	case "Discovered":
-		return to == "Triaged" || to == "Assigned" || to == "Exempted"
+		return to == "Triaged" || to == "Assigned" || to == "SLA Exception"
 	case "Triaged":
-		return to == "Assigned" || to == "Exempted"
+		return to == "Assigned" || to == "SLA Exception"
 	case "Assigned":
-		return to == "Acknowledged" || to == "Exempted" || to == "Expired" ||
+		return to == "Acknowledged" || to == "Remediating" || to == "SLA Exception" || to == "Expired" ||
 			to == "Overdue" || isEscalatedState(to)
 	case "Acknowledged":
-		return to == "Remediated" || to == "Assigned" || to == "Exempted" || to == "Expired" ||
+		return to == "Remediating" || to == "Remediated" || to == "Assigned" || to == "SLA Exception" || to == "Expired" ||
+			to == "Overdue" || isEscalatedState(to)
+	case "Remediating":
+		return to == "Remediated" || to == "Assigned" || to == "SLA Exception" || to == "Expired" ||
 			to == "Overdue" || isEscalatedState(to)
 	case "Overdue":
-		return isEscalatedState(to) || to == "Remediated" || to == "Acknowledged" || to == "Exempted"
+		return isEscalatedState(to) || to == "Remediated" || to == "Remediating" || to == "Acknowledged" || to == "SLA Exception"
 	case "Remediated":
 		return to == "Verified" || to == "Reopened"
 	case "Verified":
 		return to == "Reopened"
-	case "Exempted":
-		return to == "Expired" || to == "Reopened" || to == "Assigned"
+	case "SLA Exception":
+		return to == "Expired" || to == "Reopened" || to == "Assigned" || to == "Remediating" || to == "Remediated"
 	case "Expired":
 		return to == "Reopened" || to == "Assigned"
 	case "Reopened":
-		return to == "Assigned" || to == "Triaged" || to == "Exempted"
+		return to == "Assigned" || to == "Triaged" || to == "SLA Exception"
 	default:
 		// Default fallback for any other transition (like empty/uninitialized legacy states)
 		return true
@@ -883,3 +888,109 @@ func (s *Storage) GetFindingStatusHistory(findingID int64) ([]FindingStatusHisto
 	}
 	return list, nil
 }
+
+// UpdateAssignmentStatusWithComment updates status, resolved_at timestamp, and writes to history with a custom comment and changed_by fields.
+func (s *Storage) UpdateAssignmentStatusWithComment(id int64, status string, comment string, changedBy string) error {
+	normalized := normalizeCTEMState(status)
+
+	// Fetch current status and finding_id
+	var oldStatus string
+	var findingID int64
+	var querySelect string
+	if s.dbType == "postgres" {
+		querySelect = "SELECT status, finding_id FROM finding_assignments WHERE id = $1"
+	} else {
+		querySelect = "SELECT status, finding_id FROM finding_assignments WHERE id = ?"
+	}
+	err := s.db.QueryRow(querySelect, id).Scan(&oldStatus, &findingID)
+	if err != nil {
+		return err
+	}
+
+	normalizedOld := normalizeCTEMState(oldStatus)
+	if !isValidTransition(normalizedOld, normalized) {
+		return fmt.Errorf("invalid CTEM state transition from %s to %s", normalizedOld, normalized)
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	now := time.Now().UTC()
+	var queryUpdate string
+	if normalized == "Verified" {
+		if s.dbType == "postgres" {
+			queryUpdate = "UPDATE finding_assignments SET status = $1, resolved_at = $2 WHERE id = $3"
+		} else {
+			queryUpdate = "UPDATE finding_assignments SET status = ?, resolved_at = ? WHERE id = ?"
+		}
+		if _, err := tx.Exec(queryUpdate, normalized, now, id); err != nil {
+			return err
+		}
+	} else {
+		if s.dbType == "postgres" {
+			queryUpdate = "UPDATE finding_assignments SET status = $1 WHERE id = $2"
+		} else {
+			queryUpdate = "UPDATE finding_assignments SET status = ? WHERE id = ?"
+		}
+		if _, err := tx.Exec(queryUpdate, normalized, id); err != nil {
+			return err
+		}
+	}
+
+	// Insert status history record
+	historyQuery := `
+		INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	if s.dbType == "postgres" {
+		historyQuery = `
+			INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`
+	}
+	if _, err := tx.Exec(historyQuery, findingID, normalizeCTEMState(oldStatus), normalized, now, comment, changedBy); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// VerifyFindingFix transitions a finding assignment to "Verified" with a verification comment and recorder.
+func (s *Storage) VerifyFindingFix(id int64, comment string, verifiedBy string) error {
+	var oldStatus string
+	var querySelect string
+	if s.dbType == "postgres" {
+		querySelect = "SELECT status FROM finding_assignments WHERE id = $1"
+	} else {
+		querySelect = "SELECT status FROM finding_assignments WHERE id = ?"
+	}
+	err := s.db.QueryRow(querySelect, id).Scan(&oldStatus)
+	if err != nil {
+		return err
+	}
+	
+	normalizedOld := normalizeCTEMState(oldStatus)
+	if normalizedOld != "Remediated" {
+		if !isValidTransition(normalizedOld, "Remediated") {
+			// Try transitioning to Remediating first
+			if err := s.UpdateAssignmentStatusWithComment(id, "Remediating", "Auto-transitioning to Remediating prior to fix verification", verifiedBy); err != nil {
+				return fmt.Errorf("transition to Remediating failed: %w", err)
+			}
+		}
+		// Now transition to Remediated
+		if err := s.UpdateAssignmentStatusWithComment(id, "Remediated", "Marking as remediated for verification", verifiedBy); err != nil {
+			return fmt.Errorf("transition to Remediated failed: %w", err)
+		}
+	}
+
+	return s.UpdateAssignmentStatusWithComment(id, "Verified", comment, verifiedBy)
+}
+
+// ApproveRiskException transitions a finding assignment to "SLA Exception" with risk approval details.
+func (s *Storage) ApproveRiskException(id int64, comment string, approvedBy string) error {
+	return s.UpdateAssignmentStatusWithComment(id, "SLA Exception", comment, approvedBy)
+}
+
