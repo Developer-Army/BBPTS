@@ -162,3 +162,55 @@ func TestGraphPagination(t *testing.T) {
 		t.Errorf("Expected 1 edge, got %d", len(edges))
 	}
 }
+
+func TestGraphAssetChainAndRiskPropagation(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_graph_chain.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	// Link chain
+	err = s.LinkAssetChain("sub.acme.com", "billing-service", "React/Go", "team-billing@acme.com", "acme/billing", "s3-billing-bucket", "Leaked AWS Credentials", "high", "production")
+	if err != nil {
+		t.Fatalf("LinkAssetChain failed: %v", err)
+	}
+
+	// Verify all nodes are saved
+	nodes, err := s.GetAllAssetNodes(0, 0)
+	if err != nil {
+		t.Fatalf("GetAllAssetNodes failed: %v", err)
+	}
+	if len(nodes) != 7 {
+		t.Errorf("Expected 7 nodes in the chain, got %d", len(nodes))
+	}
+
+	// Verify edges
+	edges, err := s.GetAllAssetEdges(0, 0)
+	if err != nil {
+		t.Fatalf("GetAllAssetEdges failed: %v", err)
+	}
+	if len(edges) != 6 {
+		t.Errorf("Expected 6 edges in the chain, got %d", len(edges))
+	}
+
+	// Run Risk Propagation
+	scores, err := s.PropagateRisk()
+	if err != nil {
+		t.Fatalf("PropagateRisk failed: %v", err)
+	}
+
+	// Check finding node has base score (90.0)
+	findingID := GenerateNodeID("finding", "Leaked AWS Credentials", "")
+	if scores[findingID] != 90.0 {
+		t.Errorf("Expected finding node to have base score 90.0, got %f", scores[findingID])
+	}
+
+	// Check that other nodes got propagated risk scores (greater than 0)
+	subID := GenerateNodeID("subdomain", "sub.acme.com", "")
+	if scores[subID] <= 0.0 {
+		t.Errorf("Expected subdomain node to have propagated risk, got %f", scores[subID])
+	}
+}

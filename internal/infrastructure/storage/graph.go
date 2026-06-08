@@ -376,3 +376,123 @@ func (s *Storage) GetAllAssetEdges(limit, offset int) ([]AssetEdge, error) {
 	return edges, nil
 }
 
+// LinkAssetChain links subdomain -> service -> technology -> owner -> repo -> cloud asset -> finding
+func (s *Storage) LinkAssetChain(subdomain, service, technology, ownerEmail, repo, cloudAsset, findingTitle, criticality, environment string) error {
+	meta := map[string]string{
+		"criticality": criticality,
+		"environment": environment,
+	}
+
+	subdomainID, err := s.SaveNode("subdomain", subdomain, meta, "", "system", 1.0)
+	if err != nil {
+		return err
+	}
+	serviceID, err := s.SaveNode("service", service, meta, "", "system", 1.0)
+	if err != nil {
+		return err
+	}
+	techID, err := s.SaveNode("technology", technology, nil, "", "system", 1.0)
+	if err != nil {
+		return err
+	}
+	ownerID, err := s.SaveNode("owner", ownerEmail, nil, "", "system", 1.0)
+	if err != nil {
+		return err
+	}
+	repoID, err := s.SaveNode("repo", repo, nil, "", "system", 1.0)
+	if err != nil {
+		return err
+	}
+	cloudAssetID, err := s.SaveNode("cloud_asset", cloudAsset, meta, "", "system", 1.0)
+	if err != nil {
+		return err
+	}
+	findingID, err := s.SaveNode("finding", findingTitle, nil, "", "system", 1.0)
+	if err != nil {
+		return err
+	}
+
+	// Save edges representing the provenance chain
+	_ = s.SaveEdge(subdomainID, serviceID, "exposes", 1.0, "system")
+	_ = s.SaveEdge(serviceID, techID, "uses_tech", 1.0, "system")
+	_ = s.SaveEdge(serviceID, ownerID, "owned_by", 1.0, "system")
+	_ = s.SaveEdge(serviceID, repoID, "deployed_from", 1.0, "system")
+	_ = s.SaveEdge(repoID, cloudAssetID, "hosted_on", 1.0, "system")
+	_ = s.SaveEdge(cloudAssetID, findingID, "has_finding", 1.0, "system")
+
+	return nil
+}
+
+// PropagateRisk calculates threat scores for all nodes by propagating risk from findings.
+func (s *Storage) PropagateRisk() (map[string]float64, error) {
+	nodes, err := s.GetAllAssetNodes(0, 0)
+	if err != nil {
+		return nil, err
+	}
+	edges, err := s.GetAllAssetEdges(0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	scores := make(map[string]float64)
+	queue := make([]string, 0)
+
+	// Initialize finding nodes with their base threat score
+	for _, node := range nodes {
+		if node.NodeType == "finding" {
+			// Base score of 90.0 for finding risk
+			scores[node.ID] = 90.0
+			queue = append(queue, node.ID)
+		} else {
+			scores[node.ID] = 0.0
+		}
+	}
+
+	// Adjacency list representation (incoming & outgoing edges)
+	adj := make(map[string][]AssetEdge)
+	for _, edge := range edges {
+		adj[edge.SourceID] = append(adj[edge.SourceID], edge)
+		adj[edge.TargetID] = append(adj[edge.TargetID], edge)
+	}
+
+	// Propagate risk scores using BFS with a max depth/damping factor
+	visited := make(map[string]int)
+	for len(queue) > 0 {
+		currID := queue[0]
+		queue = queue[1:]
+
+		currScore := scores[currID]
+		depth := visited[currID]
+		if depth >= 5 {
+			continue
+		}
+
+		for _, edge := range adj[currID] {
+			neighborID := edge.SourceID
+			if neighborID == currID {
+				neighborID = edge.TargetID
+			}
+
+			// Time decay factor based on how long since last observed (default 30 day half-life)
+			lastSeenTime, parseErr := time.Parse(time.RFC3339, edge.LastSeen)
+			decayFactor := 1.0
+			if parseErr == nil {
+				daysOld := time.Since(lastSeenTime).Hours() / 24.0
+				if daysOld > 0 {
+					decayFactor = 1.0 / (1.0 + daysOld/30.0)
+				}
+			}
+
+			// Damping factor decreases threat score over path length
+			propagated := currScore * edge.Confidence * decayFactor * 0.8
+			if propagated > scores[neighborID] {
+				scores[neighborID] = propagated
+				visited[neighborID] = depth + 1
+				queue = append(queue, neighborID)
+			}
+		}
+	}
+
+	return scores, nil
+}
+
