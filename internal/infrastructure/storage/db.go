@@ -168,6 +168,17 @@ func (db *Storage) migrate(ctx context.Context) error {
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`,
+		`
+	CREATE TABLE IF NOT EXISTS evidence (
+		id TEXT PRIMARY KEY,
+		asset_id TEXT NOT NULL,
+		source TEXT NOT NULL,
+		confidence REAL DEFAULT 1.0,
+		collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		raw_data BLOB,
+		hash TEXT NOT NULL
+	);
+	`,
 	}
 	for version, migration := range migrations {
 		if _, err := db.db.ExecContext(ctx, migration); err != nil {

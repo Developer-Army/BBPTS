@@ -614,3 +614,47 @@ func TestPagination(t *testing.T) {
 		t.Errorf("Unexpected events page contents: %v", events)
 	}
 }
+
+func TestSaveAndGetEvidence(t *testing.T) {
+	dir := t.TempDir()
+	db := mustOpen(t, dir)
+	defer db.Close()
+
+	id := "evidence-001"
+	assetID := "asset-sub.acme-corp.io"
+	source := "nuclei"
+	confidence := 0.95
+	rawData := []byte(`{"vulnerability": "SQL Injection"}`)
+	hash := "a1b2c3d4e5f6"
+
+	err := db.SaveEvidence(id, assetID, source, confidence, rawData, hash)
+	if err != nil {
+		t.Fatalf("Failed to save evidence: %v", err)
+	}
+
+	evList, err := db.GetEvidenceByAssetID(assetID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve evidence: %v", err)
+	}
+
+	if len(evList) != 1 {
+		t.Fatalf("Expected 1 evidence item, got %d", len(evList))
+	}
+
+	retrieved := evList[0]
+	if retrieved["id"] != id {
+		t.Errorf("Expected id '%s', got '%v'", id, retrieved["id"])
+	}
+	if retrieved["source"] != source {
+		t.Errorf("Expected source '%s', got '%v'", source, retrieved["source"])
+	}
+	if retrieved["confidence"] != confidence {
+		t.Errorf("Expected confidence '%f', got '%v'", confidence, retrieved["confidence"])
+	}
+	if string(retrieved["raw_data"].([]byte)) != string(rawData) {
+		t.Errorf("Expected raw data '%s', got '%s'", string(rawData), string(retrieved["raw_data"].([]byte)))
+	}
+	if retrieved["hash"] != hash {
+		t.Errorf("Expected hash '%s', got '%v'", hash, retrieved["hash"])
+	}
+}

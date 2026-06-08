@@ -219,6 +219,16 @@ func (s *Storage) initSchema() error {
 		token TEXT PRIMARY KEY,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE TABLE IF NOT EXISTS evidence (
+		id TEXT PRIMARY KEY,
+		asset_id TEXT NOT NULL,
+		source TEXT NOT NULL,
+		confidence REAL DEFAULT 1.0,
+		collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		raw_data BLOB,
+		hash TEXT NOT NULL
+	);
 	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
 
 	if s.dbType == "postgres" {
@@ -249,6 +259,62 @@ func (s *Storage) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN evidence_id TEXT DEFAULT ''")
 
 	return nil
+}
+
+// SaveEvidence stores findings evidence.
+func (s *Storage) SaveEvidence(id, assetID, source string, confidence float64, rawData []byte, hash string) error {
+	query := `
+		INSERT INTO evidence (id, asset_id, source, confidence, collected_at, raw_data, hash)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			confidence = excluded.confidence,
+			raw_data = excluded.raw_data
+	`
+	if s.dbType == "postgres" {
+		query = `
+			INSERT INTO evidence (id, asset_id, source, confidence, collected_at, raw_data, hash)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			ON CONFLICT(id) DO UPDATE SET
+				confidence = EXCLUDED.confidence,
+				raw_data = EXCLUDED.raw_data
+		`
+	}
+	_, err := s.db.Exec(query, id, assetID, source, confidence, time.Now().UTC(), rawData, hash)
+	return err
+}
+
+// GetEvidenceByAssetID retrieves evidence for an asset.
+func (s *Storage) GetEvidenceByAssetID(assetID string) ([]map[string]interface{}, error) {
+	query := "SELECT id, asset_id, source, confidence, collected_at, raw_data, hash FROM evidence WHERE asset_id = ?"
+	if s.dbType == "postgres" {
+		query = "SELECT id, asset_id, source, confidence, collected_at, raw_data, hash FROM evidence WHERE asset_id = $1"
+	}
+	rows, err := s.db.Query(query, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []map[string]interface{}
+	for rows.Next() {
+		var id, assID, source, hash string
+		var confidence float64
+		var collectedAt time.Time
+		var rawData []byte
+		if err := rows.Scan(&id, &assID, &source, &confidence, &collectedAt, &rawData, &hash); err != nil {
+			return nil, err
+		}
+		result = append(result, map[string]interface{}{
+			"id":           id,
+			"asset_id":     assID,
+			"source":       source,
+			"confidence":   confidence,
+			"collected_at": collectedAt,
+			"raw_data":     rawData,
+			"hash":         hash,
+		})
+	}
+	return result, nil
 }
 
 // SaveEvent stores a recon event in the database.
