@@ -382,6 +382,25 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		// Publish events to the internal bus for any reactive subscribers
 		for _, ev := range events {
 			o.bus.Publish(queue.Event{Target: ev.Target, Source: ev.Source, Type: ev.Type, Properties: ev.Properties})
+
+			// Map and publish core events for Phase 1.2 Event-Driven core
+			var coreType string
+			switch ev.Type {
+			case "discovery", "subdomain", "domain-info", "vhost", "spa_route", "link", "js_file", "api_endpoint", "websocket_endpoint", "external_js":
+				coreType = queue.EventAssetDiscovered
+			case "service", "port_open", "graphql_endpoint", "oob_session":
+				coreType = queue.EventHostAlive
+			case "vulnerability", "secret_exposed":
+				coreType = queue.EventFindingCreated
+			}
+			if coreType != "" {
+				o.bus.Publish(queue.Event{
+					Target:     ev.Target,
+					Source:     ev.Source,
+					Type:       coreType,
+					Properties: ev.Properties,
+				})
+			}
 		}
 
 		// If proxy feeder is enabled, feed the discovered web targets to the proxy
