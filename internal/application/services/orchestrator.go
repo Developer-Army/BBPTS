@@ -19,6 +19,7 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/workers"
 	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
@@ -275,6 +276,14 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	if len(o.tools) == 0 {
 		return nil, errors.New("no recon tools configured")
 	}
+
+	var spanID string
+	ctx, spanID = telemetry.DefaultTracer.StartSpan(ctx, "Orchestrator.Run", "")
+	defer func() {
+		telemetry.DefaultTracer.EndSpan(spanID, map[string]interface{}{
+			"targets_count": len(initialTargets),
+		})
+	}()
 
 	ctx = WithAPIKeys(ctx, o.config.APIKeys)
 	ctx = WithWordlistsDir(ctx, o.config.WordlistsDir)
@@ -637,6 +646,16 @@ func (o *Orchestrator) ensureTmpResultsDir() error {
 }
 
 func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []string, threads int) ([]Event, []error) {
+	parentID := telemetry.GetSpanID(ctx)
+	var spanID string
+	ctx, spanID = telemetry.DefaultTracer.StartSpan(ctx, "runStage", parentID)
+	defer func() {
+		telemetry.DefaultTracer.EndSpan(spanID, map[string]interface{}{
+			"tools_count": len(tools),
+			"targets_count": len(targets),
+		})
+	}()
+
 	type toolResult struct {
 		tool   string
 		events []Event
@@ -703,18 +722,28 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 			var err error
 			toolTargets := prepareTargetsForTool(tool.Name(), targets)
 
+			toolSpanName := fmt.Sprintf("Tool.%s", tool.Name())
+			toolCtx, toolSpanID := telemetry.DefaultTracer.StartSpan(ctx, toolSpanName, spanID)
+			defer func() {
+				telemetry.DefaultTracer.EndSpan(toolSpanID, map[string]interface{}{
+					"targets_count": len(toolTargets),
+					"events_count":  len(events),
+					"error":         fmt.Sprintf("%v", err),
+				})
+			}()
+
 			if o.config.Fleet.WorkerMesh && o.bus != nil {
 				capability := stageCapability(GetToolStage(tool.Name()))
 				if capability != "" {
 					slog.Debug("dispatching stage task via NATS worker mesh", "stage", GetToolStage(tool.Name()), "capability", capability, "targets", len(toolTargets))
-					events, err = o.dispatchStageTaskToWorkerMesh(ctx, GetToolStage(tool.Name()), capability, toolTargets)
+					events, err = o.dispatchStageTaskToWorkerMesh(toolCtx, GetToolStage(tool.Name()), capability, toolTargets)
 				} else {
 					slog.Debug("executing tool via NATS worker mesh", "tool", tool.Name(), "targets", len(toolTargets))
-					events, err = o.dispatchToWorkerMesh(ctx, tool.Name(), toolTargets, toolThreads)
+					events, err = o.dispatchToWorkerMesh(toolCtx, tool.Name(), toolTargets, toolThreads)
 				}
 			} else if o.fleetRunner != nil {
 				slog.Debug("executing tool via axiom fleet", "tool", tool.Name(), "targets", len(toolTargets))
-				lines, runErr := o.fleetRunner.RunTool(ctx, tool.Name(), toolTargets, nil)
+				lines, runErr := o.fleetRunner.RunTool(toolCtx, tool.Name(), toolTargets, nil)
 				if runErr != nil {
 					err = runErr
 				} else {
@@ -737,7 +766,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 				cb := o.circuitBreakers.Get(tool.Name())
 				cbErr := network.Execute(cb, func() error {
 					var e error
-					events, e = RunToolWithRetry(ctx, tool, toolTargets, toolThreads, ToolRetryConfig())
+					events, e = RunToolWithRetry(toolCtx, tool, toolTargets, toolThreads, ToolRetryConfig())
 					return e
 				})
 
@@ -1222,10 +1251,16 @@ func (o *Orchestrator) dispatchStageTaskToWorkerMesh(ctx context.Context, stage 
 
 	for _, target := range targets {
 		taskID := fmt.Sprintf("stage-%d-%d", stage, time.Now().UnixNano())
+		spanID := telemetry.GetSpanID(ctx)
+		payload := map[string]interface{}{}
+		if spanID != "" {
+			payload["_trace_parent_id"] = spanID
+		}
 		taskPayload, err := json.Marshal(workers.Task{
 			ID:        taskID,
 			Type:      capability,
 			Target:    target,
+			Payload:   payload,
 			SessionID: taskSession,
 		})
 		if err != nil {

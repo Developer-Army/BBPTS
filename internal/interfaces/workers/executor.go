@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
 // Task represents a generic executable job pulled from the durable stream.
@@ -111,8 +112,23 @@ func (e *Executor) Run(ctx context.Context) error {
 				}
 			}()
 
-			slog.Info("Worker executing task", "taskID", t.ID, "type", t.Type, "target", t.Target)
-			return handler(ctx, t)
+			parentID := ""
+			if t.Payload != nil {
+				if pid, ok := t.Payload["_trace_parent_id"].(string); ok {
+					parentID = pid
+				}
+			}
+			workerSpanName := fmt.Sprintf("Worker.%s", t.Type)
+			workerCtx, workerSpanID := telemetry.DefaultTracer.StartSpan(ctx, workerSpanName, parentID)
+			defer func() {
+				telemetry.DefaultTracer.EndSpan(workerSpanID, map[string]interface{}{
+					"task_id": t.ID,
+					"target":  t.Target,
+				})
+			}()
+
+			slog.Info("Worker executing task", "taskID", t.ID, "type", t.Type, "target", t.Target, "span_id", workerSpanID)
+			return handler(workerCtx, t)
 		})
 
 		if err != nil {

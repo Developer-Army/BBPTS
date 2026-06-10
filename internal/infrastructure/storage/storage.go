@@ -14,6 +14,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/assets"
 	"github.com/Developer-Army/BBPTS/internal/domain/findings"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	_ "modernc.org/sqlite" // Import Go-native SQLite driver
 )
 
@@ -21,6 +22,11 @@ import (
 type Storage struct {
 	db     *sql.DB
 	dbType string
+}
+
+func (s *Storage) trackQuery(operation, table string, start time.Time) {
+	duration := time.Since(start).Seconds()
+	telemetry.DBQueryDuration.WithLabelValues(operation, table).Observe(duration)
 }
 
 // DB is an alias of Storage to unify database classes.
@@ -536,6 +542,7 @@ func (s *Storage) GetEvidenceModel(id string) (*findings.Evidence, error) {
 
 // SaveAsset inserts or updates an asset in the database.
 func (s *Storage) SaveAsset(a assets.Asset) error {
+	defer s.trackQuery("save", "assets", time.Now())
 	query := `
 		INSERT INTO assets (id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -570,6 +577,7 @@ func (s *Storage) SaveAsset(a assets.Asset) error {
 
 // GetAsset retrieves an asset by its ID.
 func (s *Storage) GetAsset(id string) (*assets.Asset, error) {
+	defer s.trackQuery("get", "assets", time.Now())
 	query := `
 		SELECT id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status
 		FROM assets
@@ -595,6 +603,7 @@ func (s *Storage) GetAsset(id string) (*assets.Asset, error) {
 
 // GetAllAssets retrieves all assets.
 func (s *Storage) GetAllAssets() ([]assets.Asset, error) {
+	defer s.trackQuery("list", "assets", time.Now())
 	query := `
 		SELECT id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status
 		FROM assets

@@ -37,6 +37,19 @@ func NewTracer() *Tracer {
 	}
 }
 
+// DefaultTracer is a global tracer instance.
+var DefaultTracer = NewTracer()
+
+// GetSpanID retrieves the current span ID from context.
+func GetSpanID(ctx context.Context) string {
+	if val := ctx.Value(spanIDKey); val != nil {
+		if id, ok := val.(string); ok {
+			return id
+		}
+	}
+	return ""
+}
+
 // StartSpan begins a new trace span.
 func (t *Tracer) StartSpan(ctx context.Context, name string, parentID string) (context.Context, string) {
 	t.mu.Lock()

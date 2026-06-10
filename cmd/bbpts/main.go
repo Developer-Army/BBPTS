@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
@@ -172,6 +173,8 @@ func main() {
 			port = fmt.Sprintf(":%d", opts.MetricsPort+1)
 		}
 		telemetry.StartMetricsServer(port)
+		emc := telemetry.NewEnhancedMetricsCollector(15 * time.Second)
+		emc.Start()
 		slog.Info("Prometheus metrics enabled", "addr", port)
 	}
 
