@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/findings"
 )
 
 func TestCTEMBasic(t *testing.T) {
@@ -351,4 +353,80 @@ func TestVerifyFindingFixAndApproveRiskException(t *testing.T) {
 		t.Errorf("Expected status to be SLA Exception, got %s", foundStatus)
 	}
 }
+
+func TestFindingAndEvidenceModelPersistence(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_model_persistence.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	// 1. Save evidence
+	evID := "ev-123"
+	assetID := "asset-xyz"
+	err = s.SaveEvidence(evID, assetID, "nuclei", 0.95, []byte(`{"vuln":"xss"}`), "hash123")
+	if err != nil {
+		t.Fatalf("Failed to save evidence: %v", err)
+	}
+
+	// 2. Retrieve and verify evidence model
+	ev, err := s.GetEvidenceModel(evID)
+	if err != nil {
+		t.Fatalf("Failed to get evidence model: %v", err)
+	}
+	if ev == nil {
+		t.Fatal("Expected evidence model to be found, got nil")
+	}
+	if ev.AssetID != assetID || ev.Source != "nuclei" || ev.Confidence != 0.95 || string(ev.RawData) != `{"vuln":"xss"}` || ev.Hash != "hash123" {
+		t.Errorf("Unexpected evidence values: %+v", ev)
+	}
+
+	// 3. Save finding model
+	finding := findings.Finding{
+		AssetID:       assetID,
+		RiskScore:     88,
+		Confidence:    90,
+		EvidenceIDs:   []string{evID},
+		WorkflowState: "Discovered",
+	}
+	fid, err := s.SaveFindingModel(finding)
+	if err != nil {
+		t.Fatalf("Failed to save finding model: %v", err)
+	}
+	if fid <= 0 {
+		t.Errorf("Expected positive finding ID, got %d", fid)
+	}
+
+	// 4. Retrieve and verify finding model
+	retrieved, err := s.GetFindingModel(fid)
+	if err != nil {
+		t.Fatalf("Failed to get finding model: %v", err)
+	}
+	if retrieved == nil {
+		t.Fatal("Expected finding model to be found, got nil")
+	}
+	if retrieved.AssetID != assetID || retrieved.RiskScore != 88 || retrieved.Confidence != 90 || len(retrieved.EvidenceIDs) != 1 || retrieved.EvidenceIDs[0] != evID || retrieved.WorkflowState != "Discovered" {
+		t.Errorf("Unexpected finding values: %+v", retrieved)
+	}
+
+	// 5. Update finding model
+	retrieved.RiskScore = 95
+	retrieved.WorkflowState = "Triaged"
+	_, err = s.SaveFindingModel(*retrieved)
+	if err != nil {
+		t.Fatalf("Failed to update finding model: %v", err)
+	}
+
+	// 6. Verify update
+	updated, err := s.GetFindingModel(fid)
+	if err != nil {
+		t.Fatalf("Failed to get finding model after update: %v", err)
+	}
+	if updated.RiskScore != 95 || updated.WorkflowState != "Triaged" {
+		t.Errorf("Unexpected updated finding values: %+v", updated)
+	}
+}
+
 

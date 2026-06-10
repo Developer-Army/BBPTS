@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/findings"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	_ "modernc.org/sqlite" // Import Go-native SQLite driver
 )
@@ -91,6 +92,11 @@ func (s *Storage) initSchema() error {
 		severity TEXT,
 		target TEXT NOT NULL,
 		metadata TEXT,
+		asset_id TEXT DEFAULT '',
+		risk_score INTEGER DEFAULT 0,
+		confidence INTEGER DEFAULT 0,
+		evidence_ids TEXT DEFAULT '[]',
+		workflow_state TEXT DEFAULT 'Discovered',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -258,6 +264,13 @@ func (s *Storage) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN observed_at DATETIME DEFAULT CURRENT_TIMESTAMP")
 	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN evidence_id TEXT DEFAULT ''")
 
+	// Dynamic migrations for findings domain mapping
+	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN asset_id TEXT DEFAULT ''")
+	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN risk_score INTEGER DEFAULT 0")
+	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN confidence INTEGER DEFAULT 0")
+	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN evidence_ids TEXT DEFAULT '[]'")
+	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN workflow_state TEXT DEFAULT 'Discovered'")
+
 	return nil
 }
 
@@ -392,3 +405,110 @@ func (s *Storage) Close() error {
 func (s *Storage) GetDB() *sql.DB {
 	return s.db
 }
+
+// SaveFindingModel stores or updates the domain Finding model.
+func (s *Storage) SaveFindingModel(f findings.Finding) (int64, error) {
+	evidenceJSON, err := json.Marshal(f.EvidenceIDs)
+	if err != nil {
+		return 0, err
+	}
+	if f.ID > 0 {
+		query := `
+			UPDATE findings SET
+				asset_id = ?,
+				risk_score = ?,
+				confidence = ?,
+				evidence_ids = ?,
+				workflow_state = ?
+			WHERE id = ?
+		`
+		if s.dbType == "postgres" {
+			query = `
+				UPDATE findings SET
+					asset_id = $1,
+					risk_score = $2,
+					confidence = $3,
+					evidence_ids = $4,
+					workflow_state = $5
+				WHERE id = $6
+			`
+		}
+		_, err = s.db.Exec(query, f.AssetID, f.RiskScore, f.Confidence, string(evidenceJSON), f.WorkflowState, f.ID)
+		return f.ID, err
+	}
+
+	query := `
+		INSERT INTO findings (title, description, severity, target, metadata, asset_id, risk_score, confidence, evidence_ids, workflow_state)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	if s.dbType == "postgres" {
+		query = `
+			INSERT INTO findings (title, description, severity, target, metadata, asset_id, risk_score, confidence, evidence_ids, workflow_state)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+		`
+		var id int64
+		err = s.db.QueryRow(query, "", "", "", "", "", f.AssetID, f.RiskScore, f.Confidence, string(evidenceJSON), f.WorkflowState).Scan(&id)
+		return id, err
+	}
+
+	res, err := s.db.Exec(query, "", "", "", "", "", f.AssetID, f.RiskScore, f.Confidence, string(evidenceJSON), f.WorkflowState)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+// GetFindingModel retrieves the domain Finding model by ID.
+func (s *Storage) GetFindingModel(id int64) (*findings.Finding, error) {
+	query := `
+		SELECT id, asset_id, risk_score, confidence, evidence_ids, workflow_state
+		FROM findings
+		WHERE id = ?
+	`
+	if s.dbType == "postgres" {
+		query = `
+			SELECT id, asset_id, risk_score, confidence, evidence_ids, workflow_state
+			FROM findings
+			WHERE id = $1
+		`
+	}
+	var f findings.Finding
+	var evidenceJSON string
+	err := s.db.QueryRow(query, id).Scan(&f.ID, &f.AssetID, &f.RiskScore, &f.Confidence, &evidenceJSON, &f.WorkflowState)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if evidenceJSON != "" {
+		_ = json.Unmarshal([]byte(evidenceJSON), &f.EvidenceIDs)
+	}
+	return &f, nil
+}
+
+// GetEvidenceModel retrieves the domain Evidence model by ID.
+func (s *Storage) GetEvidenceModel(id string) (*findings.Evidence, error) {
+	query := `
+		SELECT id, asset_id, source, confidence, collected_at, raw_data, hash
+		FROM evidence
+		WHERE id = ?
+	`
+	if s.dbType == "postgres" {
+		query = `
+			SELECT id, asset_id, source, confidence, collected_at, raw_data, hash
+			FROM evidence
+			WHERE id = $1
+		`
+	}
+	var ev findings.Evidence
+	err := s.db.QueryRow(query, id).Scan(&ev.ID, &ev.AssetID, &ev.Source, &ev.Confidence, &ev.CollectedAt, &ev.RawData, &ev.Hash)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ev, nil
+}
+
