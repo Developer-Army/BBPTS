@@ -85,3 +85,6 @@ bbpts.log
 audit.log
 admin_bootstrap.txt
 
+# Dev-only implementation plan
+docs/implementation_plan.md
+
