@@ -140,12 +140,16 @@ func isEscalatedStatus(status string) bool {
 }
 
 func (e *Escalator) dispatchEscalation(oa storage.OverdueAssignment, rule storage.EscalationRule) {
+	recipientName, recipientEmail := e.resolveEscalationRecipient(oa, rule.DelayDays)
+
 	slog.Warn("CTEM ESCALATION TRIGGERED",
 		"assignment_id", oa.AssignmentID,
 		"finding", oa.Title,
 		"target", oa.Target,
 		"delay_days", rule.DelayDays,
 		"action_type", rule.ActionType,
+		"recipient_name", recipientName,
+		"recipient_email", recipientEmail,
 	)
 
 	// Build the notification payload
@@ -154,8 +158,9 @@ func (e *Escalator) dispatchEscalation(oa storage.OverdueAssignment, rule storag
 		"*Severity:* %s\n"+
 		"*Target:* %s\n"+
 		"*Due Date:* %s\n"+
+		"*Recipient:* %s (%s)\n"+
 		"*Status:* Overdue\n",
-		rule.DelayDays, oa.Title, oa.Severity, oa.Target, oa.DueAt.Format(time.RFC3339))
+		rule.DelayDays, oa.Title, oa.Severity, oa.Target, oa.DueAt.Format(time.RFC3339), recipientName, recipientEmail)
 
 	switch rule.ActionType {
 	case "slack", "webhook":
@@ -187,12 +192,61 @@ func (e *Escalator) dispatchEscalation(oa storage.OverdueAssignment, rule storag
 		slog.Info("Escalation webhook dispatched successfully", "status_code", resp.StatusCode)
 	case "email":
 		smtpServer, _ := rule.Properties["smtp_server"].(string)
-		toEmail, _ := rule.Properties["to"].(string)
+		toEmail := recipientEmail
 		slog.Info("Dispatched SLA breach escalation email", "to", toEmail, "smtp_server", smtpServer, "message", message)
 	case "ticket":
 		integration, _ := rule.Properties["integration"].(string)
-		slog.Info("Created escalation ticket in system", "system", integration, "target", oa.Target, "severity", oa.Severity)
+		slog.Info("Created escalation ticket in system", "system", integration, "target", oa.Target, "severity", oa.Severity, "assignee", recipientEmail)
 	default:
 		slog.Warn("Unsupported escalation action type", "type", rule.ActionType)
 	}
+}
+
+func (e *Escalator) resolveEscalationRecipient(oa storage.OverdueAssignment, delayDays int) (name, email string) {
+	var currentOwner *storage.Owner
+	var err error
+
+	if oa.OwnerID != nil {
+		currentOwner, err = e.store.GetOwner(*oa.OwnerID)
+		if err != nil {
+			slog.Error("Failed to fetch owner for escalation resolution", "owner_id", *oa.OwnerID, "error", err)
+		}
+	}
+
+	if currentOwner == nil && oa.TeamID != nil {
+		team, err := e.store.GetTeam(*oa.TeamID)
+		if err == nil && team != nil && team.ManagerID != nil {
+			currentOwner, err = e.store.GetOwner(*team.ManagerID)
+			if err != nil {
+				slog.Error("Failed to fetch team manager for escalation resolution", "manager_id", *team.ManagerID, "error", err)
+			}
+		}
+	}
+
+	if currentOwner == nil {
+		return "Security Operations", "secops@company.local"
+	}
+
+	steps := 0
+	if delayDays >= 10 {
+		steps = 3 // Executive
+	} else if delayDays >= 5 {
+		steps = 2 // Director
+	} else if delayDays > 0 {
+		steps = 1 // Manager
+	}
+
+	recipient := currentOwner
+	for i := 0; i < steps; i++ {
+		if recipient.ManagerID == nil {
+			break
+		}
+		mgr, err := e.store.GetOwner(*recipient.ManagerID)
+		if err != nil || mgr == nil {
+			break
+		}
+		recipient = mgr
+	}
+
+	return recipient.Name, recipient.Email
 }

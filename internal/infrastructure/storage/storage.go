@@ -131,14 +131,18 @@ func (s *Storage) initSchema() error {
 	CREATE TABLE IF NOT EXISTS teams (
 		id INTEGER PRIMARY KEY %s,
 		name TEXT NOT NULL UNIQUE,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		manager_id INTEGER,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(manager_id) REFERENCES owners(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS owners (
 		id INTEGER PRIMARY KEY %s,
 		name TEXT NOT NULL,
 		email TEXT NOT NULL UNIQUE,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		manager_id INTEGER,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY(manager_id) REFERENCES owners(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS asset_ownership (
@@ -284,6 +288,10 @@ func (s *Storage) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN confidence INTEGER DEFAULT 0")
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN evidence_ids TEXT DEFAULT '[]'")
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN workflow_state TEXT DEFAULT 'Discovered'")
+
+	// Add manager_id columns to owners and teams
+	_, _ = s.db.Exec("ALTER TABLE owners ADD COLUMN manager_id INTEGER")
+	_, _ = s.db.Exec("ALTER TABLE teams ADD COLUMN manager_id INTEGER")
 
 	return nil
 }

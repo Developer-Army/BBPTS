@@ -102,3 +102,52 @@ func TestEscalatorBreach(t *testing.T) {
 		t.Errorf("Expected assignment status to be 'escalated_lvl_0', got '%s'", status)
 	}
 }
+
+func TestEscalatorHierarchicalRouting(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_routing.db")
+	store, err := storage.NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to initialize storage: %v", err)
+	}
+	defer store.Close()
+
+	// 1. Setup reporting chain: Bob -> Alice -> Charlie -> David
+	davidID, _ := store.AddOwner("David (Exec)", "david@corp.com")
+	charlieID, _ := store.AddOwner("Charlie (Director)", "charlie@corp.com")
+	aliceID, _ := store.AddOwner("Alice (Manager)", "alice@corp.com")
+	bobID, _ := store.AddOwner("Bob (Owner)", "bob@corp.com")
+
+	_ = store.SetOwnerManager(bobID, aliceID)
+	_ = store.SetOwnerManager(aliceID, charlieID)
+	_ = store.SetOwnerManager(charlieID, davidID)
+
+	_, _ = store.AddSLAPolicy("Critical Policy", "critical", 2)
+	teamID, _ := store.AddTeam("Security")
+
+	// Create escalator instance
+	escalator := NewEscalator(store, 10*time.Millisecond)
+
+	// Test resolution at level 1 (delay 1 day -> Manager: Alice)
+	oa := storage.OverdueAssignment{
+		OwnerID:  &bobID,
+		TeamID:   &teamID,
+		Severity: "critical",
+	}
+	name, email := escalator.resolveEscalationRecipient(oa, 1)
+	if name != "Alice (Manager)" || email != "alice@corp.com" {
+		t.Errorf("Expected Level 1 to route to Alice, got %s (%s)", name, email)
+	}
+
+	// Test resolution at level 2 (delay 5 days -> Director: Charlie)
+	name, email = escalator.resolveEscalationRecipient(oa, 5)
+	if name != "Charlie (Director)" || email != "charlie@corp.com" {
+		t.Errorf("Expected Level 2 to route to Charlie, got %s (%s)", name, email)
+	}
+
+	// Test resolution at level 3 (delay 10 days -> Executive: David)
+	name, email = escalator.resolveEscalationRecipient(oa, 10)
+	if name != "David (Exec)" || email != "david@corp.com" {
+		t.Errorf("Expected Level 3 to route to David, got %s (%s)", name, email)
+	}
+}

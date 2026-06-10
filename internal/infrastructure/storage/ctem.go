@@ -11,6 +11,7 @@ import (
 type Team struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
+	ManagerID *int64    `json:"manager_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -18,6 +19,7 @@ type Owner struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	ManagerID *int64    `json:"manager_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -93,12 +95,12 @@ func (s *Storage) AddTeam(name string) (int64, error) {
 
 // GetTeam retrieves a team by ID.
 func (s *Storage) GetTeam(id int64) (*Team, error) {
-	query := "SELECT id, name, created_at FROM teams WHERE id = ?"
+	query := "SELECT id, name, manager_id, created_at FROM teams WHERE id = ?"
 	if s.dbType == "postgres" {
-		query = "SELECT id, name, created_at FROM teams WHERE id = $1"
+		query = "SELECT id, name, manager_id, created_at FROM teams WHERE id = $1"
 	}
 	t := &Team{}
-	err := s.db.QueryRow(query, id).Scan(&t.ID, &t.Name, &t.CreatedAt)
+	err := s.db.QueryRow(query, id).Scan(&t.ID, &t.Name, &t.ManagerID, &t.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -123,16 +125,36 @@ func (s *Storage) AddOwner(name, email string) (int64, error) {
 
 // GetOwner retrieves an owner by ID.
 func (s *Storage) GetOwner(id int64) (*Owner, error) {
-	query := "SELECT id, name, email, created_at FROM owners WHERE id = ?"
+	query := "SELECT id, name, email, manager_id, created_at FROM owners WHERE id = ?"
 	if s.dbType == "postgres" {
-		query = "SELECT id, name, email, created_at FROM owners WHERE id = $1"
+		query = "SELECT id, name, email, manager_id, created_at FROM owners WHERE id = $1"
 	}
 	o := &Owner{}
-	err := s.db.QueryRow(query, id).Scan(&o.ID, &o.Name, &o.Email, &o.CreatedAt)
+	err := s.db.QueryRow(query, id).Scan(&o.ID, &o.Name, &o.Email, &o.ManagerID, &o.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	return o, err
+}
+
+// SetOwnerManager updates an owner's manager reporting relationship.
+func (s *Storage) SetOwnerManager(ownerID, managerID int64) error {
+	query := "UPDATE owners SET manager_id = ? WHERE id = ?"
+	if s.dbType == "postgres" {
+		query = "UPDATE owners SET manager_id = $1 WHERE id = $2"
+	}
+	_, err := s.db.Exec(query, managerID, ownerID)
+	return err
+}
+
+// SetTeamManager updates a team's manager.
+func (s *Storage) SetTeamManager(teamID, managerID int64) error {
+	query := "UPDATE teams SET manager_id = ? WHERE id = ?"
+	if s.dbType == "postgres" {
+		query = "UPDATE teams SET manager_id = $1 WHERE id = $2"
+	}
+	_, err := s.db.Exec(query, managerID, teamID)
+	return err
 }
 
 // SetAssetOwner sets the owner of an asset using SCD Type 2.
