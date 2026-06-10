@@ -144,6 +144,20 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 			slog.Warn("Failed to link target to endpoint", "error", err)
 		}
 	}
+
+	// Also support core event types directly (decoupled from tool names)
+	switch ev.Type {
+	case queue.EventHostAlive:
+		serviceID, err := s.storage.SaveNode("service", ev.Target, ev.Properties, "", ev.Source, 1.0)
+		if err == nil {
+			_ = s.storage.SaveEdge(targetID, serviceID, "exposes_service", 1.0, "")
+		}
+	case queue.EventFindingCreated:
+		vulnID, err := s.storage.SaveNode("vulnerability", ev.Type, ev.Properties, "", ev.Source, 1.0)
+		if err == nil {
+			_ = s.storage.SaveEdge(targetID, vulnID, "is_vulnerable_to", 1.0, "")
+		}
+	}
 }
 
 // Stop halts the subscriber.

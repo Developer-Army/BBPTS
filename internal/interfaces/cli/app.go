@@ -457,6 +457,13 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			sub.Start(runCtx, []string{
 				"graphql_endpoint", "cloud_bucket_open", "secret_exposed",
 				"port_open", "vulnerability", "discovery", "subdomain",
+				queue.EventAssetDiscovered,
+				queue.EventHostAlive,
+				queue.EventFindingCreated,
+				queue.EventFindingVerified,
+				queue.EventFindingClosed,
+				queue.EventRiskChanged,
+				queue.EventOwnerAssigned,
 			})
 			defer sub.Stop()
 
