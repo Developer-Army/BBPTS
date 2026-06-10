@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/risk"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
@@ -375,7 +376,13 @@ func RecommendTargets(nodes []storage.AssetNode, edges []storage.AssetEdge) []In
 			why = append(why, fmt.Sprintf("✓ High Asset Class: %.0f", business))
 		}
 
-		finalScore := (exposure * 0.20) + (attackability * 0.25) + (business * 0.25) + (confidence * 0.10) + (pathRisk * 0.20)
+		finalScore := float64(risk.CalculateRisk(risk.RiskFactors{
+			Exposure:       int(exposure),
+			Exploitability: int(attackability),
+			BusinessImpact: int(business),
+			Confidence:     int(confidence),
+			AttackPath:     int(pathRisk),
+		}))
 		if finalScore > 100 {
 			finalScore = 100
 		}

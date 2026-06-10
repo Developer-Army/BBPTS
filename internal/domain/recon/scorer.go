@@ -3,6 +3,8 @@ package recon
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/risk"
 )
 
 // RiskVector represents a multi-factor risk model.
@@ -207,9 +209,7 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 
 	// 5. Ownership Score (0-100)
 	// If owner is unknown (hasOwner = false), risk is higher
-	ownershipScore := 100
 	if hasOwner {
-		ownershipScore = 40
 		result.Justification = append(result.Justification, "Asset owner is identified (mitigates risk)")
 	} else {
 		result.Justification = append(result.Justification, "Asset owner is unknown (escalates risk)")
@@ -269,17 +269,16 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 		PathRisk:       pathScore,
 	}
 
-	// Combine components using the formula:
-	// RiskScore = (Evidence * 0.25) + (Exposure * 0.15) + (BusinessImpact * 0.20) + (Exploitability * 0.15) + (Confidence * 0.10) + (AttackPath * 0.05) + (Ownership * 0.10)
-	weightedScore := (float64(evidenceScore) * 0.25) +
-		(float64(exposure) * 0.15) +
-		(float64(classImpact) * 0.20) +
-		(float64(exploitability) * 0.15) +
-		(float64(confidence) * 0.10) +
-		(float64(attackPathScore) * 0.05) +
-		(float64(ownershipScore) * 0.10)
+	// Combine components using the V2 multi-factor risk engine:
+	weightedScore := risk.CalculateRisk(risk.RiskFactors{
+		Exposure:       exposure,
+		Exploitability: exploitability,
+		BusinessImpact: classImpact,
+		Confidence:     confidence,
+		AttackPath:     attackPathScore,
+	})
 
-	result.Score = int(weightedScore)
+	result.Score = weightedScore
 
 	if hasSensitiveParam && (strings.Contains(lowerURL, "admin") || strings.Contains(lowerURL, "config") || assetClass == "CI/CD System") {
 		result.Score = 100
@@ -335,15 +334,15 @@ func (s *Scorer) AdjustScoreWithHistory(score *IntelligenceScore, historyCount i
 
 		score.Justification = append(score.Justification, fmt.Sprintf("Confidence boosted by historical findings evidence count: %d", historyCount))
 
-		weightedScore := (float64(score.Risk.Exposure) * 0.15) +
-			(float64(score.Risk.Attackability) * 0.15) +
-			(float64(score.Risk.BusinessImpact) * 0.20) +
-			(float64(score.Risk.Confidence) * 0.10) +
-			(float64(score.Risk.Freshness) * 0.05) +
-			(float64(score.Risk.PathRisk) * 0.10) +
-			(float64(score.ConfidenceScore) * 0.25)
+		weightedScore := risk.CalculateRisk(risk.RiskFactors{
+			Exposure:       score.Risk.Exposure,
+			Exploitability: score.Risk.Attackability,
+			BusinessImpact: score.Risk.BusinessImpact,
+			Confidence:     score.ConfidenceScore,
+			AttackPath:     score.Risk.PathRisk,
+		})
 
-		score.Score = int(weightedScore)
+		score.Score = weightedScore
 		if score.Score > 100 {
 			score.Score = 100
 		}
