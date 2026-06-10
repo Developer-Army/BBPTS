@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"sync"
 
+	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/assets"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 )
@@ -71,6 +74,7 @@ func (s *EventSubscriber) consume(ctx context.Context, sub queue.Subscriber) {
 			}
 
 			s.buildGraph(reconEv)
+			s.checkAssetDrift(reconEv)
 		}
 	}
 }
@@ -165,4 +169,81 @@ func (s *EventSubscriber) Stop() {
 	s.stopOnce.Do(func() {
 		close(s.done)
 	})
+}
+
+func (s *EventSubscriber) checkAssetDrift(ev recon.Event) {
+	isAssetEvent := false
+	switch ev.Type {
+	case "subdomain", "discovery", "service", "port_open", "dns_change", "tls_change", queue.EventAssetDiscovered, queue.EventHostAlive:
+		isAssetEvent = true
+	}
+	if !isAssetEvent {
+		return
+	}
+
+	oldAsset, err := s.storage.GetAsset(ev.Target)
+	if err != nil {
+		slog.Debug("Failed to get asset for drift check", "error", err)
+		return
+	}
+
+	var oldVal assets.Asset
+	if oldAsset != nil {
+		oldVal = *oldAsset
+	}
+
+	newAsset := assets.Asset{
+		ID:          ev.Target,
+		Type:        ev.Type,
+		Name:        ev.Target,
+		Criticality: "medium",
+		Environment: "production",
+		Confidence:  1.0,
+		FirstSeen:   time.Now().UTC(),
+		LastSeen:    time.Now().UTC(),
+		Status:      "active",
+	}
+
+	if oldAsset != nil {
+		newAsset.FirstSeen = oldAsset.FirstSeen
+		newAsset.Criticality = oldAsset.Criticality
+		newAsset.Environment = oldAsset.Environment
+		newAsset.OwnerID = oldAsset.OwnerID
+		newAsset.Confidence = oldAsset.Confidence
+		newAsset.Status = oldAsset.Status
+	}
+
+	if ev.Properties != nil {
+		if status, ok := ev.Properties["status"]; ok {
+			newAsset.Status = status
+		}
+		if crit, ok := ev.Properties["criticality"]; ok {
+			newAsset.Criticality = crit
+		}
+		if env, ok := ev.Properties["environment"]; ok {
+			newAsset.Environment = env
+		}
+	}
+
+	drifts := assets.DetectDrift(oldVal, newAsset)
+	if len(drifts) > 0 {
+		for _, d := range drifts {
+			slog.Info("Drift detected!", "asset_id", d.AssetID, "change_type", d.ChangeType, "description", d.Description)
+			s.bus.Publish(queue.Event{
+				Target: ev.Target,
+				Source: "drift_detector",
+				Type:   "DriftEvent",
+				Properties: map[string]string{
+					"change_type": d.ChangeType,
+					"old_value":   d.OldValue,
+					"new_value":   d.NewValue,
+					"description": d.Description,
+				},
+			})
+		}
+	}
+
+	if err := s.storage.SaveAsset(newAsset); err != nil {
+		slog.Warn("Failed to save asset in drift detector", "asset_id", newAsset.ID, "error", err)
+	}
 }

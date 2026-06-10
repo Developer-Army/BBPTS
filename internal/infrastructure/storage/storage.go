@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/assets"
 	"github.com/Developer-Army/BBPTS/internal/domain/findings"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	_ "modernc.org/sqlite" // Import Go-native SQLite driver
@@ -234,6 +235,19 @@ func (s *Storage) initSchema() error {
 		collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		raw_data BLOB,
 		hash TEXT NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS assets (
+		id TEXT PRIMARY KEY,
+		asset_type TEXT NOT NULL,
+		name TEXT NOT NULL,
+		criticality TEXT DEFAULT 'medium',
+		environment TEXT DEFAULT 'production',
+		owner_id INTEGER,
+		confidence REAL DEFAULT 1.0,
+		first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		status TEXT DEFAULT 'active'
 	);
 	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
 
@@ -510,5 +524,88 @@ func (s *Storage) GetEvidenceModel(id string) (*findings.Evidence, error) {
 		return nil, err
 	}
 	return &ev, nil
+}
+
+// SaveAsset inserts or updates an asset in the database.
+func (s *Storage) SaveAsset(a assets.Asset) error {
+	query := `
+		INSERT INTO assets (id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			asset_type = excluded.asset_type,
+			name = excluded.name,
+			criticality = excluded.criticality,
+			environment = excluded.environment,
+			owner_id = excluded.owner_id,
+			confidence = excluded.confidence,
+			last_seen = excluded.last_seen,
+			status = excluded.status
+	`
+	if s.dbType == "postgres" {
+		query = `
+			INSERT INTO assets (id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			ON CONFLICT(id) DO UPDATE SET
+				asset_type = EXCLUDED.asset_type,
+				name = EXCLUDED.name,
+				criticality = EXCLUDED.criticality,
+				environment = EXCLUDED.environment,
+				owner_id = EXCLUDED.owner_id,
+				confidence = EXCLUDED.confidence,
+				last_seen = EXCLUDED.last_seen,
+				status = EXCLUDED.status
+		`
+	}
+	_, err := s.db.Exec(query, a.ID, a.Type, a.Name, a.Criticality, a.Environment, a.OwnerID, a.Confidence, a.FirstSeen, a.LastSeen, a.Status)
+	return err
+}
+
+// GetAsset retrieves an asset by its ID.
+func (s *Storage) GetAsset(id string) (*assets.Asset, error) {
+	query := `
+		SELECT id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status
+		FROM assets
+		WHERE id = ?
+	`
+	if s.dbType == "postgres" {
+		query = `
+			SELECT id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status
+			FROM assets
+			WHERE id = $1
+		`
+	}
+	var a assets.Asset
+	err := s.db.QueryRow(query, id).Scan(&a.ID, &a.Type, &a.Name, &a.Criticality, &a.Environment, &a.OwnerID, &a.Confidence, &a.FirstSeen, &a.LastSeen, &a.Status)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+// GetAllAssets retrieves all assets.
+func (s *Storage) GetAllAssets() ([]assets.Asset, error) {
+	query := `
+		SELECT id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status
+		FROM assets
+	`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []assets.Asset
+	for rows.Next() {
+		var a assets.Asset
+		err := rows.Scan(&a.ID, &a.Type, &a.Name, &a.Criticality, &a.Environment, &a.OwnerID, &a.Confidence, &a.FirstSeen, &a.LastSeen, &a.Status)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, a)
+	}
+	return list, nil
 }
 

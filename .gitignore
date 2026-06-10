@@ -18,6 +18,7 @@ bin/
 *.swp
 *.swo
 *~
+.git
 
 # Environment
 .env

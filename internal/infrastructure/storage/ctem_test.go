@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/assets"
 	"github.com/Developer-Army/BBPTS/internal/domain/findings"
 )
 
@@ -426,6 +427,70 @@ func TestFindingAndEvidenceModelPersistence(t *testing.T) {
 	}
 	if updated.RiskScore != 95 || updated.WorkflowState != "Triaged" {
 		t.Errorf("Unexpected updated finding values: %+v", updated)
+	}
+}
+
+func TestAssetModelPersistence(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_asset_persistence.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	asset := assets.Asset{
+		ID:          "asset-123",
+		Type:        "subdomain",
+		Name:        "test.acme.com",
+		Criticality: "high",
+		Environment: "production",
+		Confidence:  0.9,
+		FirstSeen:   now,
+		LastSeen:    now,
+		Status:      "active",
+	}
+
+	err = s.SaveAsset(asset)
+	if err != nil {
+		t.Fatalf("SaveAsset failed: %v", err)
+	}
+
+	retrieved, err := s.GetAsset("asset-123")
+	if err != nil {
+		t.Fatalf("GetAsset failed: %v", err)
+	}
+	if retrieved == nil {
+		t.Fatal("Expected retrieved asset to not be nil")
+	}
+
+	if retrieved.ID != asset.ID || retrieved.Type != asset.Type || retrieved.Name != asset.Name || retrieved.Criticality != asset.Criticality || retrieved.Environment != asset.Environment || retrieved.Confidence != asset.Confidence || retrieved.Status != asset.Status {
+		t.Errorf("Retrieved asset properties do not match: %+v", retrieved)
+	}
+
+	// Test GetAllAssets
+	all, err := s.GetAllAssets()
+	if err != nil {
+		t.Fatalf("GetAllAssets failed: %v", err)
+	}
+	if len(all) != 1 || all[0].ID != asset.ID {
+		t.Errorf("Unexpected GetAllAssets result: %+v", all)
+	}
+
+	// Update asset
+	asset.Status = "inactive"
+	err = s.SaveAsset(asset)
+	if err != nil {
+		t.Fatalf("SaveAsset update failed: %v", err)
+	}
+
+	retrieved, err = s.GetAsset("asset-123")
+	if err != nil {
+		t.Fatalf("GetAsset after update failed: %v", err)
+	}
+	if retrieved.Status != "inactive" {
+		t.Errorf("Expected status 'inactive', got '%s'", retrieved.Status)
 	}
 }
 
