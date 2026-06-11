@@ -78,3 +78,67 @@ func TestBusinessUnitJSONSerialization(t *testing.T) {
 		t.Errorf("Expected ID %d, got %d", bu.ID, unmarshaled.ID)
 	}
 }
+
+func TestAssetOwnership_FirstClass(t *testing.T) {
+	ao := AssetOwnership{
+		AssetID: "subdomain:api.acme-corp.io",
+	}
+
+	// 1. Verify unmanaged risk flag
+	if !ao.IsUnmanagedRisk() {
+		t.Error("expected initial asset to be unmanaged risk")
+	}
+
+	// 2. Assign owner
+	chain := GenerateEscalationChain("alice@acme-corp.io", "API-Team", "bob@acme-corp.io", "director@acme-corp.io")
+	err := ao.AssignAssetOwner(1, 10, 0.95, chain, "admin-1", "derived from DNS records")
+	if err != nil {
+		t.Fatalf("failed asset owner assignment: %v", err)
+	}
+
+	if ao.IsUnmanagedRisk() {
+		t.Error("expected asset to be managed after owner assignment")
+	}
+
+	if ao.Confidence != 0.95 {
+		t.Errorf("expected confidence 0.95, got %f", ao.Confidence)
+	}
+
+	if len(ao.EscalationPath) != 3 {
+		t.Errorf("expected escalation path length 3, got %d", len(ao.EscalationPath))
+	}
+
+	if len(ao.AuditTrail) != 1 {
+		t.Errorf("expected 1 audit log entry, got %d", len(ao.AuditTrail))
+	}
+
+	// 3. Test invalid confidence bounds
+	err = ao.AssignAssetOwner(1, 10, 1.5, chain, "admin-1", "invalid")
+	if err == nil {
+		t.Error("expected error for confidence > 1.0")
+	}
+}
+
+func TestFindingOwnership_FirstClass(t *testing.T) {
+	fo := FindingOwnership{
+		FindingID: 101,
+	}
+
+	if !fo.IsUnmanagedRisk() {
+		t.Error("expected initial finding to be unmanaged risk")
+	}
+
+	chain := []string{"security@acme-corp.io"}
+	err := fo.AssignFindingOwner(2, 20, 0.8, chain, "scanner", "automatic alert routing")
+	if err != nil {
+		t.Fatalf("failed finding owner assignment: %v", err)
+	}
+
+	if fo.IsUnmanagedRisk() {
+		t.Error("expected finding to be managed")
+	}
+
+	if len(fo.AuditTrail) != 1 {
+		t.Errorf("expected 1 audit log entry, got %d", len(fo.AuditTrail))
+	}
+}
