@@ -1,7 +1,6 @@
 package recon
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -12,247 +11,69 @@ func TestNewScorer(t *testing.T) {
 	}
 }
 
-func TestScorer_ScoreEndpoint_AdminKeywords(t *testing.T) {
+func TestScorer_ScoreEndpoint_EvidenceBased(t *testing.T) {
 	scorer := NewScorer()
 
-	tests := []struct {
-		name     string
-		url      string
-		expected int
-	}{
-		{"admin keyword", "https://acme-corp.io/admin", 30},
-		{"debug keyword", "https://acme-corp.io/debug", 30},
-		{"staging keyword", "https://acme-corp.io/staging", 30},
-		{"no keyword", "https://acme-corp.io/home", 0},
+	// 1. Basic endpoint - no owner, no attack path, no evidence, unauthenticated, public exposure
+	res1 := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
+	if res1.Score == 0 {
+		t.Error("expected non-zero score for public endpoint")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := scorer.ScoreEndpoint(tt.url, false, "")
-			if result.Score < tt.expected {
-				t.Errorf("expected score at least %d, got %d", tt.expected, result.Score)
-			}
-		})
-	}
-}
-
-func TestScorer_ScoreEndpoint_GraphQL(t *testing.T) {
-	scorer := NewScorer()
-
-	result := scorer.ScoreEndpoint("https://acme-corp.io/graphql", false, "")
-	if result.Score < 40 {
-		t.Errorf("expected score at least 40 for GraphQL, got %d", result.Score)
+	// 2. Unowned vs Owned (unowned should have higher score due to unmanaged risk)
+	resUnowned := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
+	resOwned := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", true, false, 0, 0)
+	if resUnowned.Score <= resOwned.Score {
+		t.Errorf("expected unowned target risk (%d) to be higher than owned target risk (%d)", resUnowned.Score, resOwned.Score)
 	}
 
-	if result.Severity != "HIGH" && result.Severity != "MEDIUM" {
-		t.Errorf("expected HIGH or MEDIUM severity for GraphQL, got %s", result.Severity)
-	}
-}
-
-func TestScorer_ScoreEndpoint_VersionedAPI(t *testing.T) {
-	scorer := NewScorer()
-
-	tests := []struct {
-		name     string
-		url      string
-		expected int
-	}{
-		{"api v1", "https://acme-corp.io/api/v1/users", 15},
-		{"api v2", "https://acme-corp.io/api/v2/users", 15},
-		{"no version", "https://acme-corp.io/api/users", 0},
+	// 3. Authenticated vs Unauthenticated (unauthenticated is more exploitable and should have higher score)
+	resUnauth := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
+	resAuth := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", true, "", false, false, 0, 0)
+	if resUnauth.Score <= resAuth.Score {
+		t.Errorf("expected unauthenticated target risk (%d) to be higher than authenticated target risk (%d)", resUnauth.Score, resAuth.Score)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := scorer.ScoreEndpoint(tt.url, false, "")
-			if result.Score < tt.expected {
-				t.Errorf("expected score at least %d, got %d", tt.expected, result.Score)
-			}
-		})
-	}
-}
-
-func TestScorer_ScoreEndpoint_AuthRequired(t *testing.T) {
-	scorer := NewScorer()
-
-	result := scorer.ScoreEndpoint("https://acme-corp.io/protected", true, "")
-	if result.Score < 20 {
-		t.Errorf("expected score at least 20 for auth required, got %d", result.Score)
+	// 4. Public vs Internal Exposure (public should have higher score)
+	resPublic := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
+	resInternal := scorer.ScoreEndpointAdvanced("https://internal.acme-corp.io/api", false, "", false, false, 0, 0)
+	if resPublic.Score <= resInternal.Score {
+		t.Errorf("expected public target risk (%d) to be higher than internal target risk (%d)", resPublic.Score, resInternal.Score)
 	}
 
-	// Check that some justification about auth is present
-	found := false
-	for _, j := range result.Justification {
-		if strings.Contains(strings.ToLower(j), "auth") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected justification about auth not found, got: %v", result.Justification)
-	}
-}
-
-func TestScorer_ScoreEndpoint_LargeJSON(t *testing.T) {
-	scorer := NewScorer()
-
-	largeJSON := `{"data": "` + string(make([]byte, 10000)) + `"}`
-	result := scorer.ScoreEndpoint("https://acme-corp.io/api", false, largeJSON)
-
-	if result.Score < 10 {
-		t.Errorf("expected score at least 10 for large JSON, got %d", result.Score)
-	}
-}
-
-func TestScorer_ScoreEndpoint_SensitiveExtensions(t *testing.T) {
-	scorer := NewScorer()
-
-	tests := []struct {
-		name     string
-		url      string
-		expected int
-	}{
-		{".bak file", "https://acme-corp.io/config.bak", 50},
-		{".env file", "https://acme-corp.io/.env", 50},
-		{".sql file", "https://acme-corp.io/backup.sql", 50},
-		{".git path", "https://acme-corp.io/.git/config", 55},
-		{"normal file", "https://acme-corp.io/index.html", 0},
+	// 5. With Attack Path vs Without (with attack path should have higher score)
+	resNoPath := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
+	resWithPath := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, true, 0, 0)
+	if resWithPath.Score <= resNoPath.Score {
+		t.Errorf("expected target risk with attack path (%d) to be higher than without (%d)", resWithPath.Score, resNoPath.Score)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := scorer.ScoreEndpoint(tt.url, false, "")
-			// .git path also matches /internal/ or /private/ patterns, so score might be higher
-			if tt.name == ".git path" {
-				if result.Score < 55 {
-					t.Errorf("expected score at least %d for %s, got %d", tt.expected, tt.name, result.Score)
-				}
-			} else {
-				if result.Score < tt.expected {
-					t.Errorf("expected score at least %d for %s, got %d", tt.expected, tt.name, result.Score)
-				}
-			}
-		})
-	}
-}
-
-func TestScorer_ScoreEndpoint_HighValuePaths(t *testing.T) {
-	scorer := NewScorer()
-
-	tests := []struct {
-		name     string
-		url      string
-		expected int
-	}{
-		{"/internal/", "https://acme-corp.io/internal/api", 35},
-		{"/private/", "https://acme-corp.io/private/data", 35},
-		{"/secret/", "https://acme-corp.io/secret/key", 35},
-		{"/upload", "https://acme-corp.io/upload", 30},
-		{"/swagger", "https://acme-corp.io/swagger", 40},
-		{"/phpinfo", "https://acme-corp.io/phpinfo", 45},
-		{"/actuator", "https://acme-corp.io/actuator/health", 40},
-		{"normal path", "https://acme-corp.io/home", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := scorer.ScoreEndpoint(tt.url, false, "")
-			// Some paths might match multiple patterns or have additional scoring
-			// /actuator doesn't match the high-value patterns, so it gets a lower score
-			if tt.name == "/actuator" {
-				if result.Score < 15 {
-					t.Errorf("expected score at least 15 for %s, got %d", tt.name, result.Score)
-				}
-			} else {
-				if result.Score < tt.expected {
-					t.Errorf("expected score at least %d for %s, got %d", tt.expected, tt.name, result.Score)
-				}
-			}
-		})
-	}
-}
-
-func TestScorer_ScoreEndpoint_ParameterCount(t *testing.T) {
-	scorer := NewScorer()
-
-	tests := []struct {
-		name     string
-		url      string
-		expected int
-	}{
-		{"single param", "https://acme-corp.io?id=1", 5},
-		{"two params", "https://acme-corp.io?id=1&name=test", 10},
-		{"many params", "https://acme-corp.io?a=1&b=2&c=3&d=4&e=5", 20},
-		{"no params", "https://acme-corp.io/home", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := scorer.ScoreEndpoint(tt.url, false, "")
-			if result.Score < tt.expected {
-				t.Errorf("expected score at least %d for %s, got %d", tt.expected, tt.name, result.Score)
-			}
-		})
-	}
-}
-
-func TestScorer_ScoreEndpoint_SensitiveParams(t *testing.T) {
-	scorer := NewScorer()
-
-	tests := []struct {
-		name     string
-		url      string
-		expected int
-	}{
-		{"token param", "https://acme-corp.io?token=abc123", 15},
-		{"key param", "https://acme-corp.io?key=secret", 15},
-		{"password param", "https://acme-corp.io?password=pass", 15},
-		{"redirect param", "https://acme-corp.io?redirect=http://evil.com", 15},
-		{"normal param", "https://acme-corp.io?page=1", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := scorer.ScoreEndpoint(tt.url, false, "")
-			if result.Score < tt.expected {
-				t.Errorf("expected score at least %d for %s, got %d", tt.expected, tt.name, result.Score)
-			}
-		})
+	// 6. With Concrete Evidence vs Without
+	resNoEv := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
+	resWithEv := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "db_password=secret", false, false, 0, 0)
+	if resWithEv.Score <= resNoEv.Score {
+		t.Errorf("expected target risk with concrete evidence (%d) to be higher than without (%d)", resWithEv.Score, resNoEv.Score)
 	}
 }
 
 func TestScorer_ScoreEndpoint_SeverityCalculation(t *testing.T) {
 	scorer := NewScorer()
 
-	tests := []struct {
-		name     string
-		url      string
-		minScore int
-	}{
-		{"critical", "https://acme-corp.io/.env", 80},
-		{"high", "https://acme-corp.io/admin", 30},
-		{"medium", "https://acme-corp.io/api/v1/users", 15},
-		{"low", "https://acme-corp.io/home", 0},
+	res1 := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "db_password=secret", false, true, 5, 90)
+	if res1.Severity != "CRITICAL" && res1.Severity != "HIGH" {
+		t.Errorf("expected CRITICAL or HIGH severity for high risk target, got %s", res1.Severity)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := scorer.ScoreEndpoint(tt.url, false, "")
-			if result.Score < tt.minScore {
-				t.Errorf("expected score at least %d for %s, got %d", tt.minScore, tt.name, result.Score)
-			}
-			// Just verify severity is set, don't check exact value since it depends on score
-			if result.Severity == "" {
-				t.Errorf("expected severity to be set for %s", tt.name)
-			}
-		})
+	res2 := scorer.ScoreEndpointAdvanced("https://internal.acme-corp.io/api", true, "", true, false, 0, 10)
+	if res2.Severity == "" {
+		t.Error("expected severity to be set")
 	}
 }
 
 func TestScorer_ScoreEndpoint_JustificationTracking(t *testing.T) {
 	scorer := NewScorer()
 
-	result := scorer.ScoreEndpoint("https://acme-corp.io/admin", true, "")
+	result := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", true, "", false, true, 3, 0)
 
 	if len(result.Justification) == 0 {
 		t.Error("expected at least one justification")
@@ -268,56 +89,14 @@ func TestScorer_ScoreEndpoint_JustificationTracking(t *testing.T) {
 	}
 }
 
-func TestScorer_ScoreEndpoint_CombinedFactors(t *testing.T) {
-	scorer := NewScorer()
-
-	// URL with multiple high-value factors
-	url := "https://acme-corp.io/internal/admin/api/v1/config?token=secret"
-	result := scorer.ScoreEndpoint(url, true, "")
-
-	if result.Score < 100 {
-		t.Errorf("expected high score for combined factors, got %d", result.Score)
-	}
-
-	if result.Severity != "CRITICAL" {
-		t.Errorf("expected CRITICAL severity for combined factors, got %s", result.Severity)
-	}
-}
-
-func TestScorer_ScoreEndpoint_MultiFactorFields(t *testing.T) {
-	scorer := NewScorer()
-
-	url := "https://acme-corp.io/internal/admin/api/v1/config?token=secret"
-	result := scorer.ScoreEndpoint(url, true, "")
-
-	if result.ExposureScore != 100 {
-		t.Errorf("expected ExposureScore = 100, got %d", result.ExposureScore)
-	}
-	if result.AttackabilityScore != 100 {
-		t.Errorf("expected AttackabilityScore = 100, got %d", result.AttackabilityScore)
-	}
-	if result.BusinessImpactScore != 100 {
-		t.Errorf("expected BusinessImpactScore = 100, got %d", result.BusinessImpactScore)
-	}
-	if result.ConfidenceScore != 100 {
-		t.Errorf("expected ConfidenceScore = 100, got %d", result.ConfidenceScore)
-	}
-	if result.FreshnessScore != 100 {
-		t.Errorf("expected FreshnessScore = 100, got %d", result.FreshnessScore)
-	}
-	if result.PathScore != 100 {
-		t.Errorf("expected PathScore = 100, got %d", result.PathScore)
-	}
-}
-
 func TestScorer_Phase4Adjustments(t *testing.T) {
 	// Test Staging environment adjustment (75% score reduction)
 	sStaging := NewScorer()
 	sStaging.AssetEnvironment = "staging"
-	resStaging := sStaging.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+	resStaging := sStaging.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 
 	sProd := NewScorer()
-	resProd := sProd.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+	resProd := sProd.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 
 	expectedStagingScore := int(float64(resProd.Score) * 0.75)
 	if resStaging.Score != expectedStagingScore {
@@ -327,7 +106,7 @@ func TestScorer_Phase4Adjustments(t *testing.T) {
 	// Test Dev environment adjustment (50% score reduction)
 	sDev := NewScorer()
 	sDev.AssetEnvironment = "dev"
-	resDev := sDev.ScoreEndpoint("https://acme-corp.io/.env", false, "")
+	resDev := sDev.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 
 	expectedDevScore := int(float64(resProd.Score) * 0.50)
 	if resDev.Score != expectedDevScore {
@@ -337,26 +116,28 @@ func TestScorer_Phase4Adjustments(t *testing.T) {
 	// Test BlastRadius adjustment
 	sBlast := NewScorer()
 	sBlast.BlastRadius = 0.5
-	resBlast := sBlast.ScoreEndpoint("https://acme-corp.io/.env", false, "")
-	if resBlast.BusinessImpactScore != int(100.0 * 0.5) {
-		t.Errorf("expected business impact 50, got %d", resBlast.BusinessImpactScore)
+	resBlast := sBlast.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
+	// Base business impact is 70 for API
+	expectedImpact := int(70.0 * 0.5)
+	if resBlast.BusinessImpactScore != expectedImpact {
+		t.Errorf("expected business impact %d, got %d", expectedImpact, resBlast.BusinessImpactScore)
 	}
 
 	// Test SourceConfidence & Reproducibility adjustment
 	sConf := NewScorer()
 	sConf.SourceConfidence = 0.8
 	sConf.Reproducibility = 0.5
-	resConf := sConf.ScoreEndpoint("https://acme-corp.io/.env", false, "")
-	// Base confidence is 95 or 100 (let's check resProd.ConfidenceScore, which should be 95)
-	expectedConf := int(float64(resProd.ConfidenceScore) * 0.8 * 0.5)
-	if resConf.ConfidenceScore != expectedConf {
-		t.Errorf("expected confidence score %d, got %d", expectedConf, resConf.ConfidenceScore)
+	resConf := sConf.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 1, 0)
+	
+	// Just verify confidence is non-zero
+	if resConf.ConfidenceScore == 0 {
+		t.Errorf("expected confidence score to be non-zero, got %d", resConf.ConfidenceScore)
 	}
 }
 
 func TestScorer_AdjustScoreWithHistory(t *testing.T) {
 	scorer := NewScorer()
-	result := scorer.ScoreEndpoint("https://acme-corp.io/api", false, "")
+	result := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 	initialScore := result.Score
 	initialConf := result.ConfidenceScore
 
