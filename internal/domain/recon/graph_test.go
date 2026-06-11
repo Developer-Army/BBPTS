@@ -2,6 +2,7 @@ package recon
 
 import (
 	"testing"
+	"time"
 )
 
 func TestNewMemoryGraph(t *testing.T) {
@@ -321,3 +322,88 @@ func TestMemoryGraph_PropagateRisk(t *testing.T) {
 		t.Errorf("expected subdomain risk to be %f, got %f", expectedRisk, propagated["subdomain"])
 	}
 }
+
+func TestMemoryGraph_TimeDecay(t *testing.T) {
+	graph := NewMemoryGraph()
+
+	now := time.Now()
+	node1 := &GraphNode{ID: "node1", Type: "Domain", LastSeen: now.Add(-48 * time.Hour), Confidence: 1.0}
+	node2 := &GraphNode{ID: "node2", Type: "Subdomain", LastSeen: now.Add(-24 * time.Hour), Confidence: 1.0}
+
+	graph.AddNode(node1)
+	graph.AddNode(node2)
+
+	graph.AddEdgeAdvanced("node1", "node2", "RESOLVES_TO", 10, 1.0, "system")
+	graph.edges[0].LastSeen = now.Add(-72 * time.Hour)
+
+	// Apply decay with half life of 24 hours (1 day)
+	graph.ApplyTimeDecay(now, 1.0)
+
+	// node1 should decay by 2 days (4x reduction)
+	if node1.Confidence >= 0.3 {
+		t.Errorf("expected node1 confidence to decay, got %f", node1.Confidence)
+	}
+
+	// node2 should decay by 1 day (2x reduction)
+	if node2.Confidence >= 0.6 || node2.Confidence <= 0.4 {
+		t.Errorf("expected node2 confidence to be around 0.5, got %f", node2.Confidence)
+	}
+
+	// edge should decay by 3 days (8x reduction)
+	if graph.edges[0].Confidence >= 0.15 {
+		t.Errorf("expected edge confidence to decay heavily, got %f", graph.edges[0].Confidence)
+	}
+}
+
+func TestMemoryGraph_BlastRadiusPropagation(t *testing.T) {
+	graph := NewMemoryGraph()
+
+	node1 := &GraphNode{ID: "target", Type: "Target", BlastRadius: 50.0}
+	node2 := &GraphNode{ID: "subdomain1", Type: "Subdomain", BlastRadius: 10.0}
+	node3 := &GraphNode{ID: "subdomain2", Type: "Subdomain", BlastRadius: 20.0}
+
+	graph.AddNode(node1)
+	graph.AddNode(node2)
+	graph.AddNode(node3)
+
+	graph.AddEdge("target", "subdomain1", "exposes", 10)
+	graph.AddEdge("subdomain1", "subdomain2", "loads", 10)
+
+	totalBlast := graph.PropagateBlastRadius("target")
+	// Expected: 50.0 + 10.0 * 0.5 + 20.0 * 0.25 = 60.0
+	expected := 60.0
+	if totalBlast != expected {
+		t.Errorf("expected blast radius %f, got %f", expected, totalBlast)
+	}
+}
+
+func TestMemoryGraph_PathCostAndCheapestPath(t *testing.T) {
+	graph := NewMemoryGraph()
+
+	node1 := &GraphNode{ID: "A", Type: "Subdomain"}
+	node2 := &GraphNode{ID: "B", Type: "Service"}
+	node3 := &GraphNode{ID: "C", Type: "Database"}
+	node4 := &GraphNode{ID: "D", Type: "CrownJewel"}
+
+	graph.AddNode(node1)
+	graph.AddNode(node2)
+	graph.AddNode(node3)
+	graph.AddNode(node4)
+
+	// Path 1: A -> B -> D (Harder path: weight 80, 50)
+	// Path 2: A -> C -> D (Cheaper path: weight 10, 20)
+	graph.AddEdgeAdvanced("A", "B", "connects", 80, 1.0, "system")
+	graph.AddEdgeAdvanced("B", "D", "connects", 50, 1.0, "system")
+	graph.AddEdgeAdvanced("A", "C", "connects", 10, 1.0, "system")
+	graph.AddEdgeAdvanced("C", "D", "connects", 20, 1.0, "system")
+
+	path, cost := graph.GetCheapestAttackPath("A", "D")
+	if cost != 30.0 {
+		t.Errorf("expected cheapest path cost to be 30.0, got %f", cost)
+	}
+
+	if len(path) != 3 || path[0] != "A" || path[1] != "C" || path[2] != "D" {
+		t.Errorf("expected cheapest path [A, C, D], got %v", path)
+	}
+}
+
