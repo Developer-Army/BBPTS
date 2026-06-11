@@ -382,17 +382,21 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			var err error
 			eventBus, err = queue.NewNatsBus(url)
 			if err != nil {
-				if cfg.Fleet.WorkerMesh {
-					slog.Error("NATS event bus required for worker mesh but unavailable", "error", err)
+				if !cfg.MockMode {
+					slog.Error("NATS event bus required for production but unavailable", "error", err)
 					os.Exit(1)
 				}
-				slog.Warn("NATS event bus unavailable (not compiled or server unreachable); falling back to in-memory bus", "error", err)
+				slog.Warn("NATS event bus unavailable; falling back to in-memory bus for mock mode", "error", err)
 				eventBus = queue.New()
 			} else {
 				defer eventBus.Close()
 				slog.Info("NATS event bus enabled", "url", url)
 			}
 		} else if busType == "in-memory" {
+			if !cfg.MockMode {
+				slog.Error("in-memory event bus is not allowed in production; NATS must be configured")
+				os.Exit(1)
+			}
 			eventBus = queue.New()
 		} else {
 			slog.Error("Invalid event bus type", "type", cfg.EventBus.Type)
