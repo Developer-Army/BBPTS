@@ -248,6 +248,10 @@ if command -v gowitness &> /dev/null; then
     echo " Note: gowitness requires Chrome/Chromium to be installed on your system to take screenshots."
 fi
 
+# 4.5. PLAYWRIGHT BROWSER INSTALLATION
+echo "Installing Playwright browser binaries..."
+go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps || echo " Warning: Failed to install Playwright browsers automatically."
+
 echo -e "\n BBPTS TOOLS INSTALLED!"
 echo "--------------------------------------------------"
 echo " WEAK PC TIPS: Use '-t 10' and always pipe to 'anew'."

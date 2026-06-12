@@ -1,4 +1,4 @@
-# BBPTS v1.3.0
+# BBPTS v1.4.0
 > **Bug Bounty Recon on Autopilot.** Point it at target domains, gather intelligence, and get prioritized, actionable findings instantly.
 
 BBPTS automates the execution of **25+ elite penetration testing and reconnaissance tools** in a highly structured pipeline. It correlates, cleans, and deduplicates the results into a unified interactive report, scoring findings by risk severity so you know exactly where to start testing.
@@ -147,6 +147,18 @@ Your scan reports are saved under the `./results/` directory:
 > **Warning**: Active scanning generates substantial network traffic. Do not run intensive scans from shared CI/CD runners (like GitHub Actions free runners) to avoid platform bans. Use a dedicated VPS.
 
 > **Scope Control**: Ensure you have explicit authorization to scan target networks. Keep scan targets strictly within your bounty program scope.
+
+---
+
+## Experimental Enterprise (CTEM/ASM) Modules
+
+BBPTS includes preview components of an enterprise-grade **Continuous Threat Exposure Management (CTEM)** and **Attack Surface Management (ASM)** platform:
+* **Domain Assets & Finding Nodes**: Evolved database schemas that represent assets and vulnerability nodes in a connected graph model.
+* **Asset Ownership & Teams**: Structures for tracking asset custodianship and managing security escalation contacts.
+* **SLA Compliance Escalations**: Tickers and rules to track SLA compliance and automatically dispatch alerts (webhooks, email, tickets) on breaches.
+* **Experimental State Machine**: The state transition logic in `internal/domain/workflows` models complete lifecycle paths (e.g. Open ➔ Assigned ➔ SLA Exception ➔ Remediated ➔ Verified) but is not yet fully integrated into CLI/TUI workflows.
+
+For architecture details and to contribute to the enterprise features, see the [Developer Guide](docs/developer_guide.md).
 
 ---
 

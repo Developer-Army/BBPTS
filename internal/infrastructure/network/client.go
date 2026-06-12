@@ -85,6 +85,13 @@ func (sc *StealthClient) buildHTTPClient() error {
 			if err != nil {
 				return nil, err
 			}
+			// Explicit SSRF protection check via IsPrivateIP
+			h, _, err := net.SplitHostPort(pinnedAddr)
+			if err == nil {
+				if ip := net.ParseIP(h); ip != nil && security.IsPrivateIP(ip) {
+					return nil, fmt.Errorf("SSRF prevention: private IP blocked: %s", h)
+				}
+			}
 			dialer := &net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
@@ -107,6 +114,13 @@ func (sc *StealthClient) buildHTTPClient() error {
 		pinnedAddr, host, err := security.ResolveAndValidateAddr(ctx, addr)
 		if err != nil {
 			return nil, err
+		}
+		// Explicit SSRF protection check via IsPrivateIP
+		h, _, err := net.SplitHostPort(pinnedAddr)
+		if err == nil {
+			if ip := net.ParseIP(h); ip != nil && security.IsPrivateIP(ip) {
+				return nil, fmt.Errorf("SSRF prevention: private IP blocked: %s", h)
+			}
 		}
 
 		tcpConn, err := net.DialTimeout(network, pinnedAddr, 30*time.Second)

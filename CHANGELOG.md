@@ -4,6 +4,22 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-06-18
+
+### Added
+- **SSRF Enforcement**: Integrated active private IP checks (`security.IsPrivateIP`) directly into `StealthClient` Dialers (`DialContext` and `DialTLSContext`) for explicit SSRF mitigation, and added direct unit tests.
+- **Playwright Diagnostics**: Automated Playwright browser installation in `scripts/setup.sh` and added cache/binary validation to `-doctor` diagnostics.
+- **Enterprise CTEM Risk Engine (Alpha)**: Hardened risk engine using advanced 7-factor risk scoring, real-time telemetry, ownership models, blast radius evaluation, and NATS JetStream event architecture.
+- **State Transition Workflows (Alpha)**: Added `internal/domain/workflows` for state machine compliance, exception handling, and SLA breach management.
+- **Secure Server-side Sessions**: Migrated dashboard authentication from client-side `localStorage` to secure server-side `HttpOnly` cookies.
+- **Database Query Tracing**: Implemented distributed trace spans, query duration tracking, and Prometheus metrics for storage and message queue.
+
+### Changed
+- **Git Contribution Recovery**: Remediated author identity metadata for 38 commits to ensure correct GitHub contribution graph tracking.
+- **Version**: Bumped to v1.4.0.
+
+---
+
 ## [1.3.0] — 2026-06-11
 
 ### Added

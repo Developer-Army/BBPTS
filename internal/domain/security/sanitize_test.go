@@ -3,6 +3,7 @@ package security
 import (
 	"context"
 	"net"
+	"net/netip"
 	"os"
 	"testing"
 )
@@ -841,5 +842,39 @@ func TestRedactSecrets(t *testing.T) {
 	redacted := RedactSecrets(input)
 	if redacted != expected {
 		t.Errorf("RedactSecrets() = %q, want %q", redacted, expected)
+	}
+}
+
+func TestIsPrivateIPAndAddr(t *testing.T) {
+	tests := []struct {
+		ip       string
+		isPrivate bool
+	}{
+		{"127.0.0.1", true},
+		{"10.0.0.1", true},
+		{"172.16.0.1", true},
+		{"192.168.1.1", true},
+		{"8.8.8.8", false},
+		{"1.1.1.1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.ip, func(t *testing.T) {
+			ip := net.ParseIP(tt.ip)
+			if ip == nil {
+				t.Fatalf("failed to parse IP %s", tt.ip)
+			}
+			if got := IsPrivateIP(ip); got != tt.isPrivate {
+				t.Errorf("IsPrivateIP(%s) = %v, want %v", tt.ip, got, tt.isPrivate)
+			}
+
+			addr, err := netip.ParseAddr(tt.ip)
+			if err != nil {
+				t.Fatalf("failed to parse netip.Addr %s", tt.ip)
+			}
+			if got := IsPrivateAddr(addr); got != tt.isPrivate {
+				t.Errorf("IsPrivateAddr(%s) = %v, want %v", tt.ip, got, tt.isPrivate)
+			}
+		})
 	}
 }

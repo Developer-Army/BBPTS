@@ -1,4 +1,4 @@
-# Development Guide - BBPTS v1.3.0
+# Development Guide - BBPTS v1.4.0
 
 This guide covers development setup, architecture, and contribution guidelines for BBPTS.
 
@@ -110,33 +110,22 @@ BBPTS follows a layered architecture designed for maintainability and extensibil
 
 ```
 bbpts/
-├── cmd/bbpts/              # Application entry point
-│   └── main.go
+├── cmd/bbpts/              # Application entry point (main.go)
 ├── internal/
-│   ├── analysis/           # Intelligence analysis and scoring
-│   │   ├── analyze/        # Core analysis logic
-│   │   └── model/          # Data models
-│   ├── app/                # Application orchestration
-│   ├── core/               # Core utilities and infrastructure
-│   │   ├── bus/            # Event bus
-│   │   ├── config/         # Configuration management
-│   │   ├── input/          # Input parsing
-│   │   ├── normalize/      # Target normalization
-│   │   ├── notify/         # Notification system
-│   │   ├── state/          # State management
-│   │   └── storage/        # Database operations
-│   ├── engine/             # Tool orchestration
-│   │   ├── fingerprint/    # Asset fingerprinting
-│   │   ├── fleet/          # Distributed execution
-│   │   ├── integration/    # External tool integration
-│   │   ├── intelligence/   # Intelligence gathering
-│   │   ├── recon/          # Reconnaissance tools
-│   │   └── rules/          # Rule engine
-│   └── ui/                 # User interfaces
-│       ├── report/         # Report generation
-│       ├── server/         # Web API server
-│       └── tui/            # Terminal UI
-├── configs/                # Configuration files
+│   ├── application/        # Application orchestrators & services (orchestrator, browser, escalator)
+│   ├── domain/             # Core business models & logic
+│   │   ├── analysis/       # Risk analysis, heuristics, & scoring
+│   │   ├── assets/         # Asset nodes, graph models, & mapping
+│   │   ├── findings/       # Vulnerability finding models & schemas
+│   │   ├── ownership/      # Asset custodianship & ownership mapping
+│   │   ├── recon/          # Passive/active tool contracts & events
+│   │   ├── risk/           # 7-factor evidence-based risk engine
+│   │   ├── security/       # Input validation, sanitization, & SSRF protection
+│   │   └── workflows/      # [Experimental] CTEM compliance state machine
+│   ├── infrastructure/     # Database (SQLite), messaging (NATS), & browser automation
+│   ├── interfaces/         # Entry points (CLI app, Web server, Terminal UI, distributed workers)
+│   └── shared/             # Configurations, input parsers, normalizers, & helpers
+├── configs/                # Default configuration files
 ├── docs/                   # Documentation
 ├── scripts/                # Setup and utility scripts
 └── wordlists/              # Default wordlists
@@ -145,37 +134,36 @@ bbpts/
 ### Key Files
 
 #### `cmd/bbpts/main.go`
+- Application entry point.
+- CLI flag parsing & configuration bootstrap.
 
-- Application entry point
-- Command-line flag parsing
-- Configuration initialization
+#### `internal/interfaces/cli/app.go`
+- Main application scan orchestration loops.
+- TUI bridge coordination & worker node launcher.
 
-#### `internal/app/app.go`
+#### `internal/application/services/orchestrator.go`
+- Concurrent tool execution pipeline management.
+- Rate limiting & event-bus dispatching.
 
-- Main application logic
-- Pipeline orchestration
-- Mode selection (one-shot, continuous, TUI)
+#### `internal/domain/analysis/analyze/insights.go`
+- Risk scoring algorithms.
+- Recommendation checklists & evidence accumulation.
 
-#### `internal/engine/recon/orchestrator.go`
+### Domain Modules & Release Integration Status
 
-- Tool execution management
-- Concurrency control
-- Error handling and recovery
+#### `internal/domain/security/`
+- **Active / Fully Integrated**: Contains active input sanitization and `IsPrivateIP`/`IsPrivateAddr` checks to prevent Server-Side Request Forgery (SSRF) in stealth client dialers and target validation.
 
-#### `internal/analysis/analyze/insights.go`
-
-- Risk scoring algorithms
-- Tag assignment logic
-- Suggested test generation
+#### `internal/domain/workflows/`
+- **Experimental / Not Yet Fully Integrated**: Contains the core state machine rules and SLA breach compliance transition logic. While the module has 100% test coverage, it is *not* currently wired into the CLI scanner workflow pipeline for the v1.4.0 release. It is placed here for developer preview and future extension.
 
 ### Coding Standards
-
-- **Go Standards**: Follow standard Go conventions
-- **Documentation**: All exported functions must have comments
-- **Error Handling**: Use explicit error returns, no panics
-- **Logging**: Use structured logging with slog
-- **Testing**: 80%+ code coverage target
-- **Imports**: Group standard library, then third-party, then internal
+- **Go Standards**: Follow standard Go conventions.
+- **Documentation**: All exported functions must have comments.
+- **Error Handling**: Use explicit error returns, no panics.
+- **Logging**: Use structured logging with slog.
+- **Testing**: 80%+ code coverage target.
+- **Imports**: Group standard library, then third-party, then internal.
 
 ## Testing
 

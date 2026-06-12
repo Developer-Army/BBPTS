@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -309,7 +311,39 @@ func runDiagnostics(ctx context.Context) []DiagnosticCheck {
 	// Check Python for Python-based tools
 	checks = append(checks, checkBinaryExists("python3", "Python 3 is needed for some tools (uro, wafw00f)"))
 
+	// Check Playwright browser dependencies
+	checks = append(checks, checkPlaywrightBrowsers(ctx))
+
 	return checks
+}
+
+func checkPlaywrightBrowsers(ctx context.Context) DiagnosticCheck {
+	var cacheDir string
+	home, err := os.UserHomeDir()
+	if err == nil {
+		switch runtime.GOOS {
+		case "darwin":
+			cacheDir = filepath.Join(home, "Library", "Caches", "ms-playwright")
+		case "windows":
+			cacheDir = filepath.Join(home, "AppData", "Local", "ms-playwright")
+		default:
+			cacheDir = filepath.Join(home, ".cache", "ms-playwright")
+		}
+	}
+	if cacheDir != "" {
+		if _, err := os.Stat(cacheDir); err == nil {
+			return DiagnosticCheck{
+				Name:    "playwright-browsers",
+				Status:  "pass",
+				Message: fmt.Sprintf("Playwright browsers found in cache: %s", cacheDir),
+			}
+		}
+	}
+	return DiagnosticCheck{
+		Name:    "playwright-browsers",
+		Status:  "warn",
+		Message: "Playwright browser binaries not found in standard cache path. Run 'go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps' to install them.",
+	}
 }
 
 func checkBinaryExists(name, description string) DiagnosticCheck {
