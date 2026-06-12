@@ -106,6 +106,9 @@ type Options struct {
 	BatchSize         int
 	LogLevel          string
 	ReportTemplate    string
+	CI                bool
+	CIFailOn          string
+	ScopeFile         string
 }
 
 // Run executes the BBPTS engine with the provided options.
@@ -290,6 +293,26 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		case <-ctx.Done():
 			return
 		}
+	}
+
+	if opts.ScopeFile != "" && len(normalized) > 0 {
+		se, err := input.LoadScopeFile(opts.ScopeFile)
+		if err != nil {
+			slog.Error("failed to load scope file", "path", opts.ScopeFile, "error", err)
+			if bridge != nil {
+				bridge.ReportFailure("engine", "failed to load scope file")
+			}
+			return
+		}
+		var filtered []string
+		for _, t := range normalized {
+			if se.IsInScope(t) {
+				filtered = append(filtered, t)
+			} else {
+				slog.Info("target out of scope, skipping", "target", t)
+			}
+		}
+		normalized = filtered
 	}
 
 	if len(normalized) > 0 {
@@ -1367,6 +1390,36 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 			}
 		} else {
 			slog.Warn("failed to fetch nodes/edges for sniper scope/attack path scoring", "errNodes", errNodes, "errEdges", errEdges)
+		}
+	}
+
+	if opts.CI {
+		fail := false
+		minSev := strings.ToLower(opts.CIFailOn)
+		if minSev == "" {
+			minSev = "medium"
+		}
+		for _, in := range insights {
+			severity := strings.ToLower(in.Priority)
+			triggered := false
+			switch minSev {
+			case "low":
+				triggered = (severity == "low" || severity == "medium" || severity == "high" || severity == "critical" || in.Score >= 5)
+			case "medium":
+				triggered = (severity == "medium" || severity == "high" || severity == "critical" || in.Score >= 15)
+			case "high":
+				triggered = (severity == "high" || severity == "critical" || in.Score >= 25)
+			case "critical":
+				triggered = (severity == "critical" || in.Score >= 40)
+			}
+			if triggered {
+				slog.Error("CI failure triggered: found high-risk finding", "target", in.Host, "priority", in.Priority, "score", in.Score)
+				fail = true
+			}
+		}
+		if fail {
+			slog.Error("Exiting with non-zero exit code due to CI failure")
+			os.Exit(1)
 		}
 	}
 }

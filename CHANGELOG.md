@@ -7,15 +7,17 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 ## [1.4.0] — 2026-06-18
 
 ### Added
-- **SSRF Enforcement**: Integrated active private IP checks (`security.IsPrivateIP`) directly into `StealthClient` Dialers (`DialContext` and `DialTLSContext`) for explicit SSRF mitigation, and added direct unit tests.
+- **CI/CD Pipeline Mode**: Integrated `--ci` and `--fail-on` flags to exit with non-zero exit codes when findings matching or exceeding the target severity threshold are discovered.
+- **Scope Enforcement Engine**: Added the `--scope-file` flag to load and enforce domain allow/exclude wildcards prior to scanning.
+- **CVSS 3.1 Scoring**: Implemented a standalone, standard-compliant CVSS 3.1 base score and severity rating calculator.
 - **Playwright Diagnostics**: Automated Playwright browser installation in `scripts/setup.sh` and added cache/binary validation to `-doctor` diagnostics.
 - **Enterprise CTEM Risk Engine (Alpha)**: Hardened risk engine using advanced 7-factor risk scoring, real-time telemetry, ownership models, blast radius evaluation, and NATS JetStream event architecture.
-- **State Transition Workflows (Alpha)**: Added `internal/domain/workflows` for state machine compliance, exception handling, and SLA breach management.
 - **Secure Server-side Sessions**: Migrated dashboard authentication from client-side `localStorage` to secure server-side `HttpOnly` cookies.
 - **Database Query Tracing**: Implemented distributed trace spans, query duration tracking, and Prometheus metrics for storage and message queue.
 
 ### Changed
-- **Git Contribution Recovery**: Remediated author identity metadata for 38 commits to ensure correct GitHub contribution graph tracking.
+- **SSRF Enforcement**: Wired `security.IsPrivateAddr` into both the low-level and high-level `StealthClient` network pipelines for strict SSRF mitigation.
+- **CTEM State transitions**: Deleted the redundant `internal/domain/workflows` package, consolidating compliance state machine transitions directly inside the CTEM storage engine (`ctem.go`).
 - **Version**: Bumped to v1.4.0.
 
 ---

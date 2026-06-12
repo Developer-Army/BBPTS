@@ -203,6 +203,7 @@ func parseFlags() app.Options {
 	flag.IntVar(&opts.Threads, "threads", 0, "Number of concurrent threads (overrides configured default)")
 	flag.StringVar(&opts.ConfigPath, "config", "", "Path to BBPTS config file")
 	flag.StringVar(&opts.RulesPath, "rules", "", "Path to BBPTS rules file")
+	flag.StringVar(&opts.ScopeFile, "scope-file", "", "Path to scope wildcards file")
 	flag.IntVar(&opts.RateLimit, "rate-limit", 0, "Max requests/second")
 	flag.StringVar(&opts.Scope, "scope", "", "Scope identifier for state tracking")
 	flag.BoolVar(&opts.DiffOnly, "diff", false, "Show only new findings")
@@ -262,6 +263,8 @@ func parseFlags() app.Options {
 
 	flag.BoolVar(&opts.EnableMetrics, "metrics", false, "Enable Prometheus metrics endpoint")
 	flag.IntVar(&opts.MetricsPort, "metrics-port", 9090, "Prometheus metrics port")
+	flag.BoolVar(&opts.CI, "ci", false, "Enable CI mode with exit codes on finding discovery")
+	flag.StringVar(&opts.CIFailOn, "fail-on", "medium", "Minimum severity to trigger non-zero exit code in CI mode (low, medium, high, critical)")
 
 	reordered := reorderArgs(os.Args[1:])
 	_ = flag.CommandLine.Parse(reordered)

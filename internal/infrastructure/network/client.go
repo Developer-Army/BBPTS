@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -88,7 +89,7 @@ func (sc *StealthClient) buildHTTPClient() error {
 			// Explicit SSRF protection check via IsPrivateIP
 			h, _, err := net.SplitHostPort(pinnedAddr)
 			if err == nil {
-				if ip := net.ParseIP(h); ip != nil && security.IsPrivateIP(ip) {
+				if addrVal, err := netip.ParseAddr(h); err == nil && security.IsPrivateAddr(addrVal) {
 					return nil, fmt.Errorf("SSRF prevention: private IP blocked: %s", h)
 				}
 			}
@@ -118,7 +119,7 @@ func (sc *StealthClient) buildHTTPClient() error {
 		// Explicit SSRF protection check via IsPrivateIP
 		h, _, err := net.SplitHostPort(pinnedAddr)
 		if err == nil {
-			if ip := net.ParseIP(h); ip != nil && security.IsPrivateIP(ip) {
+			if addrVal, err := netip.ParseAddr(h); err == nil && security.IsPrivateAddr(addrVal) {
 				return nil, fmt.Errorf("SSRF prevention: private IP blocked: %s", h)
 			}
 		}

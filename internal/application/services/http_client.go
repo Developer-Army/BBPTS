@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"time"
 
@@ -29,6 +30,13 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 			return nil, err
 		}
 
+		h, _, err := net.SplitHostPort(pinnedAddr)
+		if err == nil {
+			if addrVal, err := netip.ParseAddr(h); err == nil && security.IsPrivateAddr(addrVal) {
+				return nil, fmt.Errorf("SSRF prevention: private IP blocked: %s", h)
+			}
+		}
+
 		conn, err := net.DialTimeout(network, pinnedAddr, 10*time.Second)
 		if err != nil {
 			return nil, err
@@ -47,6 +55,14 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 		if err != nil {
 			return nil, err
 		}
+
+		h, _, err := net.SplitHostPort(pinnedAddr)
+		if err == nil {
+			if addrVal, err := netip.ParseAddr(h); err == nil && security.IsPrivateAddr(addrVal) {
+				return nil, fmt.Errorf("SSRF prevention: private IP blocked: %s", h)
+			}
+		}
+
 		dialer := &net.Dialer{
 			Timeout:   10 * time.Second,
 			KeepAlive: 30 * time.Second,

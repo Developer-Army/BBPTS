@@ -139,6 +139,9 @@ Your scan reports are saved under the `./results/` directory:
 | `-resume` | `-r` | Resume scan from last recorded checkpoint |
 | `-doctor` | | Verify external tool availability & paths |
 | `-web` | `-w` | Launch the local web dashboard |
+| `-ci` | | Run in CI mode, exiting non-zero on matching findings |
+| `-fail-on` | | Minimum severity to trigger non-zero exit in CI mode |
+| `-scope-file` | | Enforce target matching against wildcard scope rules |
 
 ---
 
@@ -156,7 +159,8 @@ BBPTS includes preview components of an enterprise-grade **Continuous Threat Exp
 * **Domain Assets & Finding Nodes**: Evolved database schemas that represent assets and vulnerability nodes in a connected graph model.
 * **Asset Ownership & Teams**: Structures for tracking asset custodianship and managing security escalation contacts.
 * **SLA Compliance Escalations**: Tickers and rules to track SLA compliance and automatically dispatch alerts (webhooks, email, tickets) on breaches.
-* **Experimental State Machine**: The state transition logic in `internal/domain/workflows` models complete lifecycle paths (e.g. Open ➔ Assigned ➔ SLA Exception ➔ Remediated ➔ Verified) but is not yet fully integrated into CLI/TUI workflows.
+* **CTEM State Machine**: Native state transition validation (e.g. Open ➔ Assigned ➔ SLA Exception ➔ Remediated ➔ Verified) consolidated inside the storage engine (`ctem.go`).
+* **CVSS 3.1 Calculator**: Automated base score and severity rating calculations according to the CVSS 3.1 specification.
 
 For architecture details and to contribute to the enterprise features, see the [Developer Guide](docs/developer_guide.md).
 
