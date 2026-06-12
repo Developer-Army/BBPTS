@@ -38,18 +38,18 @@ type ReportConfig struct {
 
 // Report represents a comprehensive vulnerability report
 type Report struct {
-	Title           string            `json:"title"`
-	Description     string            `json:"description"`
-	GeneratedAt     time.Time         `json:"generated_at"`
-	ScanDuration    string            `json:"scan_duration"`
-	TargetCount     int               `json:"target_count"`
-	FindingCount    int               `json:"finding_count"`
-	CriticalCount   int               `json:"critical_count"`
-	HighCount       int               `json:"high_count"`
-	MediumCount     int               `json:"medium_count"`
-	LowCount        int               `json:"low_count"`
-	Findings        []DetailedFinding `json:"findings"`
-	Statistics      ReportStatistics  `json:"statistics"`
+	Title           string                        `json:"title"`
+	Description     string                        `json:"description"`
+	GeneratedAt     time.Time                     `json:"generated_at"`
+	ScanDuration    string                        `json:"scan_duration"`
+	TargetCount     int                           `json:"target_count"`
+	FindingCount    int                           `json:"finding_count"`
+	CriticalCount   int                           `json:"critical_count"`
+	HighCount       int                           `json:"high_count"`
+	MediumCount     int                           `json:"medium_count"`
+	LowCount        int                           `json:"low_count"`
+	Findings        []DetailedFinding             `json:"findings"`
+	Statistics      ReportStatistics              `json:"statistics"`
 	Recommendations []string                      `json:"recommendations"`
 	Executive       ExecutiveSummary              `json:"executive_summary"`
 	TopTargets      []analyze.InvestigationTarget `json:"top_targets,omitempty"`
@@ -329,17 +329,17 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 		}
 
 		finding := DetailedFinding{
-			ID:           fmt.Sprintf("FINDING-%d", len(findings)+1),
-			Title:        fmt.Sprintf("Reconnaissance finding on %s", insight.Host),
-			Description:  strings.Join(cleanReasons, "; "),
-			Severity:     insight.Priority,
-			Score:        insight.Score,
-			Target:       insight.Host,
-			Evidence:     strings.Join(evidenceParts, " | "),
-			Tags:         insight.Tags,
-			Sources:      sourceList,
-			DiscoveredAt: time.Now(),
-			Priority:     insight.Priority,
+			ID:                  fmt.Sprintf("FINDING-%d", len(findings)+1),
+			Title:               fmt.Sprintf("Reconnaissance finding on %s", insight.Host),
+			Description:         strings.Join(cleanReasons, "; "),
+			Severity:            insight.Priority,
+			Score:               insight.Score,
+			Target:              insight.Host,
+			Evidence:            strings.Join(evidenceParts, " | "),
+			Tags:                insight.Tags,
+			Sources:             sourceList,
+			DiscoveredAt:        time.Now(),
+			Priority:            insight.Priority,
 			ExposureScore:       insight.ExposureScore,
 			AttackabilityScore:  insight.AttackabilityScore,
 			BusinessImpactScore: insight.BusinessImpactScore,

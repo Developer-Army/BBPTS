@@ -155,7 +155,7 @@ func (tc *TaskConsumer) Start(ctx context.Context, subject string) error {
 					backoff = 30 * time.Second
 				}
 				slog.Warn("Task failed, waiting backoff and re-queueing", "task_id", task.TaskID, "backoff", backoff, "retry", task.RetryCount, "error", err)
-				
+
 				telemetry.QueueRetryCount.WithLabelValues(subject, tc.adapter.backendType).Inc()
 				telemetry.WorkerTaskErrors.WithLabelValues(tc.consumerName, task.TaskType, "retry").Inc()
 

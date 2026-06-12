@@ -82,29 +82,29 @@ func TestGraphAdvancedQueries(t *testing.T) {
 	// 3. Team overdue findings test
 	teamID, _ := s.AddTeam("DevTeam")
 	ownerID, _ := s.AddOwner("Bob", "bob@corp.com")
-	
+
 	// Create mock finding
 	findingID, err := s.AddFindingForTest("Secret key exposed", "desc", "critical", "owned.acme.com")
 	if err != nil {
 		t.Fatalf("Failed to add finding: %v", err)
 	}
-	
+
 	assignmentID, err := s.AssignFinding(findingID, &teamID, &ownerID, "critical")
 	if err != nil {
 		t.Fatalf("Failed to assign finding: %v", err)
 	}
-	
+
 	// Make overdue
 	err = s.ForceAssignmentOverdueForTest(assignmentID, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to force assignment overdue: %v", err)
 	}
-	
+
 	overdueMap, err := s.GetTeamOverdueFindings()
 	if err != nil {
 		t.Fatalf("GetTeamOverdueFindings failed: %v", err)
 	}
-	
+
 	if len(overdueMap["DevTeam"]) != 1 {
 		t.Errorf("Expected 1 overdue finding for DevTeam, got %d", len(overdueMap["DevTeam"]))
 	}

@@ -24,8 +24,8 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/cluster"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/triage"
 
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/domain/ownership"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	ui "github.com/Developer-Army/BBPTS/internal/interfaces/ui/report"
@@ -213,7 +213,6 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	var matches []recon.Match
 	var triggeredTools []string
 	var store *storage.Storage
-
 
 	reconThreads := cfg.Threads
 	if opts.Threads > 0 {
@@ -410,23 +409,23 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		}
 
 		reconConfig := services.Config{
-			ToolNames:      toolNames,
-			Threads:        reconThreads,
-			RateLimit:      reconRateLimit,
-			ToolRateLimits: cfg.ToolRateLimits,
-			AutoUpdate:     autoUpdate,
-			Proxies:        cfg.Proxies,
-			APIKeys:        cfg.APIKeys,
-			WordlistsDir:   cfg.WordlistsDir,
-			TmpResultsDir:  resolveTmpResultsDir(opts, cfg),
-			Reporter:       bridge,
-			Notifier:       utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify))),
-			EventBus:       eventBus,
-			Timeout:        scanTimeout(opts.Timeout, len(toolNames)),
-			CacheEnabled:   true,
-			ContainerMode:  cfg.ContainerMode,
-			DockerImages:   cfg.DockerImages,
-			MockMode:       cfg.MockMode,
+			ToolNames:          toolNames,
+			Threads:            reconThreads,
+			RateLimit:          reconRateLimit,
+			ToolRateLimits:     cfg.ToolRateLimits,
+			AutoUpdate:         autoUpdate,
+			Proxies:            cfg.Proxies,
+			APIKeys:            cfg.APIKeys,
+			WordlistsDir:       cfg.WordlistsDir,
+			TmpResultsDir:      resolveTmpResultsDir(opts, cfg),
+			Reporter:           bridge,
+			Notifier:           utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify))),
+			EventBus:           eventBus,
+			Timeout:            scanTimeout(opts.Timeout, len(toolNames)),
+			CacheEnabled:       true,
+			ContainerMode:      cfg.ContainerMode,
+			DockerImages:       cfg.DockerImages,
+			MockMode:           cfg.MockMode,
 			InsecureSkipVerify: cfg.InsecureSkipVerify,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
@@ -1603,4 +1602,3 @@ func formatPathValues(path []string, store *storage.Storage) string {
 	}
 	return strings.Join(resolved, " -> ")
 }
-

@@ -23,14 +23,14 @@ type AssetNode struct {
 
 // AssetEdge represents a directed relationship between two asset nodes.
 type AssetEdge struct {
-	SourceID   string    `json:"source_id"`
-	TargetID   string    `json:"target_id"`
-	Relation   string    `json:"relation"`
-	FirstSeen  string    `json:"first_seen"`
-	LastSeen   string    `json:"last_seen"`
-	Confidence float64   `json:"confidence"`
-	ObservedAt string    `json:"observed_at"`
-	EvidenceID string    `json:"evidence_id"`
+	SourceID   string  `json:"source_id"`
+	TargetID   string  `json:"target_id"`
+	Relation   string  `json:"relation"`
+	FirstSeen  string  `json:"first_seen"`
+	LastSeen   string  `json:"last_seen"`
+	Confidence float64 `json:"confidence"`
+	ObservedAt string  `json:"observed_at"`
+	EvidenceID string  `json:"evidence_id"`
 }
 
 // GenerateNodeID creates a deterministic ID for a node based on its type, value and scopeID.
@@ -495,4 +495,3 @@ func (s *Storage) PropagateRisk() (map[string]float64, error) {
 
 	return scores, nil
 }
-

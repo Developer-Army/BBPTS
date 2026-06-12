@@ -14,7 +14,7 @@ type EvidenceRiskFactors struct {
 	EvidenceQuality    int `json:"evidence_quality"`
 	Exploitability     int `json:"exploitability"`
 	Exposure           int `json:"exposure"`
-	Ownership          int `json:"ownership"`            // higher means unmanaged/unowned risk
+	Ownership          int `json:"ownership"` // higher means unmanaged/unowned risk
 	BusinessImpact     int `json:"business_impact"`
 	Freshness          int `json:"freshness"`            // higher means newer/fresh
 	AttackPathDistance int `json:"attack_path_distance"` // higher means closer/more dangerous
@@ -41,4 +41,3 @@ func CalculateEvidenceRisk(f EvidenceRiskFactors) int {
 		(float64(f.AttackPathDistance) * 0.10)
 	return int(score)
 }
-

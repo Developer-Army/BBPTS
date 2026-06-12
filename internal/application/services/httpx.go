@@ -176,11 +176,22 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 			continue
 		}
 
+		authRequired := "false"
+		if out.StatusCode == 401 || out.StatusCode == 403 {
+			authRequired = "true"
+		} else {
+			titleLower := strings.ToLower(out.Title)
+			if strings.Contains(titleLower, "login") || strings.Contains(titleLower, "sign in") || strings.Contains(titleLower, "sign-in") || strings.Contains(titleLower, "portal") {
+				authRequired = "true"
+			}
+		}
+
 		props := map[string]string{
-			"status_code": fmt.Sprintf("%d", out.StatusCode),
-			"title":       out.Title,
-			"server":      out.Server,
-			"ip":          out.IP,
+			"status_code":   fmt.Sprintf("%d", out.StatusCode),
+			"title":         out.Title,
+			"server":        out.Server,
+			"ip":            out.IP,
+			"auth_required": authRequired,
 		}
 		events = append(events, NewEvent(out.URL, t.Name(), "service", props))
 		foundHosts[extractHost(out.URL)] = true

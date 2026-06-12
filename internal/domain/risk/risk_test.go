@@ -33,11 +33,11 @@ func TestCalculateRisk(t *testing.T) {
 		{
 			name: "Weighted calculation test",
 			factors: RiskFactors{
-				Exposure:       50,  // 50 * 0.20 = 10
-				Exploitability: 60,  // 60 * 0.25 = 15
-				BusinessImpact: 80,  // 80 * 0.30 = 24
-				Confidence:     70,  // 70 * 0.15 = 10.5
-				AttackPath:     40,  // 40 * 0.10 = 4
+				Exposure:       50, // 50 * 0.20 = 10
+				Exploitability: 60, // 60 * 0.25 = 15
+				BusinessImpact: 80, // 80 * 0.30 = 24
+				Confidence:     70, // 70 * 0.15 = 10.5
+				AttackPath:     40, // 40 * 0.10 = 4
 			},
 			expected: 63, // 10 + 15 + 24 + 10.5 + 4 = 63.5 -> cast to int is 63
 		},

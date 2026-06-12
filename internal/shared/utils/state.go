@@ -337,9 +337,9 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 				why = append(why, fmt.Sprintf("New exposed path/service: %s", ev))
 			}
 			newlyExposed = append(newlyExposed, NewlyExposed{
-				Host:         host,
-				ExposedItem:  "New vulnerabilities or endpoints detected",
-				Why:          why,
+				Host:        host,
+				ExposedItem: "New vulnerabilities or endpoints detected",
+				Why:         why,
 			})
 		}
 	}

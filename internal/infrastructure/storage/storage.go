@@ -20,6 +20,7 @@ import (
 )
 
 type contextKey string
+
 const storageContextKey contextKey = "storage"
 
 func WithStorage(ctx context.Context, s *Storage) context.Context {
@@ -640,4 +641,3 @@ func (s *Storage) GetAllAssets() ([]assets.Asset, error) {
 	}
 	return list, nil
 }
-

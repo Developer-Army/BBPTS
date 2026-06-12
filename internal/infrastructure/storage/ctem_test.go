@@ -493,5 +493,3 @@ func TestAssetModelPersistence(t *testing.T) {
 		t.Errorf("Expected status 'inactive', got '%s'", retrieved.Status)
 	}
 }
-
-

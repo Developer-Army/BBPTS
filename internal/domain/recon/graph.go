@@ -13,8 +13,8 @@ type GraphNode struct {
 	ID              string
 	Type            string // e.g., "Domain", "Subdomain", "JS_File", "GraphQL_Endpoint", "IP"
 	Properties      map[string]string
-	Provenance      string    // source tool/track
-	Confidence      float64   // confidence value (0.0 to 1.0)
+	Provenance      string  // source tool/track
+	Confidence      float64 // confidence value (0.0 to 1.0)
 	FirstSeen       time.Time
 	LastSeen        time.Time
 	OwnerID         string

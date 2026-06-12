@@ -476,4 +476,3 @@ func TestReportScoreBreakdown(t *testing.T) {
 		t.Errorf("HTML report does not contain risk vectors breakdown: %s", htmlStr)
 	}
 }
-

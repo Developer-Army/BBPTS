@@ -843,4 +843,3 @@ func TestRedactSecrets(t *testing.T) {
 		t.Errorf("RedactSecrets() = %q, want %q", redacted, expected)
 	}
 }
-

@@ -365,7 +365,7 @@ func RecommendTargets(nodes []storage.AssetNode, edges []storage.AssetEdge) []In
 		if len(whyAttack) > 0 {
 			why = append(why, whyAttack...)
 		}
-		
+
 		propagated := propagatedRisk[node.ID]
 		if propagated > business {
 			why = append(why, fmt.Sprintf("✓ Propagated Dependency Risk: %.0f", propagated))

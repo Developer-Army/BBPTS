@@ -33,7 +33,7 @@ func NewRedisStreamManager(addr string) (*RedisStreamManager, error) {
 		Addr:            addr,
 		Password:        os.Getenv("REDIS_PASSWORD"),
 		Username:        os.Getenv("REDIS_USERNAME"),
-		DB:              0,  // Default DB
+		DB:              0, // Default DB
 		MaxRetries:      3,
 		MaxRetryBackoff: 5 * time.Second,
 	}

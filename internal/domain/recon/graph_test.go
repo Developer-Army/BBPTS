@@ -406,4 +406,3 @@ func TestMemoryGraph_PathCostAndCheapestPath(t *testing.T) {
 		t.Errorf("expected cheapest path [A, C, D], got %v", path)
 	}
 }
-

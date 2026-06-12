@@ -140,7 +140,6 @@ func (sm *StreamManager) Close() error {
 	return nil
 }
 
-
 func mapSubject(subject string) string {
 	if subject == "*" || subject == ">" {
 		return subject

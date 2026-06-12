@@ -128,7 +128,7 @@ func TestScorer_Phase4Adjustments(t *testing.T) {
 	sConf.SourceConfidence = 0.8
 	sConf.Reproducibility = 0.5
 	resConf := sConf.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 1, 0)
-	
+
 	// Just verify confidence is non-zero
 	if resConf.ConfidenceScore == 0 {
 		t.Errorf("expected confidence score to be non-zero, got %d", resConf.ConfidenceScore)

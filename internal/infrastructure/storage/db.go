@@ -524,10 +524,10 @@ func (db *Storage) SaveInsights(ctx context.Context, scanID int64, insights []In
 
 // RiskHistoryRecord represents a host's risk score at a scan time.
 type RiskHistoryRecord struct {
-	Host      string    `json:"host"`
-	Score     int       `json:"score"`
-	Priority  string    `json:"priority"`
-	ScanTime  time.Time `json:"scan_time"`
+	Host     string    `json:"host"`
+	Score    int       `json:"score"`
+	Priority string    `json:"priority"`
+	ScanTime time.Time `json:"scan_time"`
 }
 
 // GetRiskHistory returns risk history for a specific host.

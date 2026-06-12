@@ -102,4 +102,3 @@ func TestValidateTargetCmd_RejectsDirectories(t *testing.T) {
 		t.Errorf("expected '/' to be invalid target")
 	}
 }
-

@@ -93,12 +93,12 @@ type AuditLog struct {
 
 // WorkflowEngine encapsulates workflow state machine rules, SLAs, and exceptions.
 type WorkflowEngine struct {
-	SLADuration   time.Duration
-	CreatedAt     time.Time
-	Deadline      time.Time
+	SLADuration    time.Duration
+	CreatedAt      time.Time
+	Deadline       time.Time
 	ExceptionUntil time.Time
-	State         WorkflowState
-	AuditHistory  []AuditLog
+	State          WorkflowState
+	AuditHistory   []AuditLog
 }
 
 func NewWorkflowEngine(initialState WorkflowState, severity string, createdAt time.Time) *WorkflowEngine {

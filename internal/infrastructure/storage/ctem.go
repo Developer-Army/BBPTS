@@ -993,7 +993,7 @@ func (s *Storage) VerifyFindingFix(id int64, comment string, verifiedBy string) 
 	if err != nil {
 		return err
 	}
-	
+
 	normalizedOld := normalizeCTEMState(oldStatus)
 	if normalizedOld != "Remediated" {
 		if !isValidTransition(normalizedOld, "Remediated") {
@@ -1015,4 +1015,3 @@ func (s *Storage) VerifyFindingFix(id int64, comment string, verifiedBy string) 
 func (s *Storage) ApproveRiskException(id int64, comment string, approvedBy string) error {
 	return s.UpdateAssignmentStatusWithComment(id, "SLA Exception", comment, approvedBy)
 }
-

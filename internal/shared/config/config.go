@@ -176,16 +176,16 @@ type WordlistConfig struct {
 func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	return &Config{
-		APIKeys:        make(map[string]string),
-		Headers:        make(map[string]string),
-		Proxies:        []string{},
-		RateLimit:      50,
-		ToolRateLimits: make(map[string]int),
-		AutoUpdate:     false,
+		APIKeys:            make(map[string]string),
+		Headers:            make(map[string]string),
+		Proxies:            []string{},
+		RateLimit:          50,
+		ToolRateLimits:     make(map[string]int),
+		AutoUpdate:         false,
 		InsecureSkipVerify: false,
-		Ports:          "",
-		BatchSize:      1,
-		ContainerMode:  false,
+		Ports:              "",
+		BatchSize:          1,
+		ContainerMode:      false,
 		DockerImages: map[string]string{
 			"nuclei":    "projectdiscovery/nuclei:v3.2.9",
 			"subfinder": "projectdiscovery/subfinder:v2.6.6",
@@ -440,4 +440,3 @@ func (c *Config) RegisterSecrets() {
 		}
 	}
 }
-

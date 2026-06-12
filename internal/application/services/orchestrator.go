@@ -651,7 +651,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 	ctx, spanID = telemetry.DefaultTracer.StartSpan(ctx, "runStage", parentID)
 	defer func() {
 		telemetry.DefaultTracer.EndSpan(spanID, map[string]interface{}{
-			"tools_count": len(tools),
+			"tools_count":   len(tools),
 			"targets_count": len(targets),
 		})
 	}()
