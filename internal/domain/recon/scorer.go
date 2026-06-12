@@ -120,7 +120,15 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 
 	// 3. Exposure (0-100)
 	exposure := 100
-	if strings.Contains(lowerHost, "internal") || strings.Contains(lowerHost, "local") || strings.Contains(lowerHost, "localhost") || strings.Contains(lowerHost, "private") || strings.Contains(lowerHost, "dev") || strings.Contains(lowerHost, "test") || strings.Contains(lowerHost, "staging") {
+	labels := strings.Split(lowerHost, ".")
+	isInternal := false
+	for _, label := range labels {
+		if label == "internal" || label == "local" || label == "localhost" || label == "private" || label == "dev" || label == "test" || label == "staging" {
+			isInternal = true
+			break
+		}
+	}
+	if isInternal {
 		exposure = 40
 		result.Justification = append(result.Justification, "Exposure reduced due to internal/non-prod subdomain")
 	} else {

@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/ownership"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
@@ -48,9 +50,41 @@ func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx 
 		target string
 		score  int
 	}
+	store := storage.FromContext(ctx)
 	scored := make([]scoredTarget, len(targets))
 	for i, t := range targets {
-		scoreRes := scorer.ScoreEndpoint(t, false, "")
+		var hasOwner, hasAttackPath bool
+		var evidenceCount int
+		var exploitability int
+		var isAuthRequired bool
+
+		if store != nil {
+			if asset, err := store.GetAsset(t); err == nil && asset != nil {
+				ao := &ownership.AssetOwnership{
+					AssetID: asset.ID,
+				}
+				if asset.OwnerID != nil {
+					ao.OwnerID = *asset.OwnerID
+					ao.Confidence = asset.Confidence
+				}
+				hasOwner = !ao.IsUnmanagedRisk()
+			}
+
+			if evs, err := store.GetEvidenceByAssetID(t); err == nil {
+				evidenceCount = len(evs)
+			}
+
+			if db := store.GetDB(); db != nil {
+				var count int
+				nodeID := storage.GenerateNodeID("domain", t, "")
+				err := db.QueryRow("SELECT COUNT(*) FROM asset_edges WHERE target_id = ? OR target_id = ?", t, nodeID).Scan(&count)
+				if err == nil && count > 0 {
+					hasAttackPath = true
+				}
+			}
+		}
+
+		scoreRes := scorer.ScoreEndpointAdvanced(t, isAuthRequired, "", hasOwner, hasAttackPath, evidenceCount, exploitability)
 		scored[i] = scoredTarget{target: t, score: scoreRes.Score}
 	}
 	// Sort by score descending (high score first)

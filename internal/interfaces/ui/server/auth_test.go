@@ -163,13 +163,24 @@ func TestEnrollmentFlow(t *testing.T) {
 		t.Errorf("expected 200 OK from localhost, got %d", w2.Code)
 	}
 
-	// 3. Test EnrollAdmin with invalid token
+	// 3. Test EnrollAdmin from remote IP should be forbidden
+	bodyRemote := strings.NewReader(`{"token": "invalid_token", "password": "newpassword123"}`)
+	reqEnrollRemote := httptest.NewRequest("POST", "/api/enroll", bodyRemote)
+	reqEnrollRemote.RemoteAddr = "192.168.1.50:1234"
+	wRemote := httptest.NewRecorder()
+	api.EnrollAdmin(wRemote, reqEnrollRemote)
+	if wRemote.Code != http.StatusForbidden {
+		t.Errorf("expected 403 Forbidden from remote IP for EnrollAdmin, got %d", wRemote.Code)
+	}
+
+	// Test EnrollAdmin with invalid token on localhost
 	bodyInvalid := strings.NewReader(`{"token": "invalid_token", "password": "newpassword123"}`)
 	reqEnrollInvalid := httptest.NewRequest("POST", "/api/enroll", bodyInvalid)
+	reqEnrollInvalid.RemoteAddr = "127.0.0.1:1234"
 	w3 := httptest.NewRecorder()
 	api.EnrollAdmin(w3, reqEnrollInvalid)
 	if w3.Code != http.StatusForbidden {
-		t.Errorf("expected 403 Forbidden for invalid setup token, got %d", w3.Code)
+		t.Errorf("expected 403 Forbidden for invalid setup token on localhost, got %d", w3.Code)
 	}
 
 	// Test EnrollAdmin with valid token

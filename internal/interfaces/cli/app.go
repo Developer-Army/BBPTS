@@ -25,6 +25,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/triage"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/ownership"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	ui "github.com/Developer-Army/BBPTS/internal/interfaces/ui/report"
@@ -457,6 +458,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		store, err = storage.NewStorage(dbType, dbSource)
 		if err == nil {
 			defer store.Close()
+			runCtx = storage.WithStorage(runCtx, store)
 			sub := storage.NewEventSubscriber(store, orchestrator.Bus())
 			sub.Start(runCtx, []string{
 				"graphql_endpoint", "cloud_bucket_open", "secret_exposed",
@@ -1018,7 +1020,46 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, s
 		}
 
 		if strings.HasPrefix(ev.Target, "http") {
-			score := scorer.ScoreEndpoint(ev.Target, false, "")
+			var hasOwner, hasAttackPath bool
+			var evidenceCount int
+			var exploitability int
+			var isAuthRequired bool
+
+			if ev.Properties != nil {
+				if val, ok := ev.Properties["auth_required"]; ok && val == "true" {
+					isAuthRequired = true
+				} else if val, ok := ev.Properties["authenticated"]; ok && val == "true" {
+					isAuthRequired = true
+				}
+			}
+
+			if store != nil {
+				if asset, err := store.GetAsset(ev.Target); err == nil && asset != nil {
+					ao := &ownership.AssetOwnership{
+						AssetID: asset.ID,
+					}
+					if asset.OwnerID != nil {
+						ao.OwnerID = *asset.OwnerID
+						ao.Confidence = asset.Confidence
+					}
+					hasOwner = !ao.IsUnmanagedRisk()
+				}
+
+				if evs, err := store.GetEvidenceByAssetID(ev.Target); err == nil {
+					evidenceCount = len(evs)
+				}
+
+				if db := store.GetDB(); db != nil {
+					var count int
+					nodeID := storage.GenerateNodeID("domain", ev.Target, "")
+					err := db.QueryRow("SELECT COUNT(*) FROM asset_edges WHERE target_id = ? OR target_id = ?", ev.Target, nodeID).Scan(&count)
+					if err == nil && count > 0 {
+						hasAttackPath = true
+					}
+				}
+			}
+
+			score := scorer.ScoreEndpointAdvanced(ev.Target, isAuthRequired, "", hasOwner, hasAttackPath, evidenceCount, exploitability)
 			if store != nil {
 				if history, err := store.GetFindingHistory(ctx, ev.Target, 50, 0); err == nil {
 					scorer.AdjustScoreWithHistory(score, len(history))

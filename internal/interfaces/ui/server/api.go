@@ -793,6 +793,17 @@ func (a *API) GetSetupToken(w http.ResponseWriter, r *http.Request) {
 
 // EnrollAdmin creates the initial admin user using a valid setup token.
 func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+
+	// Restrict strictly to localhost loopback
+	if ip != "127.0.0.1" && ip != "::1" && ip != "localhost" {
+		respondWithError(w, http.StatusForbidden, "forbidden: enrollment is only allowed from localhost")
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -822,7 +833,7 @@ func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var storedToken string
-	err := rawDB.QueryRow("SELECT token FROM setup_tokens WHERE token = ?", req.Token).Scan(&storedToken)
+	err = rawDB.QueryRow("SELECT token FROM setup_tokens WHERE token = ?", req.Token).Scan(&storedToken)
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusForbidden, "invalid setup token")
 		return
@@ -857,11 +868,6 @@ func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
-	}
-
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		ip = r.RemoteAddr
 	}
 
 	LogAuditEvent(a.db, "SYSTEM", "admin", "enroll_admin", "dashboard_users/admin", ip, "success")

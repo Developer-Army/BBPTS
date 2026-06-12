@@ -51,7 +51,7 @@ func (t *GowitnessTool) Run(ctx context.Context, targets []string, threads int) 
 	}
 	_ = os.MkdirAll(destDir, 0755)
 
-	args := []string{"file", "-f", tmpFile.Name(), "--destination", destDir, "--threads", fmt.Sprintf("%d", threads), "--write-db=false"}
+	args := []string{"scan", "file", "-f", tmpFile.Name(), "--screenshot-path", destDir, "--threads", fmt.Sprintf("%d", threads)}
 
 	// Execute gowitness
 	_, err = RunCommandLines(ctx, "gowitness", args...)

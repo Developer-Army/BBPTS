@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -17,6 +18,20 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	_ "modernc.org/sqlite" // Import Go-native SQLite driver
 )
+
+type contextKey string
+const storageContextKey contextKey = "storage"
+
+func WithStorage(ctx context.Context, s *Storage) context.Context {
+	return context.WithValue(ctx, storageContextKey, s)
+}
+
+func FromContext(ctx context.Context) *Storage {
+	if s, ok := ctx.Value(storageContextKey).(*Storage); ok {
+		return s
+	}
+	return nil
+}
 
 // Storage manages the SQLite/Postgres database connection and queries.
 type Storage struct {

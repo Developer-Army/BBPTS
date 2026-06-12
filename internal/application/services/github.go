@@ -34,6 +34,23 @@ type githubSearchResponse struct {
 	Items []githubSearchItem `json:"items"`
 }
 
+var (
+	githubSearchMu    sync.Mutex
+	lastGithubSearch  time.Time
+	githubSearchDelay = 2400 * time.Millisecond // 25 requests/min limit
+)
+
+func limitGithubSearch() {
+	githubSearchMu.Lock()
+	defer githubSearchMu.Unlock()
+	now := time.Now()
+	elapsed := now.Sub(lastGithubSearch)
+	if elapsed < githubSearchDelay {
+		time.Sleep(githubSearchDelay - elapsed)
+	}
+	lastGithubSearch = time.Now()
+}
+
 func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]Event, error) {
 	apiKey := GetAPIKey(ctx, "github")
 	if apiKey == "" {
@@ -61,32 +78,53 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 			case <-ctx.Done():
 				return
 			}
+			client := &http.Client{Timeout: 15 * time.Second}
 
 			// Query GitHub search API for domain occurrences in code
 			query := fmt.Sprintf(`"%s"`, dom)
 			apiURL := fmt.Sprintf("https://api.github.com/search/code?q=%s&per_page=50", url.QueryEscape(query))
 
-			req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-			if err != nil {
-				return
-			}
-			req.Header.Set("Authorization", "token "+apiKey)
-			req.Header.Set("Accept", "application/vnd.github.v3+json")
+			var resp *http.Response
+			backoff := 5 * time.Second
+			for attempt := 0; attempt < 3; attempt++ {
+				limitGithubSearch()
 
-			client := &http.Client{Timeout: 15 * time.Second}
-			resp, err := client.Do(req)
-			if err != nil {
+				req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+				if err != nil {
+					return
+				}
+				req.Header.Set("Authorization", "token "+apiKey)
+				req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+				r, err := client.Do(req)
+				if err != nil {
+					return
+				}
+
+				if r.StatusCode == 403 || r.StatusCode == 429 {
+					r.Body.Close()
+					slog.Warn("GitHub search rate limited (403/429), backing off...", "attempt", attempt+1, "backoff", backoff)
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(backoff):
+						backoff *= 2
+						continue
+					}
+				}
+
+				if r.StatusCode != 200 {
+					r.Body.Close()
+					return
+				}
+				resp = r
+				break
+			}
+
+			if resp == nil {
 				return
 			}
 			defer resp.Body.Close()
-
-			if resp.StatusCode == 403 {
-				slog.Debug("GitHub API rate limit exceeded")
-				return
-			}
-			if resp.StatusCode != 200 {
-				return
-			}
 
 			var searchResp githubSearchResponse
 			if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&searchResp); err != nil {
