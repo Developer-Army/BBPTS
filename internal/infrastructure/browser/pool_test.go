@@ -107,6 +107,9 @@ func TestBrowserInstance(t *testing.T) {
 	if bi.contexts != 5 {
 		t.Errorf("Expected contexts 5, got %d", bi.contexts)
 	}
+	if bi.lastUsed.IsZero() {
+		t.Error("Expected lastUsed to be set")
+	}
 }
 
 func TestPoolConfigDefaults(t *testing.T) {
@@ -156,6 +159,10 @@ func TestPoolConfigCustom(t *testing.T) {
 
 	if cfg.MaxContexts != 50 {
 		t.Errorf("Expected MaxContexts 50, got %d", cfg.MaxContexts)
+	}
+
+	if cfg.ContextTTL != 5*60*1000000000 {
+		t.Errorf("Expected ContextTTL 5 minutes, got %v", cfg.ContextTTL)
 	}
 
 	if cfg.Headless != false {

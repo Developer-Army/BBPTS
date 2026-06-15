@@ -207,6 +207,31 @@ func TestIdentityDefaults(t *testing.T) {
 		BehavioralTrust:   100,
 	}
 
+	if id.ID != "test-id" {
+		t.Errorf("Expected ID 'test-id', got %s", id.ID)
+	}
+	if id.UserAgent != "Mozilla/5.0" {
+		t.Errorf("Expected UserAgent 'Mozilla/5.0', got %s", id.UserAgent)
+	}
+	if id.ViewportWidth != 1920 {
+		t.Errorf("Expected ViewportWidth 1920, got %d", id.ViewportWidth)
+	}
+	if id.ViewportHeight != 1080 {
+		t.Errorf("Expected ViewportHeight 1080, got %d", id.ViewportHeight)
+	}
+	if id.DeviceScaleFactor != 1.0 {
+		t.Errorf("Expected DeviceScaleFactor 1.0, got %f", id.DeviceScaleFactor)
+	}
+	if id.TimezoneID != "America/New_York" {
+		t.Errorf("Expected TimezoneID 'America/New_York', got %s", id.TimezoneID)
+	}
+	if id.Locale != "en-US" {
+		t.Errorf("Expected Locale 'en-US', got %s", id.Locale)
+	}
+	if id.BehavioralTrust != 100 {
+		t.Errorf("Expected BehavioralTrust 100, got %d", id.BehavioralTrust)
+	}
+
 	if id.HasTouch {
 		t.Error("Expected HasTouch to be false by default")
 	}

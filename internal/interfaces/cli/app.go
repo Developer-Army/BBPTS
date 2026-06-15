@@ -144,6 +144,7 @@ func runLoop(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.
 }
 
 func runWorkerNode(ctx context.Context, opts Options, cfg *config.Config) {
+	_ = opts
 	slog.Info("Starting BBPTS in Stateless Worker Mode")
 
 	if cfg.EventBus.URL == "" {
@@ -397,7 +398,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		if busType == "" {
 			busType = "nats"
 		}
-		if busType == "nats" {
+		switch busType {
+		case "nats":
 			url := cfg.EventBus.URL
 			if url == "" {
 				url = "nats://127.0.0.1:4222"
@@ -415,13 +417,13 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 				defer eventBus.Close()
 				slog.Info("NATS event bus enabled", "url", url)
 			}
-		} else if busType == "in-memory" {
+		case "in-memory":
 			if !cfg.MockMode {
 				slog.Error("in-memory event bus is not allowed in production; NATS must be configured")
 				os.Exit(1)
 			}
 			eventBus = queue.New()
-		} else {
+		default:
 			slog.Error("Invalid event bus type", "type", cfg.EventBus.Type)
 			os.Exit(1)
 		}
@@ -1002,6 +1004,8 @@ func handlePersistence(opts Options, cfg *config.Config, normalized []string, ev
 }
 
 func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, store *storage.Storage, events []recon.Event, matches []recon.Match, triggeredTools []string, threads int, bridge *tui.Bridge) []recon.Event {
+	_ = matches
+	_ = bridge
 	slog.Info("Running Advanced Offensive Intelligence Engine")
 
 	te := triage.NewTriageEngine()

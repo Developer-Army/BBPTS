@@ -14,6 +14,7 @@ import (
 // This fully enables the Event-Driven Microservices architecture, removing the need
 // for a central synchronous orchestrator.
 func registerRealHandlers(ctx context.Context, executor *workers.Executor, cfg *config.Config) {
+	_ = ctx
 	// Subdomain Enumeration Handler
 	executor.RegisterHandler(workers.CapSubdomainEnum, func(c context.Context, t workers.Task) error {
 		slog.Info("Executing CapSubdomainEnum via Worker Mesh", "target", t.Target)

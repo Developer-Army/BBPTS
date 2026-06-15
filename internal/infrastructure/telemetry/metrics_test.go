@@ -138,6 +138,9 @@ func TestMetricsCollectorNilStopChan(t *testing.T) {
 
 	// Should handle nil stopChan gracefully (though it shouldn't happen in practice)
 	// This is more of a defensive test
+	if mc.interval != 10*time.Millisecond {
+		t.Errorf("Expected interval 10ms, got %v", mc.interval)
+	}
 	if mc.stopChan != nil {
 		t.Error("Expected stopChan to be nil")
 	}

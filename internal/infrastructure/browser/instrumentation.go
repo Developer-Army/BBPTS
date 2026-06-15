@@ -180,10 +180,10 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 
 	// Capture XHR and Websocket connections
 	page.On("request", func(request playwright.Request) {
-		reqType := request.ResourceType()
-		if reqType == "xhr" || reqType == "fetch" || reqType == "websocket" {
+		switch reqType := request.ResourceType(); reqType {
+		case "xhr", "fetch", "websocket":
 			data.XHRRequests = append(data.XHRRequests, request.URL())
-		} else if reqType == "script" {
+		case "script":
 			data.JSFiles = append(data.JSFiles, request.URL())
 		}
 	})

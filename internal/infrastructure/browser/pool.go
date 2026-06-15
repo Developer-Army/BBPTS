@@ -154,7 +154,6 @@ func (pb *PooledBrowser) GetContext(domain string, headers map[string]string) (p
 		return nil, fmt.Errorf("no browser instances available or pool exhausted")
 	}
 
-	browserInst := pb.browsers[browserIdx]
 	opts := playwright.BrowserNewContextOptions{
 		Viewport:  &playwright.Size{Width: 1920, Height: 1080},
 		UserAgent: playwright.String("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
@@ -162,14 +161,14 @@ func (pb *PooledBrowser) GetContext(domain string, headers map[string]string) (p
 	if len(headers) > 0 {
 		opts.ExtraHttpHeaders = headers
 	}
-	ctx, err := browserInst.browser.NewContext(opts)
+	ctx, err := pb.browsers[browserIdx].browser.NewContext(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create browser context: %w", err)
 	}
 
-	browserInst.contexts++
-	browserInst.lastUsed = time.Now()
-	slog.Debug("Created new browser context", "domain", domain, "browser", browserIdx, "total_contexts", browserInst.contexts)
+	pb.browsers[browserIdx].contexts++
+	pb.browsers[browserIdx].lastUsed = time.Now()
+	slog.Debug("Created new browser context", "domain", domain, "browser", browserIdx, "total_contexts", pb.browsers[browserIdx].contexts)
 
 	return ctx, nil
 }

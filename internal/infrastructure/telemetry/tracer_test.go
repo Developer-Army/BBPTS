@@ -174,6 +174,18 @@ func TestTraceNodeStructure(t *testing.T) {
 		t.Errorf("Expected Name 'test-span', got '%s'", node.Name)
 	}
 
+	if node.Start.IsZero() {
+		t.Error("Expected Start to be set")
+	}
+
+	if node.End.IsZero() {
+		t.Error("Expected End to be set")
+	}
+
+	if len(node.Children) != 0 {
+		t.Errorf("Expected 0 children, got %d", len(node.Children))
+	}
+
 	if node.Duration != 100*time.Millisecond {
 		t.Errorf("Expected Duration 100ms, got %v", node.Duration)
 	}
