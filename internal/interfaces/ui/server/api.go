@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -336,7 +337,19 @@ func (a *API) StreamLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		u, err := url.Parse(origin)
+		if err == nil {
+			host := u.Hostname()
+			if host == "localhost" || host == "127.0.0.1" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+		}
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1")
+	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {

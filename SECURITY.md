@@ -6,8 +6,9 @@ Currently, only the latest release of BBPTS is actively supported with security 
 
 | Version | Supported          |
 | ------- | ------------------ |
-| v1.1.x  | :white_check_mark: |
-| < v1.1  | :x:                |
+| v1.4.x  | :white_check_mark: |
+| v1.3.x  | :white_check_mark: |
+| < v1.3  | :x:                |
 
 ## Reporting a Vulnerability
 

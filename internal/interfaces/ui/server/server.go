@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -202,6 +203,26 @@ func securityHeadersMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			u, err := url.Parse(origin)
+			if err == nil {
+				host := u.Hostname()
+				if host == "localhost" || host == "127.0.0.1" {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				}
+			}
+		}
+
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Dashboard-Token, X-Sync-Token")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
