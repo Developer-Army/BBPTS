@@ -847,9 +847,9 @@ func (m Model) View() string {
 		cwd, err := os.Getwd()
 		var rightInfo string
 		if err == nil {
-			rightInfo = StyleComment.Render(cwd) + "  " + StyleCyan.Render("v1.3.0")
+			rightInfo = StyleComment.Render(cwd) + "  " + StyleCyan.Render("v1.4.0")
 		} else {
-			rightInfo = StyleCyan.Render("v1.3.0")
+			rightInfo = StyleCyan.Render("v1.4.0")
 		}
 		// Build the bar at boxWidth so it sits directly under the prompt box
 		barInnerWidth := boxWidth + 2 // +2 accounts for box border chars

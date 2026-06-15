@@ -203,7 +203,7 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 		if lowerVal == "/info" || lowerVal == "info" {
 			m.cliHistory = append(m.cliHistory,
 				"  "+StyleWhite.Bold(true).Render("BBPTS Engine Info:"),
-				"    Version:    v1.3.0",
+				"    Version:    v1.4.0",
 				"    Status:     Ready to scan",
 				"    Database:   SQLite (active)",
 				"",

@@ -895,4 +895,47 @@ make release
 
 ---
 
-**Happy coding! **
+## SQLite Database Schema & Fleet Synchronization
+
+BBPTS utilizes a unified Go CGo-free SQLite engine (`modernc.org/sqlite`) for local state persistence and distributed mesh metadata tracking.
+
+### 1. Database Schema Overview
+
+The schema is divided into **Core Recon**, **Connected Asset Graph**, and **Enterprise CTEM** tables:
+
+#### Core Recon Tables
+* **scans**: Stores scan execution sessions (`id`, `scope`, `start_time`, `end_time`, `status`).
+* **targets**: Tracks initial target lists linked to a scan (`id`, `scan_id`, `host`).
+* **events**: Stores individual raw events emitted by tools (`id`, `scan_id`, `target`, `source`, `type`, `properties` JSON).
+
+#### Connected Asset Graph Tables
+* **asset_nodes**: Represents attack surface assets (`id`, `node_type`, `value`, `properties`, `scope_id`, `first_seen`, `last_seen`, `source`, `confidence`).
+* **asset_edges**: Represents relationships between assets (`source_id`, `target_id`, `relation`, `first_seen`, `last_seen`, `confidence`, `observed_at`, `evidence_id`).
+
+#### Enterprise CTEM & Ownership Tables
+* **teams** / **owners**: Manages target custodianship and security escalation paths.
+* **asset_ownership**: Tracks asset-to-owner mapping history.
+* **finding_assignments**: Tracks the lifecycle, assignment, SLA due date, and transition status of discovered exposure findings.
+* **sla_policies** / **escalation_rules**: Manages SLA compliance policy configurations and notification escalation rules.
+
+### 2. Fleet Synchronization Architecture
+
+For distributed multi-agent deployments, BBPTS supports secure decentralized state merging over HTTPS:
+
+```
+┌──────────────────┐               HTTP POST /api/fleet/sync               ┌──────────────────┐
+│  Axiom Agent/CLI │ ────────────────────────────────────────────────────> │ Master Dashboard │
+│  (Local SQLite)  │              Header: X-Sync-Token: <token>            │  (Master SQLite) │
+└──────────────────┘                                                       └──────────────────┘
+```
+
+1. **State Upload**: Axiom agents or CLI runs export their local SQLite run database and stream it to the Master dashboard via `POST /api/fleet/sync`.
+2. **Token Authentication**: Mutual trust is established via the `X-Sync-Token` header, matching the master's configured `fleet.sync_token`.
+3. **Master Database Merge**: The master node writes the upload to a temp database and invokes `services.ImportAndMergeDatabase(masterPath, tempPath)`, performing recursive deduplication and merging:
+   * Merges `scans`, `targets`, and `events` without duplicates.
+   * Merges `asset_nodes` and `asset_edges`, updating `last_seen` timestamps and confidence weightings.
+
+---
+
+**Happy coding!**
+

@@ -70,7 +70,7 @@ RUN go mod download
 COPY . .
 
 # Build the main binary with version info
-ARG VERSION=v1.3.0
+ARG VERSION=v1.4.0
 ARG COMMIT=unknown
 ARG BUILD_DATE=unknown
 RUN go build -ldflags "-X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
