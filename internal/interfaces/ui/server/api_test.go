@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
@@ -583,3 +584,39 @@ func TestGetCurrentUser(t *testing.T) {
 		}
 	}
 }
+
+func TestLoginRateLimit(t *testing.T) {
+	loginAttemptsMu.Lock()
+	loginAttempts = make(map[string][]time.Time)
+	loginAttemptsMu.Unlock()
+
+	defer func() {
+		loginAttemptsMu.Lock()
+		loginAttempts = make(map[string][]time.Time)
+		loginAttemptsMu.Unlock()
+	}()
+
+	api := NewAPI(nil, "", "")
+
+	// 5 attempts should not be rate limited on the rate limiter itself
+	for i := 0; i < 5; i++ {
+		req := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{}`))
+		req.RemoteAddr = "1.2.3.4:1234"
+		w := httptest.NewRecorder()
+		api.Authenticate(w, req)
+		// It might return BadRequest since request body `{}` is invalid or empty, but it shouldn't be TooManyRequests
+		if w.Code == http.StatusTooManyRequests {
+			t.Errorf("Attempt %d unexpectedly rate limited", i+1)
+		}
+	}
+
+	// 6th attempt should be rate limited
+	req := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{}`))
+	req.RemoteAddr = "1.2.3.4:1234"
+	w := httptest.NewRecorder()
+	api.Authenticate(w, req)
+	if w.Code != http.StatusTooManyRequests {
+		t.Errorf("Expected 6th attempt to be rate limited (429), got %d", w.Code)
+	}
+}
+

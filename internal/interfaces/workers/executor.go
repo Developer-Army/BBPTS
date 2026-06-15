@@ -119,9 +119,9 @@ func (e *Executor) Run(ctx context.Context) error {
 				}
 			}
 			workerSpanName := fmt.Sprintf("Worker.%s", t.Type)
-			workerCtx, workerSpanID := telemetry.DefaultTracer.StartSpan(ctx, workerSpanName, parentID)
+			workerCtx, workerSpanID := telemetry.InternalTracer.StartSpan(ctx, workerSpanName, parentID)
 			defer func() {
-				telemetry.DefaultTracer.EndSpan(workerSpanID, map[string]interface{}{
+				telemetry.InternalTracer.EndSpan(workerSpanID, map[string]interface{}{
 					"task_id": t.ID,
 					"target":  t.Target,
 				})

@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-func TestNewTracer(t *testing.T) {
-	tracer := NewTracer()
+func TestNewWorkflowTracer(t *testing.T) {
+	tracer := NewWorkflowTracer()
 
 	if tracer == nil {
-		t.Fatal("NewTracer returned nil")
+		t.Fatal("NewWorkflowTracer returned nil")
 	}
 
 	if tracer.activeTraces == nil {
@@ -19,7 +19,7 @@ func TestNewTracer(t *testing.T) {
 }
 
 func TestStartSpan(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	ctx := context.Background()
 	ctx, spanID := tracer.StartSpan(ctx, "test-span", "")
@@ -49,7 +49,7 @@ func TestStartSpan(t *testing.T) {
 }
 
 func TestStartSpanWithParent(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	ctx := context.Background()
 	ctx, parentID := tracer.StartSpan(ctx, "parent-span", "")
@@ -84,7 +84,7 @@ func TestStartSpanWithParent(t *testing.T) {
 }
 
 func TestEndSpan(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	_, spanID := tracer.StartSpan(context.Background(), "test-span", "")
 
@@ -118,14 +118,14 @@ func TestEndSpan(t *testing.T) {
 }
 
 func TestEndSpanNonExistent(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	// Should not panic
 	tracer.EndSpan("non-existent", nil)
 }
 
 func TestGetTrace(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	_, spanID := tracer.StartSpan(context.Background(), "test-span", "")
 
@@ -141,7 +141,7 @@ func TestGetTrace(t *testing.T) {
 }
 
 func TestGetTraceNonExistent(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	trace := tracer.GetTrace("non-existent")
 
@@ -201,7 +201,7 @@ func TestGenerateSpanID(t *testing.T) {
 }
 
 func TestMultipleSpans(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	ctx := context.Background()
 
@@ -235,7 +235,7 @@ func TestMultipleSpans(t *testing.T) {
 }
 
 func TestSpanHierarchy(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	ctx := context.Background()
 
@@ -275,7 +275,7 @@ func TestSpanHierarchy(t *testing.T) {
 }
 
 func TestSpanMetadataMerge(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	ctx := context.Background()
 	ctx, spanID := tracer.StartSpan(ctx, "test-span", "")
@@ -304,7 +304,7 @@ func TestSpanMetadataMerge(t *testing.T) {
 	}
 }
 
-func TestTracerContextKey(t *testing.T) {
+func TestWorkflowTracerContextKey(t *testing.T) {
 	key := tracerContextKey("span_id")
 
 	if key != "span_id" {
@@ -324,7 +324,7 @@ func TestSpanDurationCalculation(t *testing.T) {
 }
 
 func TestConcurrentSpanOperations(t *testing.T) {
-	tracer := NewTracer()
+	tracer := NewWorkflowTracer()
 
 	ctx := context.Background()
 

@@ -23,22 +23,22 @@ type TraceNode struct {
 	Children []*TraceNode
 }
 
-// Tracer provides distributed workflow tracking.
+// WorkflowTracer provides distributed workflow tracking.
 // In production, this would bridge to OpenTelemetry / Jaeger.
-type Tracer struct {
+type WorkflowTracer struct {
 	activeTraces map[string]*TraceNode
 	mu           sync.RWMutex
 }
 
-// NewTracer creates a new tracer instance.
-func NewTracer() *Tracer {
-	return &Tracer{
+// NewWorkflowTracer creates a new workflow tracer instance.
+func NewWorkflowTracer() *WorkflowTracer {
+	return &WorkflowTracer{
 		activeTraces: make(map[string]*TraceNode),
 	}
 }
 
-// DefaultTracer is a global tracer instance.
-var DefaultTracer = NewTracer()
+// InternalTracer is a global tracer instance.
+var InternalTracer = NewWorkflowTracer()
 
 // GetSpanID retrieves the current span ID from context.
 func GetSpanID(ctx context.Context) string {
@@ -51,7 +51,7 @@ func GetSpanID(ctx context.Context) string {
 }
 
 // StartSpan begins a new trace span.
-func (t *Tracer) StartSpan(ctx context.Context, name string, parentID string) (context.Context, string) {
+func (t *WorkflowTracer) StartSpan(ctx context.Context, name string, parentID string) (context.Context, string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -77,7 +77,7 @@ func (t *Tracer) StartSpan(ctx context.Context, name string, parentID string) (c
 }
 
 // EndSpan completes a trace span.
-func (t *Tracer) EndSpan(spanID string, metadata map[string]interface{}) {
+func (t *WorkflowTracer) EndSpan(spanID string, metadata map[string]interface{}) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -96,7 +96,7 @@ func (t *Tracer) EndSpan(spanID string, metadata map[string]interface{}) {
 }
 
 // GetTrace retrieves a complete trace tree.
-func (t *Tracer) GetTrace(rootID string) *TraceNode {
+func (t *WorkflowTracer) GetTrace(rootID string) *TraceNode {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
