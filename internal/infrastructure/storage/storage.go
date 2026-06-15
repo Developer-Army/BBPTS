@@ -388,7 +388,7 @@ func (s *Storage) SaveEvent(ev recon.Event) error {
 		blobPath := filepath.Join(blobDir, blobID)
 
 		if err := os.WriteFile(blobPath, []byte(body), 0644); err == nil {
-			ev.Properties["response_body_blob"] = "file://" + blobPath
+			ev.Properties["response_body_blob"] = "file://" + filepath.ToSlash(blobPath)
 			delete(ev.Properties, "response_body")
 		}
 	}

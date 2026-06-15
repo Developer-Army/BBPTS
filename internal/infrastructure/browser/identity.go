@@ -3,10 +3,14 @@ package browser
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+var identityCounter uint64
 
 // Identity represents a coherent browser fingerprint and TLS profile to evade WAFs.
 type Identity struct {
@@ -74,11 +78,12 @@ func (p *IdentityPool) ReportChallenge(sessionID string) {
 }
 
 func generateCoherentIdentity(seed string) *Identity {
-	hash := sha256.Sum256([]byte(seed + time.Now().String()))
+	count := atomic.AddUint64(&identityCounter, 1)
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%s_%d_%d", seed, count, time.Now().UnixNano())))
 	hashStr := hex.EncodeToString(hash[:])
 
 	// Seed PRNG locally for deterministic profile attributes based on hash
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(count)))
 
 	// Simplistic coherent generation. In a real stealth platform, these are pulled from a known-good database.
 	userAgents := []string{

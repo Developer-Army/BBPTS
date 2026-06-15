@@ -1,23 +1,26 @@
 package cli
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestDefaultReportPaths_FromCSVInput(t *testing.T) {
 	out, summary := defaultReportPaths("targets.example.csv")
-	if out != "results/targets.example_report.md" {
+	if out != filepath.Join("results", "targets.example_report.md") {
 		t.Fatalf("unexpected output path: %s", out)
 	}
-	if summary != "results/targets.example_summary.csv" {
+	if summary != filepath.Join("results", "targets.example_summary.csv") {
 		t.Fatalf("unexpected summary path: %s", summary)
 	}
 }
 
 func TestDefaultReportPaths_EmptyNameFallback(t *testing.T) {
 	out, summary := defaultReportPaths("")
-	if out != "results/scan_report.md" {
+	if out != filepath.Join("results", "scan_report.md") {
 		t.Fatalf("unexpected output path: %s", out)
 	}
-	if summary != "results/scan_summary.csv" {
+	if summary != filepath.Join("results", "scan_summary.csv") {
 		t.Fatalf("unexpected summary path: %s", summary)
 	}
 }

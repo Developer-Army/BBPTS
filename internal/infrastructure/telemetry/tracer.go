@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+var spanCounter uint64
 
 type tracerContextKey string
 
@@ -105,5 +108,6 @@ func (t *WorkflowTracer) GetTrace(rootID string) *TraceNode {
 
 // generateSpanID creates a unique span identifier.
 func generateSpanID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
+	count := atomic.AddUint64(&spanCounter, 1)
+	return fmt.Sprintf("%d_%d", time.Now().UnixNano(), count)
 }
