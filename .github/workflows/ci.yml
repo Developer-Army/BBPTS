@@ -118,5 +118,20 @@ jobs:
       - name: Run Tests with Race Detector
         run: go test -v -race "-coverprofile=coverage-${{ matrix.os }}.out" -covermode=atomic ./...
 
+      - name: Verify Coverage Threshold
+        shell: bash
+        run: |
+          COVERAGE=$(go tool cover -func="coverage-${{ matrix.os }}.out" | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: $COVERAGE%"
+          INT_COVERAGE=$(echo "$COVERAGE" | cut -d. -f1)
+          if [ -z "$INT_COVERAGE" ]; then
+            echo "Failed to parse coverage"
+            exit 1
+          fi
+          if [ "$INT_COVERAGE" -lt 65 ]; then
+            echo "Error: Code coverage $INT_COVERAGE% is below threshold of 65%"
+            exit 1
+          fi
+
       - name: Verify Build
         run: go build -v ./...

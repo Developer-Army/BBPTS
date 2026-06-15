@@ -196,6 +196,16 @@ func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 	})
 }
 
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src 'self' 'unsafe-inline' 'unsafe-eval' data:; connect-src 'self' ws: wss:;")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Start launches the BBPTS dashboard server on the specified port.
 func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) error {
 	if db == nil {
@@ -248,7 +258,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
 
-	handler := authMiddleware(db, mux)
+	handler := securityHeadersMiddleware(authMiddleware(db, mux))
 
 	if cfg.TLSEnabled {
 		slog.Info("dashboard server starting with TLS", "addr", "https://"+addr)

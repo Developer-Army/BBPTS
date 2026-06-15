@@ -619,4 +619,3 @@ func TestLoginRateLimit(t *testing.T) {
 		t.Errorf("Expected 6th attempt to be rate limited (429), got %d", w.Code)
 	}
 }
-

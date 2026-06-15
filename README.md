@@ -1,4 +1,10 @@
 # BBPTS v1.4.0
+
+[![Build Status](https://github.com/Developer-Army/BBPTS/actions/workflows/ci.yml/badge.svg)](https://github.com/Developer-Army/BBPTS/actions)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Developer-Army/BBPTS)](https://golang.org)
+[![Latest Release](https://img.shields.io/github/v/release/Developer-Army/BBPTS)](https://github.com/Developer-Army/BBPTS/releases)
+[![License](https://img.shields.io/github/license/Developer-Army/BBPTS)](LICENSE)
+
 > **Bug Bounty Recon on Autopilot.** Point it at target domains, gather intelligence, and get prioritized, actionable findings instantly.
 
 BBPTS automates the execution of **25+ elite penetration testing and reconnaissance tools** in a highly structured pipeline. It correlates, cleans, and deduplicates the results into a unified interactive report, scoring findings by risk severity so you know exactly where to start testing.
@@ -8,9 +14,14 @@ BBPTS automates the execution of **25+ elite penetration testing and reconnaissa
 ## Key Features
 
 * **Automated Pipeline**: Orchestrates recon stages sequentially (Subdomains ➔ DNS/Ports ➔ Web Probing ➔ Vuln Scanning).
+* **CI/CD Gating (`--ci`)**: Run headlessly in CI environments with non-zero exit code enforcement (`--fail-on`) upon finding critical items.
+* **Continuous Monitoring (`--cron`)**: Execute recurring scans at custom intervals to track target changes and generate diff reports.
+* **Strict Scope Control (`--scope-file`)**: Input target scope wildcard rules to filter target domains and prevent out-of-scope scanning.
+* **Attack Paths**: Graph-based asset relationship visualization displaying findings and attack vectors as connected nodes.
+* **CVSS 3.1 Risk Scoring**: Native implementation of CVSS 3.1 base scoring to mathematically rate and prioritize exposures.
+* **Direct Platform Submission (`--submit`)**: Automatically upload verified vulnerabilities directly to HackerOne or Bugcrowd bug bounty portals.
 * **Setup Profiles**: Choose between **User Mode** (core tools) and **Developer Mode** (full suite + dev environments).
 * **Unified Reporting**: Generates interactive HTML dashboards, structured JSON/CSV logs, and XML templates ready for Burp Suite, OWASP ZAP, and Caido.
-* **Smart Scoring**: Prioritizes findings using an internal risk analyzer to highlight high-value targets.
 * **Live Notifications**: Connect webhooks to receive real-time alerts via Discord, Slack, or Telegram.
 
 ---

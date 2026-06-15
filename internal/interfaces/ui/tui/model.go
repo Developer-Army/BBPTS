@@ -1325,8 +1325,6 @@ func (m Model) calculateProgress() float64 {
 	return float64(completedStages) / float64(totalStages)
 }
 
-
-
 type TargetValidationResultMsg struct {
 	Target   string
 	IsValid  bool

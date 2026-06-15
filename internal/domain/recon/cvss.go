@@ -116,7 +116,7 @@ func (c CVSS31) BaseScore() float64 {
 
 	var impact float64
 	if c.Scope == "C" {
-		impact = 7.52 * (iss - 0.029) - 3.25 * math.Pow(iss-0.029, 15.0)
+		impact = 7.52*(iss-0.029) - 3.25*math.Pow(iss-0.029, 15.0)
 	} else {
 		impact = 6.42 * iss
 	}

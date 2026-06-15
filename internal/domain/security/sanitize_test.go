@@ -847,7 +847,7 @@ func TestRedactSecrets(t *testing.T) {
 
 func TestIsPrivateIPAndAddr(t *testing.T) {
 	tests := []struct {
-		ip       string
+		ip        string
 		isPrivate bool
 	}{
 		{"127.0.0.1", true},
