@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/url"
@@ -54,6 +55,37 @@ var fileExtsThatMightBeURLs = []string{
 	".log", ".jsonl", ".env", ".md", ".input",
 }
 
+var wildcardCache sync.Map
+
+func detectWildcardIPs(ctx context.Context, parent string) []string {
+	if ips, ok := wildcardCache.Load(parent); ok {
+		return ips.([]string)
+	}
+
+	randHost := fmt.Sprintf("bbpts-wildcard-%d.%s", time.Now().UnixNano(), parent)
+	var resolver net.Resolver
+	ips, err := resolver.LookupIP(ctx, "ip", randHost)
+	var ipStrings []string
+	if err == nil {
+		for _, ip := range ips {
+			ipStrings = append(ipStrings, ip.String())
+		}
+	}
+	if ipStrings == nil {
+		ipStrings = []string{}
+	}
+	wildcardCache.Store(parent, ipStrings)
+	return ipStrings
+}
+
+func getParentDomain(host string) string {
+	parts := strings.Split(host, ".")
+	if len(parts) <= 2 {
+		return host
+	}
+	return strings.Join(parts[len(parts)-2:], ".")
+}
+
 func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int) ([]string, []recon.Event) {
 	slog.Info("Probing input targets to verify active hosts...", "count", len(targets))
 
@@ -103,6 +135,30 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 			// Try DNS lookup to see if it resolves
 			ips, err := net.LookupIP(cleanHost)
 			if err == nil && len(ips) > 0 {
+				parent := getParentDomain(cleanHost)
+				wildcardIPs := detectWildcardIPs(ctx, parent)
+				isWildcard := false
+				if len(wildcardIPs) > 0 {
+					matchCount := 0
+					for _, ip := range ips {
+						ipStr := ip.String()
+						for _, wIP := range wildcardIPs {
+							if ipStr == wIP {
+								matchCount++
+								break
+							}
+						}
+					}
+					if matchCount == len(ips) {
+						isWildcard = true
+					}
+				}
+
+				if isWildcard {
+					slog.Warn("Target filtered out as wildcard DNS subdomain", "target", cleanHost)
+					return
+				}
+
 				mu.Lock()
 				alive = append(alive, target)
 				mu.Unlock()
