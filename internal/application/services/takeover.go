@@ -50,6 +50,36 @@ var takeoverSignatures = []takeoverSig{
 		CNameSub: "cloudfront.net",
 		Response: []string{"Bad Gateway: CloudFront", "The request could not be satisfied"},
 	},
+	{
+		Name:     "Webflow",
+		CNameSub: "webflow.com",
+		Response: []string{"The page you are looking for doesn't exist", "404 Not Found"},
+	},
+	{
+		Name:     "Zendesk",
+		CNameSub: "zendesk.com",
+		Response: []string{"No such Web Portal", "Help Center Closed"},
+	},
+	{
+		Name:     "WP Engine",
+		CNameSub: "wpengine.com",
+		Response: []string{"The site you were looking for could not be found"},
+	},
+	{
+		Name:     "Pantheon",
+		CNameSub: "pantheonsite.io",
+		Response: []string{"The route has not been registered", "404 error"},
+	},
+	{
+		Name:     "Tumblr",
+		CNameSub: "tumblr.com",
+		Response: []string{"Whatever you were looking for doesn't exist"},
+	},
+	{
+		Name:     "Ghost",
+		CNameSub: "ghost.io",
+		Response: []string{"The thing you're looking for is no longer here"},
+	},
 }
 
 var takeoverHttpClient *http.Client
@@ -63,6 +93,7 @@ func (t *TakeoverTool) Run(ctx context.Context, targets []string, threads int) (
 
 	var events []Event
 	var mu sync.Mutex
+	var dnsCache sync.Map
 
 	if threads < 1 {
 		threads = 10
@@ -106,12 +137,19 @@ func (t *TakeoverTool) Run(ctx context.Context, targets []string, threads int) (
 				cleanHost = cleanHost[:idx]
 			}
 
-			// Perform DNS CNAME lookup
-			cname, err := net.LookupCNAME(cleanHost)
-			if err != nil {
-				return
+			// Perform DNS CNAME lookup with cache
+			var cname string
+			var err error
+			if cachedVal, ok := dnsCache.Load(cleanHost); ok {
+				cname = cachedVal.(string)
+			} else {
+				cname, err = net.LookupCNAME(cleanHost)
+				if err != nil {
+					return
+				}
+				cname = strings.ToLower(cname)
+				dnsCache.Store(cleanHost, cname)
 			}
-			cname = strings.ToLower(cname)
 
 			for _, sig := range takeoverSignatures {
 				if strings.Contains(cname, sig.CNameSub) {

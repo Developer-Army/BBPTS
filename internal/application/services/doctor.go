@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
 // ToolHealth represents the health status of a single recon tool.
@@ -315,6 +317,35 @@ func runDiagnostics(ctx context.Context) []DiagnosticCheck {
 
 	// Check Playwright browser dependencies
 	checks = append(checks, checkPlaywrightBrowsers(ctx))
+
+	// Check API keys validation
+	configPath := filepath.Join("configs", "config.json")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		home, _ := os.UserHomeDir()
+		configPath = filepath.Join(home, ".bbpts", "config.json")
+	}
+	cfg, err := config.LoadFromFile(configPath)
+	if err == nil {
+		cfg.LoadFromEnv()
+		providers := []string{"shodan", "securitytrails", "github", "chaos", "virustotal", "passivetotal", "binaryedge"}
+		for _, provider := range providers {
+			key := cfg.APIKeys[provider]
+			name := fmt.Sprintf("api-key-%s", provider)
+			if key != "" {
+				checks = append(checks, DiagnosticCheck{
+					Name:    name,
+					Status:  "pass",
+					Message: fmt.Sprintf("API key for %s is configured", provider),
+				})
+			} else {
+				checks = append(checks, DiagnosticCheck{
+					Name:    name,
+					Status:  "warn",
+					Message: fmt.Sprintf("API key for %s is empty (passive recon capability may be limited)", provider),
+				})
+			}
+		}
+	}
 
 	return checks
 }
