@@ -265,7 +265,7 @@ mkdir -p "$WORDLISTS_DIR"
 
 # Download essential wordlists from pinned SecLists revision
 echo "Downloading DNS wordlist (5k entries)..."
-SECLISTS_COMMIT="120a1db49fa279bb945d8b74c51483bf9e47f25e"
+SECLISTS_COMMIT="master"
 curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_COMMIT}/Discovery/DNS/dns-Jhaddix.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo " Failed to download DNS wordlist"
 
 echo "Downloading directory wordlist (small)..."
