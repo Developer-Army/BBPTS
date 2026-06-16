@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
 // NucleiTool wraps projectdiscovery/nuclei for automated vulnerability scanning.
@@ -56,10 +59,26 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 	}
 
 	if AutoUpdateFromCtx(ctx) {
-		slog.Info("Auto-updating Nuclei templates...")
-		_, err := RunCommandLines(ctx, "nuclei", "-update-templates")
-		if err != nil {
-			slog.Warn("Nuclei templates auto-update failed", "error", err)
+		store := storage.FromContext(ctx)
+		shouldUpdate := true
+		if store != nil {
+			if lastStr, err := store.GetSetting("lastTemplateUpdate"); err == nil && lastStr != "" {
+				if lastTime, err := time.Parse(time.RFC3339, lastStr); err == nil {
+					if time.Since(lastTime) < 24*time.Hour {
+						shouldUpdate = false
+						slog.Info("Nuclei template auto-update skipped: updated recently", "last_update", lastTime)
+					}
+				}
+			}
+		}
+		if shouldUpdate {
+			slog.Info("Auto-updating Nuclei templates...")
+			_, err := RunCommandLines(ctx, "nuclei", "-update-templates")
+			if err != nil {
+				slog.Warn("Nuclei templates auto-update failed", "error", err)
+			} else if store != nil {
+				_ = store.SaveSetting("lastTemplateUpdate", time.Now().Format(time.RFC3339))
+			}
 		}
 	}
 

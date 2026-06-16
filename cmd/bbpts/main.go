@@ -265,6 +265,7 @@ func parseFlags() app.Options {
 	flag.IntVar(&opts.MetricsPort, "metrics-port", 9090, "Prometheus metrics port")
 	flag.BoolVar(&opts.CI, "ci", false, "Enable CI mode with exit codes on finding discovery")
 	flag.StringVar(&opts.CIFailOn, "fail-on", "medium", "Minimum severity to trigger non-zero exit code in CI mode (low, medium, high, critical)")
+	flag.BoolVar(&opts.PassiveMode, "passive", false, "Passive-only stealth mode: skips active probing tools")
 
 	reordered := reorderArgs(os.Args[1:])
 	_ = flag.CommandLine.Parse(reordered)

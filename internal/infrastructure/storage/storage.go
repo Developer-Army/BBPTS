@@ -253,6 +253,12 @@ func (s *Storage) initSchema() error {
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS settings (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS evidence (
 		id TEXT PRIMARY KEY,
 		asset_id TEXT NOT NULL,
@@ -262,7 +268,6 @@ func (s *Storage) initSchema() error {
 		raw_data BLOB,
 		hash TEXT NOT NULL
 	);
-
 	CREATE TABLE IF NOT EXISTS assets (
 		id TEXT PRIMARY KEY,
 		asset_type TEXT NOT NULL,
@@ -317,6 +322,43 @@ func (s *Storage) initSchema() error {
 
 	return nil
 }
+
+// GetSetting retrieves a setting value by key.
+func (s *Storage) GetSetting(key string) (string, error) {
+	var val string
+	query := "SELECT value FROM settings WHERE key = ?"
+	if s.dbType == "postgres" {
+		query = "SELECT value FROM settings WHERE key = $1"
+	}
+	err := s.db.QueryRow(query, key).Scan(&val)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return val, err
+}
+
+// SaveSetting saves a setting key-value pair.
+func (s *Storage) SaveSetting(key, val string) error {
+	query := `
+		INSERT INTO settings (key, value, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET
+			value = excluded.value,
+			updated_at = excluded.updated_at
+	`
+	if s.dbType == "postgres" {
+		query = `
+			INSERT INTO settings (key, value, updated_at)
+			VALUES ($1, $2, $3)
+			ON CONFLICT(key) DO UPDATE SET
+				value = EXCLUDED.value,
+				updated_at = EXCLUDED.updated_at
+		`
+	}
+	_, err := s.db.Exec(query, key, val, time.Now().UTC())
+	return err
+}
+
 
 // SaveEvidence stores findings evidence.
 func (s *Storage) SaveEvidence(id, assetID, source string, confidence float64, rawData []byte, hash string) error {

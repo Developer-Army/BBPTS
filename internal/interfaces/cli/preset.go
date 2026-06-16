@@ -108,6 +108,8 @@ func LightModeTools() []string {
 		"katana", "gau", "hakrawler",
 		"uro", "dalfox", "nuclei", "interactsh", "secrets",
 		"trufflehog", "browser", "js_analyzer", "gowitness", "tlsx", "github",
+		"cloud_buckets",
+		"takeover",
 	}
 }
 
@@ -119,6 +121,8 @@ func NormalModeTools() []string {
 		"katana", "gau", "hakrawler", "ffuf", "gobuster", "feroxbuster",
 		"uro", "dalfox", "nuclei", "interactsh", "secrets",
 		"trufflehog", "browser", "js_analyzer", "gowitness", "tlsx", "github",
+		"cloud_buckets",
+		"takeover",
 	}
 }
 

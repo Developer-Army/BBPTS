@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -82,6 +83,7 @@ type DetailedFinding struct {
 	PathScore           int `json:"path_score"`
 
 	Risk recon.RiskVector `json:"risk_vector"`
+	ScreenshotPath string             `json:"screenshot_path,omitempty"`
 }
 
 // ReportStatistics holds statistical information about the scan
@@ -349,6 +351,20 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			Risk:                insight.Risk,
 		}
 
+		// Lookup screenshot path
+		screenshotName := fmt.Sprintf("%x.png", md5.Sum([]byte(makeURL(insight.Host))))
+		screenshotPath := filepath.Join("results", "screenshots", screenshotName)
+		if _, err := os.Stat(screenshotPath); err == nil {
+			finding.ScreenshotPath = "/" + filepath.ToSlash(screenshotPath)
+		} else {
+			// Fallback: check without scheme
+			screenshotNameFallback := fmt.Sprintf("%x.png", md5.Sum([]byte(insight.Host)))
+			screenshotPathFallback := filepath.Join("results", "screenshots", screenshotNameFallback)
+			if _, err := os.Stat(screenshotPathFallback); err == nil {
+				finding.ScreenshotPath = "/" + filepath.ToSlash(screenshotPathFallback)
+			}
+		}
+
 		// Store suggested tests directly as structured data for checklist rendering.
 		if len(insight.SuggestedTests) > 0 {
 			finding.Remediation = "Suggested security tests: " + strings.Join(insight.SuggestedTests, "\x00")
@@ -555,6 +571,11 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 				content += fmt.Sprintf("- [%s](%s)\n", u, makeURL(u))
 			}
 			content += "\n"
+		}
+
+		if finding.ScreenshotPath != "" {
+			content += "### Page Screenshot\n"
+			content += fmt.Sprintf("![Screenshot](%s)\n\n", finding.ScreenshotPath)
 		}
 
 		if finding.Remediation != "" {
@@ -1159,6 +1180,10 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 				}
 				sb.WriteString(`</div>`)
 			}
+		}
+
+		if f.ScreenshotPath != "" {
+			sb.WriteString(fmt.Sprintf(`<div class="fsection"><div class="fsection-label">Page Screenshot</div><div class="screenshot-container" style="margin-top:8px;"><a href="%s" target="_blank"><img src="%s" alt="Screenshot" style="max-width:240px;border:1px solid var(--border);border-radius:6px;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,0.1);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"></a></div></div>`, f.ScreenshotPath, f.ScreenshotPath))
 		}
 
 		if f.Remediation != "" {

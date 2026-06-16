@@ -42,6 +42,8 @@ var toolFactories = map[string]struct {
 	"secrets":     {factory: func() Tool { return &SecretsTool{} }, stage: 4},
 	"browser":     {factory: func() Tool { return &BrowserRecon{} }, stage: 3},
 	"js_analyzer": {factory: func() Tool { return &JSAnalyzer{} }, stage: 4},
+	"cloud_buckets": {factory: func() Tool { return &CloudBucketsTool{} }, stage: 1},
+	"takeover": {factory: func() Tool { return &TakeoverTool{} }, stage: 3},
 }
 
 var toolAliases = map[string]string{
@@ -60,6 +62,11 @@ var toolAliases = map[string]string{
 	"resolve":     "puredns",
 	"crawler":     "browser",
 	"spa":         "browser",
+	"bucket":      "cloud_buckets",
+	"s3":          "cloud_buckets",
+	"cloud":       "cloud_buckets",
+	"subjack":     "takeover",
+	"subtake":     "takeover",
 }
 
 func normalizeToolName(name string) string {
