@@ -4,9 +4,11 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0] — 2026-06-18
+## [1.4.0] — 2026-06-21
 
 ### Added
+- **CLI Dry-Run Mode**: Introduced `-dry-run` flag to print simulated commands for downstream tools (e.g. subfinder, httpx, katana, nuclei) without executing them.
+- **Streaming JSONL Asset Store**: Introduced `-asset-store` flag to write real-time, live-updating JSONL asset discoveries and findings to a specified path.
 - **CI/CD Pipeline Mode**: Integrated `--ci` and `--fail-on` flags to exit with non-zero exit codes when findings matching or exceeding the target severity threshold are discovered.
 - **Scope Enforcement Engine**: Added the `--scope-file` flag to load and enforce domain allow/exclude wildcards prior to scanning.
 - **CVSS 3.1 Scoring**: Implemented a standalone, standard-compliant CVSS 3.1 base score and severity rating calculator.

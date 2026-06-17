@@ -201,6 +201,8 @@ Your scan reports are saved under the `./results/` directory:
 | `-export-burp` | | Export findings to Burp Suite XML format | |
 | `-export-h1` | | Export HackerOne CSV format findings | |
 | `-export-bc` | | Export Bugcrowd CSV format findings | |
+| `-dry-run` | | Dry-run mode: prints simulated tool command cascades | `false` |
+| `-asset-store` | | Path to stream JSONL asset discoveries in real time | |
 
 ---
 
