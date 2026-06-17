@@ -117,6 +117,7 @@ func runWorkerNode(ctx context.Context, opts Options, cfg *config.Config) {
 func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Bridge) {
 	abortCtx, cancelAbort := context.WithCancel(ctx)
 	defer cancelAbort()
+	abortCtx = services.WithDryRun(abortCtx, opts.DryRun)
 
 	// Monitor ScanAbortChan to cancel abortCtx
 	go func() {
@@ -389,6 +390,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			DockerImages:       cfg.DockerImages,
 			MockMode:           cfg.MockMode,
 			InsecureSkipVerify: cfg.InsecureSkipVerify,
+			DryRun:             opts.DryRun,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
 				WorkerMesh:  cfg.Fleet.WorkerMesh,

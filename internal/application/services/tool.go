@@ -311,3 +311,16 @@ func InsecureFromCtx(ctx context.Context) bool {
 	}
 	return false
 }
+
+const dryRunContextKey contextKey = "dry_run"
+
+func WithDryRun(ctx context.Context, dryRun bool) context.Context {
+	return context.WithValue(ctx, dryRunContextKey, dryRun)
+}
+
+func DryRunFromCtx(ctx context.Context) bool {
+	if dryRun, ok := ctx.Value(dryRunContextKey).(bool); ok {
+		return dryRun
+	}
+	return false
+}

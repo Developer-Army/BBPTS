@@ -51,6 +51,7 @@ type Config struct {
 	DockerImages       map[string]string
 	MockMode           bool
 	InsecureSkipVerify bool
+	DryRun             bool
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -190,6 +191,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = WithContainerMode(ctx, o.config.ContainerMode)
 	ctx = WithDockerImages(ctx, o.config.DockerImages)
 	ctx = WithInsecure(ctx, o.config.InsecureSkipVerify)
+	ctx = WithDryRun(ctx, o.config.DryRun)
 
 	if err := o.ensureTmpResultsDir(); err != nil {
 		slog.Warn("failed to initialize tmp results directory", "dir", o.config.TmpResultsDir, "error", err)

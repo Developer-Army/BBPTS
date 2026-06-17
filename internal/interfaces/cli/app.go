@@ -63,6 +63,7 @@ type Options struct {
 	MetricsPort       int
 	LogFilePath       string
 	Headers           string
+	Cookie            string
 	MaxCPUPercent     int
 	MaxCPUCores       int
 	MaxMemoryMB       int
@@ -78,4 +79,5 @@ type Options struct {
 	CIFailOn          string
 	ScopeFile         string
 	PassiveMode       bool
+	DryRun            bool
 }

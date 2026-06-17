@@ -16,6 +16,82 @@ func RunCommandStream(ctx context.Context, name string, args ...string) ([]strin
 
 // RunCommandStreamWithInput runs an external command with stdin provided, and reads stdout stream line-by-line, returning unique lines.
 func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, args ...string) ([]string, error) {
+	if DryRunFromCtx(ctx) {
+		fmt.Printf("[Dry-Run] Would execute: %s %s\n", name, strings.Join(args, " "))
+		var mockLines []string
+		switch name {
+		case "subfinder", "amass", "assetfinder", "crtsh":
+			var inputTargets []string
+			if stdin != nil {
+				inputTargets = strings.Split(string(stdin), "\n")
+			} else {
+				inputTargets = []string{"target.com"}
+			}
+			for _, t := range inputTargets {
+				t = strings.TrimSpace(t)
+				if t == "" {
+					continue
+				}
+				mockLines = append(mockLines, "sub1."+t, "sub2."+t)
+			}
+		case "httpx":
+			var inputTargets []string
+			if stdin != nil {
+				inputTargets = strings.Split(string(stdin), "\n")
+			}
+			for _, t := range inputTargets {
+				t = strings.TrimSpace(t)
+				if t == "" {
+					continue
+				}
+				mockLines = append(mockLines, fmt.Sprintf(`{"url":"https://%s","statuscode":200,"title":"Mock Title","server":"nginx"}`, t))
+			}
+		case "katana", "gau", "hakrawler":
+			var inputTargets []string
+			if stdin != nil {
+				inputTargets = strings.Split(string(stdin), "\n")
+			} else {
+				inputTargets = []string{"https://target.com"}
+			}
+			for _, t := range inputTargets {
+				t = strings.TrimSpace(t)
+				if t == "" {
+					continue
+				}
+				prefix := strings.TrimSuffix(t, "/")
+				if !strings.HasPrefix(prefix, "http") {
+					prefix = "https://" + prefix
+				}
+				mockLines = append(mockLines, prefix+"/api/v1", prefix+"/login")
+			}
+		case "nuclei":
+			var inputTargets []string
+			if stdin != nil {
+				inputTargets = strings.Split(string(stdin), "\n")
+			}
+			for _, t := range inputTargets {
+				t = strings.TrimSpace(t)
+				if t == "" {
+					continue
+				}
+				mockLines = append(mockLines, fmt.Sprintf(`{"template-id":"mock-vuln","info":{"severity":"medium"},"matched-at":"%s"}`, t))
+			}
+		case "dalfox":
+			var inputTargets []string
+			if stdin != nil {
+				inputTargets = strings.Split(string(stdin), "\n")
+			}
+			for _, t := range inputTargets {
+				t = strings.TrimSpace(t)
+				if t == "" {
+					continue
+				}
+				mockLines = append(mockLines, fmt.Sprintf(`{"type":"vulnerability","url":"%s","payload":"<script>alert(1)</script>","severity":"medium"}`, t))
+			}
+		}
+		return mockLines, nil
+	}
+
 	cmd := prepareCommand(ctx, name, args...)
 
 	if stdin != nil {

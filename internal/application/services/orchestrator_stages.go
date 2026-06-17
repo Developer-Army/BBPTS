@@ -123,7 +123,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 					events = NewEventsFromLines(lines, tool.Name(), nil)
 				}
 			} else {
-				if o.cache != nil {
+				if o.cache != nil && !DryRunFromCtx(toolCtx) {
 					if entry, ok := o.cache.Get(tool.Name(), toolTargets, toolThreads); ok {
 						slog.Debug("cache hit", "tool", tool.Name(), "events", len(entry.Events))
 						o.reportToolStatus(tool.Name(), "done", fmt.Sprintf("%d findings (cached)", len(entry.Events)))
@@ -145,7 +145,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 
 				if cbErr != nil {
 					err = cbErr
-				} else if o.cache != nil {
+				} else if o.cache != nil && !DryRunFromCtx(toolCtx) {
 					if errPut := o.cache.Put(tool.Name(), toolTargets, toolThreads, events); errPut != nil {
 						slog.Warn("failed to write to tool execution cache", "tool", tool.Name(), "error", errPut)
 					}

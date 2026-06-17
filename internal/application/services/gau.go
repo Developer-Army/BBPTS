@@ -18,6 +18,10 @@ func (t *GauTool) Run(ctx context.Context, targets []string, threads int) ([]Eve
 	}
 
 	args := []string{"--threads", fmt.Sprintf("%d", threads), "--subs"}
+	headers := HeadersFromCtx(ctx)
+	for k, v := range headers {
+		args = append(args, "--header", fmt.Sprintf("%s: %s", k, v))
+	}
 	input := strings.Join(targets, "\n")
 	lines, err := RunCommandWithInputLines(ctx, []byte(input), "gau", args...)
 	if err != nil {

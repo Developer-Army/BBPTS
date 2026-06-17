@@ -79,6 +79,12 @@ func main() {
 			}
 		}
 	}
+	if opts.Cookie != "" {
+		if cfg.Headers == nil {
+			cfg.Headers = make(map[string]string)
+		}
+		cfg.Headers["Cookie"] = opts.Cookie
+	}
 
 	// Apply web_ender / header_tag if provided
 	webEnder := opts.WebEnder
@@ -221,12 +227,14 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.UseTUI, "tui", true, "Enable interactive TUI dashboard")
 	flag.StringVar(&opts.LogFilePath, "log-file", "bbpts.log", "Path to log file")
 	flag.BoolVar(&opts.RunDoctor, "doctor", false, "Run environment diagnostics")
+	flag.BoolVar(&opts.DryRun, "dry-run", false, "Dry-run mode: prints which tools would run against which targets without execution")
 	flag.IntVar(&opts.CronInterval, "cron", 0, "Continuous monitoring interval (minutes)")
 	flag.StringVar(&opts.ExportBurp, "export-burp", "", "Export Burp Suite XML findings")
 	flag.StringVar(&opts.ReportH1, "export-h1", "", "Export HackerOne CSV format")
 	flag.StringVar(&opts.ReportBC, "export-bc", "", "Export Bugcrowd CSV format")
 	flag.StringVar(&opts.Headers, "H", "", "Custom HTTP headers (comma-separated, e.g. 'Key: Value, Key2: Value2')")
 	flag.StringVar(&opts.Headers, "header", "", "Custom HTTP headers (comma-separated)")
+	flag.StringVar(&opts.Cookie, "cookie", "", "Custom session Cookie header to inject into all supporting tools")
 
 	flag.IntVar(&opts.MaxCPUPercent, "max-cpu-percent", 0, "Max CPU percentage to use")
 	flag.IntVar(&opts.MaxCPUCores, "max-cpu-cores", 0, "Max CPU cores to use (overrides percentage limit)")
@@ -288,8 +296,8 @@ func parseFlags() app.Options {
 		}
 	})
 
-	// If web/worker mode, JSON output, or non-interactive output is used, disable TUI unless explicitly requested.
-	if (opts.EnableDashboard || opts.RunWorker || opts.JSONOutput || !isatty.IsTerminal(os.Stdout.Fd())) && !tuiExplicitlySet {
+	// If web/worker mode, JSON output, dry-run, or non-interactive output is used, disable TUI unless explicitly requested.
+	if (opts.EnableDashboard || opts.RunWorker || opts.JSONOutput || opts.DryRun || !isatty.IsTerminal(os.Stdout.Fd())) && !tuiExplicitlySet {
 		opts.UseTUI = false
 	}
 
