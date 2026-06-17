@@ -15,7 +15,7 @@ This guide covers development setup, architecture, and contribution guidelines f
 
 ### Prerequisites
 
-- Go 1.22 or later
+- Go 1.23 or later
 - Git
 - Make (optional, for convenience)
 

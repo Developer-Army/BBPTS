@@ -4,7 +4,7 @@ Get up and running with BBPTS in minutes. This guide covers installation, basic 
 
 ## Prerequisites
 
-- Go 1.22 or later
+- Go 1.23 or later
 - Git
 
 ## Installation

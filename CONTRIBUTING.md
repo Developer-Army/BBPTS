@@ -34,6 +34,6 @@ Enhancement suggestions are tracked as GitHub issues. When you are creating an e
 2. Ensure you have Go 1.23+ installed
 3. Run `make build` to build the binary
 4. Run `make test` to run the test suite
-   *Note: BBPTS requires GCC/Clang for CGO (due to the mattn/go-sqlite3 dependency). Alternatively, use `go test -tags moderncsqlite ./...` if mattn/go-sqlite3 is not available.*
+  *Note: BBPTS uses modernc.org/sqlite (pure Go, no CGo required). Run go test ./... directly.*
 
 Thank you!

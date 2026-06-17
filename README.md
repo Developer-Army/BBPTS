@@ -9,6 +9,8 @@
 
 BBPTS automates the execution of **25+ elite penetration testing and reconnaissance tools** in a highly structured pipeline. It correlates, cleans, and deduplicates the results into a unified interactive report, scoring findings by risk severity so you know exactly where to start testing.
 
+![BBPTS TUI Dashboard](docs/terminal.png)
+
 ---
 
 ## Key Features
@@ -136,23 +138,69 @@ Your scan reports are saved under the `./results/` directory:
 
 ## CLI Flag Reference
 
-| Flag | Short | Description |
-| :--- | :--- | :--- |
-| `-input` | `-i` | Target domains file or single URL |
-| `-tools` | `-t` | Comma-separated list of specific tools to run |
-| `-exclude-tools` | `-x` | Comma-separated list of tools to skip |
-| `-output` | `-o` | Output file path for report |
-| `-summary` | `-s` | Output file path for CSV summary |
-| `--light` | | Fast passive-only scan |
-| `-batch-size` | `-b` | Parallel domain scan count (default 1) |
-| `-threads` | | Go worker threads (default 32) |
-| `-rate-limit` | | Max requests per second limit |
-| `-resume` | `-r` | Resume scan from last recorded checkpoint |
-| `-doctor` | | Verify external tool availability & paths |
-| `-web` | `-w` | Launch the local web dashboard |
-| `-ci` | | Run in CI mode, exiting non-zero on matching findings |
-| `-fail-on` | | Minimum severity to trigger non-zero exit in CI mode |
-| `-scope-file` | | Enforce target matching against wildcard scope rules |
+### Core CLI Flags
+
+| Flag | Short | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `-input` | `-i` | Target domains file or single URL | |
+| `-tools` | `-t` | Comma-separated list of specific tools to run | |
+| `-exclude-tools` | `-x` | Comma-separated list of tools to skip | |
+| `-output` | `-o` | Output file path for markdown report | `results/<input_name>_report.md` |
+| `-summary` | `-s` | Output file path for CSV summary | `results/<input_name>_summary.csv` |
+| `-light` | | Fast passive-only scan mode | `false` |
+| `-full` | | Full mode: maximum coverage, heavier optional tools | `false` |
+| `-mode` | | Scan mode: `light`, `medium`, or `full` | `medium` |
+| `-threads` | | Go worker threads | `inherits 32 from config` |
+| `-rate-limit` | | Max requests per second limit | `inherits 50 from config` |
+| `-batch-size` | `-b` | Parallel domain scan count | `inherits 1 from config` |
+| `-tui` | | Enable interactive TUI dashboard | `true` |
+| `-web` | `-w` | Launch local web dashboard | `false` |
+| `-port` | | Dashboard port | `8080` |
+| `-doctor` | | Verify external tool availability & paths | `false` |
+| `-resume` | `-r` | Resume scan from last recorded checkpoint | `false` |
+| `-version` | `-v` | Print version information and exit | `false` |
+
+### Advanced CLI Flags
+
+| Flag | Short | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `-config` | | Path to BBPTS config JSON file | `./configs/config.json` |
+| `-rules` | | Path to BBPTS rules JSON file | `./configs/rules.json` |
+| `-scope-file` | | Enforce target matching against wildcard scope rules | |
+| `-scope` | | Scope identifier for state tracking | |
+| `-diff` | | Show only new findings compared to last run | `false` |
+| `-timeout` | | Overall recon timeout per tool group (0 to disable) | `0` |
+| `-debug` | | Enable debug logging | `false` |
+| `-log-level` | | Log level: `debug`, `info`, `warn`, `error` | `info` |
+| `-log-file` | | Path to write logs | `bbpts.log` |
+| `-cron` | | Continuous monitoring interval (minutes) | `0` (disabled) |
+| `-obsidian` | | Destination directory for Obsidian notes | |
+| `-evidence` | | Write compact JSON evidence bundle for top insights | |
+| `-evidence-top` | | Max insights in evidence bundle | `25` |
+| `-worker` | | Run as a distributed worker listening to the event bus | `false` |
+| `-submit` | | Submit high-priority findings to configured bug bounty platform | `false` |
+| `-tls`/`-https` | | Start dashboard with HTTPS/TLS | `false` |
+| `-tls-cert` | | Path to TLS certificate file | |
+| `-tls-key` | | Path to TLS key file | |
+| `-web-ender` | | Custom research identifier tag (e.g. `H1{username}`) | |
+| `-low-resource` | | Optimize CPU/memory usage for weak hardware | `false` |
+| `-max-cpu-percent`| | Max CPU percentage limit | `90` |
+| `-max-cpu-cores`  | | Max CPU cores limit | |
+| `-max-memory-mb`  | | Max memory limit in MB | |
+| `-gc-percent`     | | Go garbage collection target percentage | |
+| `-preset`         | | Named tool preset from config `tool_presets` | |
+| `-profile`        | | Named program profile from config `program_profiles` | |
+| `-json` | `-j` | Output results in JSON format to stdout | `false` |
+| `-auto-update` | | Auto-update Nuclei templates before scan | `false` |
+| `-report-template`| | Path to custom Go HTML report template | |
+| `-metrics` | | Enable Prometheus metrics endpoint | `false` |
+| `-metrics-port` | | Prometheus metrics port | `9090` |
+| `-ci` | | Run in CI mode (non-zero exit on finding discovery) | `false` |
+| `-fail-on` | | Minimum severity to trigger non-zero exit in CI mode | `medium` |
+| `-passive` | | Passive-only stealth mode: skips active probing | `false` |
+| `-export-burp` | | Export findings to Burp Suite XML format | |
+| `-export-h1` | | Export HackerOne CSV format findings | |
+| `-export-bc` | | Export Bugcrowd CSV format findings | |
 
 ---
 
@@ -164,9 +212,9 @@ Your scan reports are saved under the `./results/` directory:
 
 ---
 
-## Experimental Enterprise (CTEM/ASM) Modules
+## Enterprise (CTEM/ASM) Modules (Beta)
 
-BBPTS includes preview components of an enterprise-grade **Continuous Threat Exposure Management (CTEM)** and **Attack Surface Management (ASM)** platform:
+BBPTS includes production-ready components of an enterprise-grade **Continuous Threat Exposure Management (CTEM)** and **Attack Surface Management (ASM)** platform:
 * **Domain Assets & Finding Nodes**: Evolved database schemas that represent assets and vulnerability nodes in a connected graph model.
 * **Asset Ownership & Teams**: Structures for tracking asset custodianship and managing security escalation contacts.
 * **SLA Compliance Escalations**: Tickers and rules to track SLA compliance and automatically dispatch alerts (webhooks, email, tickets) on breaches.
