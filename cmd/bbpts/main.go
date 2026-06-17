@@ -228,6 +228,7 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.LogFilePath, "log-file", "bbpts.log", "Path to log file")
 	flag.BoolVar(&opts.RunDoctor, "doctor", false, "Run environment diagnostics")
 	flag.BoolVar(&opts.DryRun, "dry-run", false, "Dry-run mode: prints which tools would run against which targets without execution")
+	flag.StringVar(&opts.AssetStore, "asset-store", "", "Path to write live JSONL asset discoveries in real time")
 	flag.IntVar(&opts.CronInterval, "cron", 0, "Continuous monitoring interval (minutes)")
 	flag.StringVar(&opts.ExportBurp, "export-burp", "", "Export Burp Suite XML findings")
 	flag.StringVar(&opts.ReportH1, "export-h1", "", "Export HackerOne CSV format")

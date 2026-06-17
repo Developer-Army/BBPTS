@@ -80,4 +80,5 @@ type Options struct {
 	ScopeFile         string
 	PassiveMode       bool
 	DryRun            bool
+	AssetStore        string
 }

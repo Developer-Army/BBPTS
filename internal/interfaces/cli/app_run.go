@@ -391,6 +391,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			MockMode:           cfg.MockMode,
 			InsecureSkipVerify: cfg.InsecureSkipVerify,
 			DryRun:             opts.DryRun,
+			AssetStore:         opts.AssetStore,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
 				WorkerMesh:  cfg.Fleet.WorkerMesh,

@@ -1,8 +1,11 @@
 package services
 
 import (
+	"encoding/json"
 	"log/slog"
+	"os"
 	"strings"
+	"time"
 )
 
 func (o *Orchestrator) reportEvent(ev Event) {
@@ -13,6 +16,40 @@ func (o *Orchestrator) reportEvent(ev Event) {
 		reporter.ReportEvent(ev.Source, ev.Target, ev.Type, ev.Properties)
 	}
 	slog.Info("Discovered "+ev.Type+": "+ev.Target, "tool", ev.Source)
+
+	if o.config.AssetStore != "" {
+		o.assetStoreMu.Lock()
+		defer o.assetStoreMu.Unlock()
+		f, err := os.OpenFile(o.config.AssetStore, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		if err != nil {
+			slog.Error("failed to open asset store file", "path", o.config.AssetStore, "error", err)
+			return
+		}
+		defer f.Close()
+
+		type assetRecord struct {
+			Target     string            `json:"target"`
+			Source     string            `json:"source"`
+			Type       string            `json:"type"`
+			Properties map[string]string `json:"properties,omitempty"`
+			Timestamp  string            `json:"timestamp"`
+		}
+		rec := assetRecord{
+			Target:     ev.Target,
+			Source:     ev.Source,
+			Type:       ev.Type,
+			Properties: ev.Properties,
+			Timestamp:  time.Now().UTC().Format(time.RFC3339),
+		}
+		data, err := json.Marshal(rec)
+		if err != nil {
+			slog.Error("failed to marshal asset record", "error", err)
+			return
+		}
+		if _, err := f.Write(append(data, '\n')); err != nil {
+			slog.Error("failed to write to asset store file", "path", o.config.AssetStore, "error", err)
+		}
+	}
 }
 
 func (o *Orchestrator) reportToolStatus(tool, status, detail string) {

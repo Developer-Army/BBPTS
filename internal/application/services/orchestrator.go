@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
@@ -52,6 +53,7 @@ type Config struct {
 	MockMode           bool
 	InsecureSkipVerify bool
 	DryRun             bool
+	AssetStore         string
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -75,6 +77,7 @@ type Orchestrator struct {
 	cache           *ResultCache
 	circuitBreakers *network.CircuitBreakerRegistry
 	scopeGuard      *normalize.ScopeGuard
+	assetStoreMu    sync.Mutex
 }
 
 type eventReporter interface {
