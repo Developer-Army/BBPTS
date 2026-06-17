@@ -16,12 +16,12 @@ BBPTS automates the execution of **25+ elite penetration testing and reconnaissa
 ## Key Features
 
 * **Automated Pipeline**: Orchestrates recon stages sequentially (Subdomains ➔ DNS/Ports ➔ Web Probing ➔ Vuln Scanning).
-* **CI/CD Gating (`--ci`)**: Run headlessly in CI environments with non-zero exit code enforcement (`--fail-on`) upon finding critical items.
-* **Continuous Monitoring (`--cron`)**: Execute recurring scans at custom intervals to track target changes and generate diff reports.
-* **Strict Scope Control (`--scope-file`)**: Input target scope wildcard rules to filter target domains and prevent out-of-scope scanning.
+* **CI/CD Gating (`-ci`)**: Run headlessly in CI environments with non-zero exit code enforcement (`-fail-on`) upon finding critical items.
+* **Continuous Monitoring (`-cron`)**: Execute recurring scans at custom intervals to track target changes and generate diff reports.
+* **Strict Scope Control (`-scope-file`)**: Input target scope wildcard rules to filter target domains and prevent out-of-scope scanning.
 * **Attack Paths**: Graph-based asset relationship visualization displaying findings and attack vectors as connected nodes.
 * **CVSS 3.1 Risk Scoring**: Native implementation of CVSS 3.1 base scoring to mathematically rate and prioritize exposures.
-* **Direct Platform Submission (`--submit`)**: Automatically upload verified vulnerabilities directly to HackerOne or Bugcrowd bug bounty portals.
+* **Direct Platform Submission (`-submit`)**: Automatically upload verified vulnerabilities directly to HackerOne or Bugcrowd bug bounty portals.
 * **Setup Profiles**: Choose between **User Mode** (core tools) and **Developer Mode** (full suite + dev environments).
 * **Unified Reporting**: Generates interactive HTML dashboards, structured JSON/CSV logs, and XML templates ready for Burp Suite, OWASP ZAP, and Caido.
 * **Live Notifications**: Connect webhooks to receive real-time alerts via Discord, Slack, or Telegram.
