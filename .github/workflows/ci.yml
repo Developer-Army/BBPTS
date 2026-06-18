@@ -28,7 +28,12 @@ jobs:
         uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
         with:
           version: v1.60.1
-          args: --timeout=5m
+          args: --timeout=10m
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "::error::Lint job failed! Check golangci-lint output for details."
 
   security-scan:
     name: Security Scans
@@ -59,6 +64,18 @@ jobs:
           format: 'table'
           severity: 'HIGH,CRITICAL'
 
+      - name: Upload Gosec Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gosec-report
+          path: gosec-report.json
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "::error::Security scan job failed! Check govulncheck, gosec, or Trivy logs."
+
   gitleaks:
     name: Secrets Detection
     runs-on: ubuntu-latest
@@ -72,6 +89,11 @@ jobs:
         uses: gitleaks/gitleaks-action@f553ab49692fc3b9a071536b328a6fcfd468b6ff # v2.3.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "::error::Gitleaks scan failed! Secrets detected in commit history."
 
   supply-chain:
     name: Supply Chain Protection
@@ -94,6 +116,18 @@ jobs:
         with:
           sbom: sbom.spdx.json
           fail-build: true
+
+      - name: Upload SBOM Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom-report
+          path: sbom.spdx.json
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "::error::Supply chain protection job failed! SBOM generation or Grype scan failed."
 
   test:
     name: Test and Build Verification
@@ -135,3 +169,15 @@ jobs:
 
       - name: Verify Build
         run: go build -v ./...
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-${{ matrix.os }}
+          path: coverage-${{ matrix.os }}.out
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "::error::Test and Build Verification job failed on ${{ matrix.os }}!"

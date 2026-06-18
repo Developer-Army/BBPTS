@@ -11,25 +11,29 @@ permissions:
 
 jobs:
   linux-distros:
-    name: Build & Test on ${{ matrix.distro }}
+    name: Build & Test on ${{ matrix.distro }} (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         distro: [ 'fedora:latest', 'archlinux:latest' ]
+        go-version: [ '1.22', '1.23' ]
     container:
       image: ${{ matrix.distro }}
+    env:
+      GOCACHE: /tmp/go-cache
+      GOPATH: /tmp/go-path
     steps:
       - name: Install dependencies (Fedora)
         if: matrix.distro == 'fedora:latest'
         run: |
-          dnf install -y golang git make sqlite-devel gcc
+          dnf install -y git make sqlite-devel gcc tar gzip
 
       - name: Install dependencies (Arch Linux)
         if: matrix.distro == 'archlinux:latest'
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm go git make sqlite gcc
+          pacman -S --noconfirm git make sqlite gcc tar gzip
 
       - name: Checkout Code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -37,11 +41,44 @@ jobs:
       - name: Configure Safe Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Cache Go Modules and Build Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/go-cache
+            /tmp/go-path/pkg/mod
+          key: ${{ matrix.distro }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ matrix.distro }}-go-${{ matrix.go-version }}-
+
+      - name: Setup Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: false
+
+      - name: Validate Makefile Targets
+        run: |
+          make -qp | grep -q "^build-full:" || (echo "build-full target missing" && exit 1)
+          make -qp | grep -q "^test:" || (echo "test target missing" && exit 1)
+
       - name: Run Build
         run: make build-full
 
       - name: Run Tests
-        run: make test
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-linux-distros-${{ strategy.job-index }}
+          path: coverage.out
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "::error::Build/Test failed on ${{ matrix.distro }} under Go ${{ matrix.go-version }}!"
 
   bsd-systems:
     name: Build & Test on ${{ matrix.os }}
@@ -54,6 +91,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
+      - name: Validate Makefile Targets
+        run: |
+          make -qp | grep -q "^build-full:" || (echo "build-full target missing" && exit 1)
+          make -qp | grep -q "^test:" || (echo "test target missing" && exit 1)
+
       - name: Build and Test on FreeBSD VM
         if: matrix.os == 'freebsd'
         uses: cross-platform-actions/action@v0.26.0
@@ -63,7 +105,7 @@ jobs:
           run: |
             sudo pkg install -y go bash git gmake sqlite3
             gmake build-full
-            gmake test
+            go test -v -coverprofile=coverage-freebsd.out ./...
 
       - name: Build and Test on OpenBSD VM
         if: matrix.os == 'openbsd'
@@ -74,4 +116,16 @@ jobs:
           run: |
             sudo pkg_add go git gmake sqlite3
             gmake build-full
-            gmake test
+            go test -v -coverprofile=coverage-openbsd.out ./...
+
+      - name: Upload BSD Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-${{ matrix.os }}
+          path: coverage-${{ matrix.os }}.out
+
+      - name: Report Failure
+        if: failure()
+        run: |
+          echo "::error::BSD Build/Test job failed on ${{ matrix.os }}!"
