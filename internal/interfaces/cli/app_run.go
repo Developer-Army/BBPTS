@@ -18,10 +18,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/server"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
-	"github.com/Developer-Army/BBPTS/internal/interfaces/workers"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
-	"github.com/Developer-Army/BBPTS/internal/shared/input"
-	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/sync/errgroup"
@@ -59,61 +56,6 @@ func runLoop(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.
 	}
 }
 
-func runWorkerNode(ctx context.Context, opts Options, cfg *config.Config) {
-	_ = opts
-	slog.Info("Starting BBPTS in Stateless Worker Mode")
-
-	if cfg.EventBus.URL == "" {
-		slog.Error("Cannot start worker node: NATS EventBus URL is required in config")
-		os.Exit(1)
-	}
-
-	streamMgr, err := queue.NewStreamManager(cfg.EventBus.URL)
-	if err != nil {
-		slog.Error("Failed to connect to event stream", "error", err)
-		os.Exit(1)
-	}
-	defer streamMgr.Close()
-
-	leaseMgr, err := queue.NewLeaseManager(streamMgr.JetStream(), "WORKER_LEASES")
-	if err != nil {
-		slog.Error("Failed to initialize lease manager", "error", err)
-		os.Exit(1)
-	}
-
-	idempotencyMgr, err := queue.NewIdempotencyManager(streamMgr.JetStream(), "TASK_IDEMPOTENCY")
-	if err != nil {
-		slog.Error("Failed to initialize idempotency manager", "error", err)
-		os.Exit(1)
-	}
-
-	workerID := fmt.Sprintf("node-%d", time.Now().UnixNano())
-	caps := []workers.CapabilityType{
-		workers.CapSubdomainEnum,
-		workers.CapPortScan,
-		workers.CapBrowserRecon,
-		workers.CapJSDiff,
-	}
-
-	node := workers.NewWorker(workerID, streamMgr, leaseMgr, caps)
-	node.IdempotencyMgr = idempotencyMgr
-	if err := node.Start(ctx); err != nil {
-		slog.Error("Failed to start worker node heartbeat", "error", err)
-		os.Exit(1)
-	}
-
-	executor := workers.NewExecutor(node)
-
-	// Register Real Distributed Handlers
-	registerRealHandlers(ctx, executor, cfg)
-
-	slog.Info("Worker waiting for tasks... (Press Ctrl+C to exit)", "id", workerID)
-
-	if err := executor.Run(ctx); err != nil {
-		slog.Error("Worker executor encountered a fatal error", "error", err)
-	}
-}
-
 func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Bridge) {
 	abortCtx, cancelAbort := context.WithCancel(ctx)
 	defer cancelAbort()
@@ -128,9 +70,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		}
 	}()
 
-	var normalized []string
 	var events []recon.Event
-	var validationEvents []recon.Event
 	var matches []recon.Match
 	var triggeredTools []string
 	var store *storage.Storage
@@ -144,121 +84,12 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	runCtx, cancel := context.WithCancel(abortCtx)
 	defer cancel()
 
-	// --- Reconnaissance Phase ---
-	if opts.InputPath != "" {
-		// Accept a raw URL or hostname directly with -i, no file required.
-		if isDirectURL(opts.InputPath) {
-			normalized = []string{opts.InputPath}
-		} else {
-			if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
-				opts.OutputPath, opts.SummaryPath = defaultReportPaths(opts.InputPath)
-				slog.Info("no report paths provided; using defaults", "output", opts.OutputPath, "summary", opts.SummaryPath)
-			}
-
-			if bridge != nil {
-				bridge.ReportToolStatus("engine", "running", "parsing input targets")
-			}
-			parser := input.NewParser()
-			metadataTargets, err := parser.ParseFileWithMetadata(opts.InputPath)
-			if err != nil {
-				slog.Error("failed to parse input", "error", err)
-				if bridge != nil {
-					bridge.ReportFailure("engine", "failed to parse input")
-				}
-				return
-			}
-
-			rawTargets := make([]string, 0, len(metadataTargets))
-			for _, target := range metadataTargets {
-				if !target.IsInScope() {
-					continue
-				}
-				rawTargets = append(rawTargets, target.URL)
-			}
-
-			// Preserve full URLs from input (including paths) for web probing.
-			normalized = normalize.DeduplicateAndPreserveURLs(rawTargets)
-			if len(normalized) == 0 {
-				slog.Warn("no in-scope targets were found in the input file")
-				if bridge != nil {
-					bridge.ReportFailure("engine", "no in-scope targets found")
-				}
-				return
-			}
-		}
-		if bridge != nil {
-			bridge.SendInitialTargets(normalized)
-		}
-	} else if bridge != nil {
-		bridge.PromptForTarget()
-		select {
-		case targets := <-tui.TargetInputChan:
-			select {
-			case selectedMode := <-tui.TargetModeChan:
-				opts.Mode = selectedMode
-				opts.LightMode = (selectedMode == "light")
-				opts.FullMode = (selectedMode == "normal")
-			default:
-				opts.Mode = "normal"
-			}
-			opts.Tools = ToolsetForMode(opts.Mode)
-			normalized = targets
-			if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
-				opts.OutputPath, opts.SummaryPath = defaultReportPaths(targets[0])
-				slog.Info("no report paths provided; using defaults", "output", opts.OutputPath, "summary", opts.SummaryPath)
-			}
-			bridge.SendInitialTargets(normalized)
-		case <-ctx.Done():
-			return
-		}
-	}
-
-	if opts.ScopeFile != "" && len(normalized) > 0 {
-		se, err := input.LoadScopeFile(opts.ScopeFile)
-		if err != nil {
-			slog.Error("failed to load scope file", "path", opts.ScopeFile, "error", err)
-			if bridge != nil {
-				bridge.ReportFailure("engine", "failed to load scope file")
-			}
-			return
-		}
-		var filtered []string
-		for _, t := range normalized {
-			if se.IsInScope(t) {
-				filtered = append(filtered, t)
-			} else {
-				slog.Info("target out of scope, skipping", "target", t)
-			}
-		}
-		normalized = filtered
+	normalized, validationEvents, ok := parseAndValidateTargets(abortCtx, &opts, cfg, bridge, reconThreads)
+	if !ok {
+		return
 	}
 
 	if len(normalized) > 0 {
-		normalized, validationEvents = validateTargetsWithHTTPX(abortCtx, normalized, reconThreads)
-		if len(normalized) == 0 {
-			slog.Warn("No valid targets active or resolved via httpx validation. Aborting run.")
-			if bridge != nil {
-				bridge.ReportFailure("engine", "all targets failed validation")
-			}
-			return
-		}
-	}
-
-	if len(normalized) > 0 {
-		if opts.Profile != "" && cfg.ProgramProfiles != nil {
-			if prof, ok := cfg.ProgramProfiles[opts.Profile]; ok {
-				before := len(normalized)
-				normalized = config.FilterTargets(normalized, prof)
-				if before != len(normalized) {
-					slog.Info("program profile applied", "profile", opts.Profile, "targets_after_filter", len(normalized))
-				}
-				if len(normalized) == 0 {
-					slog.Warn("all targets excluded by program profile", "profile", opts.Profile)
-					return
-				}
-			}
-		}
-
 		reconRateLimit := cfg.RateLimit
 		if opts.RateLimit > 0 {
 			reconRateLimit = opts.RateLimit

@@ -78,47 +78,55 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 			case <-ctx.Done():
 				return
 			}
-			client := &http.Client{Timeout: 15 * time.Second}
+			client := NewSafeHTTPClient(15 * time.Second)
 
 			// Query GitHub search API for domain occurrences in code
 			query := fmt.Sprintf(`"%s"`, dom)
 			apiURL := fmt.Sprintf("https://api.github.com/search/code?q=%s&per_page=50", url.QueryEscape(query))
 
 			var resp *http.Response
-			backoff := 5 * time.Second
-			for attempt := 0; attempt < 3; attempt++ {
+			cfg := RetryConfig{
+				MaxRetries:     3,
+				BaseDelay:      5 * time.Second,
+				MaxDelay:       30 * time.Second,
+				Multiplier:     2.0,
+				JitterFraction: 0.25,
+			}
+			errSearch := ExecuteWithRetry(ctx, cfg, func(ctx context.Context, attempt int) (bool, error) {
 				limitGithubSearch()
 
 				req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 				if err != nil {
-					return
+					return false, err
 				}
 				req.Header.Set("Authorization", "token "+apiKey)
 				req.Header.Set("Accept", "application/vnd.github.v3+json")
+				headers := HeadersFromCtx(ctx)
+				for k, v := range headers {
+					req.Header.Set(k, v)
+				}
 
 				r, err := client.Do(req)
 				if err != nil {
-					return
+					return true, err
 				}
 
 				if r.StatusCode == 403 || r.StatusCode == 429 {
 					r.Body.Close()
-					slog.Warn("GitHub search rate limited (403/429), backing off...", "attempt", attempt+1, "backoff", backoff)
-					select {
-					case <-ctx.Done():
-						return
-					case <-time.After(backoff):
-						backoff *= 2
-						continue
-					}
+					return true, fmt.Errorf("GitHub search rate limited: %d", r.StatusCode)
 				}
 
 				if r.StatusCode != 200 {
 					r.Body.Close()
-					return
+					return false, fmt.Errorf("GitHub search failed: %d", r.StatusCode)
 				}
+
 				resp = r
-				break
+				return false, nil
+			})
+
+			if errSearch != nil {
+				return
 			}
 
 			if resp == nil {
@@ -153,14 +161,28 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 					continue
 				}
 				rawReq.Header.Set("Authorization", "token "+apiKey)
-
-				rawResp, err := client.Do(rawReq)
-				if err != nil {
-					continue
+				headers := HeadersFromCtx(ctx)
+				for k, v := range headers {
+					rawReq.Header.Set(k, v)
 				}
 
-				if rawResp.StatusCode != 200 {
-					rawResp.Body.Close()
+				var rawResp *http.Response
+				rawCfg := RetryConfig{
+					MaxRetries:     2,
+					BaseDelay:      1 * time.Second,
+					MaxDelay:       5 * time.Second,
+					Multiplier:     2.0,
+					JitterFraction: 0.2,
+				}
+				errRaw := ExecuteWithRetry(ctx, rawCfg, func(ctx context.Context, attempt int) (bool, error) {
+					r, err := client.Do(rawReq)
+					if err != nil {
+						return true, err
+					}
+					rawResp = r
+					return false, nil
+				})
+				if errRaw != nil {
 					continue
 				}
 

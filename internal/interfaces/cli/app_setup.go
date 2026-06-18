@@ -16,7 +16,10 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
+	"github.com/Developer-Army/BBPTS/internal/shared/input"
+	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
@@ -482,4 +485,124 @@ func convertServicesEventsToRecon(events []services.Event) []recon.Event {
 		}
 	}
 	return out
+}
+
+func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Config, bridge *tui.Bridge, reconThreads int) ([]string, []recon.Event, bool) {
+	var normalized []string
+	var validationEvents []recon.Event
+
+	if opts.InputPath != "" {
+		if isDirectURL(opts.InputPath) {
+			normalized = []string{opts.InputPath}
+		} else {
+			if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
+				opts.OutputPath, opts.SummaryPath = defaultReportPaths(opts.InputPath)
+				slog.Info("no report paths provided; using defaults", "output", opts.OutputPath, "summary", opts.SummaryPath)
+			}
+
+			if bridge != nil {
+				bridge.ReportToolStatus("engine", "running", "parsing input targets")
+			}
+			parser := input.NewParser()
+			metadataTargets, err := parser.ParseFileWithMetadata(opts.InputPath)
+			if err != nil {
+				slog.Error("failed to parse input", "error", err)
+				if bridge != nil {
+					bridge.ReportFailure("engine", "failed to parse input")
+				}
+				return nil, nil, false
+			}
+
+			rawTargets := make([]string, 0, len(metadataTargets))
+			for _, target := range metadataTargets {
+				if !target.IsInScope() {
+					continue
+				}
+				rawTargets = append(rawTargets, target.URL)
+			}
+
+			normalized = normalize.DeduplicateAndPreserveURLs(rawTargets)
+			if len(normalized) == 0 {
+				slog.Warn("no in-scope targets were found in the input file")
+				if bridge != nil {
+					bridge.ReportFailure("engine", "no in-scope targets found")
+				}
+				return nil, nil, false
+			}
+		}
+		if bridge != nil {
+			bridge.SendInitialTargets(normalized)
+		}
+	} else if bridge != nil {
+		bridge.PromptForTarget()
+		select {
+		case targets := <-tui.TargetInputChan:
+			select {
+			case selectedMode := <-tui.TargetModeChan:
+				opts.Mode = selectedMode
+				opts.LightMode = (selectedMode == "light")
+				opts.FullMode = (selectedMode == "normal")
+			default:
+				opts.Mode = "normal"
+			}
+			opts.Tools = ToolsetForMode(opts.Mode)
+			normalized = targets
+			if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
+				opts.OutputPath, opts.SummaryPath = defaultReportPaths(targets[0])
+				slog.Info("no report paths provided; using defaults", "output", opts.OutputPath, "summary", opts.SummaryPath)
+			}
+			bridge.SendInitialTargets(normalized)
+		case <-ctx.Done():
+			return nil, nil, false
+		}
+	}
+
+	if opts.ScopeFile != "" && len(normalized) > 0 {
+		se, err := input.LoadScopeFile(opts.ScopeFile)
+		if err != nil {
+			slog.Error("failed to load scope file", "path", opts.ScopeFile, "error", err)
+			if bridge != nil {
+				bridge.ReportFailure("engine", "failed to load scope file")
+			}
+			return nil, nil, false
+		}
+		var filtered []string
+		for _, t := range normalized {
+			if se.IsInScope(t) {
+				filtered = append(filtered, t)
+			} else {
+				slog.Info("target out of scope, skipping", "target", t)
+			}
+		}
+		normalized = filtered
+	}
+
+	if len(normalized) > 0 {
+		normalized, validationEvents = validateTargetsWithHTTPX(ctx, normalized, reconThreads)
+		if len(normalized) == 0 {
+			slog.Warn("No valid targets active or resolved via httpx validation. Aborting run.")
+			if bridge != nil {
+				bridge.ReportFailure("engine", "all targets failed validation")
+			}
+			return nil, nil, false
+		}
+	}
+
+	if len(normalized) > 0 {
+		if opts.Profile != "" && cfg.ProgramProfiles != nil {
+			if prof, ok := cfg.ProgramProfiles[opts.Profile]; ok {
+				before := len(normalized)
+				normalized = config.FilterTargets(normalized, prof)
+				if before != len(normalized) {
+					slog.Info("program profile applied", "profile", opts.Profile, "targets_after_filter", len(normalized))
+				}
+				if len(normalized) == 0 {
+					slog.Warn("all targets excluded by program profile", "profile", opts.Profile)
+					return nil, nil, false
+				}
+			}
+		}
+	}
+
+	return normalized, validationEvents, true
 }

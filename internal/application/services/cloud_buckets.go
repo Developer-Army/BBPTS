@@ -77,12 +77,11 @@ func (t *CloudBucketsTool) Run(ctx context.Context, targets []string, threads in
 
 	client := cloudBucketsClient
 	if client == nil {
-		client = &http.Client{
-			Timeout: 5 * time.Second,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return http.ErrUseLastResponse // Don't follow redirects to keep responses clean
-			},
+		safeClient := NewSafeHTTPClient(5 * time.Second)
+		safeClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
 		}
+		client = safeClient
 	}
 
 	for _, name := range candidates {
@@ -134,13 +133,31 @@ func (t *CloudBucketsTool) Run(ctx context.Context, targets []string, threads in
 }
 
 func (t *CloudBucketsTool) probeBucket(ctx context.Context, client *http.Client, url, provider, bucket string, events *[]Event, mu *sync.Mutex) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return
+	var resp *http.Response
+	cfg := RetryConfig{
+		MaxRetries:     2,
+		BaseDelay:      1 * time.Second,
+		MaxDelay:       5 * time.Second,
+		Multiplier:     2.0,
+		JitterFraction: 0.2,
 	}
-
-	resp, err := client.Do(req)
-	if err != nil {
+	errRetry := ExecuteWithRetry(ctx, cfg, func(ctx context.Context, attempt int) (bool, error) {
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return false, err
+		}
+		headers := HeadersFromCtx(ctx)
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		r, err := client.Do(req)
+		if err != nil {
+			return true, err
+		}
+		resp = r
+		return false, nil
+	})
+	if errRetry != nil {
 		return
 	}
 	defer resp.Body.Close()

@@ -81,8 +81,13 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 			continue
 		}
 
-		client := &http.Client{Timeout: 10 * time.Second}
-		resp, err := client.Do(req)
+		headers := HeadersFromCtx(ctx)
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+
+		client := NewSafeRateLimitedClient(10 * time.Second, 1000, 30000)
+		resp, err := client.Do(ctx, req)
 		if err != nil {
 			slog.Debug("Shodan API request failed", "host", host, "error", err)
 			continue

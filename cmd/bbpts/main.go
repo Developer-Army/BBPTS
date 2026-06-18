@@ -235,7 +235,7 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.ReportBC, "export-bc", "", "Export Bugcrowd CSV format")
 	flag.StringVar(&opts.Headers, "H", "", "Custom HTTP headers (comma-separated, e.g. 'Key: Value, Key2: Value2')")
 	flag.StringVar(&opts.Headers, "header", "", "Custom HTTP headers (comma-separated)")
-	flag.StringVar(&opts.Cookie, "cookie", "", "Custom session Cookie header to inject into all supporting tools")
+	flag.StringVar(&opts.Cookie, "cookie", "", "Custom session Cookie header to inject into 16/33 HTTP-active tools")
 
 	flag.IntVar(&opts.MaxCPUPercent, "max-cpu-percent", 0, "Max CPU percentage to use")
 	flag.IntVar(&opts.MaxCPUCores, "max-cpu-cores", 0, "Max CPU cores to use (overrides percentage limit)")

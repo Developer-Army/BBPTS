@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
+	"github.com/Developer-Army/BBPTS/internal/interfaces/workers"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
@@ -23,6 +26,61 @@ type Job struct {
 // RunWorker starts the distributed worker node.
 func RunWorker(ctx context.Context, opts Options, cfg *config.Config) {
 	runWorkerNode(ctx, opts, cfg)
+}
+
+func runWorkerNode(ctx context.Context, opts Options, cfg *config.Config) {
+	_ = opts
+	slog.Info("Starting BBPTS in Stateless Worker Mode")
+
+	if cfg.EventBus.URL == "" {
+		slog.Error("Cannot start worker node: NATS EventBus URL is required in config")
+		os.Exit(1)
+	}
+
+	streamMgr, err := queue.NewStreamManager(cfg.EventBus.URL)
+	if err != nil {
+		slog.Error("Failed to connect to event stream", "error", err)
+		os.Exit(1)
+	}
+	defer streamMgr.Close()
+
+	leaseMgr, err := queue.NewLeaseManager(streamMgr.JetStream(), "WORKER_LEASES")
+	if err != nil {
+		slog.Error("Failed to initialize lease manager", "error", err)
+		os.Exit(1)
+	}
+
+	idempotencyMgr, err := queue.NewIdempotencyManager(streamMgr.JetStream(), "TASK_IDEMPOTENCY")
+	if err != nil {
+		slog.Error("Failed to initialize idempotency manager", "error", err)
+		os.Exit(1)
+	}
+
+	workerID := fmt.Sprintf("node-%d", time.Now().UnixNano())
+	caps := []workers.CapabilityType{
+		workers.CapSubdomainEnum,
+		workers.CapPortScan,
+		workers.CapBrowserRecon,
+		workers.CapJSDiff,
+	}
+
+	node := workers.NewWorker(workerID, streamMgr, leaseMgr, caps)
+	node.IdempotencyMgr = idempotencyMgr
+	if err := node.Start(ctx); err != nil {
+		slog.Error("Failed to start worker node heartbeat", "error", err)
+		os.Exit(1)
+	}
+
+	executor := workers.NewExecutor(node)
+
+	// Register Real Distributed Handlers
+	registerRealHandlers(ctx, executor, cfg)
+
+	slog.Info("Worker waiting for tasks... (Press Ctrl+C to exit)", "id", workerID)
+
+	if err := executor.Run(ctx); err != nil {
+		slog.Error("Worker executor encountered a fatal error", "error", err)
+	}
 }
 
 func ProcessJob(ctx context.Context, ev queue.Event, eventBus queue.EventBus, cfg *config.Config) {

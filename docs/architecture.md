@@ -67,7 +67,7 @@ graph TD
 * **Interfaces**: Adapts input/output for different run environments (CLI, Interactive TUI, Dashboard HTTP Server, or Stateless worker nodes).
 * **Application**: Orchestrates core application workflows, executes recon tool wrappers in sequence, and handles background worker leases.
 * **Domain**: Encapsulates core business rules, including target scope filtering, CVSS severity scores, asset relationships, state validation, and input sanitization.
-* **Infrastructure**: Integrates with external systems and the underlying OS (SQLite database persistence, NATS pub/sub message brokers, headless Chromium, network client requests, and OpenTelemetry).
+* **Infrastructure**: Integrates with external systems and the underlying OS (SQLite database persistence, NATS pub/sub message brokers, headless Chromium, network client requests, and a homegrown telemetry tracer).
 
 ---
 
@@ -107,7 +107,7 @@ sequenceDiagram
 
 Security is baked into the network clients, authentication mechanisms, and API boundary controls of BBPTS:
 
-1. **SSRF Guard & Private IP Filtering**: The `StealthClient` network pipelines (located in `internal/infrastructure/network/client.go` and `http_client.go`) pass all hostnames through `security.IsPrivateIP` checks before dispatching requests. This prevents server-side request forgery (SSRF) and scanning of internal corporate endpoints.
+1. **SSRF Guard & Private IP Filtering**: The `StealthClient` network pipelines and custom client runner interfaces (e.g. Shodan, GitHub, Cloud Buckets, and Takeover tools) pass all requests through `security` package domain checks (IP validation and address resolution verification) before dispatching network calls. This prevents server-side request forgery (SSRF) and scanning of internal corporate endpoints.
 2. **Loopback Bootstrap Bounds**: Critical bootstrapping endpoints (`/api/setup-token` and `/api/enroll`) are restricted strictly to loopback traffic (`127.0.0.1` and `::1`). External hosts attempting to request enrollment receive an HTTP 403 Forbidden.
 3. **Session Hardening**: The dashboard sets `HttpOnly` and `SameSite=Strict` flags on session cookies (`bbpts_session`). Authentication tokens are matched against secure hashes in the database rather than being stored in plaintext client-side.
 4. **CORS Restriction**: Wildcards are disallowed. CORS origins are validated dynamically against `127.0.0.1` and `localhost` with credential allowances.

@@ -2,8 +2,17 @@ package services
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
+	"net"
+	"net/http"
+	"net/netip"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/security"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 )
 
 type Tool interface {
@@ -333,3 +342,51 @@ func DryRunFromCtx(ctx context.Context) bool {
 	}
 	return false
 }
+
+// NewSafeHTTPClient returns an http.Client with built-in SSRF protection.
+func NewSafeHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				pinnedAddr, _, err := security.ResolveAndValidateAddr(ctx, addr)
+				if err != nil {
+					return nil, err
+				}
+				h, _, err := net.SplitHostPort(pinnedAddr)
+				if err == nil {
+					if addrVal, err := netip.ParseAddr(h); err == nil && security.IsPrivateAddr(addrVal) {
+						return nil, fmt.Errorf("SSRF prevention: private IP blocked: %s", h)
+					}
+				}
+				dialer := &net.Dialer{
+					Timeout:   timeout,
+					KeepAlive: 30 * time.Second,
+				}
+				return dialer.DialContext(ctx, network, pinnedAddr)
+			},
+			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
+				MaxVersion: tls.VersionTLS13,
+			},
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			san := security.NewSanitizer()
+			if err := san.ValidateURL(req.URL.String()); err != nil {
+				return fmt.Errorf("SSRF validation blocked redirect: %w", err)
+			}
+			return nil
+		},
+	}
+}
+
+// NewSafeRateLimitedClient returns a client wrapper that has both SSRF protection and Adaptive Backoff.
+func NewSafeRateLimitedClient(timeout time.Duration, baseDelayMs, maxDelayMs int) *network.RateLimiter {
+	client := NewSafeHTTPClient(timeout)
+	return network.NewRateLimiter(client, baseDelayMs, maxDelayMs)
+}
+

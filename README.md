@@ -198,7 +198,7 @@ Your scan reports are saved under the `./results/` directory:
 | `-ci` | | Run in CI mode (non-zero exit on finding discovery) | `false` |
 | `-fail-on` | | Minimum severity to trigger non-zero exit in CI mode | `medium` |
 | `-passive` | | Passive-only stealth mode: skips active probing | `false` |
-| `-cookie` | | Custom session Cookie header to inject into all supporting tools | |
+| `-cookie` | | Custom session Cookie header to inject into 16/33 HTTP-active tools | |
 | `-dry-run` | | Dry-run mode: prints CLI commands that would run without execution | `false` |
 | `-asset-store`| | Path to stream live JSONL asset discoveries in real time | |
 | `-export-burp` | | Export findings to Burp Suite XML format | |

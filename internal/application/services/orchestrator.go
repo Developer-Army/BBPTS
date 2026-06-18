@@ -223,7 +223,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	scopeGuard := normalize.NewScopeGuard(initialTargets)
 	o.scopeGuard = scopeGuard
 
-	customOrder := []int{0, 1, 2, 3, 4, 5}
+	customOrder := []int{0, 1, 2, 3, 4}
 	for _, stageNum := range customOrder {
 		stageTools := stages[stageNum]
 		if len(stageTools) == 0 {

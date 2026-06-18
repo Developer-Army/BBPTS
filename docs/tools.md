@@ -8,6 +8,10 @@ The BBPTS (Bug Bounty Program Tool Set) utilizes a modular adapter pattern (`int
 
 These tools are safe to run against any in-scope target without generating significant traffic to the target infrastructure.
 
+> [!NOTE]
+> DNS/OSINT passive discovery tools (like `subfinder`, `amass`, `assetfinder`, and `chaos`) operate at the DNS/registry level and do not perform direct HTTP requests to target application endpoints. Therefore, HTTP headers and session cookies (`-cookie`) are not propagated to these tools.
+
+
 | Tool            | Focus Area                                      | Registry Key  |
 | --------------- | ----------------------------------------------- | ------------- |
 | **Subfinder**   | Subdomain discovery via passive sources         | `subfinder`   |
