@@ -7,8 +7,10 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 ## [1.4.0] — 2026-06-21
 
 ### Added
-- **CLI Dry-Run Mode**: Introduced `-dry-run` flag to print simulated commands for downstream tools (e.g. subfinder, httpx, katana, nuclei) without executing them.
+- **Session Cookie Injection**: Introduced `-cookie` flag to inject session credentials into all downstream active scanner tools.
+- **CLI Dry-Run Mode**: Introduced `-dry-run` flag to print simulated commands for downstream tools without executing them.
 - **Streaming JSONL Asset Store**: Introduced `-asset-store` flag to write real-time, live-updating JSONL asset discoveries and findings to a specified path.
+- **Adaptive Backoff Command Monitoring**: Wired `AdaptiveBackoff` into shell runner execution pipeline to monitor tool stdout/stderr for WAF or rate-limit blocks and dynamically throttle `--rate-limit`.
 - **CI/CD Pipeline Mode**: Integrated `--ci` and `--fail-on` flags to exit with non-zero exit codes when findings matching or exceeding the target severity threshold are discovered.
 - **Scope Enforcement Engine**: Added the `--scope-file` flag to load and enforce domain allow/exclude wildcards prior to scanning.
 - **CVSS 3.1 Scoring**: Implemented a standalone, standard-compliant CVSS 3.1 base score and severity rating calculator.

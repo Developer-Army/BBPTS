@@ -74,8 +74,56 @@ func TestHelperProcess(t *testing.T) {
 	case "sleep":
 		time.Sleep(2 * time.Second)
 		os.Exit(0)
+	case "waf":
+		fmt.Println("some normal output")
+		fmt.Println("WAF block detected: 403 forbidden")
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown helper mode %q\n", mode)
 		os.Exit(2)
+	}
+}
+
+func TestAdaptiveBackoffWAFDetection(t *testing.T) {
+	t.Setenv("GO_WANT_HELPER_PROCESS", "1")
+
+	toolName := os.Args[0]
+
+	// Set a custom tool rate limit in the context
+	limits := map[string]int{toolName: 100}
+	ctx := WithToolRateLimits(context.Background(), limits)
+
+	// Verify initial rate limit
+	initial := ToolRateLimitFromCtx(ctx, toolName)
+	if initial != 100 {
+		t.Fatalf("expected rate limit 100, got %d", initial)
+	}
+
+	// Trigger the run which will output a WAF block message
+	lines, err := RunCommandStreamWithInput(ctx, nil, toolName, helperCommandArgs("waf")...)
+	if err != nil {
+		t.Fatalf("expected clean run, got error: %v", err)
+	}
+
+	if len(lines) == 0 {
+		t.Fatal("expected mock/helper output lines, got empty")
+	}
+
+	// The rate limit should be throttled by 50%
+	throttled := ToolRateLimitFromCtx(ctx, toolName)
+	if throttled != 50 {
+		t.Errorf("expected throttled rate limit to be 50, got %d", throttled)
+	}
+
+	// Run again under normal circumstances (echo mode)
+	_, err = RunCommandStreamWithInput(ctx, nil, toolName, helperCommandArgs("echo")...)
+	if err != nil {
+		t.Fatalf("expected clean run, got error: %v", err)
+	}
+
+	// Rate limit should recover towards base limit
+	recovered := ToolRateLimitFromCtx(ctx, toolName)
+	if recovered <= 50 {
+		t.Errorf("expected recovered rate limit to be > 50, got %d", recovered)
 	}
 }

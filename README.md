@@ -198,11 +198,12 @@ Your scan reports are saved under the `./results/` directory:
 | `-ci` | | Run in CI mode (non-zero exit on finding discovery) | `false` |
 | `-fail-on` | | Minimum severity to trigger non-zero exit in CI mode | `medium` |
 | `-passive` | | Passive-only stealth mode: skips active probing | `false` |
+| `-cookie` | | Custom session Cookie header to inject into all supporting tools | |
+| `-dry-run` | | Dry-run mode: prints CLI commands that would run without execution | `false` |
+| `-asset-store`| | Path to stream live JSONL asset discoveries in real time | |
 | `-export-burp` | | Export findings to Burp Suite XML format | |
 | `-export-h1` | | Export HackerOne CSV format findings | |
 | `-export-bc` | | Export Bugcrowd CSV format findings | |
-| `-dry-run` | | Dry-run mode: prints simulated tool command cascades | `false` |
-| `-asset-store` | | Path to stream JSONL asset discoveries in real time | |
 
 ---
 

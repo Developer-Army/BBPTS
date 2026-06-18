@@ -190,6 +190,28 @@ func (ab *AdaptiveBackoff) AddWAFPattern(pattern string) {
 	ab.wafPatterns = append(ab.wafPatterns, strings.ToLower(pattern))
 }
 
+// IsBlockDetected checks if the given text matches any CAPTCHA or WAF patterns.
+func (ab *AdaptiveBackoff) IsBlockDetected(text string) bool {
+	lower := strings.ToLower(text)
+	for _, pattern := range ab.captchaPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	for _, pattern := range ab.wafPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// RecordBlock records a WAF block or rate-limit error, incrementing consecutive errors.
+func (ab *AdaptiveBackoff) RecordBlock() {
+	ab.isThrottled = true
+	ab.consecutiveErrors++
+}
+
 // RateLimiter wraps HTTP requests with adaptive backoff.
 type RateLimiter struct {
 	backoff *AdaptiveBackoff

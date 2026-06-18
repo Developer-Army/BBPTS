@@ -7,7 +7,74 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 )
+
+var (
+	toolBackoffs        = make(map[string]*network.AdaptiveBackoff)
+	toolBackoffsMu      sync.RWMutex
+	dynamicRateLimits   = make(map[string]int)
+	dynamicRateLimitsMu sync.RWMutex
+)
+
+func getToolBackoff(toolName string) *network.AdaptiveBackoff {
+	toolBackoffsMu.Lock()
+	defer toolBackoffsMu.Unlock()
+	ab, exists := toolBackoffs[toolName]
+	if !exists {
+		ab = network.NewAdaptiveBackoff(1000, 30000)
+		toolBackoffs[toolName] = ab
+	}
+	return ab
+}
+
+func GetDynamicRateLimit(toolName string, baseLimit int) int {
+	dynamicRateLimitsMu.RLock()
+	limit, exists := dynamicRateLimits[toolName]
+	dynamicRateLimitsMu.RUnlock()
+	if exists {
+		return limit
+	}
+	return baseLimit
+}
+
+func SetDynamicRateLimit(toolName string, limit int) {
+	dynamicRateLimitsMu.Lock()
+	dynamicRateLimits[toolName] = limit
+	dynamicRateLimitsMu.Unlock()
+}
+
+func ThrottleToolRateLimit(toolName string, baseLimit int) {
+	current := GetDynamicRateLimit(toolName, baseLimit)
+	if current <= 0 {
+		return
+	}
+	newLimit := current / 2
+	if newLimit < 1 {
+		newLimit = 1
+	}
+	SetDynamicRateLimit(toolName, newLimit)
+	slog.Warn("Throttled rate limit due to WAF/rate-limit detection", "tool", toolName, "old_limit", current, "new_limit", newLimit)
+}
+
+func RecoverToolRateLimit(toolName string, baseLimit int) {
+	current := GetDynamicRateLimit(toolName, baseLimit)
+	if current < baseLimit {
+		increase := (baseLimit - current) / 5
+		if increase < 1 {
+			increase = 1
+		}
+		newLimit := current + increase
+		if newLimit > baseLimit {
+			newLimit = baseLimit
+		}
+		SetDynamicRateLimit(toolName, newLimit)
+		slog.Info("Recovered rate limit", "tool", toolName, "old_limit", current, "new_limit", newLimit)
+	}
+}
 
 // RunCommandStream runs an external command and reads stdout stream line-by-line, returning unique lines.
 func RunCommandStream(ctx context.Context, name string, args ...string) ([]string, error) {
@@ -117,10 +184,16 @@ func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
 
+	ab := getToolBackoff(name)
+	blockDetected := false
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
+		}
+		if !blockDetected && ab.IsBlockDetected(line) {
+			blockDetected = true
 		}
 		if _, ok := seen[line]; ok {
 			continue
@@ -134,8 +207,35 @@ func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 	}
 
 	err = waitForCommand(ctx, cmd, &stderr)
+	errStr := strings.TrimSpace(stderr.String())
+
+	if !blockDetected && ab.IsBlockDetected(errStr) {
+		blockDetected = true
+	}
+	if !blockDetected && err != nil {
+		errLower := strings.ToLower(err.Error())
+		if strings.Contains(errLower, "429") || strings.Contains(errLower, "too many requests") {
+			blockDetected = true
+		}
+	}
+
+	baseLimit := ConfiguredToolRateLimitFromCtx(ctx, name)
+	if blockDetected {
+		ab.RecordBlock()
+		ThrottleToolRateLimit(name, baseLimit)
+		delay := ab.CalculateDelay()
+		slog.Warn("WAF block/rate-limit detected: backing off execution", "tool", name, "delay", delay)
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return unique, ctx.Err()
+		}
+	} else {
+		ab.Reset()
+		RecoverToolRateLimit(name, baseLimit)
+	}
+
 	if err != nil {
-		errStr := strings.TrimSpace(stderr.String())
 		if errStr != "" {
 			slog.Debug("command failed", "tool", name, "error", err, "stderr", errStr)
 			return unique, fmt.Errorf("%s failed: %w", name, err)

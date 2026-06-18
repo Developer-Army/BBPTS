@@ -212,12 +212,21 @@ func WithToolRateLimits(ctx context.Context, limits map[string]int) context.Cont
 }
 
 func ToolRateLimitFromCtx(ctx context.Context, toolName string) int {
+	limit := ConfiguredToolRateLimitFromCtx(ctx, toolName)
+	return GetDynamicRateLimit(toolName, limit)
+}
+
+func ConfiguredToolRateLimitFromCtx(ctx context.Context, toolName string) int {
+	limit := 0
 	if limits, ok := ctx.Value(toolRateLimitsKey).(map[string]int); ok {
-		if limit, found := limits[toolName]; found && limit > 0 {
-			return limit
+		if l, found := limits[toolName]; found && l > 0 {
+			limit = l
 		}
 	}
-	return RateLimitFromCtx(ctx)
+	if limit == 0 {
+		limit = RateLimitFromCtx(ctx)
+	}
+	return limit
 }
 
 func WithLowResource(ctx context.Context, low bool) context.Context {
