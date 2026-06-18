@@ -135,6 +135,29 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, s
 	}
 
 	if len(triggeredTools) > 0 {
+		if opts.PassiveMode {
+			var passiveTriggered []string
+			activeBlacklist := map[string]bool{
+				"naabu":       true,
+				"nuclei":      true,
+				"dalfox":      true,
+				"ffuf":        true,
+				"gobuster":    true,
+				"feroxbuster": true,
+				"katana":      true,
+			}
+			for _, t := range triggeredTools {
+				tLower := strings.TrimSpace(strings.ToLower(t))
+				if !activeBlacklist[tLower] {
+					passiveTriggered = append(passiveTriggered, t)
+				}
+			}
+			slog.Info("Passive mode active: filtered triggered tools", "before", triggeredTools, "after", passiveTriggered)
+			triggeredTools = passiveTriggered
+		}
+	}
+
+	if len(triggeredTools) > 0 {
 		slog.Info("recon triggered additional tools", "count", len(triggeredTools), "tools", triggeredTools)
 		// Extract targets from triagedEvents
 		var triagedTargets []string
@@ -181,8 +204,8 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 	if scope == "" {
 		scope = "default_run"
 	}
+	newCount := 0
 	if bs, err := baseline.NewBaselineStore(cfg.StateDir, scope); err == nil {
-		newCount := 0
 		for _, ev := range events {
 			isNew, _, _ := bs.AddFinding(ev.Source, ev.Type, ev.Target)
 			if isNew {
@@ -231,13 +254,18 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		notifier := utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify)))
 		for _, in := range insights {
 			if in.Priority == "high" || in.Score >= 25 {
-				if err := notifier.SendAlert(ctx, utils.Finding{
+				f := utils.Finding{
 					Host:     in.Host,
 					Priority: in.Priority,
 					Score:    in.Score,
 					Tags:     in.Tags,
 					Reasons:  in.Reasons,
-				}); err != nil {
+				}
+				if hasBeenReported(cfg.StateDir, f) {
+					slog.Debug("Skipping duplicate alert (already reported)", "host", in.Host)
+					continue
+				}
+				if err := notifier.SendAlert(ctx, f); err != nil {
 					slog.Warn("failed to send alert", "error", err, "host", in.Host)
 				}
 			}
@@ -446,6 +474,25 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 			os.Exit(1)
 		}
 	}
+
+	// Send "Scan Finished" notification webhook
+	if cfg.Notify.DiscordWebhook != "" || cfg.Notify.SlackWebhook != "" || (cfg.Notify.TelegramBotToken != "" && cfg.Notify.TelegramChatID != "") {
+		notifier := utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify)))
+		finishMsg := fmt.Sprintf("Scan Completed!\nScope: %s\nTotal Targets: %d\nTotal Findings: %d\nNew Findings: %d", scope, len(normalized), len(insights), newCount)
+		if err := notifier.SendMessage(finishMsg); err != nil {
+			slog.Warn("failed to send scan finished notification", "error", err)
+		}
+	}
+
+	// Print API quota usage summary
+	qg := utils.NewQuotaGuard(cfg.StateDir)
+	usage := qg.GetUsage()
+	fmt.Println("\n=== API QUOTA USAGE SUMMARY ===")
+	fmt.Printf("Shodan calls:  %d\n", usage.ShodanCalls)
+	fmt.Printf("Chaos calls:   %d\n", usage.ChaosCalls)
+	fmt.Printf("GitHub calls:  %d\n", usage.GitHubCalls)
+	fmt.Printf("Reset Date:    %s\n", usage.LastReset.Format("2006-01-02"))
+	fmt.Println("================================")
 }
 
 func handleSubmit(opts Options, cfg *config.Config, in analyze.Insight) {
@@ -537,4 +584,35 @@ func formatPathValues(path []string, store *storage.Storage) string {
 		}
 	}
 	return strings.Join(resolved, " -> ")
+}
+
+func hasBeenReported(stateDir string, finding utils.Finding) bool {
+	if stateDir == "" {
+		return false
+	}
+	_ = os.MkdirAll(stateDir, 0700)
+	historyPath := filepath.Join(stateDir, "alert_history.txt")
+
+	// Calculate a unique hash for the finding
+	hashInput := fmt.Sprintf("%s|%s|%s", finding.Host, finding.Priority, strings.Join(finding.Reasons, ","))
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(hashInput)))
+
+	// Read existing hashes
+	data, err := os.ReadFile(historyPath)
+	if err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) == hash {
+				return true
+			}
+		}
+	}
+
+	// Append new hash
+	f, err := os.OpenFile(historyPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err == nil {
+		defer f.Close()
+		_, _ = f.WriteString(hash + "\n")
+	}
+	return false
 }

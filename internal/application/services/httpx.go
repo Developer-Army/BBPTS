@@ -13,12 +13,14 @@ import (
 type HTTPXTool struct{}
 
 type httpxOutput struct {
-	URL        string `json:"url"`
-	StatusCode int    `json:"statuscode"`
-	Title      string `json:"title"`
-	Server     string `json:"server"`
-	IP         string `json:"ip"`
+	URL          string   `json:"url"`
+	StatusCode   int      `json:"statuscode"`
+	Title        string   `json:"title"`
+	Server       string   `json:"server"`
+	IP           string   `json:"ip"`
+	Technologies []string `json:"tech"`
 }
+
 
 func (t *HTTPXTool) Name() string {
 	return "httpx"

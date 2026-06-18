@@ -7,17 +7,22 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
 // Checkpoint tracks the execution state of an ongoing scan.
 // If the orchestrator crashes, it can load this file to resume.
 type Checkpoint struct {
-	Scope           string     `json:"scope"`
-	StartTime       time.Time  `json:"start_time"`
-	TargetsPending  []string   `json:"targets_pending"`
-	TargetsComplete []string   `json:"targets_complete"`
-	Mu              sync.Mutex `json:"-"`
-	FilePath        string     `json:"-"`
+	Scope           string        `json:"scope"`
+	StartTime       time.Time     `json:"start_time"`
+	TargetsPending  []string      `json:"targets_pending"`
+	TargetsComplete []string      `json:"targets_complete"`
+	CompletedStages []int         `json:"completed_stages"`
+	CurrentTargets  []string      `json:"current_targets"`
+	Events          []recon.Event `json:"events"`
+	Mu              sync.Mutex    `json:"-"`
+	FilePath        string        `json:"-"`
 }
 
 // NewCheckpoint creates or loads a checkpoint for the given scope.

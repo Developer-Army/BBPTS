@@ -40,6 +40,11 @@ func (t *ChaosTool) Run(ctx context.Context, targets []string, threads int) ([]E
 	}
 	args = append(args, "-key", key)
 
+	qg := GetQuotaGuard(ctx)
+	if qg != nil {
+		qg.Increment("chaos")
+	}
+
 	lines, err := RunCommandLines(ctx, "chaos", args...)
 	if err != nil {
 		return nil, fmt.Errorf("chaos execution failed: %w", err)

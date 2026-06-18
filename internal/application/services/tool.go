@@ -13,6 +13,7 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
+	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
 type Tool interface {
@@ -138,6 +139,7 @@ const (
 	portsContextKey         contextKey = "ports"
 	containerModeContextKey contextKey = "container_mode"
 	dockerImagesContextKey  contextKey = "docker_images"
+	quotaGuardContextKey    contextKey = "quota_guard"
 )
 
 const insecureContextKey = "insecure"
@@ -311,6 +313,17 @@ func WithDockerImages(ctx context.Context, images map[string]string) context.Con
 func DockerImagesFromCtx(ctx context.Context) map[string]string {
 	if images, ok := ctx.Value(dockerImagesContextKey).(map[string]string); ok {
 		return images
+	}
+	return nil
+}
+
+func WithQuotaGuard(ctx context.Context, qg *utils.QuotaGuard) context.Context {
+	return context.WithValue(ctx, quotaGuardContextKey, qg)
+}
+
+func GetQuotaGuard(ctx context.Context) *utils.QuotaGuard {
+	if qg, ok := ctx.Value(quotaGuardContextKey).(*utils.QuotaGuard); ok {
+		return qg
 	}
 	return nil
 }

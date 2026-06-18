@@ -2,6 +2,8 @@ package input
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/url"
 	"os"
@@ -30,9 +32,142 @@ func LoadScopeFile(path string) (*ScopeEngine, error) {
 	return ParseScope(file)
 }
 
+// HackerOne structured scope format
+type H1ScopeItem struct {
+	AssetIdentifier       string `json:"asset_identifier"`
+	AssetType             string `json:"asset_type"`
+	EligibleForBounty     bool   `json:"eligible_for_bounty"`
+	EligibleForSubmission bool   `json:"eligible_for_submission"`
+}
+
+type H1ProgramResponse struct {
+	StructuredScopes []H1ScopeItem `json:"structured_scopes"`
+	Target struct {
+		StructuredScopes []H1ScopeItem `json:"structured_scopes"`
+	} `json:"target"`
+}
+
+// Bugcrowd structured scope format
+type BugcrowdTarget struct {
+	Name     string `json:"name"`
+	Category string `json:"category"`
+	InScope  bool   `json:"in_scope"`
+}
+
+type BugcrowdTargetGroup struct {
+	Name    string           `json:"name"`
+	InScope bool             `json:"in_scope"`
+	Targets []BugcrowdTarget `json:"targets"`
+}
+
+type BugcrowdProgram struct {
+	TargetGroups []BugcrowdTargetGroup `json:"target_groups"`
+	Targets      []BugcrowdTarget      `json:"targets"`
+}
+
+// ParseJSONScope parses a JSON string as either a HackerOne or Bugcrowd scope export.
+func ParseJSONScope(data []byte) (*ScopeEngine, bool) {
+	// 1. Try HackerOne
+	var h1 H1ProgramResponse
+	if err := json.Unmarshal(data, &h1); err == nil {
+		scopes := h1.StructuredScopes
+		if len(scopes) == 0 {
+			scopes = h1.Target.StructuredScopes
+		}
+		if len(scopes) > 0 {
+			var allows []string
+			var excludes []string
+			for _, item := range scopes {
+				val := strings.TrimSpace(strings.ToLower(item.AssetIdentifier))
+				if val == "" {
+					continue
+				}
+				// By default, HackerOne treats structured scopes as in-scope unless ineligible
+				inScope := item.EligibleForSubmission
+				if inScope {
+					allows = append(allows, val)
+				} else {
+					excludes = append(excludes, val)
+				}
+			}
+			return &ScopeEngine{Allows: allows, Excludes: excludes}, true
+		}
+	}
+
+	// Try alternate list format of HackerOne
+	var h1List []H1ScopeItem
+	if err := json.Unmarshal(data, &h1List); err == nil && len(h1List) > 0 && h1List[0].AssetIdentifier != "" {
+		var allows []string
+		var excludes []string
+		for _, item := range h1List {
+			val := strings.TrimSpace(strings.ToLower(item.AssetIdentifier))
+			if val == "" {
+				continue
+			}
+			if item.EligibleForSubmission {
+				allows = append(allows, val)
+			} else {
+				excludes = append(excludes, val)
+			}
+		}
+		return &ScopeEngine{Allows: allows, Excludes: excludes}, true
+	}
+
+	// 2. Try Bugcrowd
+	var bc BugcrowdProgram
+	if err := json.Unmarshal(data, &bc); err == nil {
+		var allows []string
+		var excludes []string
+		hasTargets := false
+
+		for _, tg := range bc.TargetGroups {
+			for _, t := range tg.Targets {
+				val := strings.TrimSpace(strings.ToLower(t.Name))
+				if val == "" {
+					continue
+				}
+				hasTargets = true
+				if tg.InScope && t.InScope {
+					allows = append(allows, val)
+				} else {
+					excludes = append(excludes, val)
+				}
+			}
+		}
+
+		for _, t := range bc.Targets {
+			val := strings.TrimSpace(strings.ToLower(t.Name))
+			if val == "" {
+				continue
+			}
+			hasTargets = true
+			if t.InScope {
+				allows = append(allows, val)
+			} else {
+				excludes = append(excludes, val)
+			}
+		}
+
+		if hasTargets {
+			return &ScopeEngine{Allows: allows, Excludes: excludes}, true
+		}
+	}
+
+	return nil, false
+}
+
 // ParseScope parses allow/exclude patterns from a reader.
 func ParseScope(r io.Reader) (*ScopeEngine, error) {
-	scanner := bufio.NewScanner(r)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if se, ok := ParseJSONScope(data); ok {
+		return se, nil
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	var allows []string
 	var excludes []string
 

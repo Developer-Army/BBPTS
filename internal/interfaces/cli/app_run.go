@@ -134,6 +134,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 				"gobuster":    true,
 				"feroxbuster": true,
 				"katana":      true,
+				"httpx":       true,
 			}
 			for _, t := range toolNames {
 				tLower := strings.TrimSpace(strings.ToLower(t))
@@ -202,6 +203,32 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			autoUpdate = true
 		}
 
+		scopeName := opts.Scope
+		if scopeName == "" {
+			scopeName = "default_run"
+		}
+		qg := utils.NewQuotaGuard(cfg.StateDir)
+
+		cp, errCheckpoint := utils.NewCheckpoint(cfg.StateDir, scopeName, normalized)
+		if errCheckpoint != nil {
+			slog.Warn("Failed to initialize checkpointing", "error", errCheckpoint)
+		} else {
+			if opts.Resume {
+				if len(cp.TargetsPending) < len(normalized) {
+					slog.Info("Resuming from previous checkpoint", "remaining", len(cp.TargetsPending))
+				}
+				normalized = cp.TargetsPending
+			} else {
+				// Clear any previous checkpoint state by resetting to fresh
+				cp.TargetsPending = normalized
+				cp.TargetsComplete = nil
+				cp.CompletedStages = nil
+				cp.Events = nil
+				cp.CurrentTargets = nil
+				cp.Save()
+			}
+		}
+
 		reconConfig := services.Config{
 			ToolNames:          toolNames,
 			Threads:            reconThreads,
@@ -223,6 +250,8 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			InsecureSkipVerify: cfg.InsecureSkipVerify,
 			DryRun:             opts.DryRun,
 			AssetStore:         opts.AssetStore,
+			Checkpoint:         cp,
+			QuotaGuard:         qg,
 			Fleet: services.FleetConfig{
 				Enabled:     opts.EnableFleet || cfg.Fleet.Enabled,
 				WorkerMesh:  cfg.Fleet.WorkerMesh,
@@ -284,26 +313,7 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 			bridge.ReportToolStatus("engine", "running", "starting recon pipeline")
 		}
 
-		scopeName := opts.Scope
-		if scopeName == "" {
-			scopeName = "default_run"
-		}
-		cp, err := utils.NewCheckpoint(cfg.StateDir, scopeName, normalized)
-		if err != nil {
-			slog.Warn("Failed to initialize checkpointing", "error", err)
-		} else {
-			if opts.Resume {
-				if len(cp.TargetsPending) < len(normalized) {
-					slog.Info("Resuming from previous checkpoint", "remaining", len(cp.TargetsPending))
-				}
-				normalized = cp.TargetsPending
-			} else {
-				// Clear any previous checkpoint state by resetting to fresh
-				cp.TargetsPending = normalized
-				cp.TargetsComplete = nil
-				cp.Save()
-			}
-		}
+
 
 		if opts.LowResource && len(normalized) > 50 {
 			events = append([]recon.Event{}, validationEvents...)

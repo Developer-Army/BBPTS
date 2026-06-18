@@ -578,13 +578,17 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 	}
 
 	if len(normalized) > 0 {
-		normalized, validationEvents = validateTargetsWithHTTPX(ctx, normalized, reconThreads)
-		if len(normalized) == 0 {
-			slog.Warn("No valid targets active or resolved via httpx validation. Aborting run.")
-			if bridge != nil {
-				bridge.ReportFailure("engine", "all targets failed validation")
+		if opts.PassiveMode {
+			slog.Info("Passive mode enabled: skipping active target validation via httpx")
+		} else {
+			normalized, validationEvents = validateTargetsWithHTTPX(ctx, normalized, reconThreads)
+			if len(normalized) == 0 {
+				slog.Warn("No valid targets active or resolved via httpx validation. Aborting run.")
+				if bridge != nil {
+					bridge.ReportFailure("engine", "all targets failed validation")
+				}
+				return nil, nil, false
 			}
-			return nil, nil, false
 		}
 	}
 

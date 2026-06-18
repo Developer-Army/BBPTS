@@ -74,6 +74,11 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 			}
 		}
 
+		qg := GetQuotaGuard(ctx)
+		if qg != nil {
+			qg.Increment("shodan")
+		}
+
 		url := fmt.Sprintf("https://api.shodan.io/shodan/host/search?query=%s&key=%s&limit=10", host, apiKey)
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
 // Notifier defines an interface for sending alerts.
@@ -54,6 +55,8 @@ type Config struct {
 	InsecureSkipVerify bool
 	DryRun             bool
 	AssetStore         string
+	Checkpoint         *utils.Checkpoint
+	QuotaGuard         *utils.QuotaGuard
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -195,6 +198,9 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = WithDockerImages(ctx, o.config.DockerImages)
 	ctx = WithInsecure(ctx, o.config.InsecureSkipVerify)
 	ctx = WithDryRun(ctx, o.config.DryRun)
+	if o.config.QuotaGuard != nil {
+		ctx = WithQuotaGuard(ctx, o.config.QuotaGuard)
+	}
 
 	if err := o.ensureTmpResultsDir(); err != nil {
 		slog.Warn("failed to initialize tmp results directory", "dir", o.config.TmpResultsDir, "error", err)
@@ -223,10 +229,47 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	scopeGuard := normalize.NewScopeGuard(initialTargets)
 	o.scopeGuard = scopeGuard
 
+	// Resume from checkpoint if stage-level checkpoints exist
+	if o.config.Checkpoint != nil && len(o.config.Checkpoint.CompletedStages) > 0 {
+		if len(o.config.Checkpoint.CurrentTargets) > 0 {
+			currentTargets = o.config.Checkpoint.CurrentTargets
+		}
+		for _, ev := range o.config.Checkpoint.Events {
+			allEvents = append(allEvents, Event{
+				Target:     ev.Target,
+				Source:     ev.Source,
+				Type:       ev.Type,
+				Properties: ev.Properties,
+			})
+		}
+		slog.Info("Resuming orchestrator execution from checkpoint",
+			"completed_stages", o.config.Checkpoint.CompletedStages,
+			"current_targets", len(currentTargets),
+			"events_loaded", len(allEvents),
+		)
+	}
+
 	customOrder := []int{0, 1, 2, 3, 4}
 	for _, stageNum := range customOrder {
 		stageTools := stages[stageNum]
 		if len(stageTools) == 0 {
+			continue
+		}
+
+		// Check if stage is already completed
+		isCompleted := false
+		if o.config.Checkpoint != nil {
+			o.config.Checkpoint.Mu.Lock()
+			for _, cs := range o.config.Checkpoint.CompletedStages {
+				if cs == stageNum {
+					isCompleted = true
+					break
+				}
+			}
+			o.config.Checkpoint.Mu.Unlock()
+		}
+		if isCompleted {
+			slog.Info("stage skipped: already completed in checkpoint", "stage", stageNum)
 			continue
 		}
 
@@ -317,6 +360,34 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			if len(webURLs) > 0 {
 				o.proxyFeeder.FeedURLs(ctx, webURLs, o.config.Threads)
 			}
+		}
+
+		// Save checkpoint at the end of each stage
+		if o.config.Checkpoint != nil {
+			o.config.Checkpoint.Mu.Lock()
+			alreadyAdded := false
+			for _, cs := range o.config.Checkpoint.CompletedStages {
+				if cs == stageNum {
+					alreadyAdded = true
+					break
+				}
+			}
+			if !alreadyAdded {
+				o.config.Checkpoint.CompletedStages = append(o.config.Checkpoint.CompletedStages, stageNum)
+			}
+			o.config.Checkpoint.CurrentTargets = currentTargets
+			checkpointEvents := make([]recon.Event, len(allEvents))
+			for idx, ev := range allEvents {
+				checkpointEvents[idx] = recon.Event{
+					Target:     ev.Target,
+					Source:     ev.Source,
+					Type:       ev.Type,
+					Properties: ev.Properties,
+				}
+			}
+			o.config.Checkpoint.Events = checkpointEvents
+			o.config.Checkpoint.Mu.Unlock()
+			o.config.Checkpoint.Save()
 		}
 	}
 

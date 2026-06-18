@@ -106,6 +106,11 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 					req.Header.Set(k, v)
 				}
 
+				qg := GetQuotaGuard(ctx)
+				if qg != nil {
+					qg.Increment("github")
+				}
+
 				r, err := client.Do(req)
 				if err != nil {
 					return true, err
@@ -175,6 +180,11 @@ func (t *GithubTool) Run(ctx context.Context, targets []string, threads int) ([]
 					JitterFraction: 0.2,
 				}
 				errRaw := ExecuteWithRetry(ctx, rawCfg, func(ctx context.Context, attempt int) (bool, error) {
+					qg := GetQuotaGuard(ctx)
+					if qg != nil {
+						qg.Increment("github")
+					}
+
 					r, err := client.Do(rawReq)
 					if err != nil {
 						return true, err
