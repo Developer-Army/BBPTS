@@ -3,9 +3,11 @@ package cli
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -557,6 +559,43 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 		}
 	}
 
+	// Expand company: or asn: targets if present
+	if len(normalized) > 0 {
+		var expanded []string
+		for _, target := range normalized {
+			target = strings.TrimSpace(target)
+			if strings.HasPrefix(strings.ToLower(target), "company:") {
+				comp := strings.TrimPrefix(target, "company:")
+				slog.Info("expanding company to ASN and IP ranges", "company", comp)
+				if cidrs, err := expandCompanyTargets(comp); err == nil && len(cidrs) > 0 {
+					expanded = append(expanded, cidrs...)
+					slog.Info("expanded company to CIDR ranges", "company", comp, "count", len(cidrs))
+				} else {
+					slog.Warn("failed to expand company to CIDRs", "company", comp, "error", err)
+					expanded = append(expanded, target)
+				}
+			} else if strings.HasPrefix(strings.ToLower(target), "asn:") {
+				asnStr := strings.TrimPrefix(target, "asn:")
+				var asn int
+				if _, err := fmt.Sscanf(asnStr, "%d", &asn); err == nil {
+					slog.Info("expanding ASN to IP ranges", "asn", asn)
+					if cidrs, err := expandASNPrefixes(asn); err == nil && len(cidrs) > 0 {
+						expanded = append(expanded, cidrs...)
+						slog.Info("expanded ASN to CIDR ranges", "asn", asn, "count", len(cidrs))
+					} else {
+						slog.Warn("failed to expand ASN to CIDRs", "asn", asn, "error", err)
+						expanded = append(expanded, target)
+					}
+				} else {
+					expanded = append(expanded, target)
+				}
+			} else {
+				expanded = append(expanded, target)
+			}
+		}
+		normalized = expanded
+	}
+
 	if opts.ScopeFile != "" && len(normalized) > 0 {
 		se, err := input.LoadScopeFile(opts.ScopeFile)
 		if err != nil {
@@ -610,3 +649,82 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 
 	return normalized, validationEvents, true
 }
+
+type bgpSearchResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		ASNs []struct {
+			ASN  int    `json:"asn"`
+			Name string `json:"name"`
+		} `json:"asns"`
+	} `json:"data"`
+}
+
+type bgpPrefixResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		IPv4 []struct {
+			Prefix string `json:"prefix"`
+		} `json:"ipv4_prefixes"`
+	} `json:"data"`
+}
+
+func expandCompanyTargets(company string) ([]string, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	searchURL := fmt.Sprintf("https://api.bgpview.io/search?query_term=%s", url.QueryEscape(company))
+	resp, err := client.Get(searchURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bgpview returned status %d", resp.StatusCode)
+	}
+
+	var searchResult bgpSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&searchResult); err != nil {
+		return nil, err
+	}
+
+	var expanded []string
+	asns := searchResult.Data.ASNs
+	if len(asns) > 5 {
+		asns = asns[:5]
+	}
+
+	for _, asn := range asns {
+		prefixes, err := expandASNPrefixes(asn.ASN)
+		if err == nil {
+			expanded = append(expanded, prefixes...)
+		}
+	}
+
+	return expanded, nil
+}
+
+func expandASNPrefixes(asn int) ([]string, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	prefixURL := fmt.Sprintf("https://api.bgpview.io/asn/%d/prefixes", asn)
+	pResp, err := client.Get(prefixURL)
+	if err != nil {
+		return nil, err
+	}
+	defer pResp.Body.Close()
+
+	if pResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bgpview prefix endpoint returned status %d", pResp.StatusCode)
+	}
+
+	var prefixResult bgpPrefixResponse
+	if err := json.NewDecoder(pResp.Body).Decode(&prefixResult); err != nil {
+		return nil, err
+	}
+
+	var expanded []string
+	for _, p := range prefixResult.Data.IPv4 {
+		expanded = append(expanded, p.Prefix)
+	}
+	return expanded, nil
+}
+

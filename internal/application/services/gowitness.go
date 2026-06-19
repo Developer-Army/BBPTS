@@ -2,7 +2,10 @@ package services
 
 import (
 	"context"
+	"crypto/md5"
 	"fmt"
+	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,6 +62,43 @@ func (t *GowitnessTool) Run(ctx context.Context, targets []string, threads int) 
 		return nil, fmt.Errorf("gowitness execution failed: %w", err)
 	}
 
+	// Match and rename gowitness screenshots to match MD5 naming convention of BBPTS reporting
+	files, errRead := os.ReadDir(destDir)
+	if errRead == nil {
+		for _, f := range files {
+			if f.IsDir() || !strings.HasSuffix(strings.ToLower(f.Name()), ".png") {
+				continue
+			}
+			name := strings.ToLower(f.Name())
+			for _, target := range httpTargets {
+				host := target
+				if strings.Contains(host, "://") {
+					if u, err := url.Parse(target); err == nil {
+						host = u.Host
+					}
+				}
+				cleanHost := strings.ReplaceAll(host, ".", "-")
+				cleanHost = strings.ReplaceAll(cleanHost, ":", "-")
+
+				if strings.Contains(name, cleanHost) {
+					srcPath := filepath.Join(destDir, f.Name())
+					md5URL := fmt.Sprintf("%x.png", md5.Sum([]byte(target)))
+					md5Host := fmt.Sprintf("%x.png", md5.Sum([]byte(host)))
+					
+					targetWithSlash := target
+					if !strings.HasSuffix(targetWithSlash, "/") {
+						targetWithSlash += "/"
+					}
+					md5URLSlash := fmt.Sprintf("%x.png", md5.Sum([]byte(targetWithSlash)))
+
+					_ = copyFile(srcPath, filepath.Join(destDir, md5URL))
+					_ = copyFile(srcPath, filepath.Join(destDir, md5Host))
+					_ = copyFile(srcPath, filepath.Join(destDir, md5URLSlash))
+				}
+			}
+		}
+	}
+
 	events := make([]Event, 0, len(httpTargets))
 	for _, target := range httpTargets {
 		events = append(events, NewEvent(target, t.Name(), "screenshot", map[string]string{
@@ -67,4 +107,21 @@ func (t *GowitnessTool) Run(ctx context.Context, targets []string, threads int) 
 	}
 
 	return events, nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
 }

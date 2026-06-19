@@ -122,9 +122,17 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 	}
 
 	// Apply tag filters
-	if len(t.Tags) > 0 {
-		args = append(args, "-tags", strings.Join(t.Tags, ","))
+	var finalTags []string
+	finalTags = append(finalTags, t.Tags...)
+	if techTags := getTechTagsForTargets(ctx, targets); len(techTags) > 0 {
+		finalTags = append(finalTags, techTags...)
+		slog.Info("Auto-selected Nuclei tags based on httpx technology fingerprint", "tags", techTags)
 	}
+
+	if len(finalTags) > 0 {
+		args = append(args, "-tags", strings.Join(finalTags, ","))
+	}
+
 
 	// Additional template paths
 	for _, tp := range t.TemplatePaths {
@@ -191,3 +199,44 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 
 	return events, nil
 }
+
+func getTechTagsForTargets(ctx context.Context, targets []string) []string {
+	store := storage.FromContext(ctx)
+	if store == nil {
+		return nil
+	}
+
+	techMap := make(map[string]bool)
+	for _, target := range targets {
+		candidates := []string{target}
+		if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+			candidates = append(candidates, "https://"+target, "http://"+target)
+		}
+
+		for _, cand := range candidates {
+			if evs, err := store.GetEventsByTarget(cand); err == nil {
+				for _, ev := range evs {
+					if ev.Source == "httpx" {
+						if techStr, ok := ev.Properties["technologies"]; ok && techStr != "" {
+							parts := strings.Split(techStr, ",")
+							for _, part := range parts {
+								tech := strings.TrimSpace(strings.ToLower(part))
+								if tech != "" {
+									techMap[tech] = true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var techTags []string
+	for tech := range techMap {
+		techTags = append(techTags, tech)
+	}
+	return techTags
+}
+
+

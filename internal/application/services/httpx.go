@@ -129,7 +129,7 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 
 	args := []string{
-		"-silent", "-json",
+		"-silent", "-tech", "-json",
 		"-t", fmt.Sprintf("%d", threads),
 		"-timeout", "10",
 		"-retries", "1",
@@ -194,6 +194,9 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 			"server":        out.Server,
 			"ip":            out.IP,
 			"auth_required": authRequired,
+		}
+		if len(out.Technologies) > 0 {
+			props["technologies"] = strings.Join(out.Technologies, ",")
 		}
 		events = append(events, NewEvent(out.URL, t.Name(), "service", props))
 		foundHosts[extractHost(out.URL)] = true

@@ -25,6 +25,7 @@ var toolFactories = map[string]struct {
 	"dnsx":        {factory: func() Tool { return &DNSXTool{} }, stage: 2},
 	"puredns":     {factory: func() Tool { return &PurednsTool{} }, stage: 2},
 	"naabu":       {factory: func() Tool { return &NaabuTool{} }, stage: 2},
+	"permutation": {factory: func() Tool { return &PermutationTool{} }, stage: 2},
 	"katana":      {factory: func() Tool { return &KatanaTool{} }, stage: 3},
 	"gau":         {factory: func() Tool { return &GauTool{} }, stage: 3},
 	"hakrawler":   {factory: func() Tool { return &HakrawlerTool{} }, stage: 3},
