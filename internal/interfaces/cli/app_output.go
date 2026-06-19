@@ -267,6 +267,8 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 				}
 				if err := notifier.SendAlert(ctx, f); err != nil {
 					slog.Warn("failed to send alert", "error", err, "host", in.Host)
+				} else {
+					_ = markAsReported(cfg.StateDir, f)
 				}
 			}
 		}
@@ -590,7 +592,6 @@ func hasBeenReported(stateDir string, finding utils.Finding) bool {
 	if stateDir == "" {
 		return false
 	}
-	_ = os.MkdirAll(stateDir, 0700)
 	historyPath := filepath.Join(stateDir, "alert_history.txt")
 
 	// Calculate a unique hash for the finding
@@ -607,12 +608,24 @@ func hasBeenReported(stateDir string, finding utils.Finding) bool {
 			}
 		}
 	}
-
-	// Append new hash
-	f, err := os.OpenFile(historyPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
-	if err == nil {
-		defer f.Close()
-		_, _ = f.WriteString(hash + "\n")
-	}
 	return false
+}
+
+func markAsReported(stateDir string, finding utils.Finding) error {
+	if stateDir == "" {
+		return nil
+	}
+	_ = os.MkdirAll(stateDir, 0700)
+	historyPath := filepath.Join(stateDir, "alert_history.txt")
+
+	hashInput := fmt.Sprintf("%s|%s|%s", finding.Host, finding.Priority, strings.Join(finding.Reasons, ","))
+	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(hashInput)))
+
+	f, err := os.OpenFile(historyPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(hash + "\n")
+	return err
 }

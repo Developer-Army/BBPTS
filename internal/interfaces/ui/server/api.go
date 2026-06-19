@@ -903,3 +903,60 @@ func (a *API) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		"status":   "success",
 	})
 }
+
+// UpdateFindingTriage updates a finding's severity and/or workflow state.
+func (a *API) UpdateFindingTriage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req struct {
+		ID            int64  `json:"id"`
+		Severity      string `json:"severity"`
+		WorkflowState string `json:"workflow_state"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request payload")
+		return
+	}
+
+	if req.ID <= 0 {
+		respondWithError(w, http.StatusBadRequest, "finding id is required")
+		return
+	}
+
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+
+	if err := a.db.UpdateFindingTriage(req.ID, req.Severity, req.WorkflowState); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{
+		"status":  "success",
+		"message": "Finding triaged successfully",
+	})
+}
+
+// GetFindings returns all findings.
+func (a *API) GetFindings(w http.ResponseWriter, r *http.Request) {
+	if a.db == nil {
+		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
+		return
+	}
+
+	findings, err := a.db.GetAllFindings()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, findings)
+}
+
+

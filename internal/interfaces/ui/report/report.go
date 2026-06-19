@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"encoding/xml"
@@ -129,6 +130,8 @@ func (rg *ReportGenerator) GenerateFullReport(insights []analyze.Insight, events
 		if err := rg.generateSARIFReport(report); err != nil {
 			slog.Warn("failed to generate SARIF report", "error", err)
 		}
+		jsonPath := filepath.Join(rg.config.OutputPath, "report.json")
+		ProcessTriageIntegrations(context.Background(), report, jsonPath)
 	}
 
 
@@ -290,6 +293,12 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		AttackPaths:     topPaths,
 	}
 
+	if store != nil {
+		for _, f := range findings {
+			_ = store.SaveReportFinding(f.Title, f.Description, f.Severity, f.Target, f.ScreenshotPath, f.Score, f.ConfidenceScore)
+		}
+	}
+
 	return report
 }
 
@@ -421,49 +430,7 @@ func (rg *ReportGenerator) buildRecommendations(findings []DetailedFinding) []st
 
 // buildExecutiveSummary creates an executive summary
 func (rg *ReportGenerator) buildExecutiveSummary(findings []DetailedFinding) ExecutiveSummary {
-	critical := 0
-	high := 0
-
-	for _, f := range findings {
-		if strings.ToLower(f.Severity) == "critical" {
-			critical++
-		} else if strings.ToLower(f.Severity) == "high" {
-			high++
-		}
-	}
-
-	riskLevel := "Low"
-	if critical > 0 {
-		riskLevel = "Critical"
-	} else if high > 0 {
-		riskLevel = "High"
-	}
-
-	summary := ExecutiveSummary{
-		OverallRisk: riskLevel,
-		KeyFindings: []string{
-			fmt.Sprintf("Identified %d critical vulnerabilities requiring immediate attention", critical),
-			fmt.Sprintf("Discovered %d high-severity issues", high),
-			"Multiple reconnaissance data points confirm active services",
-		},
-		ImmediateActions: []string{
-			"Address critical findings within 24 hours",
-			"Notify security team of findings",
-			"Begin triage and impact assessment",
-		},
-		LongTermActions: []string{
-			"Establish continuous monitoring program",
-			"Implement infrastructure hardening",
-			"Develop incident response procedures",
-		},
-		ComplianceStatus: map[string]bool{
-			"OWASP": true,
-			"CWE":   true,
-			"CVE":   false,
-		},
-	}
-
-	return summary
+	return GenerateDynamicExecutiveSummary(findings)
 }
 
 // generateJSONReport exports report as JSON

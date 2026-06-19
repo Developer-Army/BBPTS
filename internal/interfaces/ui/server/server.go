@@ -264,6 +264,10 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	mux.HandleFunc("/api/history/finding", api.GetFindingHistory)
 	mux.HandleFunc("/api/graph/nodes", api.GetGraphNodes)
 	mux.HandleFunc("/api/graph/edges", api.GetGraphEdges)
+	mux.HandleFunc("/api/findings/triage", api.UpdateFindingTriage)
+	mux.HandleFunc("/api/findings", api.GetFindings)
+
+
 
 	// Static Frontend (Embedded or simply served from a string for now)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -354,6 +358,10 @@ const DashboardHTML = `
             <a onclick="switchTab('logs')" id="nav-logs" class="nav-item flex items-center gap-3 p-3 rounded-lg text-sm font-medium text-slate-400">
                 <span>Console Logs</span>
             </a>
+            <a onclick="switchTab('triage')" id="nav-triage" class="nav-item flex items-center gap-3 p-3 rounded-lg text-sm font-medium text-slate-400">
+                <span>Triage Center</span>
+            </a>
+
         </nav>
 
         <div class="mt-auto pt-6 border-t border-slate-800/50">
@@ -561,7 +569,36 @@ const DashboardHTML = `
                 </div>
             </main>
         </div>
+
+        <!-- Triage Center Panel -->
+        <div id="panel-triage" class="panel">
+            <header class="p-8 pb-4">
+                <h2 class="text-3xl font-semibold tracking-tight">Triage Center</h2>
+                <p class="text-slate-400 text-sm mt-1">Review, override severity, and transition findings workflow state.</p>
+            </header>
+
+            <main class="p-8 pt-4">
+                <div class="glass p-6 rounded-2xl">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-800/50">
+                                    <th class="pb-4 font-medium">Target / Title</th>
+                                    <th class="pb-4 font-medium">Severity</th>
+                                    <th class="pb-4 font-medium">Workflow State</th>
+                                    <th class="pb-4 font-medium">Override Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="triage-findings-body" class="divide-y divide-slate-800/50">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
+
 
     <!-- Login Modal -->
     <div id="login-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden">
@@ -664,6 +701,9 @@ const DashboardHTML = `
 
             if (tabId === 'config') {
                 loadConfig();
+            }
+            if (tabId === 'triage') {
+                loadFindings();
             }
         }
 
@@ -851,6 +891,93 @@ const DashboardHTML = `
                 }
             } catch (e) {
                 alert('Error saving configuration: ' + e.message);
+            }
+        }
+
+        async function loadFindings() {
+            try {
+                const response = await fetchAPI('/api/findings');
+                const findings = await response.json();
+                const tbody = document.getElementById('triage-findings-body');
+                tbody.innerHTML = '';
+                if (!findings || findings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="py-8 text-center text-slate-500">No findings registered yet.</td></tr>';
+                    return;
+                }
+                findings.forEach(f => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-800/30 transition-colors border-b border-slate-800/50';
+                    tr.innerHTML = ` + "`" + `
+                        <td class="py-4 pr-4">
+                            <p class="text-sm font-semibold text-slate-200">${f.target || 'N/A'}</p>
+                            <p class="text-xs text-slate-400 mt-0.5">${f.title || 'N/A'}</p>
+                            <p class="text-[10px] text-slate-500 mt-1">${f.description || ''}</p>
+                        </td>
+                        <td class="py-4">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getSeverityClass(f.severity)}">
+                                ${f.severity || 'info'}
+                            </span>
+                        </td>
+                        <td class="py-4">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300">
+                                ${f.workflow_state || 'Discovered'}
+                            </span>
+                        </td>
+                        <td class="py-4">
+                            <div class="flex gap-2 items-center">
+                                <select id="sev-${f.id}" class="bg-[#0b0e14]/80 border border-slate-700 rounded p-1 text-xs text-slate-200 focus:outline-none focus:border-purple-600">
+                                    <option value="critical" ${f.severity === 'critical' ? 'selected' : ''}>Critical</option>
+                                    <option value="high" ${f.severity === 'high' ? 'selected' : ''}>High</option>
+                                    <option value="medium" ${f.severity === 'medium' ? 'selected' : ''}>Medium</option>
+                                    <option value="low" ${f.severity === 'low' ? 'selected' : ''}>Low</option>
+                                    <option value="info" ${f.severity === 'info' ? 'selected' : ''}>Info</option>
+                                </select>
+                                <select id="state-${f.id}" class="bg-[#0b0e14]/80 border border-slate-700 rounded p-1 text-xs text-slate-200 focus:outline-none focus:border-purple-600">
+                                    <option value="Discovered" ${f.workflow_state === 'Discovered' ? 'selected' : ''}>Discovered</option>
+                                    <option value="Triaged" ${f.workflow_state === 'Triaged' ? 'selected' : ''}>Triaged</option>
+                                    <option value="Remediating" ${f.workflow_state === 'Remediating' ? 'selected' : ''}>Remediating</option>
+                                    <option value="SLA Exception" ${f.workflow_state === 'SLA Exception' ? 'selected' : ''}>SLA Exception</option>
+                                </select>
+                                <button onclick="overrideFindingTriage(${f.id})" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs px-2.5 py-1.5 rounded transition">Override</button>
+                            </div>
+                        </td>
+                    ` + "`" + `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error('Error loading findings: ', e);
+            }
+        }
+
+        function getSeverityClass(sev) {
+            if (!sev) return 'bg-slate-700 text-slate-300';
+            switch (sev.toLowerCase()) {
+                case 'critical': return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                case 'high': return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                case 'medium': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
+                case 'low': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+                default: return 'bg-slate-800 text-slate-300';
+            }
+        }
+
+        async function overrideFindingTriage(id) {
+            const sev = document.getElementById('sev-' + id).value;
+            const state = document.getElementById('state-' + id).value;
+            try {
+                const response = await fetchAPI('/api/findings/triage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, severity: sev, workflow_state: state })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Finding triage updated successfully!');
+                    loadFindings();
+                } else {
+                    throw new Error(result.error || 'Failed to update');
+                }
+            } catch (e) {
+                alert('Error updating triage: ' + e.message);
             }
         }
 

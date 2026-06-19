@@ -120,6 +120,7 @@ func (s *Storage) initSchema() error {
 		confidence INTEGER DEFAULT 0,
 		evidence_ids TEXT DEFAULT '[]',
 		workflow_state TEXT DEFAULT 'Discovered',
+		screenshot_path TEXT DEFAULT '',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -315,6 +316,7 @@ func (s *Storage) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN confidence INTEGER DEFAULT 0")
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN evidence_ids TEXT DEFAULT '[]'")
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN workflow_state TEXT DEFAULT 'Discovered'")
+	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN screenshot_path TEXT DEFAULT ''")
 
 	// Add manager_id columns to owners and teams
 	_, _ = s.db.Exec("ALTER TABLE owners ADD COLUMN manager_id INTEGER")
@@ -683,3 +685,79 @@ func (s *Storage) GetAllAssets() ([]assets.Asset, error) {
 	}
 	return list, nil
 }
+
+// UpdateFindingTriage updates a finding's severity and/or workflow state.
+func (s *Storage) UpdateFindingTriage(id int64, severity, workflowState string) error {
+	query := "UPDATE findings SET severity = ?, workflow_state = ? WHERE id = ?"
+	if s.dbType == "postgres" {
+		query = "UPDATE findings SET severity = $1, workflow_state = $2 WHERE id = $3"
+	}
+	_, err := s.db.Exec(query, severity, workflowState, id)
+	return err
+}
+
+// GetAllFindings retrieves all consolidated findings.
+func (s *Storage) GetAllFindings() ([]map[string]interface{}, error) {
+	query := "SELECT id, title, description, severity, target, asset_id, risk_score, confidence, workflow_state, screenshot_path FROM findings ORDER BY id DESC"
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []map[string]interface{}
+	for rows.Next() {
+		var id int64
+		var title, description, severity, target, assetID, workflowState, screenshotPath string
+		var riskScore, confidence int
+		err := rows.Scan(&id, &title, &description, &severity, &target, &assetID, &riskScore, &confidence, &workflowState, &screenshotPath)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, map[string]interface{}{
+			"id":              id,
+			"title":           title,
+			"description":     description,
+			"severity":        severity,
+			"target":          target,
+			"asset_id":        assetID,
+			"risk_score":      riskScore,
+			"confidence":      confidence,
+			"workflow_state":  workflowState,
+			"screenshot_path": screenshotPath,
+		})
+	}
+	return list, nil
+}
+
+// SaveReportFinding inserts or updates a finding from report generation.
+func (s *Storage) SaveReportFinding(title, description, severity, target, screenshotPath string, riskScore, confidence int) error {
+	var count int
+	queryCheck := "SELECT COUNT(*) FROM findings WHERE target = ? AND title = ?"
+	if s.dbType == "postgres" {
+		queryCheck = "SELECT COUNT(*) FROM findings WHERE target = $1 AND title = $2"
+	}
+	err := s.db.QueryRow(queryCheck, target, title).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		queryUpdate := "UPDATE findings SET description = ?, severity = ?, screenshot_path = ?, risk_score = ?, confidence = ? WHERE target = ? AND title = ?"
+		if s.dbType == "postgres" {
+			queryUpdate = "UPDATE findings SET description = $1, severity = $2, screenshot_path = $3, risk_score = $4, confidence = $5 WHERE target = $6 AND title = $7"
+		}
+		_, err = s.db.Exec(queryUpdate, description, severity, screenshotPath, riskScore, confidence, target, title)
+		return err
+	}
+
+	queryInsert := "INSERT INTO findings (title, description, severity, target, screenshot_path, risk_score, confidence) VALUES (?, ?, ?, ?, ?, ?, ?)"
+	if s.dbType == "postgres" {
+		queryInsert = "INSERT INTO findings (title, description, severity, target, screenshot_path, risk_score, confidence) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+	}
+	_, err = s.db.Exec(queryInsert, title, description, severity, target, screenshotPath, riskScore, confidence)
+	return err
+}
+
+
+
