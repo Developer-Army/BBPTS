@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -40,6 +41,25 @@ func NewNotifier(cfg Config) *Notifier {
 		cfg: cfg,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					host, port, err := net.SplitHostPort(addr)
+					if err != nil {
+						return nil, err
+					}
+					ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+					if err != nil {
+						return nil, err
+					}
+					for _, ip := range ips {
+						if ip.IP.IsLoopback() || ip.IP.IsPrivate() || ip.IP.IsLinkLocalUnicast() || ip.IP.IsLinkLocalMulticast() {
+							return nil, fmt.Errorf("SSRF prevention: private IP blocked for webhook: %s", ip.IP)
+						}
+					}
+					dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
+					return dialer.DialContext(ctx, network, net.JoinHostPort(host, port))
+				},
+			},
 		},
 	}
 }
