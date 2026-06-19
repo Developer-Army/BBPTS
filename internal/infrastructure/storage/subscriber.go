@@ -225,6 +225,11 @@ func (s *EventSubscriber) checkAssetDrift(ev recon.Event) {
 		}
 	}
 
+	if err := s.storage.SaveAsset(newAsset); err != nil {
+		slog.Warn("Failed to save asset in drift detector", "asset_id", newAsset.ID, "error", err)
+		return
+	}
+
 	drifts := assets.DetectDrift(oldVal, newAsset)
 	if len(drifts) > 0 {
 		for _, d := range drifts {
@@ -241,9 +246,5 @@ func (s *EventSubscriber) checkAssetDrift(ev recon.Event) {
 				},
 			})
 		}
-	}
-
-	if err := s.storage.SaveAsset(newAsset); err != nil {
-		slog.Warn("Failed to save asset in drift detector", "asset_id", newAsset.ID, "error", err)
 	}
 }

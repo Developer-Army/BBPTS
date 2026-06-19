@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
 // Notifier defines an interface for sending alerts.
