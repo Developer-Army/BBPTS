@@ -83,7 +83,8 @@ func TestMarkdownReportGeneration(t *testing.T) {
 	tempDir := t.TempDir()
 
 	config := ReportConfig{
-		OutputPath: tempDir,
+		OutputPath:      tempDir,
+		IncludeMarkdown: true,
 	}
 
 	generator := NewReportGenerator(config)
@@ -187,7 +188,8 @@ func TestReportWithMultipleSeverities(t *testing.T) {
 	tempDir := t.TempDir()
 
 	config := ReportConfig{
-		OutputPath: tempDir,
+		OutputPath:      tempDir,
+		IncludeMarkdown: true,
 	}
 
 	generator := NewReportGenerator(config)
@@ -307,7 +309,8 @@ func TestReportTimestamp(t *testing.T) {
 	tempDir := t.TempDir()
 
 	config := ReportConfig{
-		OutputPath: tempDir,
+		OutputPath:      tempDir,
+		IncludeMarkdown: true,
 	}
 
 	generator := NewReportGenerator(config)
@@ -430,8 +433,9 @@ func validateZAPExport(t *testing.T, path string) {
 func TestReportScoreBreakdown(t *testing.T) {
 	tempDir := t.TempDir()
 	config := ReportConfig{
-		OutputPath:  tempDir,
-		IncludeHTML: true,
+		OutputPath:      tempDir,
+		IncludeHTML:     true,
+		IncludeMarkdown: true,
 	}
 	generator := NewReportGenerator(config)
 
