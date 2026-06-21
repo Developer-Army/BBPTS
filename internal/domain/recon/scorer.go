@@ -108,7 +108,6 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 	// 2. Exploitability (0-100)
 	expScore := exploitability
 	if expScore <= 0 {
-		expScore = 50
 		if isAuthRequired {
 			expScore = 30 // Authenticated surface is harder to exploit
 			result.Justification = append(result.Justification, "Authenticated surface (decreases exploitability)")

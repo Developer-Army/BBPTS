@@ -1,0 +1,8 @@
+2026-06-21T12:42:49.3510000Z Evaluating gitleaks.if
+2026-06-21T12:42:49.3510000Z Evaluating: success()
+2026-06-21T12:42:49.3510000Z Result: true
+2026-06-21T12:42:49.8300000Z Job is about to start running on the hosted runner: GitHub Actions 1000000757
+2026-06-21T12:42:49.8290000Z Job is waiting for a hosted runner to come online.
+2026-06-21T12:42:49.8260000Z Requested labels: ubuntu-latest
+2026-06-21T12:42:49.8260000Z Job defined at: Developer-Army/BBPTS/.github/workflows/ci.yml@refs/heads/main
+2026-06-21T12:42:49.8260000Z Waiting for a runner to pick up this job...

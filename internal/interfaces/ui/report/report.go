@@ -1204,9 +1204,15 @@ func hexToRGBComponents(hex string) string {
 		return "148,163,184"
 	}
 	var r, g, b uint8
-	fmt.Sscanf(hex[:2], "%02x", &r)
-	fmt.Sscanf(hex[2:4], "%02x", &g)
-	fmt.Sscanf(hex[4:6], "%02x", &b)
+	if _, err := fmt.Sscanf(hex[:2], "%02x", &r); err != nil {
+		return "148,163,184"
+	}
+	if _, err := fmt.Sscanf(hex[2:4], "%02x", &g); err != nil {
+		return "148,163,184"
+	}
+	if _, err := fmt.Sscanf(hex[4:6], "%02x", &b); err != nil {
+		return "148,163,184"
+	}
 	return fmt.Sprintf("%d,%d,%d", r, g, b)
 }
 
@@ -1357,20 +1363,7 @@ func (rg *ReportGenerator) exportForZAP(report *Report) error {
 	return os.WriteFile(outputPath, data, 0644)
 }
 
-func normalizeSeverity(sev string) string {
-	switch strings.ToLower(sev) {
-	case "critical":
-		return "High"
-	case "high":
-		return "High"
-	case "medium":
-		return "Medium"
-	case "low":
-		return "Low"
-	default:
-		return "Information"
-	}
-}
+
 
 // filterSourceReasons removes internal "source: xxx" tracking tokens from
 // the reasons list. These are useful internally but should not appear in

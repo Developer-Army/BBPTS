@@ -1,0 +1,2395 @@
+﻿2026-06-21T12:42:51.9377770Z Current runner version: '2.335.1'
+2026-06-21T12:42:51.9391520Z ##[group]Runner Image Provisioner
+2026-06-21T12:42:51.9392040Z Hosted Compute Agent
+2026-06-21T12:42:51.9392400Z Version: 20260527.539
+2026-06-21T12:42:51.9392800Z Commit: a891dd388383b896fa6ac04a82c0b75cec981078
+2026-06-21T12:42:51.9393260Z Build Date: 2026-05-27T21:39:57Z
+2026-06-21T12:42:51.9393690Z Worker ID: {912512c8-7ce3-4bb7-900d-4ef479d2302b}
+2026-06-21T12:42:51.9394140Z Azure Region: westus
+2026-06-21T12:42:51.9394490Z ##[endgroup]
+2026-06-21T12:42:51.9395300Z ##[group]Operating System
+2026-06-21T12:42:51.9395700Z macOS
+2026-06-21T12:42:51.9396040Z 15.7.7
+2026-06-21T12:42:51.9396370Z 24G720
+2026-06-21T12:42:51.9396710Z ##[endgroup]
+2026-06-21T12:42:51.9397060Z ##[group]Runner Image
+2026-06-21T12:42:51.9397430Z Image: macos-15-arm64
+2026-06-21T12:42:51.9397800Z Version: 20260610.0126.1
+2026-06-21T12:42:51.9398620Z Included Software: https://github.com/actions/runner-images/blob/macos-15-arm64/20260610.0126/images/macos/macos-15-arm64-Readme.md
+2026-06-21T12:42:51.9399620Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-15-arm64%2F20260610.0126
+2026-06-21T12:42:51.9400270Z ##[endgroup]
+2026-06-21T12:42:51.9400970Z ##[group]GITHUB_TOKEN Permissions
+2026-06-21T12:42:51.9401940Z Contents: read
+2026-06-21T12:42:51.9402300Z Metadata: read
+2026-06-21T12:42:51.9402660Z ##[endgroup]
+2026-06-21T12:42:51.9403990Z Secret source: Actions
+2026-06-21T12:42:51.9404420Z Prepare workflow directory
+2026-06-21T12:42:51.9617850Z Prepare all required actions
+2026-06-21T12:42:51.9650970Z Getting action download info
+2026-06-21T12:42:52.3299070Z Download action repository 'actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332' (SHA:692973e3d937129bcbf40652eb9f2f61becf3332)
+2026-06-21T12:42:52.6289180Z Download action repository 'actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32' (SHA:0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32)
+2026-06-21T12:42:53.0781270Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-06-21T12:42:53.2508080Z Complete job name: Test and Build Verification (macos-latest)
+2026-06-21T12:42:53.2988310Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:42:53.2994950Z ##[group]Run actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+2026-06-21T12:42:53.2995560Z with:
+2026-06-21T12:42:53.2995900Z   repository: Developer-Army/BBPTS
+2026-06-21T12:42:53.2998860Z   token: ***
+2026-06-21T12:42:53.2999170Z   ssh-strict: true
+2026-06-21T12:42:53.2999490Z   ssh-user: git
+2026-06-21T12:42:53.2999810Z   persist-credentials: true
+2026-06-21T12:42:53.3000150Z   clean: true
+2026-06-21T12:42:53.3000480Z   sparse-checkout-cone-mode: true
+2026-06-21T12:42:53.3000900Z   fetch-depth: 1
+2026-06-21T12:42:53.3001240Z   fetch-tags: false
+2026-06-21T12:42:53.3001560Z   show-progress: true
+2026-06-21T12:42:53.3001910Z   lfs: false
+2026-06-21T12:42:53.3002210Z   submodules: false
+2026-06-21T12:42:53.3002530Z   set-safe-directory: true
+2026-06-21T12:42:53.3003000Z ##[endgroup]
+2026-06-21T12:42:53.7178380Z Syncing repository: Developer-Army/BBPTS
+2026-06-21T12:42:53.7179670Z ##[group]Getting Git version info
+2026-06-21T12:42:53.7180170Z Working directory is '/Users/runner/work/BBPTS/BBPTS'
+2026-06-21T12:42:53.7180880Z [command]/opt/homebrew/bin/git version
+2026-06-21T12:42:53.7441900Z git version 2.54.0
+2026-06-21T12:42:53.7452680Z ##[endgroup]
+2026-06-21T12:42:53.7460850Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/5c5dd265-7abd-4623-ad5d-1acb1aadb13a/.gitconfig'
+2026-06-21T12:42:53.7466570Z Temporarily overriding HOME='/Users/runner/work/_temp/5c5dd265-7abd-4623-ad5d-1acb1aadb13a' before making global git config changes
+2026-06-21T12:42:53.7467540Z Adding repository directory to the temporary git global config as a safe directory
+2026-06-21T12:42:53.7470580Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/BBPTS/BBPTS
+2026-06-21T12:42:53.7577350Z Deleting the contents of '/Users/runner/work/BBPTS/BBPTS'
+2026-06-21T12:42:53.7580580Z ##[group]Initializing the repository
+2026-06-21T12:42:53.7584410Z [command]/opt/homebrew/bin/git init /Users/runner/work/BBPTS/BBPTS
+2026-06-21T12:42:53.7793750Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-06-21T12:42:53.7794760Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-06-21T12:42:53.7795800Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-06-21T12:42:53.7796360Z hint: call:
+2026-06-21T12:42:53.7796690Z hint:
+2026-06-21T12:42:53.7797460Z hint: 	git config --global init.defaultBranch <name>
+2026-06-21T12:42:53.7797920Z hint:
+2026-06-21T12:42:53.7798390Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-06-21T12:42:53.7799180Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-06-21T12:42:53.7799730Z hint:
+2026-06-21T12:42:53.7800050Z hint: 	git branch -m <name>
+2026-06-21T12:42:53.7800420Z hint:
+2026-06-21T12:42:53.7800900Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-06-21T12:42:53.7801670Z Initialized empty Git repository in /Users/runner/work/BBPTS/BBPTS/.git/
+2026-06-21T12:42:53.7806800Z [command]/opt/homebrew/bin/git remote add origin https://github.com/Developer-Army/BBPTS
+2026-06-21T12:42:53.7885080Z ##[endgroup]
+2026-06-21T12:42:53.7885700Z ##[group]Disabling automatic garbage collection
+2026-06-21T12:42:53.7888100Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-06-21T12:42:53.7948840Z ##[endgroup]
+2026-06-21T12:42:53.7949440Z ##[group]Setting up auth
+2026-06-21T12:42:53.7953560Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-06-21T12:42:53.8042410Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-06-21T12:42:53.8995960Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-06-21T12:42:53.9050360Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-06-21T12:42:53.9723690Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-06-21T12:42:53.9782740Z ##[endgroup]
+2026-06-21T12:42:53.9783400Z ##[group]Fetching the repository
+2026-06-21T12:42:53.9788290Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +7ce73bce5ee6be983dbe86ccd58b845dd14afa64:refs/remotes/origin/main
+2026-06-21T12:42:54.5567360Z From https://github.com/Developer-Army/BBPTS
+2026-06-21T12:42:54.5568710Z  * [new ref]         7ce73bce5ee6be983dbe86ccd58b845dd14afa64 -> origin/main
+2026-06-21T12:42:54.5650400Z ##[endgroup]
+2026-06-21T12:42:54.5651130Z ##[group]Determining the checkout info
+2026-06-21T12:42:54.5651860Z ##[endgroup]
+2026-06-21T12:42:54.5654180Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-06-21T12:42:54.5723840Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-06-21T12:42:54.5783850Z ##[group]Checking out the ref
+2026-06-21T12:42:54.5784720Z [command]/opt/homebrew/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-06-21T12:42:54.6183080Z Switched to a new branch 'main'
+2026-06-21T12:42:54.6188860Z branch 'main' set up to track 'origin/main'.
+2026-06-21T12:42:54.6193680Z ##[endgroup]
+2026-06-21T12:42:54.6275130Z [command]/opt/homebrew/bin/git log -1 --format='%H'
+2026-06-21T12:42:54.6337350Z '7ce73bce5ee6be983dbe86ccd58b845dd14afa64'
+2026-06-21T12:42:54.6531640Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:42:54.6533660Z ##[group]Run actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32
+2026-06-21T12:42:54.6534240Z with:
+2026-06-21T12:42:54.6534620Z   go-version: 1.23
+2026-06-21T12:42:54.6535070Z   cache: true
+2026-06-21T12:42:54.6535550Z   check-latest: false
+2026-06-21T12:42:54.6538770Z   token: ***
+2026-06-21T12:42:54.6539290Z ##[endgroup]
+2026-06-21T12:42:54.7752520Z Setup go version spec 1.23
+2026-06-21T12:42:54.7844390Z Found in cache @ /Users/runner/hostedtoolcache/go/1.23.12/arm64
+2026-06-21T12:42:54.7845400Z (node:4765) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-06-21T12:42:54.7846580Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-06-21T12:42:54.7847330Z Added go to the path
+2026-06-21T12:42:54.7849310Z Successfully set up Go version 1.23
+2026-06-21T12:42:54.8916800Z [command]/Users/runner/hostedtoolcache/go/1.23.12/arm64/bin/go env GOMODCACHE
+2026-06-21T12:42:54.8931730Z [command]/Users/runner/hostedtoolcache/go/1.23.12/arm64/bin/go env GOCACHE
+2026-06-21T12:42:54.9001290Z /Users/runner/go/pkg/mod
+2026-06-21T12:42:54.9002510Z /Users/runner/Library/Caches/go-build
+2026-06-21T12:42:55.0104520Z ##[warning]Failed to restore: Cache service responded with 400
+2026-06-21T12:42:55.0111050Z Cache is not found
+2026-06-21T12:42:55.0124700Z go version go1.23.12 darwin/arm64
+2026-06-21T12:42:55.0125130Z 
+2026-06-21T12:42:55.0125640Z ##[group]go env
+2026-06-21T12:42:56.4790720Z GO111MODULE=''
+2026-06-21T12:42:56.4791240Z GOARCH='arm64'
+2026-06-21T12:42:56.4791770Z GOBIN=''
+2026-06-21T12:42:56.4792640Z GOCACHE='/Users/runner/Library/Caches/go-build'
+2026-06-21T12:42:56.4793190Z GOENV='/Users/runner/Library/Application Support/go/env'
+2026-06-21T12:42:56.4793630Z GOEXE=''
+2026-06-21T12:42:56.4793890Z GOEXPERIMENT=''
+2026-06-21T12:42:56.4794170Z GOFLAGS=''
+2026-06-21T12:42:56.4794400Z GOHOSTARCH='arm64'
+2026-06-21T12:42:56.4794650Z GOHOSTOS='darwin'
+2026-06-21T12:42:56.4794850Z GOINSECURE=''
+2026-06-21T12:42:56.4795190Z GOMODCACHE='/Users/runner/go/pkg/mod'
+2026-06-21T12:42:56.4795530Z GONOPROXY=''
+2026-06-21T12:42:56.4795790Z GONOSUMDB=''
+2026-06-21T12:42:56.4796070Z GOOS='darwin'
+2026-06-21T12:42:56.4796420Z GOPATH='/Users/runner/go'
+2026-06-21T12:42:56.4796680Z GOPRIVATE=''
+2026-06-21T12:42:56.4797090Z GOPROXY='https://proxy.golang.org,direct'
+2026-06-21T12:42:56.4797590Z GOROOT='/Users/runner/hostedtoolcache/go/1.23.12/arm64'
+2026-06-21T12:42:56.4797940Z GOSUMDB='sum.golang.org'
+2026-06-21T12:42:56.4798210Z GOTMPDIR=''
+2026-06-21T12:42:56.4798400Z GOTOOLCHAIN='auto'
+2026-06-21T12:42:56.4798800Z GOTOOLDIR='/Users/runner/hostedtoolcache/go/1.23.12/arm64/pkg/tool/darwin_arm64'
+2026-06-21T12:42:56.4799210Z GOVCS=''
+2026-06-21T12:42:56.4799410Z GOVERSION='go1.23.12'
+2026-06-21T12:42:56.4799640Z GODEBUG=''
+2026-06-21T12:42:56.4799850Z GOTELEMETRY='local'
+2026-06-21T12:42:56.4800260Z GOTELEMETRYDIR='/Users/runner/Library/Application Support/go/telemetry'
+2026-06-21T12:42:56.4800670Z GCCGO='gccgo'
+2026-06-21T12:42:56.4800930Z GOARM64='v8.0'
+2026-06-21T12:42:56.4801380Z AR='ar'
+2026-06-21T12:42:56.4801810Z CC='clang'
+2026-06-21T12:42:56.4802140Z CXX='clang++'
+2026-06-21T12:42:56.4802450Z CGO_ENABLED='1'
+2026-06-21T12:42:56.4802830Z GOMOD='/Users/runner/work/BBPTS/BBPTS/go.mod'
+2026-06-21T12:42:56.4803270Z GOWORK=''
+2026-06-21T12:42:56.4803590Z CGO_CFLAGS='-O2 -g'
+2026-06-21T12:42:56.4804000Z CGO_CPPFLAGS=''
+2026-06-21T12:42:56.4804390Z CGO_CXXFLAGS='-O2 -g'
+2026-06-21T12:42:56.4804780Z CGO_FFLAGS='-O2 -g'
+2026-06-21T12:42:56.4806100Z CGO_LDFLAGS='-O2 -g'
+2026-06-21T12:42:56.4806410Z PKG_CONFIG='pkg-config'
+2026-06-21T12:42:56.4808800Z GOGCCFLAGS='-fPIC -arch arm64 -pthread -fno-caret-diagnostics -Qunused-arguments -fmessage-length=0 -ffile-prefix-map=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-build960348477=/tmp/go-build -gno-record-gcc-switches -fno-common'
+2026-06-21T12:42:56.4809770Z 
+2026-06-21T12:42:56.4810250Z ##[endgroup]
+2026-06-21T12:42:56.4875180Z ##[group]Run go mod download
+2026-06-21T12:42:56.4875520Z [36;1mgo mod download[0m
+2026-06-21T12:42:56.4912750Z shell: /bin/bash -e {0}
+2026-06-21T12:42:56.4913020Z ##[endgroup]
+2026-06-21T12:43:00.5405200Z ##[group]Run go test -v -race "-coverprofile=coverage-macos-latest.out" -covermode=atomic ./...
+2026-06-21T12:43:00.5405810Z [36;1mgo test -v -race "-coverprofile=coverage-macos-latest.out" -covermode=atomic ./...[0m
+2026-06-21T12:43:00.5436380Z shell: /bin/bash -e {0}
+2026-06-21T12:43:00.5436580Z ##[endgroup]
+2026-06-21T12:43:32.5297090Z # github.com/Developer-Army/BBPTS/cmd/bbpts.test
+2026-06-21T12:43:32.5298710Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-1621601332/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:34.3611700Z 	github.com/Developer-Army/BBPTS/cmd/verify		coverage: 0.0% of statements
+2026-06-21T12:43:35.4272820Z === RUN   TestReorderArgs
+2026-06-21T12:43:35.4273370Z === RUN   TestReorderArgs/positional_then_boolean_flag
+2026-06-21T12:43:35.4276010Z === RUN   TestReorderArgs/positional_then_string_flag_with_value
+2026-06-21T12:43:35.4276720Z === RUN   TestReorderArgs/string_flag,_value,_positional,_bool_flag
+2026-06-21T12:43:35.4277140Z === RUN   TestReorderArgs/flag_with_equal_sign
+2026-06-21T12:43:35.4277500Z === RUN   TestReorderArgs/unknown_flag
+2026-06-21T12:43:35.4277810Z === RUN   TestReorderArgs/terminator_--
+2026-06-21T12:43:35.4278160Z --- PASS: TestReorderArgs (0.00s)
+2026-06-21T12:43:35.4278610Z     --- PASS: TestReorderArgs/positional_then_boolean_flag (0.00s)
+2026-06-21T12:43:35.4279210Z     --- PASS: TestReorderArgs/positional_then_string_flag_with_value (0.00s)
+2026-06-21T12:43:35.4279800Z     --- PASS: TestReorderArgs/string_flag,_value,_positional,_bool_flag (0.00s)
+2026-06-21T12:43:35.4280360Z     --- PASS: TestReorderArgs/flag_with_equal_sign (0.00s)
+2026-06-21T12:43:35.4280760Z     --- PASS: TestReorderArgs/unknown_flag (0.00s)
+2026-06-21T12:43:35.4281230Z     --- PASS: TestReorderArgs/terminator_-- (0.00s)
+2026-06-21T12:43:35.4281560Z PASS
+2026-06-21T12:43:35.4281760Z coverage: 11.9% of statements
+2026-06-21T12:43:35.4282210Z ok  	github.com/Developer-Army/BBPTS/cmd/bbpts	1.090s	coverage: 11.9% of statements
+2026-06-21T12:43:36.5371190Z # github.com/Developer-Army/BBPTS/internal/application/services.test
+2026-06-21T12:43:36.5389450Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-2913469896/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:36.9131480Z # github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze.test
+2026-06-21T12:43:36.9138180Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-4069750300/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:48.6142950Z # github.com/Developer-Army/BBPTS/internal/infrastructure/queue.test
+2026-06-21T12:43:48.6144210Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-771647811/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:53.2617940Z # github.com/Developer-Army/BBPTS/internal/infrastructure/storage.test
+2026-06-21T12:43:53.2718140Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-1857045692/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:55.3032720Z # github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry.test
+2026-06-21T12:43:55.3034030Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-955357845/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:57.4618380Z # github.com/Developer-Army/BBPTS/internal/interfaces/cli.test
+2026-06-21T12:43:57.4727870Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-2503475939/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:57.9825610Z # github.com/Developer-Army/BBPTS/internal/interfaces/ui/report.test
+2026-06-21T12:43:57.9827130Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-2365081275/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:43:59.8010650Z # github.com/Developer-Army/BBPTS/internal/interfaces/ui/server.test
+2026-06-21T12:43:59.8011980Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-2395059345/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:44:01.4750260Z # github.com/Developer-Army/BBPTS/internal/interfaces/workers.test
+2026-06-21T12:44:01.4751950Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-7842359/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:44:06.2764890Z # github.com/Developer-Army/BBPTS/internal/shared/utils.test
+2026-06-21T12:44:06.2766410Z ld: warning: '/private/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-link-329134127/000013.o' has malformed LC_DYSYMTAB, expected 98 undefined symbols to start at index 1626, found 95 undefined symbols starting at index 1626
+2026-06-21T12:44:06.3019480Z 	github.com/Developer-Army/BBPTS/scripts		coverage: 0.0% of statements
+2026-06-21T12:44:10.9097410Z === RUN   TestNewResultCacheDisabled
+2026-06-21T12:44:10.9101140Z --- PASS: TestNewResultCacheDisabled (0.00s)
+2026-06-21T12:44:10.9103420Z === RUN   TestNewResultCacheEnabled
+2026-06-21T12:44:10.9105200Z --- PASS: TestNewResultCacheEnabled (0.01s)
+2026-06-21T12:44:10.9111630Z === RUN   TestCachePutAndGet
+2026-06-21T12:44:10.9114180Z 2026/06/21 12:43:36 WARN Failed to update cache hit count key=0ed92df374f3f5f751b0748bb165f0ed error="sql: database is closed"
+2026-06-21T12:44:10.9116310Z --- PASS: TestCachePutAndGet (0.01s)
+2026-06-21T12:44:10.9116640Z === RUN   TestCacheGetNoHit
+2026-06-21T12:44:10.9119460Z --- PASS: TestCacheGetNoHit (0.01s)
+2026-06-21T12:44:10.9121220Z === RUN   TestCacheGetNilCache
+2026-06-21T12:44:10.9121520Z --- PASS: TestCacheGetNilCache (0.00s)
+2026-06-21T12:44:10.9122640Z === RUN   TestCachePutNilCache
+2026-06-21T12:44:10.9124280Z --- PASS: TestCachePutNilCache (0.00s)
+2026-06-21T12:44:10.9127320Z === RUN   TestCacheInvalidate
+2026-06-21T12:44:10.9128890Z --- PASS: TestCacheInvalidate (0.01s)
+2026-06-21T12:44:10.9132530Z === RUN   TestCacheInvalidateAll
+2026-06-21T12:44:10.9135450Z --- PASS: TestCacheInvalidateAll (0.01s)
+2026-06-21T12:44:10.9139220Z === RUN   TestCacheStats
+2026-06-21T12:44:10.9140880Z --- PASS: TestCacheStats (0.02s)
+2026-06-21T12:44:10.9141220Z === RUN   TestCacheStatsNil
+2026-06-21T12:44:10.9142510Z --- PASS: TestCacheStatsNil (0.00s)
+2026-06-21T12:44:10.9142920Z === RUN   TestCacheKeyDeterministic
+2026-06-21T12:44:10.9144140Z --- PASS: TestCacheKeyDeterministic (0.00s)
+2026-06-21T12:44:10.9145550Z === RUN   TestCacheKeyDifferentOrder
+2026-06-21T12:44:10.9146000Z --- PASS: TestCacheKeyDifferentOrder (0.00s)
+2026-06-21T12:44:10.9146370Z === RUN   TestCacheKeyDifferentTool
+2026-06-21T12:44:10.9147230Z --- PASS: TestCacheKeyDifferentTool (0.00s)
+2026-06-21T12:44:10.9148270Z === RUN   TestCacheExpiry
+2026-06-21T12:44:10.9148680Z --- PASS: TestCacheExpiry (0.06s)
+2026-06-21T12:44:10.9150190Z === RUN   TestCacheTTLOverride
+2026-06-21T12:44:10.9151730Z --- PASS: TestCacheTTLOverride (0.06s)
+2026-06-21T12:44:10.9153340Z === RUN   TestCacheClose
+2026-06-21T12:44:10.9156370Z --- PASS: TestCacheClose (0.01s)
+2026-06-21T12:44:10.9158060Z === RUN   TestCacheCloseNil
+2026-06-21T12:44:10.9159720Z --- PASS: TestCacheCloseNil (0.00s)
+2026-06-21T12:44:10.9166570Z === RUN   TestCacheInvalidateNil
+2026-06-21T12:44:10.9172670Z --- PASS: TestCacheInvalidateNil (0.00s)
+2026-06-21T12:44:10.9174210Z === RUN   TestCacheInvalidateAllNil
+2026-06-21T12:44:10.9175870Z --- PASS: TestCacheInvalidateAllNil (0.00s)
+2026-06-21T12:44:10.9177210Z === RUN   TestCacheDBPathCreation
+2026-06-21T12:44:10.9177490Z --- PASS: TestCacheDBPathCreation (0.01s)
+2026-06-21T12:44:10.9180360Z === RUN   TestCacheOverwrite
+2026-06-21T12:44:10.9181990Z 2026/06/21 12:43:36 WARN Failed to update cache hit count key=c229fddabd96479a825bf1a158ad8a91 error="sql: database is closed"
+2026-06-21T12:44:10.9185090Z --- PASS: TestCacheOverwrite (0.01s)
+2026-06-21T12:44:10.9186670Z === RUN   TestCacheHitCount
+2026-06-21T12:44:10.9189430Z --- PASS: TestCacheHitCount (0.07s)
+2026-06-21T12:44:10.9191290Z === RUN   TestCacheConcurrentAccess
+2026-06-21T12:44:10.9193250Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9194130Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9194970Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9195900Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9197780Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9198660Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9199430Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9201340Z 2026/06/21 12:43:37 WARN Failed to update cache hit count key=54b4caf7daeb7cb44df30fbc50812f77 error="sql: database is closed"
+2026-06-21T12:44:10.9202450Z --- PASS: TestCacheConcurrentAccess (0.35s)
+2026-06-21T12:44:10.9202930Z === RUN   TestDefaultCacheConfig
+2026-06-21T12:44:10.9203850Z --- PASS: TestDefaultCacheConfig (0.00s)
+2026-06-21T12:44:10.9204840Z === RUN   TestChaos_WAFSimulation
+2026-06-21T12:44:10.9207670Z     chaos_test.go:72: WAF Evasion Success: Client transparently handled WAF block and Rate Limit, returning 200 OK after 8.008219084s
+2026-06-21T12:44:10.9208250Z --- PASS: TestChaos_WAFSimulation (8.01s)
+2026-06-21T12:44:10.9209080Z === RUN   TestChaos_WorkerAssassination
+2026-06-21T12:44:10.9209600Z 2026/06/21 12:43:45 WARN Worker node missed heartbeats, evicting from mesh worker=worker-chaos-99
+2026-06-21T12:44:10.9210640Z     chaos_test.go:120: Worker Assassination Success: Orchestrator successfully identified dead node 'worker-chaos-99' and triggered workload reassignment.
+2026-06-21T12:44:10.9211300Z --- PASS: TestChaos_WorkerAssassination (0.11s)
+2026-06-21T12:44:10.9211670Z === RUN   TestCloudBucketsTool
+2026-06-21T12:44:10.9212480Z 2026/06/21 12:43:45 INFO Probing cloud buckets for target candidates... candidates_count=15
+2026-06-21T12:44:10.9213160Z 2026/06/21 12:43:45 WARN Found open cloud bucket provider=gcs bucket=target url=https://storage.googleapis.com/target
+2026-06-21T12:44:10.9216340Z 2026/06/21 12:43:45 WARN Found open cloud bucket provider=aws bucket=target-assets url=https://target-assets.s3.amazonaws.com
+2026-06-21T12:44:10.9217940Z --- PASS: TestCloudBucketsTool (0.00s)
+2026-06-21T12:44:10.9218680Z === RUN   TestEscalatorBreach
+2026-06-21T12:44:10.9219020Z 2026/06/21 12:43:45 INFO Starting CTEM Escalator Engine interval=10ms
+2026-06-21T12:44:10.9222570Z 2026/06/21 12:43:45 WARN CTEM ESCALATION TRIGGERED assignment_id=1 finding="Exposed DB Key" target=db.corp.com delay_days=0 action_type=slack recipient_name=Bob recipient_email=bob@corp.com
+2026-06-21T12:44:10.9224280Z 2026/06/21 12:43:45 INFO Escalation webhook dispatched successfully status_code=200
+2026-06-21T12:44:10.9224980Z --- PASS: TestEscalatorBreach (0.19s)
+2026-06-21T12:44:10.9227220Z === RUN   TestEscalatorHierarchicalRouting
+2026-06-21T12:44:10.9228020Z --- PASS: TestEscalatorHierarchicalRouting (0.09s)
+2026-06-21T12:44:10.9228340Z === RUN   TestDryRunContext
+2026-06-21T12:44:10.9228710Z --- PASS: TestDryRunContext (0.00s)
+2026-06-21T12:44:10.9229020Z === RUN   TestRunCommandDryRun
+2026-06-21T12:44:10.9229470Z [Dry-Run] Would execute: subfinder -silent
+2026-06-21T12:44:10.9229770Z --- PASS: TestRunCommandDryRun (0.00s)
+2026-06-21T12:44:10.9230160Z === RUN   TestAssetStoreStreaming
+2026-06-21T12:44:10.9230560Z 2026/06/21 12:43:45 INFO Discovered subdomain: https://api.acme-corp.io tool=subfinder
+2026-06-21T12:44:10.9231180Z --- PASS: TestAssetStoreStreaming (0.00s)
+2026-06-21T12:44:10.9231460Z === RUN   TestIsValidTarget
+2026-06-21T12:44:10.9231780Z --- PASS: TestIsValidTarget (0.00s)
+2026-06-21T12:44:10.9232080Z === RUN   TestIsParkedOrForSale
+2026-06-21T12:44:10.9232420Z --- PASS: TestIsParkedOrForSale (0.00s)
+2026-06-21T12:44:10.9232790Z === RUN   TestExtractHost
+2026-06-21T12:44:10.9233040Z --- PASS: TestExtractHost (0.00s)
+2026-06-21T12:44:10.9233370Z === RUN   TestBurpExportIntegration
+2026-06-21T12:44:10.9234280Z     integration_test.go:22: Successfully exported Burp config to /var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestBurpExportIntegration646670045/001/burp-export.xml
+2026-06-21T12:44:10.9235000Z --- PASS: TestBurpExportIntegration (0.00s)
+2026-06-21T12:44:10.9235310Z === RUN   TestCaidoExportIntegration
+2026-06-21T12:44:10.9236310Z     integration_test.go:42: Successfully exported Caido targets to /var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestCaidoExportIntegration1983048273/001/caido-targets.txt
+2026-06-21T12:44:10.9237010Z --- PASS: TestCaidoExportIntegration (0.00s)
+2026-06-21T12:44:10.9237390Z === RUN   TestMultipleToolExportIntegration
+2026-06-21T12:44:10.9237870Z     integration_test.go:63: Successfully exported to multiple tools
+2026-06-21T12:44:10.9238340Z --- PASS: TestMultipleToolExportIntegration (0.00s)
+2026-06-21T12:44:10.9238790Z === RUN   TestExportWorkflow
+2026-06-21T12:44:10.9239370Z     integration_test.go:91: Export workflow completed successfully
+2026-06-21T12:44:10.9239930Z --- PASS: TestExportWorkflow (0.00s)
+2026-06-21T12:44:10.9240460Z === RUN   TestFilterEventsInScope
+2026-06-21T12:44:10.9240810Z --- PASS: TestFilterEventsInScope (0.00s)
+2026-06-21T12:44:10.9241160Z === RUN   TestOrchestratorInitialization
+2026-06-21T12:44:10.9241680Z --- PASS: TestOrchestratorInitialization (0.00s)
+2026-06-21T12:44:10.9242060Z === RUN   TestOrchestratorExecutionTimeout
+2026-06-21T12:44:10.9242640Z 2026/06/21 12:43:45 INFO starting pipeline stage stage=1 tools=1 targets=1 fleet_mode=false
+2026-06-21T12:44:10.9243120Z 2026/06/21 12:43:45 INFO Running tool on 1 targets tool=subfinder
+2026-06-21T12:44:10.9243760Z 2026/06/21 12:43:45 INFO pipeline stage complete stage=1 events_found=0 cascaded_targets=1
+2026-06-21T12:44:10.9244330Z     orchestrator_test.go:45: events is nil on timeout (allowed)
+2026-06-21T12:44:10.9244950Z --- PASS: TestOrchestratorExecutionTimeout (0.10s)
+2026-06-21T12:44:10.9245360Z === RUN   TestOrchestratorWithInvalidTools
+2026-06-21T12:44:10.9245820Z 2026/06/21 12:43:45 WARN unknown tool skipped tool=nonexistent-tool-xyz
+2026-06-21T12:44:10.9246350Z --- PASS: TestOrchestratorWithInvalidTools (0.00s)
+2026-06-21T12:44:10.9246710Z === RUN   TestOrchestratorConcurrency
+2026-06-21T12:44:10.9247190Z 2026/06/21 12:43:45 INFO starting pipeline stage stage=3 tools=1 targets=3 fleet_mode=false
+2026-06-21T12:44:10.9247890Z 2026/06/21 12:43:45 INFO Running tool on 3 targets tool=httpx
+2026-06-21T12:44:10.9248300Z 2026/06/21 12:43:53 INFO pipeline stage complete stage=3 events_found=0 cascaded_targets=3
+2026-06-21T12:44:10.9249380Z     orchestrator_test.go:81: Execution error (expected in test env): httpx: operation failed after 4 attempts: httpx execution failed: fork/exec /invalid/path/notfound/httpx: no such file or directory
+2026-06-21T12:44:10.9250390Z     orchestrator_test.go:85: events is nil (allowed)
+2026-06-21T12:44:10.9250690Z --- PASS: TestOrchestratorConcurrency (8.11s)
+2026-06-21T12:44:10.9250960Z === RUN   TestOrchestratorRateLimiting
+2026-06-21T12:44:10.9251230Z --- PASS: TestOrchestratorRateLimiting (0.00s)
+2026-06-21T12:44:10.9341920Z === RUN   TestMockToolInterface
+2026-06-21T12:44:10.9342360Z --- PASS: TestMockToolInterface (0.00s)
+2026-06-21T12:44:10.9342600Z === RUN   TestMockToolReturnsEvents
+2026-06-21T12:44:10.9342940Z --- PASS: TestMockToolReturnsEvents (0.00s)
+2026-06-21T12:44:10.9343230Z === RUN   TestFailingMockTool
+2026-06-21T12:44:10.9343510Z --- PASS: TestFailingMockTool (0.00s)
+2026-06-21T12:44:10.9343840Z === RUN   TestMockPipelineFullFlow
+2026-06-21T12:44:10.9344120Z --- PASS: TestMockPipelineFullFlow (0.00s)
+2026-06-21T12:44:10.9344380Z === RUN   TestBatchProcessorSplit
+2026-06-21T12:44:10.9344610Z --- PASS: TestBatchProcessorSplit (0.00s)
+2026-06-21T12:44:10.9344840Z === RUN   TestBatchProcessorProcess
+2026-06-21T12:44:10.9345410Z 2026/06/21 12:43:53 INFO Batch processing started total_targets=12 batch_size=5 num_batches=3 max_concurrent=2
+2026-06-21T12:44:10.9346060Z 2026/06/21 12:43:53 INFO Batch processing completed successfully total_events=12 num_batches=3
+2026-06-21T12:44:10.9346520Z --- PASS: TestBatchProcessorProcess (0.01s)
+2026-06-21T12:44:10.9346860Z === RUN   TestBatchProcessorSingleBatch
+2026-06-21T12:44:10.9347260Z --- PASS: TestBatchProcessorSingleBatch (0.00s)
+2026-06-21T12:44:10.9347660Z === RUN   TestToolRateLimiterDefaults
+2026-06-21T12:44:10.9348020Z --- PASS: TestToolRateLimiterDefaults (0.00s)
+2026-06-21T12:44:10.9348280Z === RUN   TestCacheKeyDeterminism
+2026-06-21T12:44:10.9348500Z --- PASS: TestCacheKeyDeterminism (0.00s)
+2026-06-21T12:44:10.9348720Z === RUN   TestGetAllMockTools
+2026-06-21T12:44:10.9348920Z --- PASS: TestGetAllMockTools (0.00s)
+2026-06-21T12:44:10.9349200Z === RUN   TestMockToolTracksTargets
+2026-06-21T12:44:10.9349490Z --- PASS: TestMockToolTracksTargets (0.00s)
+2026-06-21T12:44:10.9349730Z === RUN   TestGetToolByNameReturnsDalfox
+2026-06-21T12:44:10.9350090Z --- PASS: TestGetToolByNameReturnsDalfox (0.00s)
+2026-06-21T12:44:10.9350400Z === RUN   TestGetToolByNameReturnsShodan
+2026-06-21T12:44:10.9350660Z --- PASS: TestGetToolByNameReturnsShodan (0.00s)
+2026-06-21T12:44:10.9350910Z === RUN   TestGetToolByAliasWaybackurls
+2026-06-21T12:44:10.9351190Z --- PASS: TestGetToolByAliasWaybackurls (0.00s)
+2026-06-21T12:44:10.9351520Z === RUN   TestGetToolByNameReturnsGowitness
+2026-06-21T12:44:10.9351900Z --- PASS: TestGetToolByNameReturnsGowitness (0.00s)
+2026-06-21T12:44:10.9352260Z === RUN   TestGetToolByNameReturnsGithub
+2026-06-21T12:44:10.9352520Z --- PASS: TestGetToolByNameReturnsGithub (0.00s)
+2026-06-21T12:44:10.9352790Z === RUN   TestGetToolByNameReturnsTLSX
+2026-06-21T12:44:10.9353090Z --- PASS: TestGetToolByNameReturnsTLSX (0.00s)
+2026-06-21T12:44:10.9353380Z === RUN   TestExecuteWithRetrySuccess
+2026-06-21T12:44:10.9353630Z --- PASS: TestExecuteWithRetrySuccess (0.00s)
+2026-06-21T12:44:10.9353900Z === RUN   TestExecuteWithRetryEventualSuccess
+2026-06-21T12:44:10.9354250Z --- PASS: TestExecuteWithRetryEventualSuccess (0.00s)
+2026-06-21T12:44:10.9354620Z === RUN   TestExecuteWithRetryPermanentError
+2026-06-21T12:44:10.9354910Z --- PASS: TestExecuteWithRetryPermanentError (0.00s)
+2026-06-21T12:44:10.9355230Z === RUN   TestExecuteWithRetryExhaustsRetries
+2026-06-21T12:44:10.9355520Z --- PASS: TestExecuteWithRetryExhaustsRetries (0.00s)
+2026-06-21T12:44:10.9355820Z === RUN   TestExecuteWithRetryContextCancellation
+2026-06-21T12:44:10.9356650Z --- PASS: TestExecuteWithRetryContextCancellation (0.00s)
+2026-06-21T12:44:10.9356990Z === RUN   TestComputeBackoffExponential
+2026-06-21T12:44:10.9357290Z --- PASS: TestComputeBackoffExponential (0.00s)
+2026-06-21T12:44:10.9357600Z === RUN   TestComputeBackoffCapsAtMax
+2026-06-21T12:44:10.9357890Z --- PASS: TestComputeBackoffCapsAtMax (0.00s)
+2026-06-21T12:44:10.9358160Z === RUN   TestTakeoverTool
+2026-06-21T12:44:10.9358850Z 2026/06/21 12:43:53 INFO Running Subdomain Takeover Scanner... targets_count=1
+2026-06-21T12:44:10.9359240Z --- PASS: TestTakeoverTool (10.04s)
+2026-06-21T12:44:10.9359540Z === RUN   TestExecToolEmptyTargets
+2026-06-21T12:44:10.9359820Z --- PASS: TestExecToolEmptyTargets (0.00s)
+2026-06-21T12:44:10.9360090Z === RUN   TestExecToolEchoesTargets
+2026-06-21T12:44:10.9360370Z --- PASS: TestExecToolEchoesTargets (1.14s)
+2026-06-21T12:44:10.9360730Z === RUN   TestExecToolRespectsContextCancellation
+2026-06-21T12:44:10.9361140Z --- PASS: TestExecToolRespectsContextCancellation (0.06s)
+2026-06-21T12:44:10.9361460Z === RUN   TestHelperProcess
+2026-06-21T12:44:10.9361660Z --- PASS: TestHelperProcess (0.00s)
+2026-06-21T12:44:10.9361920Z === RUN   TestAdaptiveBackoffWAFDetection
+2026-06-21T12:44:10.9362690Z 2026/06/21 12:44:06 WARN Throttled rate limit due to WAF/rate-limit detection tool=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-build602296828/b434/services.test old_limit=100 new_limit=50
+2026-06-21T12:44:10.9363490Z 2026/06/21 12:44:06 INFO Adaptive backoff calculated errors=1 delayMs=2498 isThrottled=true
+2026-06-21T12:44:10.9364340Z 2026/06/21 12:44:06 WARN WAF block/rate-limit detected: backing off execution tool=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-build602296828/b434/services.test delay=2.498s
+2026-06-21T12:44:10.9365310Z 2026/06/21 12:44:09 INFO Recovered rate limit tool=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/go-build602296828/b434/services.test old_limit=50 new_limit=60
+2026-06-21T12:44:10.9365960Z --- PASS: TestAdaptiveBackoffWAFDetection (4.70s)
+2026-06-21T12:44:10.9366310Z === RUN   TestContextHeaders
+2026-06-21T12:44:10.9366600Z --- PASS: TestContextHeaders (0.00s)
+2026-06-21T12:44:10.9366900Z === RUN   TestContextHeadersNil
+2026-06-21T12:44:10.9367160Z --- PASS: TestContextHeadersNil (0.00s)
+2026-06-21T12:44:10.9367430Z PASS
+2026-06-21T12:44:10.9367630Z coverage: 23.6% of statements
+2026-06-21T12:44:10.9368120Z ok  	github.com/Developer-Army/BBPTS/internal/application/services	34.365s	coverage: 23.6% of statements
+2026-06-21T12:44:10.9368570Z === RUN   TestWriteEvidenceBundle
+2026-06-21T12:44:10.9368850Z --- PASS: TestWriteEvidenceBundle (0.00s)
+2026-06-21T12:44:10.9369180Z === RUN   TestInsightsGenerationBasic
+2026-06-21T12:44:10.9369490Z --- PASS: TestInsightsGenerationBasic (0.00s)
+2026-06-21T12:44:10.9369820Z === RUN   TestInsightsPriorityLevels
+2026-06-21T12:44:10.9370110Z --- PASS: TestInsightsPriorityLevels (0.00s)
+2026-06-21T12:44:10.9370380Z === RUN   TestInsightsTagging
+2026-06-21T12:44:10.9370590Z --- PASS: TestInsightsTagging (0.00s)
+2026-06-21T12:44:10.9370910Z === RUN   TestInsightsSuggestedTests
+2026-06-21T12:44:10.9371380Z     insights_integration_test.go:140: Insight has 2 suggested tests
+2026-06-21T12:44:10.9371740Z --- PASS: TestInsightsSuggestedTests (0.00s)
+2026-06-21T12:44:10.9372060Z === RUN   TestInsightsSuggestSQLInjectionForCategoryEndpoints
+2026-06-21T12:44:10.9372460Z --- PASS: TestInsightsSuggestSQLInjectionForCategoryEndpoints (0.00s)
+2026-06-21T12:44:10.9372890Z === RUN   TestInsightsEmptyTargets
+2026-06-21T12:44:10.9373170Z --- PASS: TestInsightsEmptyTargets (0.00s)
+2026-06-21T12:44:10.9373500Z === RUN   TestInsightsEvidenceAccumulation
+2026-06-21T12:44:10.9373810Z --- PASS: TestInsightsEvidenceAccumulation (0.00s)
+2026-06-21T12:44:10.9374140Z === RUN   TestDeriveInsights
+2026-06-21T12:44:10.9374430Z --- PASS: TestDeriveInsights (0.00s)
+2026-06-21T12:44:10.9374720Z === RUN   TestAnalyzers
+2026-06-21T12:44:10.9374970Z === RUN   TestAnalyzers/Sensitive_File_Detection
+2026-06-21T12:44:10.9375280Z === RUN   TestAnalyzers/High_Value_Subdomain
+2026-06-21T12:44:10.9375750Z === RUN   TestAnalyzers/LFI_Candidate
+2026-06-21T12:44:10.9376020Z === RUN   TestAnalyzers/SQLi_Candidate_Category_Filter
+2026-06-21T12:44:10.9376270Z --- PASS: TestAnalyzers (0.00s)
+2026-06-21T12:44:10.9376600Z     --- PASS: TestAnalyzers/Sensitive_File_Detection (0.00s)
+2026-06-21T12:44:10.9376970Z     --- PASS: TestAnalyzers/High_Value_Subdomain (0.00s)
+2026-06-21T12:44:10.9377300Z     --- PASS: TestAnalyzers/LFI_Candidate (0.00s)
+2026-06-21T12:44:10.9377840Z     --- PASS: TestAnalyzers/SQLi_Candidate_Category_Filter (0.00s)
+2026-06-21T12:44:10.9378180Z === RUN   TestSQLiSuggestedTestsForSelectorParameters
+2026-06-21T12:44:10.9378520Z --- PASS: TestSQLiSuggestedTestsForSelectorParameters (0.00s)
+2026-06-21T12:44:10.9378860Z === RUN   TestSQLiSuggestedTestsForGenericQueryParameters
+2026-06-21T12:44:10.9379310Z --- PASS: TestSQLiSuggestedTestsForGenericQueryParameters (0.00s)
+2026-06-21T12:44:10.9379650Z === RUN   TestSuggestedTests_AreExpandedAndSpecific
+2026-06-21T12:44:10.9379970Z --- PASS: TestSuggestedTests_AreExpandedAndSpecific (0.00s)
+2026-06-21T12:44:10.9380220Z === RUN   TestRiskDecay
+2026-06-21T12:44:10.9380400Z --- PASS: TestRiskDecay (0.00s)
+2026-06-21T12:44:10.9380600Z === RUN   TestRecommendationEngine
+2026-06-21T12:44:10.9380850Z --- PASS: TestRecommendationEngine (0.00s)
+2026-06-21T12:44:10.9381070Z === RUN   TestRiskPropagation
+2026-06-21T12:44:10.9381270Z --- PASS: TestRiskPropagation (0.00s)
+2026-06-21T12:44:10.9381480Z === RUN   TestReporting
+2026-06-21T12:44:10.9381650Z --- PASS: TestReporting (0.00s)
+2026-06-21T12:44:10.9381820Z PASS
+2026-06-21T12:44:10.9381950Z coverage: 71.0% of statements
+2026-06-21T12:44:10.9382380Z ok  	github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze	1.202s	coverage: 71.0% of statements
+2026-06-21T12:44:10.9382780Z === RUN   TestNewBaselineStore
+2026-06-21T12:44:10.9383180Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9383940Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestNewBaselineStore2190286738/001/.baseline/baseline.json count=0
+2026-06-21T12:44:10.9384500Z --- PASS: TestNewBaselineStore (0.00s)
+2026-06-21T12:44:10.9384730Z === RUN   TestAddFinding
+2026-06-21T12:44:10.9385120Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9385850Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestAddFinding1424220323/001/.baseline/baseline.json count=1
+2026-06-21T12:44:10.9386360Z --- PASS: TestAddFinding (0.00s)
+2026-06-21T12:44:10.9386560Z === RUN   TestAddFindingDuplicate
+2026-06-21T12:44:10.9386980Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9387740Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestAddFindingDuplicate3398520956/001/.baseline/baseline.json count=1
+2026-06-21T12:44:10.9388320Z --- PASS: TestAddFindingDuplicate (0.00s)
+2026-06-21T12:44:10.9388530Z === RUN   TestHashFinding
+2026-06-21T12:44:10.9388920Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9389660Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestHashFinding3280218599/001/.baseline/baseline.json count=0
+2026-06-21T12:44:10.9390170Z --- PASS: TestHashFinding (0.00s)
+2026-06-21T12:44:10.9390350Z === RUN   TestGetDiff
+2026-06-21T12:44:10.9390730Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9391430Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestGetDiff4157870021/001/.baseline/baseline.json count=1
+2026-06-21T12:44:10.9392120Z --- PASS: TestGetDiff (0.00s)
+2026-06-21T12:44:10.9392310Z === RUN   TestGetNewByType
+2026-06-21T12:44:10.9392700Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9393430Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestGetNewByType467896221/001/.baseline/baseline.json count=3
+2026-06-21T12:44:10.9393960Z --- PASS: TestGetNewByType (0.00s)
+2026-06-21T12:44:10.9394310Z === RUN   TestSaveBaseline
+2026-06-21T12:44:10.9394710Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9395440Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestSaveBaseline2502339663/001/.baseline/baseline.json count=2
+2026-06-21T12:44:10.9396300Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestSaveBaseline2502339663/001/.baseline/baseline.json count=2
+2026-06-21T12:44:10.9396820Z --- PASS: TestSaveBaseline (0.00s)
+2026-06-21T12:44:10.9397020Z === RUN   TestLoadBaseline
+2026-06-21T12:44:10.9397270Z 2026/06/21 12:43:36 INFO Baseline loaded session=test-session count=1
+2026-06-21T12:44:10.9397880Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestLoadBaseline2847096193/001/.baseline/baseline.json count=2
+2026-06-21T12:44:10.9398390Z --- PASS: TestLoadBaseline (0.00s)
+2026-06-21T12:44:10.9398620Z === RUN   TestSaveSessionDiff
+2026-06-21T12:44:10.9399020Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9399820Z 2026/06/21 12:43:36 INFO Session diff saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestSaveSessionDiff2675408289/001/.baseline/diff_test-session.json new_count=2
+2026-06-21T12:44:10.9400720Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestSaveSessionDiff2675408289/001/.baseline/baseline.json count=2
+2026-06-21T12:44:10.9401270Z --- PASS: TestSaveSessionDiff (0.00s)
+2026-06-21T12:44:10.9401460Z === RUN   TestGetStats
+2026-06-21T12:44:10.9401840Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9402560Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestGetStats1394033822/001/.baseline/baseline.json count=3
+2026-06-21T12:44:10.9403060Z --- PASS: TestGetStats (0.00s)
+2026-06-21T12:44:10.9403270Z === RUN   TestClose
+2026-06-21T12:44:10.9403640Z 2026/06/21 12:43:36 WARN Failed to load baseline (fresh scan) session=test-session error="no existing baseline found"
+2026-06-21T12:44:10.9404340Z 2026/06/21 12:43:36 INFO Baseline saved file=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestClose257374389/001/.baseline/baseline.json count=1
+2026-06-21T12:44:10.9404850Z --- PASS: TestClose (0.00s)
+2026-06-21T12:44:10.9405010Z PASS
+2026-06-21T12:44:10.9405150Z coverage: 87.5% of statements
+2026-06-21T12:44:10.9405540Z ok  	github.com/Developer-Army/BBPTS/internal/domain/analysis/baseline	1.057s	coverage: 87.5% of statements
+2026-06-21T12:44:10.9406010Z === RUN   TestDedupeEvents_MergesSameURLDifferentSources
+2026-06-21T12:44:10.9406350Z --- PASS: TestDedupeEvents_MergesSameURLDifferentSources (0.00s)
+2026-06-21T12:44:10.9406660Z === RUN   TestDedupeEvents_KeepsDistinctPaths
+2026-06-21T12:44:10.9406940Z --- PASS: TestDedupeEvents_KeepsDistinctPaths (0.00s)
+2026-06-21T12:44:10.9407190Z === RUN   TestDedupeEvents_Empty
+2026-06-21T12:44:10.9407400Z --- PASS: TestDedupeEvents_Empty (0.00s)
+2026-06-21T12:44:10.9407590Z PASS
+2026-06-21T12:44:10.9407730Z coverage: 29.8% of statements
+2026-06-21T12:44:10.9408130Z ok  	github.com/Developer-Army/BBPTS/internal/domain/analysis/cluster	1.150s	coverage: 29.8% of statements
+2026-06-21T12:44:10.9408520Z === RUN   TestClassifyTarget
+2026-06-21T12:44:10.9408710Z === RUN   TestClassifyTarget/#00
+2026-06-21T12:44:10.9409220Z === RUN   TestClassifyTarget/192.168.1.1
+2026-06-21T12:44:10.9409440Z === RUN   TestClassifyTarget/10.0.0.1
+2026-06-21T12:44:10.9409670Z === RUN   TestClassifyTarget/acme-corp.io
+2026-06-21T12:44:10.9409910Z === RUN   TestClassifyTarget/acme-corp.io:8080
+2026-06-21T12:44:10.9410160Z === RUN   TestClassifyTarget/sub.example.co.uk
+2026-06-21T12:44:10.9410400Z --- PASS: TestClassifyTarget (0.00s)
+2026-06-21T12:44:10.9410680Z     --- PASS: TestClassifyTarget/#00 (0.00s)
+2026-06-21T12:44:10.9411120Z     --- PASS: TestClassifyTarget/192.168.1.1 (0.00s)
+2026-06-21T12:44:10.9411450Z     --- PASS: TestClassifyTarget/10.0.0.1 (0.00s)
+2026-06-21T12:44:10.9411790Z     --- PASS: TestClassifyTarget/acme-corp.io (0.00s)
+2026-06-21T12:44:10.9412150Z     --- PASS: TestClassifyTarget/acme-corp.io:8080 (0.00s)
+2026-06-21T12:44:10.9412530Z     --- PASS: TestClassifyTarget/sub.example.co.uk (0.00s)
+2026-06-21T12:44:10.9412750Z PASS
+2026-06-21T12:44:10.9412890Z coverage: 100.0% of statements
+2026-06-21T12:44:10.9413300Z ok  	github.com/Developer-Army/BBPTS/internal/domain/analysis/model	1.058s	coverage: 100.0% of statements
+2026-06-21T12:44:10.9413690Z === RUN   TestNewTriageEngine
+2026-06-21T12:44:10.9413890Z --- PASS: TestNewTriageEngine (0.00s)
+2026-06-21T12:44:10.9414090Z === RUN   TestAnalyzeFinding
+2026-06-21T12:44:10.9414300Z === RUN   TestAnalyzeFinding/subdomain_finding
+2026-06-21T12:44:10.9414540Z === RUN   TestAnalyzeFinding/port_finding
+2026-06-21T12:44:10.9414780Z === RUN   TestAnalyzeFinding/endpoint_finding
+2026-06-21T12:44:10.9415020Z === RUN   TestAnalyzeFinding/header_finding
+2026-06-21T12:44:10.9415260Z === RUN   TestAnalyzeFinding/cookie_finding
+2026-06-21T12:44:10.9415510Z === RUN   TestAnalyzeFinding/vulnerability_finding
+2026-06-21T12:44:10.9415760Z === RUN   TestAnalyzeFinding/unknown_type
+2026-06-21T12:44:10.9415980Z --- PASS: TestAnalyzeFinding (0.00s)
+2026-06-21T12:44:10.9416340Z     --- PASS: TestAnalyzeFinding/subdomain_finding (0.00s)
+2026-06-21T12:44:10.9416710Z     --- PASS: TestAnalyzeFinding/port_finding (0.00s)
+2026-06-21T12:44:10.9417070Z     --- PASS: TestAnalyzeFinding/endpoint_finding (0.00s)
+2026-06-21T12:44:10.9417430Z     --- PASS: TestAnalyzeFinding/header_finding (0.00s)
+2026-06-21T12:44:10.9417800Z     --- PASS: TestAnalyzeFinding/cookie_finding (0.00s)
+2026-06-21T12:44:10.9418210Z     --- PASS: TestAnalyzeFinding/vulnerability_finding (0.00s)
+2026-06-21T12:44:10.9418600Z     --- PASS: TestAnalyzeFinding/unknown_type (0.00s)
+2026-06-21T12:44:10.9418850Z === RUN   TestAnalyzeSubdomain
+2026-06-21T12:44:10.9419160Z === RUN   TestAnalyzeSubdomain/normal_subdomain
+2026-06-21T12:44:10.9419420Z === RUN   TestAnalyzeSubdomain/test_subdomain
+2026-06-21T12:44:10.9419680Z === RUN   TestAnalyzeSubdomain/staging_subdomain
+2026-06-21T12:44:10.9419930Z === RUN   TestAnalyzeSubdomain/dev_subdomain
+2026-06-21T12:44:10.9420170Z === RUN   TestAnalyzeSubdomain/cdn_subdomain
+2026-06-21T12:44:10.9420420Z === RUN   TestAnalyzeSubdomain/cloudflare_subdomain
+2026-06-21T12:44:10.9420690Z === RUN   TestAnalyzeSubdomain/static_subdomain
+2026-06-21T12:44:10.9420930Z --- PASS: TestAnalyzeSubdomain (0.00s)
+2026-06-21T12:44:10.9421280Z     --- PASS: TestAnalyzeSubdomain/normal_subdomain (0.00s)
+2026-06-21T12:44:10.9421650Z     --- PASS: TestAnalyzeSubdomain/test_subdomain (0.00s)
+2026-06-21T12:44:10.9422030Z     --- PASS: TestAnalyzeSubdomain/staging_subdomain (0.00s)
+2026-06-21T12:44:10.9422410Z     --- PASS: TestAnalyzeSubdomain/dev_subdomain (0.00s)
+2026-06-21T12:44:10.9422790Z     --- PASS: TestAnalyzeSubdomain/cdn_subdomain (0.00s)
+2026-06-21T12:44:10.9423190Z     --- PASS: TestAnalyzeSubdomain/cloudflare_subdomain (0.00s)
+2026-06-21T12:44:10.9423610Z     --- PASS: TestAnalyzeSubdomain/static_subdomain (0.00s)
+2026-06-21T12:44:10.9423860Z === RUN   TestAnalyzePort
+2026-06-21T12:44:10.9424050Z === RUN   TestAnalyzePort/SSH_port
+2026-06-21T12:44:10.9424250Z === RUN   TestAnalyzePort/SMTP_port
+2026-06-21T12:44:10.9424460Z === RUN   TestAnalyzePort/DNS_port
+2026-06-21T12:44:10.9424890Z === RUN   TestAnalyzePort/HTTP_port
+2026-06-21T12:44:10.9425100Z === RUN   TestAnalyzePort/HTTPS_port
+2026-06-21T12:44:10.9425320Z === RUN   TestAnalyzePort/HTTP_alt_port
+2026-06-21T12:44:10.9425540Z === RUN   TestAnalyzePort/unknown_port
+2026-06-21T12:44:10.9425750Z --- PASS: TestAnalyzePort (0.00s)
+2026-06-21T12:44:10.9426030Z     --- PASS: TestAnalyzePort/SSH_port (0.00s)
+2026-06-21T12:44:10.9426340Z     --- PASS: TestAnalyzePort/SMTP_port (0.00s)
+2026-06-21T12:44:10.9426810Z     --- PASS: TestAnalyzePort/DNS_port (0.00s)
+2026-06-21T12:44:10.9427130Z     --- PASS: TestAnalyzePort/HTTP_port (0.00s)
+2026-06-21T12:44:10.9427440Z     --- PASS: TestAnalyzePort/HTTPS_port (0.00s)
+2026-06-21T12:44:10.9427770Z     --- PASS: TestAnalyzePort/HTTP_alt_port (0.00s)
+2026-06-21T12:44:10.9428090Z     --- PASS: TestAnalyzePort/unknown_port (0.00s)
+2026-06-21T12:44:10.9428330Z === RUN   TestAnalyzeEndpoint
+2026-06-21T12:44:10.9428780Z === RUN   TestAnalyzeEndpoint/favicon
+2026-06-21T12:44:10.9429030Z === RUN   TestAnalyzeEndpoint/robots.txt
+2026-06-21T12:44:10.9438480Z === RUN   TestAnalyzeEndpoint/admin_endpoint
+2026-06-21T12:44:10.9438770Z === RUN   TestAnalyzeEndpoint/api_endpoint
+2026-06-21T12:44:10.9439020Z === RUN   TestAnalyzeEndpoint/config_endpoint
+2026-06-21T12:44:10.9439280Z === RUN   TestAnalyzeEndpoint/backup_endpoint
+2026-06-21T12:44:10.9439540Z === RUN   TestAnalyzeEndpoint/endpoint_with_params
+2026-06-21T12:44:10.9439820Z === RUN   TestAnalyzeEndpoint/generic_endpoint
+2026-06-21T12:44:10.9440060Z === RUN   TestAnalyzeEndpoint/cdn_path
+2026-06-21T12:44:10.9440290Z --- PASS: TestAnalyzeEndpoint (0.00s)
+2026-06-21T12:44:10.9440600Z     --- PASS: TestAnalyzeEndpoint/favicon (0.00s)
+2026-06-21T12:44:10.9440940Z     --- PASS: TestAnalyzeEndpoint/robots.txt (0.00s)
+2026-06-21T12:44:10.9441300Z     --- PASS: TestAnalyzeEndpoint/admin_endpoint (0.00s)
+2026-06-21T12:44:10.9441660Z     --- PASS: TestAnalyzeEndpoint/api_endpoint (0.00s)
+2026-06-21T12:44:10.9442020Z     --- PASS: TestAnalyzeEndpoint/config_endpoint (0.00s)
+2026-06-21T12:44:10.9442400Z     --- PASS: TestAnalyzeEndpoint/backup_endpoint (0.00s)
+2026-06-21T12:44:10.9442800Z     --- PASS: TestAnalyzeEndpoint/endpoint_with_params (0.00s)
+2026-06-21T12:44:10.9443200Z     --- PASS: TestAnalyzeEndpoint/generic_endpoint (0.00s)
+2026-06-21T12:44:10.9443560Z     --- PASS: TestAnalyzeEndpoint/cdn_path (0.00s)
+2026-06-21T12:44:10.9443800Z === RUN   TestAnalyzeHeader
+2026-06-21T12:44:10.9444000Z === RUN   TestAnalyzeHeader/x-aspnet-version
+2026-06-21T12:44:10.9444250Z === RUN   TestAnalyzeHeader/server_header
+2026-06-21T12:44:10.9444480Z === RUN   TestAnalyzeHeader/x-powered-by
+2026-06-21T12:44:10.9444710Z === RUN   TestAnalyzeHeader/x-frame-options
+2026-06-21T12:44:10.9444940Z === RUN   TestAnalyzeHeader/csp_header
+2026-06-21T12:44:10.9445160Z === RUN   TestAnalyzeHeader/hsts_header
+2026-06-21T12:44:10.9445370Z === RUN   TestAnalyzeHeader/via_header
+2026-06-21T12:44:10.9445590Z --- PASS: TestAnalyzeHeader (0.00s)
+2026-06-21T12:44:10.9445910Z     --- PASS: TestAnalyzeHeader/x-aspnet-version (0.00s)
+2026-06-21T12:44:10.9446270Z     --- PASS: TestAnalyzeHeader/server_header (0.00s)
+2026-06-21T12:44:10.9446620Z     --- PASS: TestAnalyzeHeader/x-powered-by (0.00s)
+2026-06-21T12:44:10.9447220Z     --- PASS: TestAnalyzeHeader/x-frame-options (0.00s)
+2026-06-21T12:44:10.9447610Z     --- PASS: TestAnalyzeHeader/csp_header (0.00s)
+2026-06-21T12:44:10.9447980Z     --- PASS: TestAnalyzeHeader/hsts_header (0.00s)
+2026-06-21T12:44:10.9448320Z     --- PASS: TestAnalyzeHeader/via_header (0.00s)
+2026-06-21T12:44:10.9448580Z === RUN   TestAnalyzeCookie
+2026-06-21T12:44:10.9448790Z === RUN   TestAnalyzeCookie/httponly_false
+2026-06-21T12:44:10.9449010Z === RUN   TestAnalyzeCookie/secure_false
+2026-06-21T12:44:10.9449230Z === RUN   TestAnalyzeCookie/session_cookie
+2026-06-21T12:44:10.9449460Z === RUN   TestAnalyzeCookie/jsessionid
+2026-06-21T12:44:10.9449680Z === RUN   TestAnalyzeCookie/utm_cookie
+2026-06-21T12:44:10.9449890Z === RUN   TestAnalyzeCookie/_ga_cookie
+2026-06-21T12:44:10.9450420Z === RUN   TestAnalyzeCookie/generic_cookie
+2026-06-21T12:44:10.9450640Z --- PASS: TestAnalyzeCookie (0.00s)
+2026-06-21T12:44:10.9450960Z     --- PASS: TestAnalyzeCookie/httponly_false (0.00s)
+2026-06-21T12:44:10.9451340Z     --- PASS: TestAnalyzeCookie/secure_false (0.00s)
+2026-06-21T12:44:10.9451690Z     --- PASS: TestAnalyzeCookie/session_cookie (0.00s)
+2026-06-21T12:44:10.9452020Z     --- PASS: TestAnalyzeCookie/jsessionid (0.00s)
+2026-06-21T12:44:10.9452350Z     --- PASS: TestAnalyzeCookie/utm_cookie (0.00s)
+2026-06-21T12:44:10.9452840Z     --- PASS: TestAnalyzeCookie/_ga_cookie (0.00s)
+2026-06-21T12:44:10.9453190Z     --- PASS: TestAnalyzeCookie/generic_cookie (0.00s)
+2026-06-21T12:44:10.9453460Z === RUN   TestAnalyzeVulnerability
+2026-06-21T12:44:10.9453780Z === RUN   TestAnalyzeVulnerability/critical_CVE
+2026-06-21T12:44:10.9454080Z === RUN   TestAnalyzeVulnerability/high_CVE
+2026-06-21T12:44:10.9454340Z === RUN   TestAnalyzeVulnerability/medium_CVE
+2026-06-21T12:44:10.9454610Z === RUN   TestAnalyzeVulnerability/wont_fix
+2026-06-21T12:44:10.9454870Z === RUN   TestAnalyzeVulnerability/false_positive
+2026-06-21T12:44:10.9455170Z === RUN   TestAnalyzeVulnerability/generic_vulnerability
+2026-06-21T12:44:10.9455460Z --- PASS: TestAnalyzeVulnerability (0.00s)
+2026-06-21T12:44:10.9455820Z     --- PASS: TestAnalyzeVulnerability/critical_CVE (0.00s)
+2026-06-21T12:44:10.9456190Z     --- PASS: TestAnalyzeVulnerability/high_CVE (0.00s)
+2026-06-21T12:44:10.9456560Z     --- PASS: TestAnalyzeVulnerability/medium_CVE (0.00s)
+2026-06-21T12:44:10.9456930Z     --- PASS: TestAnalyzeVulnerability/wont_fix (0.00s)
+2026-06-21T12:44:10.9457310Z     --- PASS: TestAnalyzeVulnerability/false_positive (0.00s)
+2026-06-21T12:44:10.9457750Z     --- PASS: TestAnalyzeVulnerability/generic_vulnerability (0.00s)
+2026-06-21T12:44:10.9458040Z === RUN   TestPrioritizeFindings
+2026-06-21T12:44:10.9458260Z --- PASS: TestPrioritizeFindings (0.00s)
+2026-06-21T12:44:10.9458470Z === RUN   TestFilterNoise
+2026-06-21T12:44:10.9458660Z --- PASS: TestFilterNoise (0.00s)
+2026-06-21T12:44:10.9458850Z === RUN   TestGetStats
+2026-06-21T12:44:10.9459030Z --- PASS: TestGetStats (0.00s)
+2026-06-21T12:44:10.9459260Z PASS
+2026-06-21T12:44:10.9459410Z coverage: 98.8% of statements
+2026-06-21T12:44:10.9459810Z ok  	github.com/Developer-Army/BBPTS/internal/domain/analysis/triage	1.163s	coverage: 98.8% of statements
+2026-06-21T12:44:10.9460340Z === RUN   TestAssetJSONSerialization
+2026-06-21T12:44:10.9460600Z --- PASS: TestAssetJSONSerialization (0.00s)
+2026-06-21T12:44:10.9460850Z === RUN   TestDetectDrift_NewAsset
+2026-06-21T12:44:10.9461060Z --- PASS: TestDetectDrift_NewAsset (0.00s)
+2026-06-21T12:44:10.9461330Z === RUN   TestDetectDrift_ExistingAssetDrift
+2026-06-21T12:44:10.9461600Z --- PASS: TestDetectDrift_ExistingAssetDrift (0.00s)
+2026-06-21T12:44:10.9461820Z PASS
+2026-06-21T12:44:10.9461960Z coverage: 100.0% of statements
+2026-06-21T12:44:10.9462320Z ok  	github.com/Developer-Army/BBPTS/internal/domain/assets	1.156s	coverage: 100.0% of statements
+2026-06-21T12:44:10.9462710Z === RUN   TestEvidenceJSONSerialization
+2026-06-21T12:44:10.9462960Z --- PASS: TestEvidenceJSONSerialization (0.00s)
+2026-06-21T12:44:10.9463210Z === RUN   TestFindingJSONSerialization
+2026-06-21T12:44:10.9463470Z --- PASS: TestFindingJSONSerialization (0.00s)
+2026-06-21T12:44:10.9463680Z PASS
+2026-06-21T12:44:10.9463840Z coverage: [no statements]
+2026-06-21T12:44:10.9464220Z ok  	github.com/Developer-Army/BBPTS/internal/domain/findings	1.058s	coverage: [no statements]
+2026-06-21T12:44:10.9464600Z === RUN   TestOwnershipJSONSerialization
+2026-06-21T12:44:10.9464860Z --- PASS: TestOwnershipJSONSerialization (0.00s)
+2026-06-21T12:44:10.9465100Z === RUN   TestTeamJSONSerialization
+2026-06-21T12:44:10.9465330Z --- PASS: TestTeamJSONSerialization (0.00s)
+2026-06-21T12:44:10.9465580Z === RUN   TestBusinessUnitJSONSerialization
+2026-06-21T12:44:10.9465850Z --- PASS: TestBusinessUnitJSONSerialization (0.00s)
+2026-06-21T12:44:10.9466240Z === RUN   TestAssetOwnership_FirstClass
+2026-06-21T12:44:10.9466720Z --- PASS: TestAssetOwnership_FirstClass (0.00s)
+2026-06-21T12:44:10.9466980Z === RUN   TestFindingOwnership_FirstClass
+2026-06-21T12:44:10.9467260Z --- PASS: TestFindingOwnership_FirstClass (0.00s)
+2026-06-21T12:44:10.9467470Z PASS
+2026-06-21T12:44:10.9467610Z coverage: 96.9% of statements
+2026-06-21T12:44:10.9467990Z ok  	github.com/Developer-Army/BBPTS/internal/domain/ownership	1.108s	coverage: 96.9% of statements
+2026-06-21T12:44:10.9468380Z === RUN   TestStringLiteralValue
+2026-06-21T12:44:10.9468780Z === RUN   TestStringLiteralValue/simple_string
+2026-06-21T12:44:10.9469050Z === RUN   TestStringLiteralValue/empty_string
+2026-06-21T12:44:10.9469300Z === RUN   TestStringLiteralValue/nil_literal
+2026-06-21T12:44:10.9469540Z --- PASS: TestStringLiteralValue (0.00s)
+2026-06-21T12:44:10.9469880Z     --- PASS: TestStringLiteralValue/simple_string (0.00s)
+2026-06-21T12:44:10.9470360Z     --- PASS: TestStringLiteralValue/empty_string (0.00s)
+2026-06-21T12:44:10.9470740Z     --- PASS: TestStringLiteralValue/nil_literal (0.00s)
+2026-06-21T12:44:10.9472300Z === RUN   TestPropertyKeyName
+2026-06-21T12:44:10.9472750Z === RUN   TestPropertyKeyName/identifier
+2026-06-21T12:44:10.9473000Z === RUN   TestPropertyKeyName/string_literal
+2026-06-21T12:44:10.9473260Z === RUN   TestPropertyKeyName/empty_string_literal
+2026-06-21T12:44:10.9473500Z === RUN   TestPropertyKeyName/nil
+2026-06-21T12:44:10.9473710Z --- PASS: TestPropertyKeyName (0.00s)
+2026-06-21T12:44:10.9474030Z     --- PASS: TestPropertyKeyName/identifier (0.00s)
+2026-06-21T12:44:10.9474390Z     --- PASS: TestPropertyKeyName/string_literal (0.00s)
+2026-06-21T12:44:10.9474770Z     --- PASS: TestPropertyKeyName/empty_string_literal (0.00s)
+2026-06-21T12:44:10.9475120Z     --- PASS: TestPropertyKeyName/nil (0.00s)
+2026-06-21T12:44:10.9475340Z === RUN   TestWalkJSAST
+2026-06-21T12:44:10.9475520Z --- PASS: TestWalkJSAST (0.00s)
+2026-06-21T12:44:10.9475710Z === RUN   TestWalkJSAST_Nil
+2026-06-21T12:44:10.9475900Z --- PASS: TestWalkJSAST_Nil (0.00s)
+2026-06-21T12:44:10.9476110Z === RUN   TestWalkJSAST_VisitorCalled
+2026-06-21T12:44:10.9476340Z --- PASS: TestWalkJSAST_VisitorCalled (0.00s)
+2026-06-21T12:44:10.9476720Z === RUN   TestNewSemanticAnalyzer
+2026-06-21T12:44:10.9476940Z --- PASS: TestNewSemanticAnalyzer (0.00s)
+2026-06-21T12:44:10.9477180Z === RUN   TestSemanticAnalyzer_AnalyzeAST
+2026-06-21T12:44:10.9477420Z --- PASS: TestSemanticAnalyzer_AnalyzeAST (0.00s)
+2026-06-21T12:44:10.9477690Z === RUN   TestSemanticAnalyzer_AnalyzeAST_Fetch
+2026-06-21T12:44:10.9477980Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_Fetch (0.00s)
+2026-06-21T12:44:10.9478260Z === RUN   TestSemanticAnalyzer_AnalyzeAST_Axios
+2026-06-21T12:44:10.9478540Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_Axios (0.00s)
+2026-06-21T12:44:10.9478820Z === RUN   TestSemanticAnalyzer_AnalyzeAST_GraphQL
+2026-06-21T12:44:10.9479110Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_GraphQL (0.00s)
+2026-06-21T12:44:10.9479400Z === RUN   TestSemanticAnalyzer_AnalyzeAST_AuthFlow
+2026-06-21T12:44:10.9479700Z === RUN   TestSemanticAnalyzer_AnalyzeAST_AuthFlow/login_path
+2026-06-21T12:44:10.9480030Z === RUN   TestSemanticAnalyzer_AnalyzeAST_AuthFlow/auth_path
+2026-06-21T12:44:10.9480360Z === RUN   TestSemanticAnalyzer_AnalyzeAST_AuthFlow/login_in_object
+2026-06-21T12:44:10.9480700Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_AuthFlow (0.00s)
+2026-06-21T12:44:10.9481140Z     --- PASS: TestSemanticAnalyzer_AnalyzeAST_AuthFlow/login_path (0.00s)
+2026-06-21T12:44:10.9481620Z     --- PASS: TestSemanticAnalyzer_AnalyzeAST_AuthFlow/auth_path (0.00s)
+2026-06-21T12:44:10.9482130Z     --- PASS: TestSemanticAnalyzer_AnalyzeAST_AuthFlow/login_in_object (0.00s)
+2026-06-21T12:44:10.9482520Z === RUN   TestSemanticAnalyzer_AnalyzeAST_ObjectLiteral
+2026-06-21T12:44:10.9482880Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_ObjectLiteral (0.00s)
+2026-06-21T12:44:10.9483190Z === RUN   TestSemanticAnalyzer_AnalyzeAST_Empty
+2026-06-21T12:44:10.9483470Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_Empty (0.00s)
+2026-06-21T12:44:10.9483750Z === RUN   TestSemanticAnalyzer_AnalyzeAST_Invalid
+2026-06-21T12:44:10.9484280Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_Invalid (0.00s)
+2026-06-21T12:44:10.9484550Z === RUN   TestSemanticAnalyzer_WalkAST
+2026-06-21T12:44:10.9484780Z --- PASS: TestSemanticAnalyzer_WalkAST (0.00s)
+2026-06-21T12:44:10.9485030Z === RUN   TestSemanticRoute_Structure
+2026-06-21T12:44:10.9485260Z --- PASS: TestSemanticRoute_Structure (0.00s)
+2026-06-21T12:44:10.9485540Z === RUN   TestSemanticAnalyzer_AnalyzeAST_MultipleRoutes
+2026-06-21T12:44:10.9486000Z --- PASS: TestSemanticAnalyzer_AnalyzeAST_MultipleRoutes (0.00s)
+2026-06-21T12:44:10.9486300Z === RUN   TestCVSS31BaseScore
+2026-06-21T12:44:10.9486500Z --- PASS: TestCVSS31BaseScore (0.00s)
+2026-06-21T12:44:10.9486710Z === RUN   TestNewDiffEngine
+2026-06-21T12:44:10.9486910Z --- PASS: TestNewDiffEngine (0.00s)
+2026-06-21T12:44:10.9487120Z === RUN   TestNewInMemoryStorage
+2026-06-21T12:44:10.9487340Z --- PASS: TestNewInMemoryStorage (0.00s)
+2026-06-21T12:44:10.9487570Z === RUN   TestInMemoryStorage_Store
+2026-06-21T12:44:10.9487790Z --- PASS: TestInMemoryStorage_Store (0.00s)
+2026-06-21T12:44:10.9488030Z === RUN   TestInMemoryStorage_Get
+2026-06-21T12:44:10.9488240Z --- PASS: TestInMemoryStorage_Get (0.00s)
+2026-06-21T12:44:10.9488480Z === RUN   TestInMemoryStorage_GetLatest
+2026-06-21T12:44:10.9488730Z --- PASS: TestInMemoryStorage_GetLatest (0.00s)
+2026-06-21T12:44:10.9488970Z === RUN   TestInMemoryStorage_List
+2026-06-21T12:44:10.9489200Z --- PASS: TestInMemoryStorage_List (0.00s)
+2026-06-21T12:44:10.9489430Z === RUN   TestInMemoryStorage_Delete
+2026-06-21T12:44:10.9489650Z --- PASS: TestInMemoryStorage_Delete (0.00s)
+2026-06-21T12:44:10.9489890Z === RUN   TestDiffEngine_StoreResult
+2026-06-21T12:44:10.9490120Z --- PASS: TestDiffEngine_StoreResult (0.00s)
+2026-06-21T12:44:10.9490350Z === RUN   TestDiffEngine_Compare
+2026-06-21T12:44:10.9490750Z 2026/06/21 12:43:42 INFO Diff comparison complete target=acme-corp.io new=1 removed=1 changed=0 unchanged=1
+2026-06-21T12:44:10.9491150Z --- PASS: TestDiffEngine_Compare (0.00s)
+2026-06-21T12:44:10.9491390Z === RUN   TestDiffEngine_CompareWithLatest
+2026-06-21T12:44:10.9491800Z 2026/06/21 12:43:42 INFO Diff comparison complete target=acme-corp.io new=1 removed=1 changed=0 unchanged=0
+2026-06-21T12:44:10.9492460Z 2026/06/21 12:43:42 WARN Failed to get previous scan for diff target=nonexistent.com error="no scans found for target: nonexistent.com"
+2026-06-21T12:44:10.9492960Z --- PASS: TestDiffEngine_CompareWithLatest (0.00s)
+2026-06-21T12:44:10.9493220Z === RUN   TestDiffEngine_GetHistory
+2026-06-21T12:44:10.9493450Z --- PASS: TestDiffEngine_GetHistory (0.00s)
+2026-06-21T12:44:10.9493660Z === RUN   TestAssetKey
+2026-06-21T12:44:10.9493830Z --- PASS: TestAssetKey (0.00s)
+2026-06-21T12:44:10.9494030Z === RUN   TestComputeAssetChecksum
+2026-06-21T12:44:10.9494260Z --- PASS: TestComputeAssetChecksum (0.00s)
+2026-06-21T12:44:10.9494510Z === RUN   TestComputeAssetChecksum_WithMetadata
+2026-06-21T12:44:10.9494800Z --- PASS: TestComputeAssetChecksum_WithMetadata (0.00s)
+2026-06-21T12:44:10.9495070Z === RUN   TestDiffReport_FilterChanges
+2026-06-21T12:44:10.9495310Z --- PASS: TestDiffReport_FilterChanges (0.00s)
+2026-06-21T12:44:10.9495550Z === RUN   TestDiffReport_ToMarkdown
+2026-06-21T12:44:10.9495780Z --- PASS: TestDiffReport_ToMarkdown (0.00s)
+2026-06-21T12:44:10.9496000Z === RUN   TestDiffReport_ToJSON
+2026-06-21T12:44:10.9496200Z --- PASS: TestDiffReport_ToJSON (0.00s)
+2026-06-21T12:44:10.9496440Z === RUN   TestDiffEngine_Compare_ChangedAssets
+2026-06-21T12:44:10.9496860Z 2026/06/21 12:43:42 INFO Diff comparison complete target=acme-corp.io new=0 removed=0 changed=1 unchanged=0
+2026-06-21T12:44:10.9497300Z --- PASS: TestDiffEngine_Compare_ChangedAssets (0.00s)
+2026-06-21T12:44:10.9497570Z === RUN   TestDiffEngine_Compare_EmptyScans
+2026-06-21T12:44:10.9497990Z 2026/06/21 12:43:42 INFO Diff comparison complete target=acme-corp.io new=0 removed=0 changed=0 unchanged=0
+2026-06-21T12:44:10.9498410Z --- PASS: TestDiffEngine_Compare_EmptyScans (0.00s)
+2026-06-21T12:44:10.9498650Z === RUN   TestNewFingerprinter
+2026-06-21T12:44:10.9498980Z --- PASS: TestNewFingerprinter (0.00s)
+2026-06-21T12:44:10.9499200Z === RUN   TestFingerprinter_Fingerprint
+2026-06-21T12:44:10.9499450Z === RUN   TestFingerprinter_Fingerprint/with_scheme
+2026-06-21T12:44:10.9500100Z 2026/06/21 12:43:43 WARN SSRF check blocked fingerprinting target target=https://acme-corp.io error="DNS resolution failed for acme-corp.io: lookup acme-corp.io: no such host"
+2026-06-21T12:44:10.9500860Z === RUN   TestFingerprinter_Fingerprint/without_scheme
+2026-06-21T12:44:10.9501530Z 2026/06/21 12:43:43 WARN SSRF check blocked fingerprinting target target=acme-corp.io error="DNS resolution failed for acme-corp.io: lookup acme-corp.io: no such host"
+2026-06-21T12:44:10.9502120Z === RUN   TestFingerprinter_Fingerprint/with_path
+2026-06-21T12:44:10.9502800Z 2026/06/21 12:43:43 WARN SSRF check blocked fingerprinting target target=https://acme-corp.io/test error="DNS resolution failed for acme-corp.io: lookup acme-corp.io: no such host"
+2026-06-21T12:44:10.9503450Z --- PASS: TestFingerprinter_Fingerprint (0.04s)
+2026-06-21T12:44:10.9503860Z     --- PASS: TestFingerprinter_Fingerprint/with_scheme (0.04s)
+2026-06-21T12:44:10.9504360Z     --- PASS: TestFingerprinter_Fingerprint/without_scheme (0.00s)
+2026-06-21T12:44:10.9504810Z     --- PASS: TestFingerprinter_Fingerprint/with_path (0.00s)
+2026-06-21T12:44:10.9505110Z === RUN   TestFingerprinter_FingerprintAll
+2026-06-21T12:44:10.9505740Z 2026/06/21 12:43:43 WARN SSRF check blocked fingerprinting target target=acme-corp.io error="DNS resolution failed for acme-corp.io: lookup acme-corp.io: no such host"
+2026-06-21T12:44:10.9506690Z 2026/06/21 12:43:43 WARN SSRF check blocked fingerprinting target target=test.com error="DNS resolution failed for test.com: lookup test.com: no such host"
+2026-06-21T12:44:10.9507230Z --- PASS: TestFingerprinter_FingerprintAll (0.15s)
+2026-06-21T12:44:10.9507540Z === RUN   TestFingerprinter_FingerprintAll_ZeroConcurrency
+2026-06-21T12:44:10.9508200Z 2026/06/21 12:43:43 WARN SSRF check blocked fingerprinting target target=acme-corp.io error="DNS resolution failed for acme-corp.io: lookup acme-corp.io: no such host"
+2026-06-21T12:44:10.9508860Z --- PASS: TestFingerprinter_FingerprintAll_ZeroConcurrency (0.00s)
+2026-06-21T12:44:10.9509150Z === RUN   TestClusterByJARM
+2026-06-21T12:44:10.9509350Z --- PASS: TestClusterByJARM (0.00s)
+2026-06-21T12:44:10.9509560Z === RUN   TestClusterByFavicon
+2026-06-21T12:44:10.9509780Z --- PASS: TestClusterByFavicon (0.00s)
+2026-06-21T12:44:10.9510000Z === RUN   TestClusterByJARM_Empty
+2026-06-21T12:44:10.9510220Z --- PASS: TestClusterByJARM_Empty (0.00s)
+2026-06-21T12:44:10.9510440Z === RUN   TestClusterByFavicon_Empty
+2026-06-21T12:44:10.9510710Z --- PASS: TestClusterByFavicon_Empty (0.00s)
+2026-06-21T12:44:10.9510920Z === RUN   TestMin
+2026-06-21T12:44:10.9511100Z --- PASS: TestMin (0.00s)
+2026-06-21T12:44:10.9511280Z === RUN   TestNewMemoryGraph
+2026-06-21T12:44:10.9512790Z --- PASS: TestNewMemoryGraph (0.00s)
+2026-06-21T12:44:10.9513280Z === RUN   TestMemoryGraph_AddNode
+2026-06-21T12:44:10.9513510Z --- PASS: TestMemoryGraph_AddNode (0.00s)
+2026-06-21T12:44:10.9513740Z === RUN   TestMemoryGraph_AddNode_WithID
+2026-06-21T12:44:10.9513980Z --- PASS: TestMemoryGraph_AddNode_WithID (0.00s)
+2026-06-21T12:44:10.9514250Z === RUN   TestMemoryGraph_AddNode_Duplicate
+2026-06-21T12:44:10.9514510Z --- PASS: TestMemoryGraph_AddNode_Duplicate (0.00s)
+2026-06-21T12:44:10.9514790Z === RUN   TestMemoryGraph_AddEdge
+2026-06-21T12:44:10.9515000Z --- PASS: TestMemoryGraph_AddEdge (0.00s)
+2026-06-21T12:44:10.9515260Z === RUN   TestMemoryGraph_AddEdge_MissingSource
+2026-06-21T12:44:10.9515550Z --- PASS: TestMemoryGraph_AddEdge_MissingSource (0.00s)
+2026-06-21T12:44:10.9515840Z === RUN   TestMemoryGraph_AddEdge_MissingTarget
+2026-06-21T12:44:10.9516110Z --- PASS: TestMemoryGraph_AddEdge_MissingTarget (0.00s)
+2026-06-21T12:44:10.9516370Z === RUN   TestMemoryGraph_FindPivots
+2026-06-21T12:44:10.9516600Z --- PASS: TestMemoryGraph_FindPivots (0.00s)
+2026-06-21T12:44:10.9517080Z === RUN   TestMemoryGraph_FindPivots_NoEdges
+2026-06-21T12:44:10.9517350Z --- PASS: TestMemoryGraph_FindPivots_NoEdges (0.00s)
+2026-06-21T12:44:10.9523210Z === RUN   TestMemoryGraph_FindPivots_NonExistentNode
+2026-06-21T12:44:10.9523550Z --- PASS: TestMemoryGraph_FindPivots_NonExistentNode (0.00s)
+2026-06-21T12:44:10.9523850Z === RUN   TestMemoryGraph_FindPivots_DuplicateEdges
+2026-06-21T12:44:10.9524160Z --- PASS: TestMemoryGraph_FindPivots_DuplicateEdges (0.00s)
+2026-06-21T12:44:10.9524610Z === RUN   TestMemoryGraph_MultipleEdges
+2026-06-21T12:44:10.9524880Z --- PASS: TestMemoryGraph_MultipleEdges (0.00s)
+2026-06-21T12:44:10.9525150Z === RUN   TestGraphNode_Properties
+2026-06-21T12:44:10.9525380Z --- PASS: TestGraphNode_Properties (0.00s)
+2026-06-21T12:44:10.9525610Z === RUN   TestMemoryGraph_PropagateRisk
+2026-06-21T12:44:10.9525850Z --- PASS: TestMemoryGraph_PropagateRisk (0.00s)
+2026-06-21T12:44:10.9526090Z === RUN   TestMemoryGraph_TimeDecay
+2026-06-21T12:44:10.9526320Z --- PASS: TestMemoryGraph_TimeDecay (0.00s)
+2026-06-21T12:44:10.9526580Z === RUN   TestMemoryGraph_BlastRadiusPropagation
+2026-06-21T12:44:10.9526870Z --- PASS: TestMemoryGraph_BlastRadiusPropagation (0.00s)
+2026-06-21T12:44:10.9527160Z === RUN   TestMemoryGraph_PathCostAndCheapestPath
+2026-06-21T12:44:10.9527460Z --- PASS: TestMemoryGraph_PathCostAndCheapestPath (0.00s)
+2026-06-21T12:44:10.9527720Z === RUN   TestNewIntrospector
+2026-06-21T12:44:10.9527920Z --- PASS: TestNewIntrospector (0.00s)
+2026-06-21T12:44:10.9528150Z === RUN   TestIntrospector_SetHeader
+2026-06-21T12:44:10.9528370Z --- PASS: TestIntrospector_SetHeader (0.00s)
+2026-06-21T12:44:10.9528620Z === RUN   TestIntrospector_SetHeader_Override
+2026-06-21T12:44:10.9528920Z --- PASS: TestIntrospector_SetHeader_Override (0.00s)
+2026-06-21T12:44:10.9529190Z === RUN   TestIntrospectionQuery
+2026-06-21T12:44:10.9529430Z --- PASS: TestIntrospectionQuery (0.00s)
+2026-06-21T12:44:10.9529680Z === RUN   TestSchemaAnalysis_ToMarkdown
+2026-06-21T12:44:10.9529950Z --- PASS: TestSchemaAnalysis_ToMarkdown (0.00s)
+2026-06-21T12:44:10.9530190Z === RUN   TestSchemaAnalysis_ToJSON
+2026-06-21T12:44:10.9530440Z --- PASS: TestSchemaAnalysis_ToJSON (0.00s)
+2026-06-21T12:44:10.9530690Z === RUN   TestIntrospector_GenerateTestQueries
+2026-06-21T12:44:10.9530990Z --- PASS: TestIntrospector_GenerateTestQueries (0.00s)
+2026-06-21T12:44:10.9531280Z === RUN   TestIntrospector_GenerateTestQueries_Empty
+2026-06-21T12:44:10.9531590Z --- PASS: TestIntrospector_GenerateTestQueries_Empty (0.00s)
+2026-06-21T12:44:10.9531860Z === RUN   TestIsSensitiveField
+2026-06-21T12:44:10.9532070Z === RUN   TestIsSensitiveField/password
+2026-06-21T12:44:10.9532290Z === RUN   TestIsSensitiveField/token
+2026-06-21T12:44:10.9532510Z === RUN   TestIsSensitiveField/secret
+2026-06-21T12:44:10.9532720Z === RUN   TestIsSensitiveField/apiKey
+2026-06-21T12:44:10.9532940Z === RUN   TestIsSensitiveField/creditCard
+2026-06-21T12:44:10.9533270Z === RUN   TestIsSensitiveField/normal_field
+2026-06-21T12:44:10.9533780Z === RUN   TestIsSensitiveField/id
+2026-06-21T12:44:10.9534030Z === RUN   TestIsSensitiveField/title
+2026-06-21T12:44:10.9534370Z --- PASS: TestIsSensitiveField (0.00s)
+2026-06-21T12:44:10.9534710Z     --- PASS: TestIsSensitiveField/password (0.00s)
+2026-06-21T12:44:10.9535090Z     --- PASS: TestIsSensitiveField/token (0.00s)
+2026-06-21T12:44:10.9535410Z     --- PASS: TestIsSensitiveField/secret (0.00s)
+2026-06-21T12:44:10.9535740Z     --- PASS: TestIsSensitiveField/apiKey (0.00s)
+2026-06-21T12:44:10.9536090Z     --- PASS: TestIsSensitiveField/creditCard (0.00s)
+2026-06-21T12:44:10.9536480Z     --- PASS: TestIsSensitiveField/normal_field (0.00s)
+2026-06-21T12:44:10.9536820Z     --- PASS: TestIsSensitiveField/id (0.00s)
+2026-06-21T12:44:10.9537180Z     --- PASS: TestIsSensitiveField/title (0.00s)
+2026-06-21T12:44:10.9537460Z === RUN   TestIsSensitiveField_CaseInsensitive
+2026-06-21T12:44:10.9537750Z --- PASS: TestIsSensitiveField_CaseInsensitive (0.00s)
+2026-06-21T12:44:10.9538030Z === RUN   TestIsSensitiveField_ContainsKeyword
+2026-06-21T12:44:10.9538490Z --- PASS: TestIsSensitiveField_ContainsKeyword (0.00s)
+2026-06-21T12:44:10.9538770Z === RUN   TestIntrospector_Analyze
+2026-06-21T12:44:10.9539390Z 2026/06/21 12:43:43 INFO GraphQL schema analysis complete query_fields=2 mutation_fields=2 sensitive_fields=4 deprecated_fields=1 enum_types=1 input_types=1
+2026-06-21T12:44:10.9539970Z --- PASS: TestIntrospector_Analyze (0.00s)
+2026-06-21T12:44:10.9540250Z === RUN   TestIntrospector_Analyze_EmptySchema
+2026-06-21T12:44:10.9541590Z 2026/06/21 12:43:43 INFO GraphQL schema analysis complete query_fields=0 mutation_fields=0 sensitive_fields=0 deprecated_fields=0 enum_types=0 input_types=0
+2026-06-21T12:44:10.9542250Z --- PASS: TestIntrospector_Analyze_EmptySchema (0.00s)
+2026-06-21T12:44:10.9542620Z === RUN   TestIntrospector_Analyze_SkipsIntrospectionTypes
+2026-06-21T12:44:10.9543230Z 2026/06/21 12:43:43 INFO GraphQL schema analysis complete query_fields=0 mutation_fields=0 sensitive_fields=0 deprecated_fields=0 enum_types=0 input_types=0
+2026-06-21T12:44:10.9543830Z --- PASS: TestIntrospector_Analyze_SkipsIntrospectionTypes (0.00s)
+2026-06-21T12:44:10.9544180Z === RUN   TestSchemaAnalysis_ToMarkdown_Empty
+2026-06-21T12:44:10.9544470Z --- PASS: TestSchemaAnalysis_ToMarkdown_Empty (0.00s)
+2026-06-21T12:44:10.9544730Z === RUN   TestRegexExtractRoutes
+2026-06-21T12:44:10.9544970Z --- PASS: TestRegexExtractRoutes (0.00s)
+2026-06-21T12:44:10.9545220Z === RUN   TestRegexExtractRoutes_FiltersNoise
+2026-06-21T12:44:10.9545500Z --- PASS: TestRegexExtractRoutes_FiltersNoise (0.00s)
+2026-06-21T12:44:10.9545750Z === RUN   TestDiffBundles
+2026-06-21T12:44:10.9545940Z --- PASS: TestDiffBundles (0.00s)
+2026-06-21T12:44:10.9546190Z === RUN   TestDiffBundles_NoChanges
+2026-06-21T12:44:10.9546410Z --- PASS: TestDiffBundles_NoChanges (0.00s)
+2026-06-21T12:44:10.9546640Z === RUN   TestDiffBundles_RemovedRoutes
+2026-06-21T12:44:10.9546880Z --- PASS: TestDiffBundles_RemovedRoutes (0.00s)
+2026-06-21T12:44:10.9547120Z === RUN   TestComputeRouteSignature
+2026-06-21T12:44:10.9547370Z --- PASS: TestComputeRouteSignature (0.00s)
+2026-06-21T12:44:10.9547640Z === RUN   TestComputeRouteSignature_Normalization
+2026-06-21T12:44:10.9547960Z === RUN   TestComputeRouteSignature_Normalization/trailing_slash
+2026-06-21T12:44:10.9548320Z === RUN   TestComputeRouteSignature_Normalization/query_string
+2026-06-21T12:44:10.9548680Z === RUN   TestComputeRouteSignature_Normalization/different_methods
+2026-06-21T12:44:10.9549150Z --- PASS: TestComputeRouteSignature_Normalization (0.00s)
+2026-06-21T12:44:10.9549630Z     --- PASS: TestComputeRouteSignature_Normalization/trailing_slash (0.00s)
+2026-06-21T12:44:10.9550150Z     --- PASS: TestComputeRouteSignature_Normalization/query_string (0.00s)
+2026-06-21T12:44:10.9550670Z     --- PASS: TestComputeRouteSignature_Normalization/different_methods (0.00s)
+2026-06-21T12:44:10.9551000Z === RUN   TestHashBundle
+2026-06-21T12:44:10.9551180Z --- PASS: TestHashBundle (0.00s)
+2026-06-21T12:44:10.9551590Z === RUN   TestJSBundleDiff_Summary
+2026-06-21T12:44:10.9551820Z --- PASS: TestJSBundleDiff_Summary (0.00s)
+2026-06-21T12:44:10.9552080Z === RUN   TestJSBundleDiff_Summary_NoChanges
+2026-06-21T12:44:10.9552350Z --- PASS: TestJSBundleDiff_Summary_NoChanges (0.00s)
+2026-06-21T12:44:10.9552610Z === RUN   TestJSBundleDiff_HighValueChanges
+2026-06-21T12:44:10.9552870Z --- PASS: TestJSBundleDiff_HighValueChanges (0.00s)
+2026-06-21T12:44:10.9553120Z === RUN   TestIsHighValueRoute
+2026-06-21T12:44:10.9553330Z === RUN   TestIsHighValueRoute/admin_path
+2026-06-21T12:44:10.9553650Z === RUN   TestIsHighValueRoute/api_path
+2026-06-21T12:44:10.9553880Z === RUN   TestIsHighValueRoute/graphql
+2026-06-21T12:44:10.9554100Z === RUN   TestIsHighValueRoute/auth_flow
+2026-06-21T12:44:10.9554410Z === RUN   TestIsHighValueRoute/POST_method
+2026-06-21T12:44:10.9554640Z === RUN   TestIsHighValueRoute/PUT_method
+2026-06-21T12:44:10.9554920Z === RUN   TestIsHighValueRoute/DELETE_method
+2026-06-21T12:44:10.9555170Z === RUN   TestIsHighValueRoute/normal_path
+2026-06-21T12:44:10.9555420Z === RUN   TestIsHighValueRoute/static_asset
+2026-06-21T12:44:10.9555820Z --- PASS: TestIsHighValueRoute (0.00s)
+2026-06-21T12:44:10.9556980Z     --- PASS: TestIsHighValueRoute/admin_path (0.00s)
+2026-06-21T12:44:10.9557370Z     --- PASS: TestIsHighValueRoute/api_path (0.00s)
+2026-06-21T12:44:10.9557800Z     --- PASS: TestIsHighValueRoute/graphql (0.00s)
+2026-06-21T12:44:10.9558160Z     --- PASS: TestIsHighValueRoute/auth_flow (0.00s)
+2026-06-21T12:44:10.9558530Z     --- PASS: TestIsHighValueRoute/POST_method (0.00s)
+2026-06-21T12:44:10.9559060Z     --- PASS: TestIsHighValueRoute/PUT_method (0.00s)
+2026-06-21T12:44:10.9559440Z     --- PASS: TestIsHighValueRoute/DELETE_method (0.00s)
+2026-06-21T12:44:10.9559850Z     --- PASS: TestIsHighValueRoute/normal_path (0.00s)
+2026-06-21T12:44:10.9560210Z     --- PASS: TestIsHighValueRoute/static_asset (0.00s)
+2026-06-21T12:44:10.9560460Z === RUN   TestExtractAllRoutes
+2026-06-21T12:44:10.9560680Z --- PASS: TestExtractAllRoutes (0.00s)
+2026-06-21T12:44:10.9560950Z === RUN   TestExtractRoutesFromNode
+2026-06-21T12:44:10.9561200Z --- PASS: TestExtractRoutesFromNode (0.00s)
+2026-06-21T12:44:10.9561450Z === RUN   TestNucleiTagMapping
+2026-06-21T12:44:10.9561670Z --- PASS: TestNucleiTagMapping (0.00s)
+2026-06-21T12:44:10.9561930Z === RUN   TestNucleiSeverityForPriority
+2026-06-21T12:44:10.9562180Z --- PASS: TestNucleiSeverityForPriority (0.00s)
+2026-06-21T12:44:10.9562410Z === RUN   TestResolveTags
+2026-06-21T12:44:10.9562640Z === RUN   TestResolveTags/exposed-secrets_tag
+2026-06-21T12:44:10.9562870Z === RUN   TestResolveTags/graphql_tag
+2026-06-21T12:44:10.9563100Z === RUN   TestResolveTags/admin-panel_tag
+2026-06-21T12:44:10.9563340Z === RUN   TestResolveTags/multiple_tags
+2026-06-21T12:44:10.9563560Z === RUN   TestResolveTags/unknown_tag
+2026-06-21T12:44:10.9563790Z === RUN   TestResolveTags/empty_tags
+2026-06-21T12:44:10.9564010Z === RUN   TestResolveTags/case_insensitive
+2026-06-21T12:44:10.9564330Z --- PASS: TestResolveTags (0.00s)
+2026-06-21T12:44:10.9564690Z     --- PASS: TestResolveTags/exposed-secrets_tag (0.00s)
+2026-06-21T12:44:10.9565070Z     --- PASS: TestResolveTags/graphql_tag (0.00s)
+2026-06-21T12:44:10.9565420Z     --- PASS: TestResolveTags/admin-panel_tag (0.00s)
+2026-06-21T12:44:10.9565780Z     --- PASS: TestResolveTags/multiple_tags (0.00s)
+2026-06-21T12:44:10.9566110Z     --- PASS: TestResolveTags/unknown_tag (0.00s)
+2026-06-21T12:44:10.9566430Z     --- PASS: TestResolveTags/empty_tags (0.00s)
+2026-06-21T12:44:10.9566770Z     --- PASS: TestResolveTags/case_insensitive (0.00s)
+2026-06-21T12:44:10.9567070Z === RUN   TestResolveTags_Deduplication
+2026-06-21T12:44:10.9567340Z --- PASS: TestResolveTags_Deduplication (0.00s)
+2026-06-21T12:44:10.9567590Z === RUN   TestResolveTags_Overlap
+2026-06-21T12:44:10.9567810Z --- PASS: TestResolveTags_Overlap (0.00s)
+2026-06-21T12:44:10.9568040Z === RUN   TestResolveSeverity
+2026-06-21T12:44:10.9568250Z === RUN   TestResolveSeverity/critical
+2026-06-21T12:44:10.9568490Z === RUN   TestResolveSeverity/high
+2026-06-21T12:44:10.9568700Z === RUN   TestResolveSeverity/medium
+2026-06-21T12:44:10.9568920Z === RUN   TestResolveSeverity/low
+2026-06-21T12:44:10.9569120Z === RUN   TestResolveSeverity/unknown
+2026-06-21T12:44:10.9569390Z === RUN   TestResolveSeverity/empty
+2026-06-21T12:44:10.9569650Z === RUN   TestResolveSeverity/case_insensitive
+2026-06-21T12:44:10.9569900Z --- PASS: TestResolveSeverity (0.00s)
+2026-06-21T12:44:10.9570220Z     --- PASS: TestResolveSeverity/critical (0.00s)
+2026-06-21T12:44:10.9570540Z     --- PASS: TestResolveSeverity/high (0.00s)
+2026-06-21T12:44:10.9570890Z     --- PASS: TestResolveSeverity/medium (0.00s)
+2026-06-21T12:44:10.9571220Z     --- PASS: TestResolveSeverity/low (0.00s)
+2026-06-21T12:44:10.9571580Z     --- PASS: TestResolveSeverity/unknown (0.00s)
+2026-06-21T12:44:10.9571890Z     --- PASS: TestResolveSeverity/empty (0.00s)
+2026-06-21T12:44:10.9573090Z     --- PASS: TestResolveSeverity/case_insensitive (0.00s)
+2026-06-21T12:44:10.9573390Z === RUN   TestResolveSeverity_Default
+2026-06-21T12:44:10.9573670Z --- PASS: TestResolveSeverity_Default (0.00s)
+2026-06-21T12:44:10.9574110Z === RUN   TestNucleiTagMapping_Coverage
+2026-06-21T12:44:10.9574410Z --- PASS: TestNucleiTagMapping_Coverage (0.00s)
+2026-06-21T12:44:10.9574710Z === RUN   TestNucleiSeverityForPriority_Coverage
+2026-06-21T12:44:10.9575000Z --- PASS: TestNucleiSeverityForPriority_Coverage (0.00s)
+2026-06-21T12:44:10.9575270Z === RUN   TestResolveTags_Ordering
+2026-06-21T12:44:10.9575510Z --- PASS: TestResolveTags_Ordering (0.00s)
+2026-06-21T12:44:10.9575940Z === RUN   TestRuleSet_Evaluate
+2026-06-21T12:44:10.9576200Z === RUN   TestRuleSet_Evaluate/match_exposed_env
+2026-06-21T12:44:10.9578590Z 2026/06/21 12:43:43 INFO rule matched rule_id=exposed-env priority=critical target=https://acme-corp.io/.env message=" .env file found — check for DB creds, API keys"
+2026-06-21T12:44:10.9579210Z === RUN   TestRuleSet_Evaluate/match_wildcard_and_trigger_tool
+2026-06-21T12:44:10.9579930Z 2026/06/21 12:43:43 INFO rule matched rule_id=crtsh-wildcard priority=medium target=*.acme-corp.io message="Wildcard cert found — expand subdomain enumeration"
+2026-06-21T12:44:10.9580470Z === RUN   TestRuleSet_Evaluate/no_match
+2026-06-21T12:44:10.9580690Z --- PASS: TestRuleSet_Evaluate (0.00s)
+2026-06-21T12:44:10.9581040Z     --- PASS: TestRuleSet_Evaluate/match_exposed_env (0.00s)
+2026-06-21T12:44:10.9581470Z     --- PASS: TestRuleSet_Evaluate/match_wildcard_and_trigger_tool (0.00s)
+2026-06-21T12:44:10.9581860Z     --- PASS: TestRuleSet_Evaluate/no_match (0.00s)
+2026-06-21T12:44:10.9582100Z === RUN   TestNewScorer
+2026-06-21T12:44:10.9582280Z --- PASS: TestNewScorer (0.00s)
+2026-06-21T12:44:10.9582520Z === RUN   TestScorer_ScoreEndpoint_EvidenceBased
+2026-06-21T12:44:10.9582820Z --- PASS: TestScorer_ScoreEndpoint_EvidenceBased (0.00s)
+2026-06-21T12:44:10.9583140Z === RUN   TestScorer_ScoreEndpoint_SeverityCalculation
+2026-06-21T12:44:10.9583460Z --- PASS: TestScorer_ScoreEndpoint_SeverityCalculation (0.00s)
+2026-06-21T12:44:10.9583780Z === RUN   TestScorer_ScoreEndpoint_JustificationTracking
+2026-06-21T12:44:10.9584110Z --- PASS: TestScorer_ScoreEndpoint_JustificationTracking (0.00s)
+2026-06-21T12:44:10.9584400Z === RUN   TestScorer_Phase4Adjustments
+2026-06-21T12:44:10.9584630Z --- PASS: TestScorer_Phase4Adjustments (0.00s)
+2026-06-21T12:44:10.9584880Z === RUN   TestScorer_AdjustScoreWithHistory
+2026-06-21T12:44:10.9585150Z --- PASS: TestScorer_AdjustScoreWithHistory (0.00s)
+2026-06-21T12:44:10.9585390Z === RUN   TestSecretPatterns
+2026-06-21T12:44:10.9585590Z --- PASS: TestSecretPatterns (0.00s)
+2026-06-21T12:44:10.9585810Z === RUN   TestSecretPatterns_AWS
+2026-06-21T12:44:10.9586040Z === RUN   TestSecretPatterns_AWS/AWS_Access_Key
+2026-06-21T12:44:10.9586320Z === RUN   TestSecretPatterns_AWS/AWS_Access_Key_lowercase
+2026-06-21T12:44:10.9586640Z === RUN   TestSecretPatterns_AWS/Invalid_AWS_key
+2026-06-21T12:44:10.9586900Z === RUN   TestSecretPatterns_AWS/Random_string
+2026-06-21T12:44:10.9587140Z --- PASS: TestSecretPatterns_AWS (0.00s)
+2026-06-21T12:44:10.9588550Z     --- PASS: TestSecretPatterns_AWS/AWS_Access_Key (0.00s)
+2026-06-21T12:44:10.9588990Z     --- PASS: TestSecretPatterns_AWS/AWS_Access_Key_lowercase (0.00s)
+2026-06-21T12:44:10.9589420Z     --- PASS: TestSecretPatterns_AWS/Invalid_AWS_key (0.00s)
+2026-06-21T12:44:10.9589800Z     --- PASS: TestSecretPatterns_AWS/Random_string (0.00s)
+2026-06-21T12:44:10.9590060Z === RUN   TestSecretPatterns_GitHub
+2026-06-21T12:44:10.9590280Z === RUN   TestSecretPatterns_GitHub/GitHub_PAT
+2026-06-21T12:44:10.9590540Z === RUN   TestSecretPatterns_GitHub/GitHub_OAuth
+2026-06-21T12:44:10.9590800Z === RUN   TestSecretPatterns_GitHub/GitHub_App
+2026-06-21T12:44:10.9591060Z === RUN   TestSecretPatterns_GitHub/Invalid_GitHub
+2026-06-21T12:44:10.9591320Z --- PASS: TestSecretPatterns_GitHub (0.00s)
+2026-06-21T12:44:10.9591660Z     --- PASS: TestSecretPatterns_GitHub/GitHub_PAT (0.00s)
+2026-06-21T12:44:10.9592180Z     --- PASS: TestSecretPatterns_GitHub/GitHub_OAuth (0.00s)
+2026-06-21T12:44:10.9592570Z     --- PASS: TestSecretPatterns_GitHub/GitHub_App (0.00s)
+2026-06-21T12:44:10.9593160Z     --- PASS: TestSecretPatterns_GitHub/Invalid_GitHub (0.00s)
+2026-06-21T12:44:10.9593430Z === RUN   TestSecretPatterns_Slack
+2026-06-21T12:44:10.9593670Z === RUN   TestSecretPatterns_Slack/Slack_Bot_Token
+2026-06-21T12:44:10.9593940Z === RUN   TestSecretPatterns_Slack/Slack_Webhook
+2026-06-21T12:44:10.9594200Z === RUN   TestSecretPatterns_Slack/Invalid_Slack
+2026-06-21T12:44:10.9594460Z --- PASS: TestSecretPatterns_Slack (0.00s)
+2026-06-21T12:44:10.9594920Z     --- PASS: TestSecretPatterns_Slack/Slack_Bot_Token (0.00s)
+2026-06-21T12:44:10.9595320Z     --- PASS: TestSecretPatterns_Slack/Slack_Webhook (0.00s)
+2026-06-21T12:44:10.9595700Z     --- PASS: TestSecretPatterns_Slack/Invalid_Slack (0.00s)
+2026-06-21T12:44:10.9596010Z === RUN   TestSecretPatterns_Stripe
+2026-06-21T12:44:10.9596270Z === RUN   TestSecretPatterns_Stripe/Stripe_Secret_Key
+2026-06-21T12:44:10.9596580Z === RUN   TestSecretPatterns_Stripe/Stripe_Publishable_Key
+2026-06-21T12:44:10.9596870Z === RUN   TestSecretPatterns_Stripe/Invalid_Stripe
+2026-06-21T12:44:10.9597140Z --- PASS: TestSecretPatterns_Stripe (0.00s)
+2026-06-21T12:44:10.9597510Z     --- PASS: TestSecretPatterns_Stripe/Stripe_Secret_Key (0.00s)
+2026-06-21T12:44:10.9597950Z     --- PASS: TestSecretPatterns_Stripe/Stripe_Publishable_Key (0.00s)
+2026-06-21T12:44:10.9598370Z     --- PASS: TestSecretPatterns_Stripe/Invalid_Stripe (0.00s)
+2026-06-21T12:44:10.9598720Z === RUN   TestSecretPatterns_JWT
+2026-06-21T12:44:10.9598960Z === RUN   TestSecretPatterns_JWT/Valid_JWT
+2026-06-21T12:44:10.9599220Z === RUN   TestSecretPatterns_JWT/Invalid_JWT
+2026-06-21T12:44:10.9599460Z --- PASS: TestSecretPatterns_JWT (0.00s)
+2026-06-21T12:44:10.9599800Z     --- PASS: TestSecretPatterns_JWT/Valid_JWT (0.00s)
+2026-06-21T12:44:10.9600160Z     --- PASS: TestSecretPatterns_JWT/Invalid_JWT (0.00s)
+2026-06-21T12:44:10.9600450Z === RUN   TestSecretPatterns_PrivateKeys
+2026-06-21T12:44:10.9600850Z === RUN   TestSecretPatterns_PrivateKeys/RSA_Private_Key
+2026-06-21T12:44:10.9601170Z === RUN   TestSecretPatterns_PrivateKeys/Generic_Private_Key
+2026-06-21T12:44:10.9601470Z === RUN   TestSecretPatterns_PrivateKeys/EC_Private_Key
+2026-06-21T12:44:10.9601770Z === RUN   TestSecretPatterns_PrivateKeys/Not_a_private_key
+2026-06-21T12:44:10.9602060Z --- PASS: TestSecretPatterns_PrivateKeys (0.00s)
+2026-06-21T12:44:10.9602460Z     --- PASS: TestSecretPatterns_PrivateKeys/RSA_Private_Key (0.00s)
+2026-06-21T12:44:10.9602910Z     --- PASS: TestSecretPatterns_PrivateKeys/Generic_Private_Key (0.00s)
+2026-06-21T12:44:10.9603500Z     --- PASS: TestSecretPatterns_PrivateKeys/EC_Private_Key (0.00s)
+2026-06-21T12:44:10.9604030Z     --- PASS: TestSecretPatterns_PrivateKeys/Not_a_private_key (0.00s)
+2026-06-21T12:44:10.9604350Z === RUN   TestSecretPatterns_Database
+2026-06-21T12:44:10.9604580Z === RUN   TestSecretPatterns_Database/MongoDB
+2026-06-21T12:44:10.9604880Z === RUN   TestSecretPatterns_Database/PostgreSQL
+2026-06-21T12:44:10.9605150Z === RUN   TestSecretPatterns_Database/MySQL
+2026-06-21T12:44:10.9605400Z === RUN   TestSecretPatterns_Database/Redis
+2026-06-21T12:44:10.9605660Z === RUN   TestSecretPatterns_Database/Not_a_DB_string
+2026-06-21T12:44:10.9605960Z --- PASS: TestSecretPatterns_Database (0.00s)
+2026-06-21T12:44:10.9606340Z     --- PASS: TestSecretPatterns_Database/MongoDB (0.00s)
+2026-06-21T12:44:10.9611980Z     --- PASS: TestSecretPatterns_Database/PostgreSQL (0.00s)
+2026-06-21T12:44:10.9612360Z     --- PASS: TestSecretPatterns_Database/MySQL (0.00s)
+2026-06-21T12:44:10.9612750Z     --- PASS: TestSecretPatterns_Database/Redis (0.00s)
+2026-06-21T12:44:10.9613750Z     --- PASS: TestSecretPatterns_Database/Not_a_DB_string (0.00s)
+2026-06-21T12:44:10.9614050Z === RUN   TestSecretPatterns_InternalIP
+2026-06-21T12:44:10.9614290Z === RUN   TestSecretPatterns_InternalIP/10.x.x.x
+2026-06-21T12:44:10.9614550Z === RUN   TestSecretPatterns_InternalIP/172.16.x.x
+2026-06-21T12:44:10.9614820Z === RUN   TestSecretPatterns_InternalIP/192.168.x.x
+2026-06-21T12:44:10.9615090Z === RUN   TestSecretPatterns_InternalIP/Public_IP
+2026-06-21T12:44:10.9615480Z === RUN   TestSecretPatterns_InternalIP/Not_an_IP
+2026-06-21T12:44:10.9615740Z --- PASS: TestSecretPatterns_InternalIP (0.00s)
+2026-06-21T12:44:10.9616130Z     --- PASS: TestSecretPatterns_InternalIP/10.x.x.x (0.00s)
+2026-06-21T12:44:10.9616550Z     --- PASS: TestSecretPatterns_InternalIP/172.16.x.x (0.00s)
+2026-06-21T12:44:10.9616960Z     --- PASS: TestSecretPatterns_InternalIP/192.168.x.x (0.00s)
+2026-06-21T12:44:10.9617450Z     --- PASS: TestSecretPatterns_InternalIP/Public_IP (0.00s)
+2026-06-21T12:44:10.9617850Z     --- PASS: TestSecretPatterns_InternalIP/Not_an_IP (0.00s)
+2026-06-21T12:44:10.9618130Z === RUN   TestSecretPatterns_SeverityLevels
+2026-06-21T12:44:10.9618400Z --- PASS: TestSecretPatterns_SeverityLevels (0.00s)
+2026-06-21T12:44:10.9618660Z === RUN   TestNewFingerprintTimeline
+2026-06-21T12:44:10.9618900Z --- PASS: TestNewFingerprintTimeline (0.00s)
+2026-06-21T12:44:10.9619180Z === RUN   TestNewFingerprintTimeline_CreateDir
+2026-06-21T12:44:10.9619490Z --- PASS: TestNewFingerprintTimeline_CreateDir (0.00s)
+2026-06-21T12:44:10.9619780Z === RUN   TestFingerprintTimeline_Record
+2026-06-21T12:44:10.9620030Z --- PASS: TestFingerprintTimeline_Record (0.10s)
+2026-06-21T12:44:10.9620300Z === RUN   TestFingerprintTimeline_Record_Prune
+2026-06-21T12:44:10.9620570Z --- PASS: TestFingerprintTimeline_Record_Prune (0.97s)
+2026-06-21T12:44:10.9620840Z === RUN   TestFingerprintTimeline_GetHistory
+2026-06-21T12:44:10.9621110Z --- PASS: TestFingerprintTimeline_GetHistory (0.61s)
+2026-06-21T12:44:10.9621400Z === RUN   TestFingerprintTimeline_GetHistory_WithLimit
+2026-06-21T12:44:10.9621720Z --- PASS: TestFingerprintTimeline_GetHistory_WithLimit (0.67s)
+2026-06-21T12:44:10.9622050Z === RUN   TestFingerprintTimeline_GetHistory_NonExistent
+2026-06-21T12:44:10.9622380Z --- PASS: TestFingerprintTimeline_GetHistory_NonExistent (0.00s)
+2026-06-21T12:44:10.9622690Z === RUN   TestFingerprintTimeline_GetChanges
+2026-06-21T12:44:10.9622950Z --- PASS: TestFingerprintTimeline_GetChanges (0.21s)
+2026-06-21T12:44:10.9623270Z === RUN   TestFingerprintTimeline_GetChanges_NoChange
+2026-06-21T12:44:10.9623590Z --- PASS: TestFingerprintTimeline_GetChanges_NoChange (0.21s)
+2026-06-21T12:44:10.9623960Z === RUN   TestFingerprintTimeline_GetChanges_InsufficientHistory
+2026-06-21T12:44:10.9624340Z --- PASS: TestFingerprintTimeline_GetChanges_InsufficientHistory (0.11s)
+2026-06-21T12:44:10.9624740Z === RUN   TestFingerprintTimeline_ClusterByInfrastructure
+2026-06-21T12:44:10.9625090Z --- PASS: TestFingerprintTimeline_ClusterByInfrastructure (0.16s)
+2026-06-21T12:44:10.9625490Z === RUN   TestFingerprintTimeline_ClusterByInfrastructure_EmptyFingerprints
+2026-06-21T12:44:10.9625950Z --- PASS: TestFingerprintTimeline_ClusterByInfrastructure_EmptyFingerprints (0.61s)
+2026-06-21T12:44:10.9626290Z === RUN   TestSanitizeHost
+2026-06-21T12:44:10.9626480Z === RUN   TestSanitizeHost/with_port
+2026-06-21T12:44:10.9626700Z === RUN   TestSanitizeHost/with_path
+2026-06-21T12:44:10.9627040Z === RUN   TestSanitizeHost/uppercase
+2026-06-21T12:44:10.9627300Z === RUN   TestSanitizeHost/mixed_case
+2026-06-21T12:44:10.9627520Z === RUN   TestSanitizeHost/simple
+2026-06-21T12:44:10.9627740Z === RUN   TestSanitizeHost/with_port_and_path
+2026-06-21T12:44:10.9627970Z --- PASS: TestSanitizeHost (0.00s)
+2026-06-21T12:44:10.9628270Z     --- PASS: TestSanitizeHost/with_port (0.00s)
+2026-06-21T12:44:10.9628580Z     --- PASS: TestSanitizeHost/with_path (0.00s)
+2026-06-21T12:44:10.9628890Z     --- PASS: TestSanitizeHost/uppercase (0.00s)
+2026-06-21T12:44:10.9629210Z     --- PASS: TestSanitizeHost/mixed_case (0.00s)
+2026-06-21T12:44:10.9629520Z     --- PASS: TestSanitizeHost/simple (0.00s)
+2026-06-21T12:44:10.9629860Z     --- PASS: TestSanitizeHost/with_port_and_path (0.00s)
+2026-06-21T12:44:10.9630100Z === RUN   TestSafeHash
+2026-06-21T12:44:10.9630280Z === RUN   TestSafeHash/short_hash
+2026-06-21T12:44:10.9630480Z === RUN   TestSafeHash/exact_length
+2026-06-21T12:44:10.9630680Z === RUN   TestSafeHash/long_hash
+2026-06-21T12:44:10.9631000Z === RUN   TestSafeHash/empty
+2026-06-21T12:44:10.9631180Z --- PASS: TestSafeHash (0.00s)
+2026-06-21T12:44:10.9631450Z     --- PASS: TestSafeHash/short_hash (0.00s)
+2026-06-21T12:44:10.9631760Z     --- PASS: TestSafeHash/exact_length (0.00s)
+2026-06-21T12:44:10.9632060Z     --- PASS: TestSafeHash/long_hash (0.00s)
+2026-06-21T12:44:10.9632340Z     --- PASS: TestSafeHash/empty (0.00s)
+2026-06-21T12:44:10.9632600Z === RUN   TestFingerprintTimeline_computeRecordChecksum
+2026-06-21T12:44:10.9633000Z --- PASS: TestFingerprintTimeline_computeRecordChecksum (0.00s)
+2026-06-21T12:44:10.9633360Z === RUN   TestFingerprintTimeline_diffFields
+2026-06-21T12:44:10.9633630Z --- PASS: TestFingerprintTimeline_diffFields (0.00s)
+2026-06-21T12:44:10.9633950Z === RUN   TestFingerprintTimeline_diffFields_NoChange
+2026-06-21T12:44:10.9634260Z --- PASS: TestFingerprintTimeline_diffFields_NoChange (0.00s)
+2026-06-21T12:44:10.9634510Z PASS
+2026-06-21T12:44:10.9634660Z coverage: 61.1% of statements
+2026-06-21T12:44:10.9635030Z ok  	github.com/Developer-Army/BBPTS/internal/domain/recon	5.013s	coverage: 61.1% of statements
+2026-06-21T12:44:10.9635400Z === RUN   TestCalculateRisk
+2026-06-21T12:44:10.9635680Z === RUN   TestCalculateRisk/All_zero_factors
+2026-06-21T12:44:10.9635920Z === RUN   TestCalculateRisk/All_max_factors
+2026-06-21T12:44:10.9636170Z === RUN   TestCalculateRisk/Weighted_calculation_test
+2026-06-21T12:44:10.9636430Z --- PASS: TestCalculateRisk (0.00s)
+2026-06-21T12:44:10.9636750Z     --- PASS: TestCalculateRisk/All_zero_factors (0.00s)
+2026-06-21T12:44:10.9637130Z     --- PASS: TestCalculateRisk/All_max_factors (0.00s)
+2026-06-21T12:44:10.9637520Z     --- PASS: TestCalculateRisk/Weighted_calculation_test (0.00s)
+2026-06-21T12:44:10.9637760Z PASS
+2026-06-21T12:44:10.9637900Z coverage: 50.0% of statements
+2026-06-21T12:44:10.9638250Z ok  	github.com/Developer-Army/BBPTS/internal/domain/risk	1.102s	coverage: 50.0% of statements
+2026-06-21T12:44:10.9638610Z === RUN   TestNewSanitizer
+2026-06-21T12:44:10.9638790Z --- PASS: TestNewSanitizer (0.00s)
+2026-06-21T12:44:10.9639000Z === RUN   TestValidateFleetName
+2026-06-21T12:44:10.9639230Z === RUN   TestValidateFleetName/valid_fleet_name
+2026-06-21T12:44:10.9639640Z === RUN   TestValidateFleetName/valid_with_underscore
+2026-06-21T12:44:10.9639990Z === RUN   TestValidateFleetName/valid_alphanumeric
+2026-06-21T12:44:10.9640280Z === RUN   TestValidateFleetName/empty_string
+2026-06-21T12:44:10.9640540Z === RUN   TestValidateFleetName/too_long
+2026-06-21T12:44:10.9640820Z === RUN   TestValidateFleetName/with_shell_metacharacter
+2026-06-21T12:44:10.9641080Z === RUN   TestValidateFleetName/with_space
+2026-06-21T12:44:10.9641310Z === RUN   TestValidateFleetName/with_pipe
+2026-06-21T12:44:10.9641560Z === RUN   TestValidateFleetName/with_special_chars
+2026-06-21T12:44:10.9641810Z --- PASS: TestValidateFleetName (0.00s)
+2026-06-21T12:44:10.9642280Z     --- PASS: TestValidateFleetName/valid_fleet_name (0.00s)
+2026-06-21T12:44:10.9642870Z     --- PASS: TestValidateFleetName/valid_with_underscore (0.00s)
+2026-06-21T12:44:10.9643380Z     --- PASS: TestValidateFleetName/valid_alphanumeric (0.00s)
+2026-06-21T12:44:10.9643800Z     --- PASS: TestValidateFleetName/empty_string (0.00s)
+2026-06-21T12:44:10.9644150Z     --- PASS: TestValidateFleetName/too_long (0.00s)
+2026-06-21T12:44:10.9644560Z     --- PASS: TestValidateFleetName/with_shell_metacharacter (0.00s)
+2026-06-21T12:44:10.9644950Z     --- PASS: TestValidateFleetName/with_space (0.00s)
+2026-06-21T12:44:10.9645300Z     --- PASS: TestValidateFleetName/with_pipe (0.00s)
+2026-06-21T12:44:10.9645680Z     --- PASS: TestValidateFleetName/with_special_chars (0.00s)
+2026-06-21T12:44:10.9646040Z === RUN   TestValidateToolName
+2026-06-21T12:44:10.9646280Z === RUN   TestValidateToolName/valid_tool_name
+2026-06-21T12:44:10.9646550Z === RUN   TestValidateToolName/valid_with_hyphen
+2026-06-21T12:44:10.9646800Z === RUN   TestValidateToolName/valid_lowercase
+2026-06-21T12:44:10.9647070Z === RUN   TestValidateToolName/empty_string
+2026-06-21T12:44:10.9647340Z === RUN   TestValidateToolName/uppercase_not_allowed
+2026-06-21T12:44:10.9647720Z === RUN   TestValidateToolName/too_long
+2026-06-21T12:44:10.9647960Z === RUN   TestValidateToolName/with_underscore
+2026-06-21T12:44:10.9648270Z === RUN   TestValidateToolName/with_shell_metacharacter
+2026-06-21T12:44:10.9648570Z --- PASS: TestValidateToolName (0.00s)
+2026-06-21T12:44:10.9648910Z     --- PASS: TestValidateToolName/valid_tool_name (0.00s)
+2026-06-21T12:44:10.9649290Z     --- PASS: TestValidateToolName/valid_with_hyphen (0.00s)
+2026-06-21T12:44:10.9649800Z     --- PASS: TestValidateToolName/valid_lowercase (0.00s)
+2026-06-21T12:44:10.9650170Z     --- PASS: TestValidateToolName/empty_string (0.00s)
+2026-06-21T12:44:10.9650570Z     --- PASS: TestValidateToolName/uppercase_not_allowed (0.00s)
+2026-06-21T12:44:10.9651150Z     --- PASS: TestValidateToolName/too_long (0.00s)
+2026-06-21T12:44:10.9651540Z     --- PASS: TestValidateToolName/with_underscore (0.00s)
+2026-06-21T12:44:10.9652000Z     --- PASS: TestValidateToolName/with_shell_metacharacter (0.00s)
+2026-06-21T12:44:10.9652300Z === RUN   TestValidateFilePath
+2026-06-21T12:44:10.9652540Z === RUN   TestValidateFilePath/valid_file_path
+2026-06-21T12:44:10.9652800Z === RUN   TestValidateFilePath/valid_relative_path
+2026-06-21T12:44:10.9653100Z === RUN   TestValidateFilePath/valid_with_underscore
+2026-06-21T12:44:10.9653430Z === RUN   TestValidateFilePath/empty_string
+2026-06-21T12:44:10.9653690Z === RUN   TestValidateFilePath/directory_traversal
+2026-06-21T12:44:10.9653950Z === RUN   TestValidateFilePath/simple_traversal
+2026-06-21T12:44:10.9654340Z === RUN   TestValidateFilePath/with_shell_metacharacter
+2026-06-21T12:44:10.9654650Z === RUN   TestValidateFilePath/too_long
+2026-06-21T12:44:10.9654910Z --- PASS: TestValidateFilePath (0.00s)
+2026-06-21T12:44:10.9655240Z     --- PASS: TestValidateFilePath/valid_file_path (0.00s)
+2026-06-21T12:44:10.9655640Z     --- PASS: TestValidateFilePath/valid_relative_path (0.00s)
+2026-06-21T12:44:10.9656050Z     --- PASS: TestValidateFilePath/valid_with_underscore (0.00s)
+2026-06-21T12:44:10.9656520Z     --- PASS: TestValidateFilePath/empty_string (0.00s)
+2026-06-21T12:44:10.9656930Z     --- PASS: TestValidateFilePath/directory_traversal (0.00s)
+2026-06-21T12:44:10.9657320Z     --- PASS: TestValidateFilePath/simple_traversal (0.00s)
+2026-06-21T12:44:10.9657740Z     --- PASS: TestValidateFilePath/with_shell_metacharacter (0.00s)
+2026-06-21T12:44:10.9658120Z     --- PASS: TestValidateFilePath/too_long (0.00s)
+2026-06-21T12:44:10.9658360Z === RUN   TestValidateURL
+2026-06-21T12:44:10.9658550Z === RUN   TestValidateURL/valid_https_URL
+2026-06-21T12:44:10.9658780Z === RUN   TestValidateURL/valid_http_URL
+2026-06-21T12:44:10.9659010Z === RUN   TestValidateURL/valid_URL_with_path
+2026-06-21T12:44:10.9659340Z === RUN   TestValidateURL/valid_URL_with_query
+2026-06-21T12:44:10.9659570Z === RUN   TestValidateURL/empty_string
+2026-06-21T12:44:10.9659810Z === RUN   TestValidateURL/no_scheme
+2026-06-21T12:44:10.9660020Z === RUN   TestValidateURL/localhost
+2026-06-21T12:44:10.9660900Z 2026/06/21 12:43:44 WARN SSRF check blocked URL url=http://localhost error="host localhost resolves to private IP ::1"
+2026-06-21T12:44:10.9661340Z === RUN   TestValidateURL/127.0.0.1
+2026-06-21T12:44:10.9662560Z 2026/06/21 12:43:44 WARN SSRF check blocked URL url=http://127.0.0.1 error="IP address is private/local: 127.0.0.1"
+2026-06-21T12:44:10.9662640Z === RUN   TestValidateURL/192.168.1.1
+2026-06-21T12:44:10.9662940Z 2026/06/21 12:43:44 WARN SSRF check blocked URL url=http://192.168.1.1 error="IP address is private/local: 192.168.1.1"
+2026-06-21T12:44:10.9663040Z === RUN   TestValidateURL/10.0.0.1
+2026-06-21T12:44:10.9663320Z 2026/06/21 12:43:44 WARN SSRF check blocked URL url=http://10.0.0.1 error="IP address is private/local: 10.0.0.1"
+2026-06-21T12:44:10.9663420Z === RUN   TestValidateURL/169.254.1.1
+2026-06-21T12:44:10.9663700Z 2026/06/21 12:43:44 WARN SSRF check blocked URL url=http://169.254.1.1 error="IP address is private/local: 169.254.1.1"
+2026-06-21T12:44:10.9663820Z === RUN   TestValidateURL/with_shell_metacharacter
+2026-06-21T12:44:10.9664130Z === RUN   TestValidateURL/file://_protocol
+2026-06-21T12:44:10.9664210Z --- PASS: TestValidateURL (0.01s)
+2026-06-21T12:44:10.9664390Z     --- PASS: TestValidateURL/valid_https_URL (0.00s)
+2026-06-21T12:44:10.9664570Z     --- PASS: TestValidateURL/valid_http_URL (0.00s)
+2026-06-21T12:44:10.9664750Z     --- PASS: TestValidateURL/valid_URL_with_path (0.00s)
+2026-06-21T12:44:10.9664940Z     --- PASS: TestValidateURL/valid_URL_with_query (0.00s)
+2026-06-21T12:44:10.9665170Z     --- PASS: TestValidateURL/empty_string (0.00s)
+2026-06-21T12:44:10.9665330Z     --- PASS: TestValidateURL/no_scheme (0.00s)
+2026-06-21T12:44:10.9665490Z     --- PASS: TestValidateURL/localhost (0.01s)
+2026-06-21T12:44:10.9665640Z     --- PASS: TestValidateURL/127.0.0.1 (0.00s)
+2026-06-21T12:44:10.9665790Z     --- PASS: TestValidateURL/192.168.1.1 (0.00s)
+2026-06-21T12:44:10.9665940Z     --- PASS: TestValidateURL/10.0.0.1 (0.00s)
+2026-06-21T12:44:10.9666090Z     --- PASS: TestValidateURL/169.254.1.1 (0.00s)
+2026-06-21T12:44:10.9666310Z     --- PASS: TestValidateURL/with_shell_metacharacter (0.00s)
+2026-06-21T12:44:10.9666490Z     --- PASS: TestValidateURL/file://_protocol (0.00s)
+2026-06-21T12:44:10.9666570Z === RUN   TestSanitizeShellArg
+2026-06-21T12:44:10.9666650Z === RUN   TestSanitizeShellArg/clean_arg
+2026-06-21T12:44:10.9666930Z === RUN   TestSanitizeShellArg/with_semicolon
+2026-06-21T12:44:10.9667020Z === RUN   TestSanitizeShellArg/with_pipe
+2026-06-21T12:44:10.9667120Z === RUN   TestSanitizeShellArg/with_ampersand
+2026-06-21T12:44:10.9667250Z === RUN   TestSanitizeShellArg/with_backtick
+2026-06-21T12:44:10.9667370Z === RUN   TestSanitizeShellArg/with_dollar_sign
+2026-06-21T12:44:10.9667460Z === RUN   TestSanitizeShellArg/with_parentheses
+2026-06-21T12:44:10.9667550Z === RUN   TestSanitizeShellArg/with_space
+2026-06-21T12:44:10.9667670Z === RUN   TestSanitizeShellArg/with_multiple_metachars
+2026-06-21T12:44:10.9667760Z === RUN   TestSanitizeShellArg/with_newline
+2026-06-21T12:44:10.9667890Z --- PASS: TestSanitizeShellArg (0.01s)
+2026-06-21T12:44:10.9668060Z     --- PASS: TestSanitizeShellArg/clean_arg (0.00s)
+2026-06-21T12:44:10.9668250Z     --- PASS: TestSanitizeShellArg/with_semicolon (0.00s)
+2026-06-21T12:44:10.9668420Z     --- PASS: TestSanitizeShellArg/with_pipe (0.00s)
+2026-06-21T12:44:10.9668620Z     --- PASS: TestSanitizeShellArg/with_ampersand (0.00s)
+2026-06-21T12:44:10.9668800Z     --- PASS: TestSanitizeShellArg/with_backtick (0.00s)
+2026-06-21T12:44:10.9669000Z     --- PASS: TestSanitizeShellArg/with_dollar_sign (0.00s)
+2026-06-21T12:44:10.9669190Z     --- PASS: TestSanitizeShellArg/with_parentheses (0.00s)
+2026-06-21T12:44:10.9669370Z     --- PASS: TestSanitizeShellArg/with_space (0.00s)
+2026-06-21T12:44:10.9669600Z     --- PASS: TestSanitizeShellArg/with_multiple_metachars (0.00s)
+2026-06-21T12:44:10.9669780Z     --- PASS: TestSanitizeShellArg/with_newline (0.00s)
+2026-06-21T12:44:10.9669860Z === RUN   TestValidateInteger
+2026-06-21T12:44:10.9669950Z === RUN   TestValidateInteger/valid_in_range
+2026-06-21T12:44:10.9670040Z === RUN   TestValidateInteger/at_minimum
+2026-06-21T12:44:10.9670120Z === RUN   TestValidateInteger/at_maximum
+2026-06-21T12:44:10.9670210Z === RUN   TestValidateInteger/below_minimum
+2026-06-21T12:44:10.9670300Z === RUN   TestValidateInteger/above_maximum
+2026-06-21T12:44:10.9670400Z === RUN   TestValidateInteger/negative_range_valid
+2026-06-21T12:44:10.9670490Z --- PASS: TestValidateInteger (0.00s)
+2026-06-21T12:44:10.9670700Z     --- PASS: TestValidateInteger/valid_in_range (0.00s)
+2026-06-21T12:44:10.9670890Z     --- PASS: TestValidateInteger/at_minimum (0.00s)
+2026-06-21T12:44:10.9671070Z     --- PASS: TestValidateInteger/at_maximum (0.00s)
+2026-06-21T12:44:10.9671250Z     --- PASS: TestValidateInteger/below_minimum (0.00s)
+2026-06-21T12:44:10.9671430Z     --- PASS: TestValidateInteger/above_maximum (0.00s)
+2026-06-21T12:44:10.9671640Z     --- PASS: TestValidateInteger/negative_range_valid (0.00s)
+2026-06-21T12:44:10.9671720Z === RUN   TestValidateCommandArgs
+2026-06-21T12:44:10.9671900Z === RUN   TestValidateCommandArgs/valid_args
+2026-06-21T12:44:10.9672020Z === RUN   TestValidateCommandArgs/empty_args_allowed
+2026-06-21T12:44:10.9672120Z === RUN   TestValidateCommandArgs/with_semicolon
+2026-06-21T12:44:10.9672210Z === RUN   TestValidateCommandArgs/with_pipe
+2026-06-21T12:44:10.9672320Z === RUN   TestValidateCommandArgs/with_ampersand
+2026-06-21T12:44:10.9672440Z === RUN   TestValidateCommandArgs/with_command_chaining
+2026-06-21T12:44:10.9672620Z === RUN   TestValidateCommandArgs/with_command_substitution
+2026-06-21T12:44:10.9672730Z === RUN   TestValidateCommandArgs/with_backtick
+2026-06-21T12:44:10.9672840Z === RUN   TestValidateCommandArgs/with_dollar_paren
+2026-06-21T12:44:10.9672920Z --- PASS: TestValidateCommandArgs (0.00s)
+2026-06-21T12:44:10.9673110Z     --- PASS: TestValidateCommandArgs/valid_args (0.00s)
+2026-06-21T12:44:10.9673330Z     --- PASS: TestValidateCommandArgs/empty_args_allowed (0.00s)
+2026-06-21T12:44:10.9673540Z     --- PASS: TestValidateCommandArgs/with_semicolon (0.00s)
+2026-06-21T12:44:10.9673730Z     --- PASS: TestValidateCommandArgs/with_pipe (0.00s)
+2026-06-21T12:44:10.9673930Z     --- PASS: TestValidateCommandArgs/with_ampersand (0.00s)
+2026-06-21T12:44:10.9674160Z     --- PASS: TestValidateCommandArgs/with_command_chaining (0.00s)
+2026-06-21T12:44:10.9674410Z     --- PASS: TestValidateCommandArgs/with_command_substitution (0.00s)
+2026-06-21T12:44:10.9674610Z     --- PASS: TestValidateCommandArgs/with_backtick (0.00s)
+2026-06-21T12:44:10.9674820Z     --- PASS: TestValidateCommandArgs/with_dollar_paren (0.00s)
+2026-06-21T12:44:10.9674890Z === RUN   TestSafeString
+2026-06-21T12:44:10.9674970Z === RUN   TestSafeString/short_string
+2026-06-21T12:44:10.9675050Z === RUN   TestSafeString/exact_length
+2026-06-21T12:44:10.9675130Z === RUN   TestSafeString/too_long
+2026-06-21T12:44:10.9675210Z === RUN   TestSafeString/with_control_chars
+2026-06-21T12:44:10.9675290Z === RUN   TestSafeString/with_tab
+2026-06-21T12:44:10.9675370Z === RUN   TestSafeString/with_newline
+2026-06-21T12:44:10.9675480Z === RUN   TestSafeString/with_other_control_char
+2026-06-21T12:44:10.9675550Z === RUN   TestSafeString/empty_string
+2026-06-21T12:44:10.9675640Z --- PASS: TestSafeString (0.00s)
+2026-06-21T12:44:10.9675800Z     --- PASS: TestSafeString/short_string (0.00s)
+2026-06-21T12:44:10.9675960Z     --- PASS: TestSafeString/exact_length (0.00s)
+2026-06-21T12:44:10.9676100Z     --- PASS: TestSafeString/too_long (0.00s)
+2026-06-21T12:44:10.9676290Z     --- PASS: TestSafeString/with_control_chars (0.00s)
+2026-06-21T12:44:10.9676430Z     --- PASS: TestSafeString/with_tab (0.00s)
+2026-06-21T12:44:10.9676590Z     --- PASS: TestSafeString/with_newline (0.00s)
+2026-06-21T12:44:10.9676870Z     --- PASS: TestSafeString/with_other_control_char (0.00s)
+2026-06-21T12:44:10.9677030Z     --- PASS: TestSafeString/empty_string (0.00s)
+2026-06-21T12:44:10.9677120Z === RUN   TestContainsShellMetacharacters
+2026-06-21T12:44:10.9677240Z === RUN   TestContainsShellMetacharacters/clean_string
+2026-06-21T12:44:10.9677380Z === RUN   TestContainsShellMetacharacters/with_semicolon
+2026-06-21T12:44:10.9677490Z === RUN   TestContainsShellMetacharacters/with_pipe
+2026-06-21T12:44:10.9677640Z === RUN   TestContainsShellMetacharacters/with_ampersand
+2026-06-21T12:44:10.9677770Z === RUN   TestContainsShellMetacharacters/with_backtick
+2026-06-21T12:44:10.9677880Z === RUN   TestContainsShellMetacharacters/with_dollar
+2026-06-21T12:44:10.9678020Z === RUN   TestContainsShellMetacharacters/with_parentheses
+2026-06-21T12:44:10.9678160Z === RUN   TestContainsShellMetacharacters/with_angle_brackets
+2026-06-21T12:44:10.9678280Z === RUN   TestContainsShellMetacharacters/with_braces
+2026-06-21T12:44:10.9678400Z === RUN   TestContainsShellMetacharacters/with_brackets
+2026-06-21T12:44:10.9678520Z === RUN   TestContainsShellMetacharacters/with_backslash
+2026-06-21T12:44:10.9678640Z === RUN   TestContainsShellMetacharacters/with_quote
+2026-06-21T12:44:10.9678770Z === RUN   TestContainsShellMetacharacters/with_single_quote
+2026-06-21T12:44:10.9678960Z === RUN   TestContainsShellMetacharacters/with_space
+2026-06-21T12:44:10.9679090Z === RUN   TestContainsShellMetacharacters/with_asterisk
+2026-06-21T12:44:10.9679220Z === RUN   TestContainsShellMetacharacters/with_question_mark
+2026-06-21T12:44:10.9679490Z === RUN   TestContainsShellMetacharacters/with_exclamation
+2026-06-21T12:44:10.9679610Z --- PASS: TestContainsShellMetacharacters (0.00s)
+2026-06-21T12:44:10.9679930Z     --- PASS: TestContainsShellMetacharacters/clean_string (0.00s)
+2026-06-21T12:44:10.9680320Z     --- PASS: TestContainsShellMetacharacters/with_semicolon (0.00s)
+2026-06-21T12:44:10.9680620Z     --- PASS: TestContainsShellMetacharacters/with_pipe (0.00s)
+2026-06-21T12:44:10.9680860Z     --- PASS: TestContainsShellMetacharacters/with_ampersand (0.00s)
+2026-06-21T12:44:10.9681100Z     --- PASS: TestContainsShellMetacharacters/with_backtick (0.00s)
+2026-06-21T12:44:10.9681320Z     --- PASS: TestContainsShellMetacharacters/with_dollar (0.00s)
+2026-06-21T12:44:10.9681580Z     --- PASS: TestContainsShellMetacharacters/with_parentheses (0.00s)
+2026-06-21T12:44:10.9681840Z     --- PASS: TestContainsShellMetacharacters/with_angle_brackets (0.00s)
+2026-06-21T12:44:10.9682060Z     --- PASS: TestContainsShellMetacharacters/with_braces (0.00s)
+2026-06-21T12:44:10.9682300Z     --- PASS: TestContainsShellMetacharacters/with_brackets (0.00s)
+2026-06-21T12:44:10.9682530Z     --- PASS: TestContainsShellMetacharacters/with_backslash (0.00s)
+2026-06-21T12:44:10.9682760Z     --- PASS: TestContainsShellMetacharacters/with_quote (0.00s)
+2026-06-21T12:44:10.9683030Z     --- PASS: TestContainsShellMetacharacters/with_single_quote (0.00s)
+2026-06-21T12:44:10.9683260Z     --- PASS: TestContainsShellMetacharacters/with_space (0.00s)
+2026-06-21T12:44:10.9683510Z     --- PASS: TestContainsShellMetacharacters/with_asterisk (0.00s)
+2026-06-21T12:44:10.9683770Z     --- PASS: TestContainsShellMetacharacters/with_question_mark (0.00s)
+2026-06-21T12:44:10.9684020Z     --- PASS: TestContainsShellMetacharacters/with_exclamation (0.00s)
+2026-06-21T12:44:10.9684100Z === RUN   TestIsShellMetacharacter
+2026-06-21T12:44:10.9684190Z === RUN   TestIsShellMetacharacter/;
+2026-06-21T12:44:10.9684270Z === RUN   TestIsShellMetacharacter/|
+2026-06-21T12:44:10.9684350Z === RUN   TestIsShellMetacharacter/&
+2026-06-21T12:44:10.9684430Z === RUN   TestIsShellMetacharacter/`
+2026-06-21T12:44:10.9684510Z === RUN   TestIsShellMetacharacter/$
+2026-06-21T12:44:10.9684590Z === RUN   TestIsShellMetacharacter/(
+2026-06-21T12:44:10.9684670Z === RUN   TestIsShellMetacharacter/)
+2026-06-21T12:44:10.9684750Z === RUN   TestIsShellMetacharacter/<
+2026-06-21T12:44:10.9684830Z === RUN   TestIsShellMetacharacter/>
+2026-06-21T12:44:10.9684900Z === RUN   TestIsShellMetacharacter/{
+2026-06-21T12:44:10.9684980Z === RUN   TestIsShellMetacharacter/}
+2026-06-21T12:44:10.9685060Z === RUN   TestIsShellMetacharacter/[
+2026-06-21T12:44:10.9685140Z === RUN   TestIsShellMetacharacter/]
+2026-06-21T12:44:10.9685230Z === RUN   TestIsShellMetacharacter/\
+2026-06-21T12:44:10.9685310Z === RUN   TestIsShellMetacharacter/"
+2026-06-21T12:44:10.9685390Z === RUN   TestIsShellMetacharacter/'
+2026-06-21T12:44:10.9685480Z === RUN   TestIsShellMetacharacter/_
+2026-06-21T12:44:10.9685570Z === RUN   TestIsShellMetacharacter/_#01
+2026-06-21T12:44:10.9685660Z === RUN   TestIsShellMetacharacter/_#02
+2026-06-21T12:44:10.9685740Z === RUN   TestIsShellMetacharacter/_#03
+2026-06-21T12:44:10.9685820Z === RUN   TestIsShellMetacharacter/*
+2026-06-21T12:44:10.9685900Z === RUN   TestIsShellMetacharacter/?
+2026-06-21T12:44:10.9685980Z === RUN   TestIsShellMetacharacter/!
+2026-06-21T12:44:10.9686060Z === RUN   TestIsShellMetacharacter/a
+2026-06-21T12:44:10.9686140Z === RUN   TestIsShellMetacharacter/A
+2026-06-21T12:44:10.9686220Z === RUN   TestIsShellMetacharacter/0
+2026-06-21T12:44:10.9686310Z === RUN   TestIsShellMetacharacter/-
+2026-06-21T12:44:10.9686400Z === RUN   TestIsShellMetacharacter/_#04
+2026-06-21T12:44:10.9686480Z === RUN   TestIsShellMetacharacter/.
+2026-06-21T12:44:10.9686710Z === RUN   TestIsShellMetacharacter//
+2026-06-21T12:44:10.9686800Z --- PASS: TestIsShellMetacharacter (0.00s)
+2026-06-21T12:44:10.9686960Z     --- PASS: TestIsShellMetacharacter/; (0.00s)
+2026-06-21T12:44:10.9687120Z     --- PASS: TestIsShellMetacharacter/| (0.00s)
+2026-06-21T12:44:10.9687280Z     --- PASS: TestIsShellMetacharacter/& (0.00s)
+2026-06-21T12:44:10.9687430Z     --- PASS: TestIsShellMetacharacter/` (0.00s)
+2026-06-21T12:44:10.9687680Z     --- PASS: TestIsShellMetacharacter/$ (0.00s)
+2026-06-21T12:44:10.9687840Z     --- PASS: TestIsShellMetacharacter/( (0.00s)
+2026-06-21T12:44:10.9688010Z     --- PASS: TestIsShellMetacharacter/) (0.00s)
+2026-06-21T12:44:10.9688170Z     --- PASS: TestIsShellMetacharacter/< (0.00s)
+2026-06-21T12:44:10.9688320Z     --- PASS: TestIsShellMetacharacter/> (0.00s)
+2026-06-21T12:44:10.9688480Z     --- PASS: TestIsShellMetacharacter/{ (0.00s)
+2026-06-21T12:44:10.9688630Z     --- PASS: TestIsShellMetacharacter/} (0.00s)
+2026-06-21T12:44:10.9688790Z     --- PASS: TestIsShellMetacharacter/[ (0.00s)
+2026-06-21T12:44:10.9688950Z     --- PASS: TestIsShellMetacharacter/] (0.00s)
+2026-06-21T12:44:10.9689100Z     --- PASS: TestIsShellMetacharacter/\ (0.00s)
+2026-06-21T12:44:10.9689260Z     --- PASS: TestIsShellMetacharacter/" (0.00s)
+2026-06-21T12:44:10.9689410Z     --- PASS: TestIsShellMetacharacter/' (0.00s)
+2026-06-21T12:44:10.9689570Z     --- PASS: TestIsShellMetacharacter/_ (0.00s)
+2026-06-21T12:44:10.9689730Z     --- PASS: TestIsShellMetacharacter/_#01 (0.00s)
+2026-06-21T12:44:10.9689910Z     --- PASS: TestIsShellMetacharacter/_#02 (0.00s)
+2026-06-21T12:44:10.9695300Z     --- PASS: TestIsShellMetacharacter/_#03 (0.00s)
+2026-06-21T12:44:10.9695490Z     --- PASS: TestIsShellMetacharacter/* (0.00s)
+2026-06-21T12:44:10.9695650Z     --- PASS: TestIsShellMetacharacter/? (0.00s)
+2026-06-21T12:44:10.9695810Z     --- PASS: TestIsShellMetacharacter/! (0.00s)
+2026-06-21T12:44:10.9695960Z     --- PASS: TestIsShellMetacharacter/a (0.00s)
+2026-06-21T12:44:10.9696130Z     --- PASS: TestIsShellMetacharacter/A (0.00s)
+2026-06-21T12:44:10.9696280Z     --- PASS: TestIsShellMetacharacter/0 (0.00s)
+2026-06-21T12:44:10.9696440Z     --- PASS: TestIsShellMetacharacter/- (0.00s)
+2026-06-21T12:44:10.9696690Z     --- PASS: TestIsShellMetacharacter/_#04 (0.00s)
+2026-06-21T12:44:10.9696890Z     --- PASS: TestIsShellMetacharacter/. (0.00s)
+2026-06-21T12:44:10.9697040Z     --- PASS: TestIsShellMetacharacter// (0.00s)
+2026-06-21T12:44:10.9697120Z === RUN   TestIsInternalURL
+2026-06-21T12:44:10.9697210Z === RUN   TestIsInternalURL/public_https
+2026-06-21T12:44:10.9697290Z === RUN   TestIsInternalURL/public_http
+2026-06-21T12:44:10.9697380Z === RUN   TestIsInternalURL/localhost_http
+2026-06-21T12:44:10.9697480Z === RUN   TestIsInternalURL/localhost_https
+2026-06-21T12:44:10.9697560Z === RUN   TestIsInternalURL/127.0.0.1_http
+2026-06-21T12:44:10.9697640Z === RUN   TestIsInternalURL/127.0.0.1_https
+2026-06-21T12:44:10.9697730Z === RUN   TestIsInternalURL/0.0.0.0_http
+2026-06-21T12:44:10.9697810Z === RUN   TestIsInternalURL/0.0.0.0_https
+2026-06-21T12:44:10.9697910Z === RUN   TestIsInternalURL/ipv6_loopback_http
+2026-06-21T12:44:10.9698030Z === RUN   TestIsInternalURL/ipv6_loopback_https
+2026-06-21T12:44:10.9698130Z === RUN   TestIsInternalURL/169.254.0.0/16
+2026-06-21T12:44:10.9698210Z === RUN   TestIsInternalURL/192.168.0.0/16
+2026-06-21T12:44:10.9698290Z === RUN   TestIsInternalURL/10.0.0.0/8
+2026-06-21T12:44:10.9698390Z === RUN   TestIsInternalURL/file_protocol
+2026-06-21T12:44:10.9698490Z === RUN   TestIsInternalURL/public_ip
+2026-06-21T12:44:10.9698590Z === RUN   TestIsInternalURL/public_domain
+2026-06-21T12:44:10.9698670Z --- PASS: TestIsInternalURL (0.00s)
+2026-06-21T12:44:10.9698860Z     --- PASS: TestIsInternalURL/public_https (0.00s)
+2026-06-21T12:44:10.9699050Z     --- PASS: TestIsInternalURL/public_http (0.00s)
+2026-06-21T12:44:10.9699240Z     --- PASS: TestIsInternalURL/localhost_http (0.00s)
+2026-06-21T12:44:10.9699420Z     --- PASS: TestIsInternalURL/localhost_https (0.00s)
+2026-06-21T12:44:10.9699810Z     --- PASS: TestIsInternalURL/127.0.0.1_http (0.00s)
+2026-06-21T12:44:10.9699990Z     --- PASS: TestIsInternalURL/127.0.0.1_https (0.00s)
+2026-06-21T12:44:10.9700160Z     --- PASS: TestIsInternalURL/0.0.0.0_http (0.00s)
+2026-06-21T12:44:10.9700330Z     --- PASS: TestIsInternalURL/0.0.0.0_https (0.00s)
+2026-06-21T12:44:10.9700520Z     --- PASS: TestIsInternalURL/ipv6_loopback_http (0.00s)
+2026-06-21T12:44:10.9700720Z     --- PASS: TestIsInternalURL/ipv6_loopback_https (0.00s)
+2026-06-21T12:44:10.9700950Z     --- PASS: TestIsInternalURL/169.254.0.0/16 (0.00s)
+2026-06-21T12:44:10.9701120Z     --- PASS: TestIsInternalURL/192.168.0.0/16 (0.00s)
+2026-06-21T12:44:10.9701290Z     --- PASS: TestIsInternalURL/10.0.0.0/8 (0.00s)
+2026-06-21T12:44:10.9701460Z     --- PASS: TestIsInternalURL/file_protocol (0.00s)
+2026-06-21T12:44:10.9701620Z     --- PASS: TestIsInternalURL/public_ip (0.00s)
+2026-06-21T12:44:10.9701800Z     --- PASS: TestIsInternalURL/public_domain (0.00s)
+2026-06-21T12:44:10.9701880Z === RUN   TestRedactSecrets
+2026-06-21T12:44:10.9701960Z --- PASS: TestRedactSecrets (0.00s)
+2026-06-21T12:44:10.9702040Z === RUN   TestIsPrivateIPAndAddr
+2026-06-21T12:44:10.9702220Z === RUN   TestIsPrivateIPAndAddr/127.0.0.1
+2026-06-21T12:44:10.9702310Z === RUN   TestIsPrivateIPAndAddr/10.0.0.1
+2026-06-21T12:44:10.9702400Z === RUN   TestIsPrivateIPAndAddr/172.16.0.1
+2026-06-21T12:44:10.9702490Z === RUN   TestIsPrivateIPAndAddr/192.168.1.1
+2026-06-21T12:44:10.9702580Z === RUN   TestIsPrivateIPAndAddr/8.8.8.8
+2026-06-21T12:44:10.9702680Z === RUN   TestIsPrivateIPAndAddr/1.1.1.1
+2026-06-21T12:44:10.9702770Z --- PASS: TestIsPrivateIPAndAddr (0.00s)
+2026-06-21T12:44:10.9702950Z     --- PASS: TestIsPrivateIPAndAddr/127.0.0.1 (0.00s)
+2026-06-21T12:44:10.9703130Z     --- PASS: TestIsPrivateIPAndAddr/10.0.0.1 (0.00s)
+2026-06-21T12:44:10.9703330Z     --- PASS: TestIsPrivateIPAndAddr/172.16.0.1 (0.00s)
+2026-06-21T12:44:10.9703510Z     --- PASS: TestIsPrivateIPAndAddr/192.168.1.1 (0.00s)
+2026-06-21T12:44:10.9703690Z     --- PASS: TestIsPrivateIPAndAddr/8.8.8.8 (0.00s)
+2026-06-21T12:44:10.9703860Z     --- PASS: TestIsPrivateIPAndAddr/1.1.1.1 (0.00s)
+2026-06-21T12:44:10.9703910Z PASS
+2026-06-21T12:44:10.9703980Z coverage: 59.1% of statements
+2026-06-21T12:44:10.9704250Z ok  	github.com/Developer-Army/BBPTS/internal/domain/security	1.050s	coverage: 59.1% of statements
+2026-06-21T12:44:10.9704330Z === RUN   TestNewIdentityPool
+2026-06-21T12:44:10.9704410Z --- PASS: TestNewIdentityPool (0.00s)
+2026-06-21T12:44:10.9704480Z === RUN   TestGetOrCreate
+2026-06-21T12:44:10.9704570Z --- PASS: TestGetOrCreate (0.00s)
+2026-06-21T12:44:10.9704670Z === RUN   TestGetOrCreateBurnedIdentity
+2026-06-21T12:44:10.9704780Z --- PASS: TestGetOrCreateBurnedIdentity (0.00s)
+2026-06-21T12:44:10.9704850Z === RUN   TestReportChallenge
+2026-06-21T12:44:10.9704940Z --- PASS: TestReportChallenge (0.00s)
+2026-06-21T12:44:10.9705040Z === RUN   TestReportChallengeBurnsOnLowTrust
+2026-06-21T12:44:10.9705170Z --- PASS: TestReportChallengeBurnsOnLowTrust (0.00s)
+2026-06-21T12:44:10.9705270Z === RUN   TestReportChallengeNonExistentSession
+2026-06-21T12:44:10.9705410Z --- PASS: TestReportChallengeNonExistentSession (0.00s)
+2026-06-21T12:44:10.9705490Z === RUN   TestGenerateCoherentIdentity
+2026-06-21T12:44:10.9705610Z --- PASS: TestGenerateCoherentIdentity (0.00s)
+2026-06-21T12:44:10.9705730Z === RUN   TestGenerateCoherentIdentityUniqueIDs
+2026-06-21T12:44:10.9705860Z --- PASS: TestGenerateCoherentIdentityUniqueIDs (0.00s)
+2026-06-21T12:44:10.9705940Z === RUN   TestIdentityDefaults
+2026-06-21T12:44:10.9706040Z --- PASS: TestIdentityDefaults (0.00s)
+2026-06-21T12:44:10.9706110Z === RUN   TestGeolocation
+2026-06-21T12:44:10.9706190Z --- PASS: TestGeolocation (0.00s)
+2026-06-21T12:44:10.9706270Z === RUN   TestDefaultPoolConfig
+2026-06-21T12:44:10.9706350Z --- PASS: TestDefaultPoolConfig (0.00s)
+2026-06-21T12:44:10.9706460Z === RUN   TestLowResourcePoolConfig
+2026-06-21T12:44:10.9706560Z --- PASS: TestLowResourcePoolConfig (0.00s)
+2026-06-21T12:44:10.9706640Z === RUN   TestDefaultPoolConfigArgs
+2026-06-21T12:44:10.9706840Z --- PASS: TestDefaultPoolConfigArgs (0.00s)
+2026-06-21T12:44:10.9706920Z === RUN   TestLowResourcePoolConfigArgs
+2026-06-21T12:44:10.9707030Z --- PASS: TestLowResourcePoolConfigArgs (0.00s)
+2026-06-21T12:44:10.9707100Z === RUN   TestBrowserInstance
+2026-06-21T12:44:10.9707200Z --- PASS: TestBrowserInstance (0.00s)
+2026-06-21T12:44:10.9707290Z === RUN   TestPoolConfigDefaults
+2026-06-21T12:44:10.9707380Z --- PASS: TestPoolConfigDefaults (0.00s)
+2026-06-21T12:44:10.9707530Z === RUN   TestPoolConfigCustom
+2026-06-21T12:44:10.9707620Z --- PASS: TestPoolConfigCustom (0.00s)
+2026-06-21T12:44:10.9707700Z === RUN   TestSelectBrowserLogic
+2026-06-21T12:44:10.9707790Z --- PASS: TestSelectBrowserLogic (0.00s)
+2026-06-21T12:44:10.9707840Z PASS
+2026-06-21T12:44:10.9707900Z coverage: 8.9% of statements
+2026-06-21T12:44:10.9708190Z ok  	github.com/Developer-Army/BBPTS/internal/infrastructure/browser	1.121s	coverage: 8.9% of statements
+2026-06-21T12:44:10.9708270Z === RUN   TestCircuitBreakerClosedToOpen
+2026-06-21T12:44:10.9708490Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=test-tool from=closed to=open
+2026-06-21T12:44:10.9708600Z --- PASS: TestCircuitBreakerClosedToOpen (0.00s)
+2026-06-21T12:44:10.9708700Z === RUN   TestCircuitBreakerOpenToHalfOpen
+2026-06-21T12:44:10.9708900Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=test-tool from=closed to=open
+2026-06-21T12:44:10.9709120Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=test-tool from=open to=half-open
+2026-06-21T12:44:10.9709340Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=test-tool from=half-open to=closed
+2026-06-21T12:44:10.9709450Z --- PASS: TestCircuitBreakerOpenToHalfOpen (0.06s)
+2026-06-21T12:44:10.9709550Z === RUN   TestCircuitBreakerHalfOpenFailure
+2026-06-21T12:44:10.9709740Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=test-tool from=closed to=open
+2026-06-21T12:44:10.9709960Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=test-tool from=open to=half-open
+2026-06-21T12:44:10.9710170Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=test-tool from=half-open to=open
+2026-06-21T12:44:10.9710290Z --- PASS: TestCircuitBreakerHalfOpenFailure (0.06s)
+2026-06-21T12:44:10.9710400Z === RUN   TestCircuitBreakerSuccessResetsClosed
+2026-06-21T12:44:10.9710530Z --- PASS: TestCircuitBreakerSuccessResetsClosed (0.00s)
+2026-06-21T12:44:10.9710610Z === RUN   TestCircuitBreakerRegistry
+2026-06-21T12:44:10.9710710Z --- PASS: TestCircuitBreakerRegistry (0.00s)
+2026-06-21T12:44:10.9710800Z === RUN   TestExecuteWithCircuitBreaker
+2026-06-21T12:44:10.9710900Z --- PASS: TestExecuteWithCircuitBreaker (0.00s)
+2026-06-21T12:44:10.9711010Z === RUN   TestCircuitBreakerStateChangeCallback
+2026-06-21T12:44:10.9711250Z 2026/06/21 12:43:47 INFO Circuit breaker state changed name=callback-test from=closed to=open
+2026-06-21T12:44:10.9711380Z --- PASS: TestCircuitBreakerStateChangeCallback (0.01s)
+2026-06-21T12:44:10.9711490Z === RUN   TestStealthClientInjectsCustomHeaders
+2026-06-21T12:44:10.9711620Z --- PASS: TestStealthClientInjectsCustomHeaders (1.78s)
+2026-06-21T12:44:10.9711710Z === RUN   TestStealthClientPostSendsBody
+2026-06-21T12:44:10.9711920Z --- PASS: TestStealthClientPostSendsBody (0.57s)
+2026-06-21T12:44:10.9712030Z === RUN   TestLimiterUnlimitedReturnsImmediately
+2026-06-21T12:44:10.9712170Z --- PASS: TestLimiterUnlimitedReturnsImmediately (0.00s)
+2026-06-21T12:44:10.9712250Z === RUN   TestLimiterBlocksUnderLoad
+2026-06-21T12:44:10.9712370Z --- PASS: TestLimiterBlocksUnderLoad (1.00s)
+2026-06-21T12:44:10.9712500Z === RUN   TestLimiterRespectsContextCancellation
+2026-06-21T12:44:10.9712650Z --- PASS: TestLimiterRespectsContextCancellation (0.00s)
+2026-06-21T12:44:10.9712740Z === RUN   TestLimiterStopIsNoop
+2026-06-21T12:44:10.9712840Z --- PASS: TestLimiterStopIsNoop (0.00s)
+2026-06-21T12:44:10.9712880Z PASS
+2026-06-21T12:44:10.9712960Z coverage: 32.2% of statements
+2026-06-21T12:44:10.9713240Z ok  	github.com/Developer-Army/BBPTS/internal/infrastructure/network	4.627s	coverage: 32.2% of statements
+2026-06-21T12:44:10.9713390Z === RUN   TestNew
+2026-06-21T12:44:10.9713460Z --- PASS: TestNew (0.00s)
+2026-06-21T12:44:10.9713520Z === RUN   TestSubscribe
+2026-06-21T12:44:10.9713600Z --- PASS: TestSubscribe (0.00s)
+2026-06-21T12:44:10.9713670Z === RUN   TestQueueSubscribe
+2026-06-21T12:44:10.9713750Z --- PASS: TestQueueSubscribe (0.00s)
+2026-06-21T12:44:10.9713810Z === RUN   TestPublish
+2026-06-21T12:44:10.9713900Z --- PASS: TestPublish (0.00s)
+2026-06-21T12:44:10.9714090Z === RUN   TestPublishMultipleSubscribers
+2026-06-21T12:44:10.9714210Z --- PASS: TestPublishMultipleSubscribers (0.00s)
+2026-06-21T12:44:10.9714300Z === RUN   TestPublishNoSubscribers
+2026-06-21T12:44:10.9714390Z --- PASS: TestPublishNoSubscribers (0.00s)
+2026-06-21T12:44:10.9714470Z === RUN   TestPublishDifferentEventTypes
+2026-06-21T12:44:10.9714580Z --- PASS: TestPublishDifferentEventTypes (0.00s)
+2026-06-21T12:44:10.9714680Z === RUN   TestPublishWithProperties
+2026-06-21T12:44:10.9714790Z --- PASS: TestPublishWithProperties (0.00s)
+2026-06-21T12:44:10.9714860Z === RUN   TestClose
+2026-06-21T12:44:10.9714940Z --- PASS: TestClose (0.00s)
+2026-06-21T12:44:10.9715030Z === RUN   TestCloseMultipleSubscribers
+2026-06-21T12:44:10.9715130Z --- PASS: TestCloseMultipleSubscribers (0.00s)
+2026-06-21T12:44:10.9715210Z === RUN   TestPublishAfterClose
+2026-06-21T12:44:10.9715330Z --- PASS: TestPublishAfterClose (0.00s)
+2026-06-21T12:44:10.9715410Z === RUN   TestSubscribeAfterClose
+2026-06-21T12:44:10.9715510Z --- PASS: TestSubscribeAfterClose (0.00s)
+2026-06-21T12:44:10.9715580Z === RUN   TestEventStructure
+2026-06-21T12:44:10.9715660Z --- PASS: TestEventStructure (0.00s)
+2026-06-21T12:44:10.9715740Z === RUN   TestSubscriberChannel
+2026-06-21T12:44:10.9715820Z --- PASS: TestSubscriberChannel (0.00s)
+2026-06-21T12:44:10.9715910Z === RUN   TestPublishDropsWhenFull
+2026-06-21T12:44:10.9716260Z 2026/06/21 12:43:53 ERROR event dropped: subscriber channel full after 5s backpressure timeout event_type=test-event target=acme-corp.io
+2026-06-21T12:44:10.9716360Z --- PASS: TestPublishDropsWhenFull (5.00s)
+2026-06-21T12:44:10.9716430Z === RUN   TestUnsubscribe
+2026-06-21T12:44:10.9716510Z --- PASS: TestUnsubscribe (0.00s)
+2026-06-21T12:44:10.9716610Z === RUN   TestUnsubscribeRemovesFromSubscribers
+2026-06-21T12:44:10.9716750Z --- PASS: TestUnsubscribeRemovesFromSubscribers (0.00s)
+2026-06-21T12:44:10.9716840Z === RUN   TestUnsubscribeSpecificChannel
+2026-06-21T12:44:10.9716950Z --- PASS: TestUnsubscribeSpecificChannel (0.00s)
+2026-06-21T12:44:10.9717030Z === RUN   TestUnsubscribeMultipleTimes
+2026-06-21T12:44:10.9717140Z --- PASS: TestUnsubscribeMultipleTimes (0.00s)
+2026-06-21T12:44:10.9717240Z === RUN   TestMultipleEventTypes
+2026-06-21T12:44:10.9717330Z --- PASS: TestMultipleEventTypes (0.00s)
+2026-06-21T12:44:10.9717400Z === RUN   TestEventConstants
+2026-06-21T12:44:10.9717480Z --- PASS: TestEventConstants (0.00s)
+2026-06-21T12:44:10.9717570Z === RUN   TestErrCheckpointNotFound
+2026-06-21T12:44:10.9717670Z --- PASS: TestErrCheckpointNotFound (0.00s)
+2026-06-21T12:44:10.9717750Z === RUN   TestCheckpointStructure
+2026-06-21T12:44:10.9717840Z --- PASS: TestCheckpointStructure (0.00s)
+2026-06-21T12:44:10.9717930Z === RUN   TestCheckpointManagerStructure
+2026-06-21T12:44:10.9718040Z --- PASS: TestCheckpointManagerStructure (0.00s)
+2026-06-21T12:44:10.9718120Z === RUN   TestCheckpointKeyFormat
+2026-06-21T12:44:10.9718210Z --- PASS: TestCheckpointKeyFormat (0.00s)
+2026-06-21T12:44:10.9718280Z === RUN   TestResumePlanStructure
+2026-06-21T12:44:10.9718380Z --- PASS: TestResumePlanStructure (0.00s)
+2026-06-21T12:44:10.9718450Z === RUN   TestResumePlanCanResume
+2026-06-21T12:44:10.9718550Z === RUN   TestResumePlanCanResume/has_pending
+2026-06-21T12:44:10.9718650Z === RUN   TestResumePlanCanResume/has_in_progress
+2026-06-21T12:44:10.9718750Z === RUN   TestResumePlanCanResume/has_failed
+2026-06-21T12:44:10.9718850Z === RUN   TestResumePlanCanResume/all_completed
+2026-06-21T12:44:10.9718940Z === RUN   TestResumePlanCanResume/empty
+2026-06-21T12:44:10.9719110Z --- PASS: TestResumePlanCanResume (0.00s)
+2026-06-21T12:44:10.9719310Z     --- PASS: TestResumePlanCanResume/has_pending (0.00s)
+2026-06-21T12:44:10.9719520Z     --- PASS: TestResumePlanCanResume/has_in_progress (0.00s)
+2026-06-21T12:44:10.9719700Z     --- PASS: TestResumePlanCanResume/has_failed (0.00s)
+2026-06-21T12:44:10.9719900Z     --- PASS: TestResumePlanCanResume/all_completed (0.00s)
+2026-06-21T12:44:10.9720070Z     --- PASS: TestResumePlanCanResume/empty (0.00s)
+2026-06-21T12:44:10.9720240Z === RUN   TestResumePlanGetNextTargets
+2026-06-21T12:44:10.9720370Z === RUN   TestResumePlanGetNextTargets/pending_targets
+2026-06-21T12:44:10.9720550Z === RUN   TestResumePlanGetNextTargets/failed_targets_when_no_pending
+2026-06-21T12:44:10.9720750Z === RUN   TestResumePlanGetNextTargets/pending_takes_precedence_over_failed
+2026-06-21T12:44:10.9720900Z === RUN   TestResumePlanGetNextTargets/no_targets_for_stage
+2026-06-21T12:44:10.9721010Z === RUN   TestResumePlanGetNextTargets/empty_plan
+2026-06-21T12:44:10.9721120Z --- PASS: TestResumePlanGetNextTargets (0.00s)
+2026-06-21T12:44:10.9721360Z     --- PASS: TestResumePlanGetNextTargets/pending_targets (0.00s)
+2026-06-21T12:44:10.9721680Z     --- PASS: TestResumePlanGetNextTargets/failed_targets_when_no_pending (0.00s)
+2026-06-21T12:44:10.9722030Z     --- PASS: TestResumePlanGetNextTargets/pending_takes_precedence_over_failed (0.00s)
+2026-06-21T12:44:10.9722290Z     --- PASS: TestResumePlanGetNextTargets/no_targets_for_stage (0.00s)
+2026-06-21T12:44:10.9722500Z     --- PASS: TestResumePlanGetNextTargets/empty_plan (0.00s)
+2026-06-21T12:44:10.9722590Z === RUN   TestCheckpointStatusValues
+2026-06-21T12:44:10.9722690Z --- PASS: TestCheckpointStatusValues (0.00s)
+2026-06-21T12:44:10.9722780Z === RUN   TestCheckpointProgressRange
+2026-06-21T12:44:10.9722880Z --- PASS: TestCheckpointProgressRange (0.00s)
+2026-06-21T12:44:10.9722960Z === RUN   TestCheckpointTimestamps
+2026-06-21T12:44:10.9723050Z --- PASS: TestCheckpointTimestamps (0.00s)
+2026-06-21T12:44:10.9723140Z === RUN   TestCheckpointLeaseExpiry
+2026-06-21T12:44:10.9723240Z --- PASS: TestCheckpointLeaseExpiry (0.00s)
+2026-06-21T12:44:10.9723310Z === RUN   TestCheckpointDataMap
+2026-06-21T12:44:10.9723400Z --- PASS: TestCheckpointDataMap (0.00s)
+2026-06-21T12:44:10.9723480Z === RUN   TestCheckpointManagerNilKV
+2026-06-21T12:44:10.9723570Z --- PASS: TestCheckpointManagerNilKV (0.00s)
+2026-06-21T12:44:10.9723660Z === RUN   TestErrTaskAlreadyProcessed
+2026-06-21T12:44:10.9723760Z --- PASS: TestErrTaskAlreadyProcessed (0.00s)
+2026-06-21T12:44:10.9723840Z === RUN   TestErrTaskNotFound
+2026-06-21T12:44:10.9723920Z --- PASS: TestErrTaskNotFound (0.00s)
+2026-06-21T12:44:10.9724000Z === RUN   TestTaskResultStructure
+2026-06-21T12:44:10.9724090Z --- PASS: TestTaskResultStructure (0.00s)
+2026-06-21T12:44:10.9724180Z === RUN   TestIdempotencyManagerStructure
+2026-06-21T12:44:10.9724290Z --- PASS: TestIdempotencyManagerStructure (0.00s)
+2026-06-21T12:44:10.9724370Z === RUN   TestTaskResultStatusValues
+2026-06-21T12:44:10.9724480Z --- PASS: TestTaskResultStatusValues (0.00s)
+2026-06-21T12:44:10.9724550Z === RUN   TestTaskResultKeyFormat
+2026-06-21T12:44:10.9724640Z --- PASS: TestTaskResultKeyFormat (0.00s)
+2026-06-21T12:44:10.9724720Z === RUN   TestEventDeduperStructure
+2026-06-21T12:44:10.9724820Z --- PASS: TestEventDeduperStructure (0.00s)
+2026-06-21T12:44:10.9724900Z === RUN   TestEventDeduperKeyFormat
+2026-06-21T12:44:10.9725000Z --- PASS: TestEventDeduperKeyFormat (0.00s)
+2026-06-21T12:44:10.9725090Z === RUN   TestSessionReplayLogStructure
+2026-06-21T12:44:10.9725200Z --- PASS: TestSessionReplayLogStructure (0.00s)
+2026-06-21T12:44:10.9725420Z === RUN   TestSessionReplayLogKeyFormat
+2026-06-21T12:44:10.9725590Z --- PASS: TestSessionReplayLogKeyFormat (0.00s)
+2026-06-21T12:44:10.9725680Z === RUN   TestTaskResultTimestamp
+2026-06-21T12:44:10.9725770Z --- PASS: TestTaskResultTimestamp (0.00s)
+2026-06-21T12:44:10.9725850Z === RUN   TestTaskResultEvents
+2026-06-21T12:44:10.9725940Z --- PASS: TestTaskResultEvents (0.00s)
+2026-06-21T12:44:10.9726320Z === RUN   TestTaskResultWithError
+2026-06-21T12:44:10.9726410Z --- PASS: TestTaskResultWithError (0.00s)
+2026-06-21T12:44:10.9726500Z === RUN   TestIdempotencyManagerNilKV
+2026-06-21T12:44:10.9726610Z --- PASS: TestIdempotencyManagerNilKV (0.00s)
+2026-06-21T12:44:10.9726690Z === RUN   TestTaskResultWithMockKV
+2026-06-21T12:44:10.9726780Z --- PASS: TestTaskResultWithMockKV (0.00s)
+2026-06-21T12:44:10.9726860Z === RUN   TestEventDeduperWithMockKV
+2026-06-21T12:44:10.9727020Z --- PASS: TestEventDeduperWithMockKV (0.00s)
+2026-06-21T12:44:10.9727110Z === RUN   TestSessionReplayLogWithMockKV
+2026-06-21T12:44:10.9727230Z --- PASS: TestSessionReplayLogWithMockKV (0.00s)
+2026-06-21T12:44:10.9727310Z === RUN   TestTaskResultEventCount
+2026-06-21T12:44:10.9727400Z --- PASS: TestTaskResultEventCount (0.00s)
+2026-06-21T12:44:10.9727470Z === RUN   TestTaskResultWorkerID
+2026-06-21T12:44:10.9727560Z --- PASS: TestTaskResultWorkerID (0.00s)
+2026-06-21T12:44:10.9727640Z === RUN   TestTaskResultNilEvents
+2026-06-21T12:44:10.9727730Z --- PASS: TestTaskResultNilEvents (0.00s)
+2026-06-21T12:44:10.9727810Z === RUN   TestTaskResultEmptyEvents
+2026-06-21T12:44:10.9727900Z --- PASS: TestTaskResultEmptyEvents (0.00s)
+2026-06-21T12:44:10.9727990Z === RUN   TestErrLeaseUnavailable
+2026-06-21T12:44:10.9728070Z --- PASS: TestErrLeaseUnavailable (0.00s)
+2026-06-21T12:44:10.9728150Z === RUN   TestLeaseManagerStructure
+2026-06-21T12:44:10.9728250Z --- PASS: TestLeaseManagerStructure (0.00s)
+2026-06-21T12:44:10.9728340Z === RUN   TestKeepAliveContextCancellation
+2026-06-21T12:44:10.9728460Z --- PASS: TestKeepAliveContextCancellation (0.00s)
+2026-06-21T12:44:10.9728540Z === RUN   TestKeepAliveTicker
+2026-06-21T12:44:10.9728620Z --- PASS: TestKeepAliveTicker (0.00s)
+2026-06-21T12:44:10.9728690Z === RUN   TestLeaseKeyFormat
+2026-06-21T12:44:10.9728780Z --- PASS: TestLeaseKeyFormat (0.00s)
+2026-06-21T12:44:10.9728850Z === RUN   TestLeaseManagerNilKV
+2026-06-21T12:44:10.9728940Z --- PASS: TestLeaseManagerNilKV (0.00s)
+2026-06-21T12:44:10.9729040Z === RUN   TestLeaseManagerWithMockKV
+2026-06-21T12:44:10.9729140Z --- PASS: TestLeaseManagerWithMockKV (0.00s)
+2026-06-21T12:44:10.9729220Z === RUN   TestRenew
+2026-06-21T12:44:10.9729290Z --- PASS: TestRenew (0.00s)
+2026-06-21T12:44:10.9729370Z === RUN   TestRenewNonExistentKey
+2026-06-21T12:44:10.9729460Z --- PASS: TestRenewNonExistentKey (0.00s)
+2026-06-21T12:44:10.9729550Z === RUN   TestStreamManagerStructure
+2026-06-21T12:44:10.9729640Z --- PASS: TestStreamManagerStructure (0.00s)
+2026-06-21T12:44:10.9729730Z === RUN   TestStreamManagerNilConnection
+2026-06-21T12:44:10.9729840Z --- PASS: TestStreamManagerNilConnection (0.00s)
+2026-06-21T12:44:10.9729920Z === RUN   TestStreamManagerClose
+2026-06-21T12:44:10.9730010Z --- PASS: TestStreamManagerClose (0.00s)
+2026-06-21T12:44:10.9730090Z === RUN   TestPublishTaskMarshalError
+2026-06-21T12:44:10.9730200Z --- PASS: TestPublishTaskMarshalError (0.00s)
+2026-06-21T12:44:10.9730280Z === RUN   TestPublishTaskNilPayload
+2026-06-21T12:44:10.9730380Z --- PASS: TestPublishTaskNilPayload (0.00s)
+2026-06-21T12:44:10.9730470Z === RUN   TestPublishTaskValidPayload
+2026-06-21T12:44:10.9730570Z --- PASS: TestPublishTaskValidPayload (0.00s)
+2026-06-21T12:44:10.9730650Z === RUN   TestSubscribeWorkerNilHandler
+2026-06-21T12:44:10.9730770Z --- PASS: TestSubscribeWorkerNilHandler (0.00s)
+2026-06-21T12:44:10.9730850Z === RUN   TestStreamConfigDefaults
+2026-06-21T12:44:10.9730940Z --- PASS: TestStreamConfigDefaults (0.00s)
+2026-06-21T12:44:10.9731000Z === RUN   TestStreamName
+2026-06-21T12:44:10.9731080Z --- PASS: TestStreamName (0.00s)
+2026-06-21T12:44:10.9731160Z === RUN   TestSubjectPatterns
+2026-06-21T12:44:10.9734310Z --- PASS: TestSubjectPatterns (0.00s)
+2026-06-21T12:44:10.9737080Z === RUN   TestRetryConfiguration
+2026-06-21T12:44:10.9737170Z --- PASS: TestRetryConfiguration (0.00s)
+2026-06-21T12:44:10.9737260Z === RUN   TestMaxDeliverConfiguration
+2026-06-21T12:44:10.9737360Z --- PASS: TestMaxDeliverConfiguration (0.00s)
+2026-06-21T12:44:10.9737540Z === RUN   TestNakDelayConfiguration
+2026-06-21T12:44:10.9737630Z --- PASS: TestNakDelayConfiguration (0.00s)
+2026-06-21T12:44:10.9737710Z === RUN   TestQueueGroupFormat
+2026-06-21T12:44:10.9737800Z --- PASS: TestQueueGroupFormat (0.00s)
+2026-06-21T12:44:10.9737860Z === RUN   TestSubjectFormat
+2026-06-21T12:44:10.9737950Z --- PASS: TestSubjectFormat (0.00s)
+2026-06-21T12:44:10.9737990Z PASS
+2026-06-21T12:44:10.9738070Z coverage: 25.5% of statements
+2026-06-21T12:44:10.9739570Z ok  	github.com/Developer-Army/BBPTS/internal/infrastructure/queue	6.041s	coverage: 25.5% of statements
+2026-06-21T12:44:10.9739720Z === RUN   TestChaos_AdversarialBlobInjection
+2026-06-21T12:44:10.9740430Z     chaos_test.go:95: Adversarial Injection Success: 2MB payload safely intercepted, hashed, and moved to Cold Storage at results/blobs/5b766f6d76a999636fd93b4e039d5a32
+2026-06-21T12:44:10.9740550Z --- PASS: TestChaos_AdversarialBlobInjection (0.07s)
+2026-06-21T12:44:10.9740620Z === RUN   TestCTEMBasic
+2026-06-21T12:44:10.9740690Z --- PASS: TestCTEMBasic (0.10s)
+2026-06-21T12:44:10.9740760Z === RUN   TestSLAMatching
+2026-06-21T12:44:10.9740840Z --- PASS: TestSLAMatching (0.07s)
+2026-06-21T12:44:10.9740920Z === RUN   TestCTEMStateTransitions
+2026-06-21T12:44:10.9741010Z --- PASS: TestCTEMStateTransitions (0.08s)
+2026-06-21T12:44:10.9741140Z === RUN   TestVerifyFindingFixAndApproveRiskException
+2026-06-21T12:44:10.9748990Z --- PASS: TestVerifyFindingFixAndApproveRiskException (0.08s)
+2026-06-21T12:44:10.9749150Z === RUN   TestFindingAndEvidenceModelPersistence
+2026-06-21T12:44:10.9749320Z --- PASS: TestFindingAndEvidenceModelPersistence (0.07s)
+2026-06-21T12:44:10.9749410Z === RUN   TestAssetModelPersistence
+2026-06-21T12:44:10.9749520Z --- PASS: TestAssetModelPersistence (0.07s)
+2026-06-21T12:44:10.9749590Z === RUN   TestOpenAndClose
+2026-06-21T12:44:10.9749700Z --- PASS: TestOpenAndClose (0.03s)
+2026-06-21T12:44:10.9749780Z === RUN   TestOpenCreatesDir
+2026-06-21T12:44:10.9749870Z --- PASS: TestOpenCreatesDir (0.03s)
+2026-06-21T12:44:10.9749960Z === RUN   TestStartAndFinishScan
+2026-06-21T12:44:10.9750060Z --- PASS: TestStartAndFinishScan (0.03s)
+2026-06-21T12:44:10.9750140Z === RUN   TestSaveTargets
+2026-06-21T12:44:10.9750220Z --- PASS: TestSaveTargets (0.03s)
+2026-06-21T12:44:10.9750290Z === RUN   TestSaveEvents
+2026-06-21T12:44:10.9750370Z --- PASS: TestSaveEvents (0.03s)
+2026-06-21T12:44:10.9750470Z === RUN   TestSaveEventsWithNilProperties
+2026-06-21T12:44:10.9750590Z --- PASS: TestSaveEventsWithNilProperties (0.03s)
+2026-06-21T12:44:10.9750660Z === RUN   TestGetScans
+2026-06-21T12:44:10.9750740Z --- PASS: TestGetScans (0.06s)
+2026-06-21T12:44:10.9750810Z === RUN   TestGetLastScanID
+2026-06-21T12:44:10.9750900Z --- PASS: TestGetLastScanID (0.03s)
+2026-06-21T12:44:10.9750990Z === RUN   TestGetLastScanIDNoScans
+2026-06-21T12:44:10.9751090Z --- PASS: TestGetLastScanIDNoScans (0.03s)
+2026-06-21T12:44:10.9751160Z === RUN   TestGetScanDiff
+2026-06-21T12:44:10.9751250Z --- PASS: TestGetScanDiff (0.04s)
+2026-06-21T12:44:10.9751330Z === RUN   TestGetScanDiffNoPrevious
+2026-06-21T12:44:10.9751440Z --- PASS: TestGetScanDiffNoPrevious (0.03s)
+2026-06-21T12:44:10.9751540Z === RUN   TestGetNewFindings
+2026-06-21T12:44:10.9751650Z --- PASS: TestGetNewFindings (0.03s)
+2026-06-21T12:44:10.9751720Z === RUN   TestGetStats
+2026-06-21T12:44:10.9751800Z --- PASS: TestGetStats (0.03s)
+2026-06-21T12:44:10.9751890Z === RUN   TestGetStatsEmpty
+2026-06-21T12:44:10.9751990Z --- PASS: TestGetStatsEmpty (0.03s)
+2026-06-21T12:44:10.9752070Z === RUN   TestMultipleScopes
+2026-06-21T12:44:10.9752170Z --- PASS: TestMultipleScopes (0.03s)
+2026-06-21T12:44:10.9752250Z === RUN   TestConcurrentAccess
+2026-06-21T12:44:10.9752340Z --- PASS: TestConcurrentAccess (0.06s)
+2026-06-21T12:44:10.9752420Z === RUN   TestHistoricalTrends
+2026-06-21T12:44:10.9752510Z --- PASS: TestHistoricalTrends (0.04s)
+2026-06-21T12:44:10.9752580Z === RUN   TestPagination
+2026-06-21T12:44:10.9752680Z --- PASS: TestPagination (0.03s)
+2026-06-21T12:44:10.9752760Z === RUN   TestSaveAndGetEvidence
+2026-06-21T12:44:10.9752960Z --- PASS: TestSaveAndGetEvidence (0.03s)
+2026-06-21T12:44:10.9753040Z === RUN   TestGraphAdvancedQueries
+2026-06-21T12:44:10.9753160Z --- PASS: TestGraphAdvancedQueries (0.08s)
+2026-06-21T12:44:10.9753240Z === RUN   TestGraphPagination
+2026-06-21T12:44:10.9753330Z --- PASS: TestGraphPagination (0.07s)
+2026-06-21T12:44:10.9753450Z === RUN   TestGraphAssetChainAndRiskPropagation
+2026-06-21T12:44:10.9753590Z --- PASS: TestGraphAssetChainAndRiskPropagation (0.08s)
+2026-06-21T12:44:10.9753780Z === RUN   TestEventSubscriber_DriftDetection
+2026-06-21T12:44:10.9754270Z 2026/06/21 12:43:54 INFO Drift detected! asset_id=test.acme.com change_type=new_asset description="New asset registered in ASM inventory: test.acme.com"
+2026-06-21T12:44:10.9754680Z 2026/06/21 12:43:54 INFO Drift detected! asset_id=test.acme.com change_type=type_change description="Asset type drifted from subdomain to service"
+2026-06-21T12:44:10.9754810Z --- PASS: TestEventSubscriber_DriftDetection (0.08s)
+2026-06-21T12:44:10.9754860Z PASS
+2026-06-21T12:44:10.9754940Z coverage: 64.3% of statements
+2026-06-21T12:44:10.9755250Z ok  	github.com/Developer-Army/BBPTS/internal/infrastructure/storage	2.635s	coverage: 64.3% of statements
+2026-06-21T12:44:10.9755350Z === RUN   TestMetricsCollectorStructure
+2026-06-21T12:44:10.9755460Z --- PASS: TestMetricsCollectorStructure (0.00s)
+2026-06-21T12:44:10.9755550Z === RUN   TestNewMetricsCollector
+2026-06-21T12:44:10.9755650Z --- PASS: TestNewMetricsCollector (0.00s)
+2026-06-21T12:44:10.9755770Z === RUN   TestNewMetricsCollectorDefaultInterval
+2026-06-21T12:44:10.9755920Z --- PASS: TestNewMetricsCollectorDefaultInterval (0.00s)
+2026-06-21T12:44:10.9756010Z === RUN   TestMetricsCollectorStart
+2026-06-21T12:44:10.9756100Z --- PASS: TestMetricsCollectorStart (0.00s)
+2026-06-21T12:44:10.9756190Z === RUN   TestMetricsCollectorStop
+2026-06-21T12:44:10.9756280Z --- PASS: TestMetricsCollectorStop (0.00s)
+2026-06-21T12:44:10.9756370Z === RUN   TestMetricsCollectorStartStop
+2026-06-21T12:44:10.9756490Z --- PASS: TestMetricsCollectorStartStop (0.02s)
+2026-06-21T12:44:10.9756590Z === RUN   TestMetricsCollectorStopChan
+2026-06-21T12:44:10.9756720Z --- PASS: TestMetricsCollectorStopChan (0.00s)
+2026-06-21T12:44:10.9756790Z === RUN   TestStartMetricsServer
+2026-06-21T12:44:10.9756960Z 2026/06/21 12:43:55 INFO Starting Prometheus telemetry server addr=:9090
+2026-06-21T12:44:10.9757050Z --- PASS: TestStartMetricsServer (0.01s)
+2026-06-21T12:44:10.9757160Z === RUN   TestStartMetricsServerDifferentPort
+2026-06-21T12:44:10.9757340Z 2026/06/21 12:43:55 INFO Starting Prometheus telemetry server addr=:9091
+2026-06-21T12:44:10.9757470Z --- PASS: TestStartMetricsServerDifferentPort (0.01s)
+2026-06-21T12:44:10.9757580Z === RUN   TestStartMetricsServerDefaultAddr
+2026-06-21T12:44:10.9757740Z 2026/06/21 12:43:55 INFO Starting Prometheus telemetry server addr=:0
+2026-06-21T12:44:10.9757860Z --- PASS: TestStartMetricsServerDefaultAddr (0.01s)
+2026-06-21T12:44:10.9757950Z === RUN   TestMetricsCollectorInterval
+2026-06-21T12:44:10.9758060Z === RUN   TestMetricsCollectorInterval/1_second
+2026-06-21T12:44:10.9758170Z === RUN   TestMetricsCollectorInterval/30_seconds
+2026-06-21T12:44:10.9758280Z === RUN   TestMetricsCollectorInterval/1_minute
+2026-06-21T12:44:10.9758390Z === RUN   TestMetricsCollectorInterval/5_minutes
+2026-06-21T12:44:10.9758490Z --- PASS: TestMetricsCollectorInterval (0.00s)
+2026-06-21T12:44:10.9758710Z     --- PASS: TestMetricsCollectorInterval/1_second (0.00s)
+2026-06-21T12:44:10.9758930Z     --- PASS: TestMetricsCollectorInterval/30_seconds (0.00s)
+2026-06-21T12:44:10.9759140Z     --- PASS: TestMetricsCollectorInterval/1_minute (0.00s)
+2026-06-21T12:44:10.9759350Z     --- PASS: TestMetricsCollectorInterval/5_minutes (0.00s)
+2026-06-21T12:44:10.9759450Z === RUN   TestMetricsCollectorNilStopChan
+2026-06-21T12:44:10.9759560Z --- PASS: TestMetricsCollectorNilStopChan (0.00s)
+2026-06-21T12:44:10.9759650Z === RUN   TestCollectSystemMetrics
+2026-06-21T12:44:10.9759750Z --- PASS: TestCollectSystemMetrics (0.00s)
+2026-06-21T12:44:10.9759940Z === RUN   TestMetricsCollectorConcurrentStartStop
+2026-06-21T12:44:10.9760090Z --- PASS: TestMetricsCollectorConcurrentStartStop (0.00s)
+2026-06-21T12:44:10.9760190Z === RUN   TestMetricsCollectorLongInterval
+2026-06-21T12:44:10.9760310Z --- PASS: TestMetricsCollectorLongInterval (0.00s)
+2026-06-21T12:44:10.9760410Z === RUN   TestMetricsCollectorShortInterval
+2026-06-21T12:44:10.9760540Z --- PASS: TestMetricsCollectorShortInterval (0.01s)
+2026-06-21T12:44:10.9760910Z === RUN   TestMetricsCollectorZeroInterval
+2026-06-21T12:44:10.9761060Z --- PASS: TestMetricsCollectorZeroInterval (0.00s)
+2026-06-21T12:44:10.9761170Z === RUN   TestMetricsCollectorNegativeInterval
+2026-06-21T12:44:10.9761300Z --- PASS: TestMetricsCollectorNegativeInterval (0.00s)
+2026-06-21T12:44:10.9761390Z === RUN   TestNewWorkflowTracer
+2026-06-21T12:44:10.9761490Z --- PASS: TestNewWorkflowTracer (0.00s)
+2026-06-21T12:44:10.9761560Z === RUN   TestStartSpan
+2026-06-21T12:44:10.9761640Z --- PASS: TestStartSpan (0.00s)
+2026-06-21T12:44:10.9761730Z === RUN   TestStartSpanWithParent
+2026-06-21T12:44:10.9761820Z --- PASS: TestStartSpanWithParent (0.00s)
+2026-06-21T12:44:10.9761890Z === RUN   TestEndSpan
+2026-06-21T12:44:10.9761960Z --- PASS: TestEndSpan (0.02s)
+2026-06-21T12:44:10.9762040Z === RUN   TestEndSpanNonExistent
+2026-06-21T12:44:10.9762130Z --- PASS: TestEndSpanNonExistent (0.00s)
+2026-06-21T12:44:10.9762190Z === RUN   TestGetTrace
+2026-06-21T12:44:10.9762280Z --- PASS: TestGetTrace (0.00s)
+2026-06-21T12:44:10.9762360Z === RUN   TestGetTraceNonExistent
+2026-06-21T12:44:10.9762460Z --- PASS: TestGetTraceNonExistent (0.00s)
+2026-06-21T12:44:10.9762540Z === RUN   TestTraceNodeStructure
+2026-06-21T12:44:10.9762640Z --- PASS: TestTraceNodeStructure (0.00s)
+2026-06-21T12:44:10.9762720Z === RUN   TestGenerateSpanID
+2026-06-21T12:44:10.9762800Z --- PASS: TestGenerateSpanID (0.00s)
+2026-06-21T12:44:10.9762880Z === RUN   TestMultipleSpans
+2026-06-21T12:44:10.9762970Z --- PASS: TestMultipleSpans (0.00s)
+2026-06-21T12:44:10.9763050Z === RUN   TestSpanHierarchy
+2026-06-21T12:44:10.9763130Z --- PASS: TestSpanHierarchy (0.00s)
+2026-06-21T12:44:10.9763210Z === RUN   TestSpanMetadataMerge
+2026-06-21T12:44:10.9763300Z --- PASS: TestSpanMetadataMerge (0.00s)
+2026-06-21T12:44:10.9763400Z === RUN   TestWorkflowTracerContextKey
+2026-06-21T12:44:10.9763510Z --- PASS: TestWorkflowTracerContextKey (0.00s)
+2026-06-21T12:44:10.9763600Z === RUN   TestSpanDurationCalculation
+2026-06-21T12:44:10.9763700Z --- PASS: TestSpanDurationCalculation (0.00s)
+2026-06-21T12:44:10.9763790Z === RUN   TestConcurrentSpanOperations
+2026-06-21T12:44:10.9763910Z --- PASS: TestConcurrentSpanOperations (0.00s)
+2026-06-21T12:44:10.9763960Z PASS
+2026-06-21T12:44:10.9764040Z coverage: 65.8% of statements
+2026-06-21T12:44:10.9764360Z ok  	github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry	1.258s	coverage: 65.8% of statements
+2026-06-21T12:44:10.9764470Z === RUN   TestDefaultReportPaths_FromCSVInput
+2026-06-21T12:44:10.9764590Z --- PASS: TestDefaultReportPaths_FromCSVInput (0.00s)
+2026-06-21T12:44:10.9764710Z === RUN   TestDefaultReportPaths_EmptyNameFallback
+2026-06-21T12:44:10.9764860Z --- PASS: TestDefaultReportPaths_EmptyNameFallback (0.00s)
+2026-06-21T12:44:10.9764990Z === RUN   TestExtractSeedDomainsRejectsSingleLabelJunk
+2026-06-21T12:44:10.9765160Z --- PASS: TestExtractSeedDomainsRejectsSingleLabelJunk (0.00s)
+2026-06-21T12:44:10.9765300Z === RUN   TestApplyPresetAndProfileDefaults_PresetTools
+2026-06-21T12:44:10.9765460Z --- PASS: TestApplyPresetAndProfileDefaults_PresetTools (0.00s)
+2026-06-21T12:44:10.9765630Z === RUN   TestApplyPresetAndProfileDefaults_ExplicitToolsUnchanged
+2026-06-21T12:44:10.9765840Z --- PASS: TestApplyPresetAndProfileDefaults_ExplicitToolsUnchanged (0.00s)
+2026-06-21T12:44:10.9766030Z === RUN   TestApplyPresetAndProfileDefaults_ProfileRateWhenToolsExplicit
+2026-06-21T12:44:10.9766250Z --- PASS: TestApplyPresetAndProfileDefaults_ProfileRateWhenToolsExplicit (0.00s)
+2026-06-21T12:44:10.9766580Z === RUN   TestApplyPresetAndProfileDefaults_LightModeFiltersExplicitTools
+2026-06-21T12:44:10.9767010Z --- PASS: TestApplyPresetAndProfileDefaults_LightModeFiltersExplicitTools (0.00s)
+2026-06-21T12:44:10.9767380Z === RUN   TestApplyPresetAndProfileDefaults_LightModeFiltersDefaultTools
+2026-06-21T12:44:10.9767610Z --- PASS: TestApplyPresetAndProfileDefaults_LightModeFiltersDefaultTools (0.00s)
+2026-06-21T12:44:10.9767660Z PASS
+2026-06-21T12:44:10.9767730Z coverage: 6.4% of statements
+2026-06-21T12:44:10.9768050Z ok  	github.com/Developer-Army/BBPTS/internal/interfaces/cli	1.181s	coverage: 6.4% of statements
+2026-06-21T12:44:10.9768160Z === RUN   TestReportGeneratorInitialization
+2026-06-21T12:44:10.9768290Z --- PASS: TestReportGeneratorInitialization (0.00s)
+2026-06-21T12:44:10.9768370Z === RUN   TestJSONReportGeneration
+2026-06-21T12:44:10.9768480Z --- PASS: TestJSONReportGeneration (0.00s)
+2026-06-21T12:44:10.9768570Z === RUN   TestMarkdownReportGeneration
+2026-06-21T12:44:10.9774520Z --- PASS: TestMarkdownReportGeneration (0.00s)
+2026-06-21T12:44:10.9774650Z === RUN   TestHTMLReportGeneration
+2026-06-21T12:44:10.9774750Z --- PASS: TestHTMLReportGeneration (0.00s)
+2026-06-21T12:44:10.9774830Z === RUN   TestZAPReportGeneration
+2026-06-21T12:44:10.9774930Z --- PASS: TestZAPReportGeneration (0.00s)
+2026-06-21T12:44:10.9775030Z === RUN   TestReportWithMultipleSeverities
+2026-06-21T12:44:10.9775370Z     report_generation_test.go:237: Report includes critical severity findings
+2026-06-21T12:44:10.9775660Z     report_generation_test.go:237: Report includes high severity findings
+2026-06-21T12:44:10.9775960Z     report_generation_test.go:237: Report includes medium severity findings
+2026-06-21T12:44:10.9776240Z     report_generation_test.go:237: Report includes low severity findings
+2026-06-21T12:44:10.9776360Z --- PASS: TestReportWithMultipleSeverities (0.00s)
+2026-06-21T12:44:10.9776450Z === RUN   TestReportFiltering
+2026-06-21T12:44:10.9776730Z     report_generation_test.go:271: Report filtering working correctly
+2026-06-21T12:44:10.9776820Z --- PASS: TestReportFiltering (0.00s)
+2026-06-21T12:44:10.9776900Z === RUN   TestReportStatistics
+2026-06-21T12:44:10.9776990Z --- PASS: TestReportStatistics (0.00s)
+2026-06-21T12:44:10.9777060Z === RUN   TestReportTimestamp
+2026-06-21T12:44:10.9777320Z     report_generation_test.go:330: Report timestamp is properly set
+2026-06-21T12:44:10.9777410Z --- PASS: TestReportTimestamp (0.00s)
+2026-06-21T12:44:10.9777490Z === RUN   TestToolSpecificExports
+2026-06-21T12:44:10.9777600Z --- PASS: TestToolSpecificExports (0.00s)
+2026-06-21T12:44:10.9777680Z === RUN   TestReportScoreBreakdown
+2026-06-21T12:44:10.9777780Z --- PASS: TestReportScoreBreakdown (0.00s)
+2026-06-21T12:44:10.9777840Z PASS
+2026-06-21T12:44:10.9777930Z coverage: 42.0% of statements
+2026-06-21T12:44:10.9778220Z ok  	github.com/Developer-Army/BBPTS/internal/interfaces/ui/report	1.123s	coverage: 42.0% of statements
+2026-06-21T12:44:10.9778300Z === RUN   TestNewAPI
+2026-06-21T12:44:10.9778390Z --- PASS: TestNewAPI (0.00s)
+2026-06-21T12:44:10.9778470Z === RUN   TestGetStats
+2026-06-21T12:44:10.9778570Z --- PASS: TestGetStats (0.00s)
+2026-06-21T12:44:10.9778630Z === RUN   TestGetScans
+2026-06-21T12:44:10.9778710Z --- PASS: TestGetScans (0.00s)
+2026-06-21T12:44:10.9778790Z === RUN   TestGetEventsMissingScanID
+2026-06-21T12:44:10.9778890Z --- PASS: TestGetEventsMissingScanID (0.00s)
+2026-06-21T12:44:10.9778970Z === RUN   TestGetEventsInvalidScanID
+2026-06-21T12:44:10.9779070Z --- PASS: TestGetEventsInvalidScanID (0.00s)
+2026-06-21T12:44:10.9779160Z === RUN   TestGetEventsValidScanID
+2026-06-21T12:44:10.9779250Z --- PASS: TestGetEventsValidScanID (0.00s)
+2026-06-21T12:44:10.9779320Z === RUN   TestRespondWithJSON
+2026-06-21T12:44:10.9779400Z --- PASS: TestRespondWithJSON (0.00s)
+2026-06-21T12:44:10.9779480Z === RUN   TestRespondWithError
+2026-06-21T12:44:10.9779560Z --- PASS: TestRespondWithError (0.00s)
+2026-06-21T12:44:10.9780860Z === RUN   TestRespondWithJSONNilPayload
+2026-06-21T12:44:10.9780990Z --- PASS: TestRespondWithJSONNilPayload (0.00s)
+2026-06-21T12:44:10.9781230Z === RUN   TestRespondWithJSONComplexPayload
+2026-06-21T12:44:10.9781350Z --- PASS: TestRespondWithJSONComplexPayload (0.00s)
+2026-06-21T12:44:10.9781450Z === RUN   TestGetEventsWithNegativeScanID
+2026-06-21T12:44:10.9781560Z --- PASS: TestGetEventsWithNegativeScanID (0.00s)
+2026-06-21T12:44:10.9781640Z === RUN   TestGetEventsWithZeroScanID
+2026-06-21T12:44:10.9781740Z --- PASS: TestGetEventsWithZeroScanID (0.00s)
+2026-06-21T12:44:10.9781830Z === RUN   TestGetEventsWithLargeScanID
+2026-06-21T12:44:10.9781990Z --- PASS: TestGetEventsWithLargeScanID (0.00s)
+2026-06-21T12:44:10.9782080Z === RUN   TestGetStatsMethod
+2026-06-21T12:44:10.9782160Z --- PASS: TestGetStatsMethod (0.00s)
+2026-06-21T12:44:10.9782230Z === RUN   TestGetScansMethod
+2026-06-21T12:44:10.9782310Z --- PASS: TestGetScansMethod (0.00s)
+2026-06-21T12:44:10.9782380Z === RUN   TestAPIWithMockDB
+2026-06-21T12:44:10.9782460Z --- PASS: TestAPIWithMockDB (0.00s)
+2026-06-21T12:44:10.9782550Z === RUN   TestRespondWithJSONContentType
+2026-06-21T12:44:10.9782670Z --- PASS: TestRespondWithJSONContentType (0.00s)
+2026-06-21T12:44:10.9782760Z === RUN   TestRespondWithErrorDifferentCodes
+2026-06-21T12:44:10.9782890Z --- PASS: TestRespondWithErrorDifferentCodes (0.00s)
+2026-06-21T12:44:10.9782960Z === RUN   TestHistoricalAPI
+2026-06-21T12:44:10.9783040Z --- PASS: TestHistoricalAPI (0.00s)
+2026-06-21T12:44:10.9783110Z === RUN   TestConfigRedaction
+2026-06-21T12:44:10.9783200Z --- PASS: TestConfigRedaction (0.00s)
+2026-06-21T12:44:10.9783280Z === RUN   TestConfigUpdateSecrets
+2026-06-21T12:44:10.9783360Z --- PASS: TestConfigUpdateSecrets (0.00s)
+2026-06-21T12:44:10.9783430Z === RUN   TestGraphAPI
+2026-06-21T12:44:10.9783500Z --- PASS: TestGraphAPI (0.00s)
+2026-06-21T12:44:10.9783570Z === RUN   TestGetCurrentUser
+2026-06-21T12:44:10.9783650Z --- PASS: TestGetCurrentUser (0.00s)
+2026-06-21T12:44:10.9783730Z === RUN   TestLoginRateLimit
+2026-06-21T12:44:10.9783800Z --- PASS: TestLoginRateLimit (0.00s)
+2026-06-21T12:44:10.9783870Z === RUN   TestAuthFlow
+2026-06-21T12:44:10.9784130Z 2026/06/21 12:44:00 INFO Authentication System: bootstrapped admin user using BBPTS_ADMIN_PASSWORD.
+2026-06-21T12:44:10.9784200Z --- PASS: TestAuthFlow (2.28s)
+2026-06-21T12:44:10.9784270Z === RUN   TestHasPermission
+2026-06-21T12:44:10.9784350Z --- PASS: TestHasPermission (0.00s)
+2026-06-21T12:44:10.9784420Z === RUN   TestEnrollmentFlow
+2026-06-21T12:44:10.9784640Z 2026/06/21 12:44:02 INFO --------------------------------------------------------------------------------
+2026-06-21T12:44:10.9784800Z 2026/06/21 12:44:02 INFO Authentication System: NO admin user exists.
+2026-06-21T12:44:10.9785000Z 2026/06/21 12:44:02 INFO Authentication System: Bootstrapping via one-time setup token.
+2026-06-21T12:44:10.9785290Z 2026/06/21 12:44:02 INFO One-Time Setup Token: cf2341372475a4dafdeae6cc624130fd839d95d44e9c972d17160d05e090be4b
+2026-06-21T12:44:10.9785590Z 2026/06/21 12:44:02 INFO To complete enrollment, access the dashboard from localhost or use BBPTS_ADMIN_PASSWORD.
+2026-06-21T12:44:10.9785810Z 2026/06/21 12:44:02 INFO --------------------------------------------------------------------------------
+2026-06-21T12:44:10.9785910Z --- PASS: TestEnrollmentFlow (0.82s)
+2026-06-21T12:44:10.9786010Z === RUN   TestConfigStructure
+2026-06-21T12:44:10.9786100Z --- PASS: TestConfigStructure (0.00s)
+2026-06-21T12:44:10.9786170Z === RUN   TestConfigDefaultPort
+2026-06-21T12:44:10.9786260Z --- PASS: TestConfigDefaultPort (0.00s)
+2026-06-21T12:44:10.9786450Z === RUN   TestDashboardHTML
+2026-06-21T12:44:10.9786540Z --- PASS: TestDashboardHTML (0.00s)
+2026-06-21T12:44:10.9786630Z === RUN   TestDashboardHTMLContainsDOCTYPE
+2026-06-21T12:44:10.9786750Z --- PASS: TestDashboardHTMLContainsDOCTYPE (0.00s)
+2026-06-21T12:44:10.9786840Z === RUN   TestDashboardHTMLContainsTitle
+2026-06-21T12:44:10.9786950Z --- PASS: TestDashboardHTMLContainsTitle (0.00s)
+2026-06-21T12:44:10.9787050Z === RUN   TestDashboardHTMLContainsScriptTags
+2026-06-21T12:44:10.9787180Z --- PASS: TestDashboardHTMLContainsScriptTags (0.00s)
+2026-06-21T12:44:10.9787370Z === RUN   TestDashboardHTMLContainsTailwind
+2026-06-21T12:44:10.9787500Z --- PASS: TestDashboardHTMLContainsTailwind (0.00s)
+2026-06-21T12:44:10.9787600Z === RUN   TestDashboardHTMLContainsChartJS
+2026-06-21T12:44:10.9787720Z --- PASS: TestDashboardHTMLContainsChartJS (0.00s)
+2026-06-21T12:44:10.9787790Z === RUN   TestStartWithNilDB
+2026-06-21T12:44:10.9787870Z --- PASS: TestStartWithNilDB (0.00s)
+2026-06-21T12:44:10.9787940Z === RUN   TestStartWithConfig
+2026-06-21T12:44:10.9788120Z --- PASS: TestStartWithConfig (0.00s)
+2026-06-21T12:44:10.9788210Z === RUN   TestStartWithDifferentPorts
+2026-06-21T12:44:10.9788310Z --- PASS: TestStartWithDifferentPorts (0.00s)
+2026-06-21T12:44:10.9788390Z === RUN   TestStartWithPortZero
+2026-06-21T12:44:10.9788480Z --- PASS: TestStartWithPortZero (0.00s)
+2026-06-21T12:44:10.9788560Z === RUN   TestStartWithNegativePort
+2026-06-21T12:44:10.9788670Z --- PASS: TestStartWithNegativePort (0.00s)
+2026-06-21T12:44:10.9788750Z === RUN   TestStartWithLargePort
+2026-06-21T12:44:10.9788840Z --- PASS: TestStartWithLargePort (0.00s)
+2026-06-21T12:44:10.9788920Z === RUN   TestStartWithPortAboveMax
+2026-06-21T12:44:10.9789020Z --- PASS: TestStartWithPortAboveMax (0.00s)
+2026-06-21T12:44:10.9789130Z === RUN   TestDashboardHTMLContainsAPIEndpoints
+2026-06-21T12:44:10.9789260Z --- PASS: TestDashboardHTMLContainsAPIEndpoints (0.00s)
+2026-06-21T12:44:10.9789370Z === RUN   TestDashboardHTMLContainsRefreshFunction
+2026-06-21T12:44:10.9789520Z --- PASS: TestDashboardHTMLContainsRefreshFunction (0.00s)
+2026-06-21T12:44:10.9789650Z === RUN   TestDashboardHTMLContainsChartInitialization
+2026-06-21T12:44:10.9789810Z --- PASS: TestDashboardHTMLContainsChartInitialization (0.00s)
+2026-06-21T12:44:10.9789910Z === RUN   TestDashboardHTMLContainsStatElements
+2026-06-21T12:44:10.9790040Z --- PASS: TestDashboardHTMLContainsStatElements (0.00s)
+2026-06-21T12:44:10.9790130Z === RUN   TestDashboardHTMLContainsTable
+2026-06-21T12:44:10.9790240Z --- PASS: TestDashboardHTMLContainsTable (0.00s)
+2026-06-21T12:44:10.9790330Z === RUN   TestDashboardHTMLContainsCanvas
+2026-06-21T12:44:10.9790450Z --- PASS: TestDashboardHTMLContainsCanvas (0.00s)
+2026-06-21T12:44:10.9790540Z === RUN   TestDashboardHTMLContainsSidebar
+2026-06-21T12:44:10.9790650Z --- PASS: TestDashboardHTMLContainsSidebar (0.00s)
+2026-06-21T12:44:10.9790750Z === RUN   TestDashboardHTMLContainsNavigation
+2026-06-21T12:44:10.9790870Z --- PASS: TestDashboardHTMLContainsNavigation (0.00s)
+2026-06-21T12:44:10.9790970Z === RUN   TestDashboardHTMLContainsStyles
+2026-06-21T12:44:10.9791220Z --- PASS: TestDashboardHTMLContainsStyles (0.00s)
+2026-06-21T12:44:10.9791340Z === RUN   TestDashboardHTMLContainsGlassEffect
+2026-06-21T12:44:10.9791500Z --- PASS: TestDashboardHTMLContainsGlassEffect (0.00s)
+2026-06-21T12:44:10.9791620Z === RUN   TestDashboardHTMLContainsAccentColor
+2026-06-21T12:44:10.9791750Z --- PASS: TestDashboardHTMLContainsAccentColor (0.00s)
+2026-06-21T12:44:10.9791860Z === RUN   TestDashboardHTMLContainsFooter
+2026-06-21T12:44:10.9791980Z --- PASS: TestDashboardHTMLContainsFooter (0.00s)
+2026-06-21T12:44:10.9792090Z === RUN   TestDashboardHTMLContainsDeployButton
+2026-06-21T12:44:10.9792230Z --- PASS: TestDashboardHTMLContainsDeployButton (0.00s)
+2026-06-21T12:44:10.9792340Z === RUN   TestDashboardHTMLContainsMissionControl
+2026-06-21T12:44:10.9792500Z --- PASS: TestDashboardHTMLContainsMissionControl (0.00s)
+2026-06-21T12:44:10.9792610Z === RUN   TestDashboardHTMLContainsAutoRefresh
+2026-06-21T12:44:10.9792740Z --- PASS: TestDashboardHTMLContainsAutoRefresh (0.00s)
+2026-06-21T12:44:10.9792850Z === RUN   TestDashboardHTMLContainsErrorHandling
+2026-06-21T12:44:10.9792990Z --- PASS: TestDashboardHTMLContainsErrorHandling (0.00s)
+2026-06-21T12:44:10.9793680Z === RUN   TestDashboardHTMLContainsConsoleError
+2026-06-21T12:44:10.9793830Z --- PASS: TestDashboardHTMLContainsConsoleError (0.00s)
+2026-06-21T12:44:10.9793930Z === RUN   TestDashboardHTMLContainsFetchAPI
+2026-06-21T12:44:10.9794130Z --- PASS: TestDashboardHTMLContainsFetchAPI (0.00s)
+2026-06-21T12:44:10.9794330Z === RUN   TestDashboardHTMLContainsAsyncAwait
+2026-06-21T12:44:10.9794460Z --- PASS: TestDashboardHTMLContainsAsyncAwait (0.00s)
+2026-06-21T12:44:10.9794560Z === RUN   TestDashboardHTMLContainsPromiseAll
+2026-06-21T12:44:10.9794680Z --- PASS: TestDashboardHTMLContainsPromiseAll (0.00s)
+2026-06-21T12:44:10.9794800Z === RUN   TestDashboardHTMLContainsDOMContentLoaded
+2026-06-21T12:44:10.9794950Z --- PASS: TestDashboardHTMLContainsDOMContentLoaded (0.00s)
+2026-06-21T12:44:10.9795110Z === RUN   TestDashboardHTMLEncoding
+2026-06-21T12:44:10.9795220Z --- PASS: TestDashboardHTMLEncoding (0.00s)
+2026-06-21T12:44:10.9795300Z === RUN   TestDashboardHTMLLength
+2026-06-21T12:44:10.9795390Z --- PASS: TestDashboardHTMLLength (0.00s)
+2026-06-21T12:44:10.9795480Z === RUN   TestGenerateSelfSignedCert
+2026-06-21T12:44:10.9795570Z --- PASS: TestGenerateSelfSignedCert (0.31s)
+2026-06-21T12:44:10.9795620Z PASS
+2026-06-21T12:44:10.9795690Z coverage: 38.4% of statements
+2026-06-21T12:44:10.9796070Z ok  	github.com/Developer-Army/BBPTS/internal/interfaces/ui/server	4.607s	coverage: 38.4% of statements
+2026-06-21T12:44:10.9796210Z === RUN   TestCalculateProgress_UsesToolLevelCompletion
+2026-06-21T12:44:10.9796370Z --- PASS: TestCalculateProgress_UsesToolLevelCompletion (0.00s)
+2026-06-21T12:44:10.9796500Z === RUN   TestCalculateProgress_FallsBackToStageCompletion
+2026-06-21T12:44:10.9796670Z --- PASS: TestCalculateProgress_FallsBackToStageCompletion (0.00s)
+2026-06-21T12:44:10.9796750Z === RUN   TestTabToggleMode
+2026-06-21T12:44:10.9796830Z --- PASS: TestTabToggleMode (0.00s)
+2026-06-21T12:44:10.9796960Z === RUN   TestTargetValidationResultMsg_HandlesInvalid
+2026-06-21T12:44:10.9797100Z --- PASS: TestTargetValidationResultMsg_HandlesInvalid (0.00s)
+2026-06-21T12:44:10.9797210Z === RUN   TestValidateTargetCmd_RejectsDirectories
+2026-06-21T12:44:10.9797340Z --- PASS: TestValidateTargetCmd_RejectsDirectories (0.00s)
+2026-06-21T12:44:10.9797390Z PASS
+2026-06-21T12:44:10.9797460Z coverage: 5.9% of statements
+2026-06-21T12:44:10.9797720Z ok  	github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui	1.164s	coverage: 5.9% of statements
+2026-06-21T12:44:10.9797800Z === RUN   TestCapabilityTypeValues
+2026-06-21T12:44:10.9797890Z --- PASS: TestCapabilityTypeValues (0.00s)
+2026-06-21T12:44:10.9797960Z === RUN   TestNewWorker
+2026-06-21T12:44:10.9798040Z --- PASS: TestNewWorker (0.00s)
+2026-06-21T12:44:10.9798140Z === RUN   TestNewWorkerWithNilCapabilities
+2026-06-21T12:44:10.9798260Z --- PASS: TestNewWorkerWithNilCapabilities (0.00s)
+2026-06-21T12:44:10.9798370Z === RUN   TestNewWorkerWithEmptyCapabilities
+2026-06-21T12:44:10.9798510Z --- PASS: TestNewWorkerWithEmptyCapabilities (0.00s)
+2026-06-21T12:44:10.9798620Z === RUN   TestNewWorkerWithSingleCapability
+2026-06-21T12:44:10.9798730Z --- PASS: TestNewWorkerWithSingleCapability (0.00s)
+2026-06-21T12:44:10.9798820Z === RUN   TestNewWorkerWithAllCapabilities
+2026-06-21T12:44:10.9798940Z --- PASS: TestNewWorkerWithAllCapabilities (0.00s)
+2026-06-21T12:44:10.9799050Z === RUN   TestNewWorkerWithDuplicateCapabilities
+2026-06-21T12:44:10.9799190Z --- PASS: TestNewWorkerWithDuplicateCapabilities (0.00s)
+2026-06-21T12:44:10.9799240Z === RUN   TestStart
+2026-06-21T12:44:10.9799480Z 2026/06/21 12:44:01 INFO Worker node started workerID=worker-1 capabilities=[subdomain_enum]
+2026-06-21T12:44:10.9799570Z --- PASS: TestStart (0.00s)
+2026-06-21T12:44:10.9799650Z === RUN   TestStartTwice
+2026-06-21T12:44:10.9799860Z 2026/06/21 12:44:01 INFO Worker node started workerID=worker-1 capabilities=[subdomain_enum]
+2026-06-21T12:44:10.9799940Z --- PASS: TestStartTwice (0.00s)
+2026-06-21T12:44:10.9800040Z === RUN   TestStartWithContextCancellation
+2026-06-21T12:44:10.9800250Z 2026/06/21 12:44:01 INFO Worker node started workerID=worker-1 capabilities=[subdomain_enum]
+2026-06-21T12:44:10.9800400Z 2026/06/21 12:44:01 INFO Worker heartbeat stopped workerID=worker-1
+2026-06-21T12:44:10.9800510Z --- PASS: TestStartWithContextCancellation (0.05s)
+2026-06-21T12:44:10.9800580Z === RUN   TestHeartbeat
+2026-06-21T12:44:10.9800850Z 2026/06/21 12:44:01 INFO Worker heartbeat stopped workerID=worker-1
+2026-06-21T12:44:10.9800920Z --- PASS: TestHeartbeat (0.15s)
+2026-06-21T12:44:10.9801010Z === RUN   TestHeartbeatWithNilStream
+2026-06-21T12:44:10.9801110Z --- PASS: TestHeartbeatWithNilStream (0.05s)
+2026-06-21T12:44:10.9801180Z === RUN   TestWorkerStructure
+2026-06-21T12:44:10.9801340Z 2026/06/21 12:44:01 INFO Worker heartbeat stopped workerID=worker-1
+2026-06-21T12:44:10.9801430Z --- PASS: TestWorkerStructure (0.00s)
+2026-06-21T12:44:10.9801580Z === RUN   TestWorkerMutex
+2026-06-21T12:44:10.9801660Z --- PASS: TestWorkerMutex (0.00s)
+2026-06-21T12:44:10.9801730Z === RUN   TestWorkerIDEmpty
+2026-06-21T12:44:10.9801810Z --- PASS: TestWorkerIDEmpty (0.00s)
+2026-06-21T12:44:10.9801900Z === RUN   TestWorkerIDWithSpecialChars
+2026-06-21T12:44:10.9802000Z --- PASS: TestWorkerIDWithSpecialChars (0.00s)
+2026-06-21T12:44:10.9802090Z === RUN   TestWorkerCapabilitiesOrder
+2026-06-21T12:44:10.9802190Z --- PASS: TestWorkerCapabilitiesOrder (0.00s)
+2026-06-21T12:44:10.9802280Z === RUN   TestWorkerWithMockStream
+2026-06-21T12:44:10.9802370Z --- PASS: TestWorkerWithMockStream (0.00s)
+2026-06-21T12:44:10.9802450Z === RUN   TestWorkerWithMockLeaseMgr
+2026-06-21T12:44:10.9802640Z --- PASS: TestWorkerWithMockLeaseMgr (0.00s)
+2026-06-21T12:44:10.9802740Z === RUN   TestWorkerWithMockIdempotencyMgr
+2026-06-21T12:44:10.9802850Z --- PASS: TestWorkerWithMockIdempotencyMgr (0.00s)
+2026-06-21T12:44:10.9802950Z === RUN   TestCapabilityTypeStringConversion
+2026-06-21T12:44:10.9803080Z --- PASS: TestCapabilityTypeStringConversion (0.00s)
+2026-06-21T12:44:10.9803160Z === RUN   TestCapabilityTypeComparison
+2026-06-21T12:44:10.9803270Z --- PASS: TestCapabilityTypeComparison (0.00s)
+2026-06-21T12:44:10.9803350Z === RUN   TestNewExecutor
+2026-06-21T12:44:10.9803440Z --- PASS: TestNewExecutor (0.00s)
+2026-06-21T12:44:10.9803540Z === RUN   TestNewExecutorWithNilWorker
+2026-06-21T12:44:10.9803660Z --- PASS: TestNewExecutorWithNilWorker (0.00s)
+2026-06-21T12:44:10.9803740Z === RUN   TestRegisterHandler
+2026-06-21T12:44:10.9803830Z --- PASS: TestRegisterHandler (0.00s)
+2026-06-21T12:44:10.9803920Z === RUN   TestRegisterHandlerNilHandler
+2026-06-21T12:44:10.9804020Z --- PASS: TestRegisterHandlerNilHandler (0.00s)
+2026-06-21T12:44:10.9804110Z === RUN   TestRegisterHandlerOverwrite
+2026-06-21T12:44:10.9804210Z --- PASS: TestRegisterHandlerOverwrite (0.00s)
+2026-06-21T12:44:10.9804320Z === RUN   TestRegisterHandlerMultipleCapabilities
+2026-06-21T12:44:10.9804460Z --- PASS: TestRegisterHandlerMultipleCapabilities (0.00s)
+2026-06-21T12:44:10.9804520Z === RUN   TestRun
+2026-06-21T12:44:10.9804590Z --- PASS: TestRun (0.00s)
+2026-06-21T12:44:10.9804680Z === RUN   TestRunWithContextCancellation
+2026-06-21T12:44:10.9804790Z --- PASS: TestRunWithContextCancellation (0.00s)
+2026-06-21T12:44:10.9804860Z === RUN   TestRunWithTimeout
+2026-06-21T12:44:10.9804960Z --- PASS: TestRunWithTimeout (0.00s)
+2026-06-21T12:44:10.9805040Z === RUN   TestRunWithoutHandlers
+2026-06-21T12:44:10.9805130Z --- PASS: TestRunWithoutHandlers (0.00s)
+2026-06-21T12:44:10.9805210Z === RUN   TestRunWithNilWorker
+2026-06-21T12:44:10.9805290Z --- PASS: TestRunWithNilWorker (0.00s)
+2026-06-21T12:44:10.9805370Z === RUN   TestHandlerSignature
+2026-06-21T12:44:10.9805460Z --- PASS: TestHandlerSignature (0.00s)
+2026-06-21T12:44:10.9805550Z === RUN   TestHandlerReturningError
+2026-06-21T12:44:10.9805640Z --- PASS: TestHandlerReturningError (0.00s)
+2026-06-21T12:44:10.9805720Z === RUN   TestHandlerWithPayload
+2026-06-21T12:44:10.9805810Z --- PASS: TestHandlerWithPayload (0.00s)
+2026-06-21T12:44:10.9805890Z === RUN   TestHandlerWithNilPayload
+2026-06-21T12:44:10.9805990Z --- PASS: TestHandlerWithNilPayload (0.00s)
+2026-06-21T12:44:10.9806060Z === RUN   TestHandlerWithContext
+2026-06-21T12:44:10.9806150Z --- PASS: TestHandlerWithContext (0.00s)
+2026-06-21T12:44:10.9806240Z === RUN   TestHandlerWithCancelledContext
+2026-06-21T12:44:10.9806360Z --- PASS: TestHandlerWithCancelledContext (0.00s)
+2026-06-21T12:44:10.9806430Z === RUN   TestExecutorStructure
+2026-06-21T12:44:10.9806610Z --- PASS: TestExecutorStructure (0.00s)
+2026-06-21T12:44:10.9806680Z === RUN   TestTaskHandlerType
+2026-06-21T12:44:10.9806770Z --- PASS: TestTaskHandlerType (0.00s)
+2026-06-21T12:44:10.9806880Z === RUN   TestRegisterHandlerForAllCapabilities
+2026-06-21T12:44:10.9807010Z --- PASS: TestRegisterHandlerForAllCapabilities (0.00s)
+2026-06-21T12:44:10.9807100Z === RUN   TestRunWithMultipleHandlers
+2026-06-21T12:44:10.9807200Z --- PASS: TestRunWithMultipleHandlers (0.00s)
+2026-06-21T12:44:10.9807300Z PASS
+2026-06-21T12:44:10.9807370Z coverage: 30.8% of statements
+2026-06-21T12:44:10.9807640Z ok  	github.com/Developer-Army/BBPTS/internal/interfaces/workers	1.294s	coverage: 30.8% of statements
+2026-06-21T12:44:10.9807740Z === RUN   TestDefaultConfigHeadersInitialized
+2026-06-21T12:44:10.9807870Z --- PASS: TestDefaultConfigHeadersInitialized (0.00s)
+2026-06-21T12:44:10.9807940Z === RUN   TestLoadFromEnvHeaders
+2026-06-21T12:44:10.9808030Z --- PASS: TestLoadFromEnvHeaders (0.00s)
+2026-06-21T12:44:10.9808140Z === RUN   TestConfigToolRateLimitsAndAutoUpdate
+2026-06-21T12:44:10.9808270Z --- PASS: TestConfigToolRateLimitsAndAutoUpdate (0.00s)
+2026-06-21T12:44:10.9808350Z === RUN   TestResolveWebEnder
+2026-06-21T12:44:10.9808430Z --- PASS: TestResolveWebEnder (0.00s)
+2026-06-21T12:44:10.9808500Z === RUN   TestFilterTargets
+2026-06-21T12:44:10.9808580Z --- PASS: TestFilterTargets (0.00s)
+2026-06-21T12:44:10.9808660Z === RUN   TestFilterTargets_NoRules
+2026-06-21T12:44:10.9808760Z --- PASS: TestFilterTargets_NoRules (0.00s)
+2026-06-21T12:44:10.9808840Z === RUN   TestValidateDefaultConfig
+2026-06-21T12:44:10.9808930Z --- PASS: TestValidateDefaultConfig (0.00s)
+2026-06-21T12:44:10.9809000Z === RUN   TestValidateNilConfig
+2026-06-21T12:44:10.9809100Z --- PASS: TestValidateNilConfig (0.00s)
+2026-06-21T12:44:10.9809180Z === RUN   TestValidateInvalidThreads
+2026-06-21T12:44:10.9809280Z --- PASS: TestValidateInvalidThreads (0.00s)
+2026-06-21T12:44:10.9809360Z === RUN   TestValidateHighThreadsWarning
+2026-06-21T12:44:10.9809470Z --- PASS: TestValidateHighThreadsWarning (0.00s)
+2026-06-21T12:44:10.9809550Z === RUN   TestValidateInvalidProxy
+2026-06-21T12:44:10.9809650Z --- PASS: TestValidateInvalidProxy (0.00s)
+2026-06-21T12:44:10.9809730Z === RUN   TestValidateFleetRequiresName
+2026-06-21T12:44:10.9809840Z --- PASS: TestValidateFleetRequiresName (0.00s)
+2026-06-21T12:44:10.9809930Z === RUN   TestValidateFleetRequiresSize
+2026-06-21T12:44:10.9810030Z --- PASS: TestValidateFleetRequiresSize (0.00s)
+2026-06-21T12:44:10.9810120Z === RUN   TestValidateNATSRequiresURL
+2026-06-21T12:44:10.9810220Z --- PASS: TestValidateNATSRequiresURL (0.00s)
+2026-06-21T12:44:10.9810310Z === RUN   TestValidateInvalidEventBusType
+2026-06-21T12:44:10.9810420Z --- PASS: TestValidateInvalidEventBusType (0.00s)
+2026-06-21T12:44:10.9810520Z === RUN   TestValidateTelegramRequiresChatID
+2026-06-21T12:44:10.9810640Z --- PASS: TestValidateTelegramRequiresChatID (0.00s)
+2026-06-21T12:44:10.9810720Z === RUN   TestValidateInvalidDBType
+2026-06-21T12:44:10.9810820Z --- PASS: TestValidateInvalidDBType (0.00s)
+2026-06-21T12:44:10.9810910Z === RUN   TestValidateNegativeRateLimit
+2026-06-21T12:44:10.9811010Z --- PASS: TestValidateNegativeRateLimit (0.00s)
+2026-06-21T12:44:10.9811100Z === RUN   TestValidateZeroRateLimitWarning
+2026-06-21T12:44:10.9811220Z --- PASS: TestValidateZeroRateLimitWarning (0.00s)
+2026-06-21T12:44:10.9811300Z === RUN   TestValidateNoAPIKeysWarning
+2026-06-21T12:44:10.9811400Z --- PASS: TestValidateNoAPIKeysWarning (0.00s)
+2026-06-21T12:44:10.9811490Z === RUN   TestValidationResultAllIssues
+2026-06-21T12:44:10.9811590Z --- PASS: TestValidationResultAllIssues (0.00s)
+2026-06-21T12:44:10.9811660Z === RUN   TestFormatReport
+2026-06-21T12:44:10.9811740Z --- PASS: TestFormatReport (0.00s)
+2026-06-21T12:44:10.9811790Z PASS
+2026-06-21T12:44:10.9811860Z coverage: 44.0% of statements
+2026-06-21T12:44:10.9812110Z ok  	github.com/Developer-Army/BBPTS/internal/shared/config	1.028s	coverage: 44.0% of statements
+2026-06-21T12:44:10.9812220Z === RUN   TestParserCSVBasic
+2026-06-21T12:44:10.9812310Z --- PASS: TestParserCSVBasic (0.00s)
+2026-06-21T12:44:10.9812420Z === RUN   TestParserNewlineFormat
+2026-06-21T12:44:10.9812510Z --- PASS: TestParserNewlineFormat (0.00s)
+2026-06-21T12:44:10.9812580Z === RUN   TestParserComments
+2026-06-21T12:44:10.9812670Z --- PASS: TestParserComments (0.00s)
+2026-06-21T12:44:10.9812760Z === RUN   TestParserWhitespaceHandling
+2026-06-21T12:44:10.9812870Z --- PASS: TestParserWhitespaceHandling (0.00s)
+2026-06-21T12:44:10.9813030Z === RUN   TestParserEmptyFile
+2026-06-21T12:44:10.9813120Z --- PASS: TestParserEmptyFile (0.00s)
+2026-06-21T12:44:10.9813210Z === RUN   TestParserNonexistentFile
+2026-06-21T12:44:10.9813310Z --- PASS: TestParserNonexistentFile (0.00s)
+2026-06-21T12:44:10.9813390Z === RUN   TestParserQuotedCSVFields
+2026-06-21T12:44:10.9813480Z --- PASS: TestParserQuotedCSVFields (0.00s)
+2026-06-21T12:44:10.9813540Z === RUN   TestScopeEngine
+2026-06-21T12:44:10.9813630Z --- PASS: TestScopeEngine (0.00s)
+2026-06-21T12:44:10.9813700Z === RUN   TestParseJSONScope
+2026-06-21T12:44:10.9813780Z --- PASS: TestParseJSONScope (0.00s)
+2026-06-21T12:44:10.9813830Z PASS
+2026-06-21T12:44:10.9813900Z coverage: 56.0% of statements
+2026-06-21T12:44:10.9814140Z ok  	github.com/Developer-Army/BBPTS/internal/shared/input	1.079s	coverage: 56.0% of statements
+2026-06-21T12:44:10.9814240Z === RUN   TestDeduplicateAndNormalize
+2026-06-21T12:44:10.9814380Z === RUN   TestDeduplicateAndNormalize/empty_inputs
+2026-06-21T12:44:10.9814560Z === RUN   TestDeduplicateAndNormalize/basic_domains_with_whitespace
+2026-06-21T12:44:10.9814670Z === RUN   TestDeduplicateAndNormalize/urls_to_domains
+2026-06-21T12:44:10.9814780Z === RUN   TestDeduplicateAndNormalize/IPs_and_CIDR
+2026-06-21T12:44:10.9814900Z === RUN   TestDeduplicateAndNormalize/host_with_port
+2026-06-21T12:44:10.9815090Z === RUN   TestDeduplicateAndNormalize/invalid_IP_addresses_and_invalid_domains
+2026-06-21T12:44:10.9815190Z --- PASS: TestDeduplicateAndNormalize (0.00s)
+2026-06-21T12:44:10.9815420Z     --- PASS: TestDeduplicateAndNormalize/empty_inputs (0.00s)
+2026-06-21T12:44:10.9815710Z     --- PASS: TestDeduplicateAndNormalize/basic_domains_with_whitespace (0.00s)
+2026-06-21T12:44:10.9816000Z     --- PASS: TestDeduplicateAndNormalize/urls_to_domains (0.00s)
+2026-06-21T12:44:10.9816230Z     --- PASS: TestDeduplicateAndNormalize/IPs_and_CIDR (0.00s)
+2026-06-21T12:44:10.9816460Z     --- PASS: TestDeduplicateAndNormalize/host_with_port (0.00s)
+2026-06-21T12:44:10.9816820Z     --- PASS: TestDeduplicateAndNormalize/invalid_IP_addresses_and_invalid_domains (0.00s)
+2026-06-21T12:44:10.9816920Z === RUN   TestDeduplicateAndPreserveURLs
+2026-06-21T12:44:10.9817030Z --- PASS: TestDeduplicateAndPreserveURLs (0.00s)
+2026-06-21T12:44:10.9817140Z === RUN   TestScopeGuardAllowsURLsWithinScope
+2026-06-21T12:44:10.9817270Z --- PASS: TestScopeGuardAllowsURLsWithinScope (0.00s)
+2026-06-21T12:44:10.9817370Z === RUN   TestScopeGuardBlocksOutOfScopeTargets
+2026-06-21T12:44:10.9817500Z --- PASS: TestScopeGuardBlocksOutOfScopeTargets (0.00s)
+2026-06-21T12:44:10.9817570Z PASS
+2026-06-21T12:44:10.9817650Z coverage: 81.8% of statements
+2026-06-21T12:44:10.9817900Z ok  	github.com/Developer-Army/BBPTS/internal/shared/normalize	1.056s	coverage: 81.8% of statements
+2026-06-21T12:44:10.9817970Z === RUN   TestQuotaGuard
+2026-06-21T12:44:10.9818050Z --- PASS: TestQuotaGuard (0.00s)
+2026-06-21T12:44:10.9818140Z === RUN   TestApplyResourceLimits_CPUPercent
+2026-06-21T12:44:10.9818370Z 2026/06/21 12:44:06 INFO Resource Guard: set Go soft memory limit limit_mb=2048 gc_percent=100
+2026-06-21T12:44:10.9818570Z 2026/06/21 12:44:06 INFO Resource Guard: set GOMAXPROCS CPU cap max_cores=3 total_cores=3
+2026-06-21T12:44:10.9818780Z 2026/06/21 12:44:06 INFO Resource Guard: set Go soft memory limit limit_mb=2048 gc_percent=100
+2026-06-21T12:44:10.9818980Z 2026/06/21 12:44:06 INFO Resource Guard: set GOMAXPROCS CPU cap max_cores=2 total_cores=3
+2026-06-21T12:44:10.9819110Z --- PASS: TestApplyResourceLimits_CPUPercent (0.01s)
+2026-06-21T12:44:10.9819280Z === RUN   TestApplyResourceLimits_CPUCores
+2026-06-21T12:44:10.9819490Z 2026/06/21 12:44:06 INFO Resource Guard: set Go soft memory limit limit_mb=2048 gc_percent=100
+2026-06-21T12:44:10.9819690Z 2026/06/21 12:44:06 INFO Resource Guard: set GOMAXPROCS CPU cap max_cores=1 total_cores=3
+2026-06-21T12:44:10.9819800Z --- PASS: TestApplyResourceLimits_CPUCores (0.00s)
+2026-06-21T12:44:10.9819900Z === RUN   TestApplyResourceLimits_GCPercent
+2026-06-21T12:44:10.9820250Z 2026/06/21 12:44:06 INFO Resource Guard: set Go soft memory limit limit_mb=2048 gc_percent=80
+2026-06-21T12:44:10.9820470Z 2026/06/21 12:44:06 INFO Resource Guard: set GOMAXPROCS CPU cap max_cores=3 total_cores=3
+2026-06-21T12:44:10.9820590Z --- PASS: TestApplyResourceLimits_GCPercent (0.00s)
+2026-06-21T12:44:10.9820690Z === RUN   TestApplyResourceLimits_EnvOverrides
+2026-06-21T12:44:10.9820900Z 2026/06/21 12:44:06 INFO Resource Guard: set Go soft memory limit limit_mb=2048 gc_percent=120
+2026-06-21T12:44:10.9821090Z 2026/06/21 12:44:06 INFO Resource Guard: set GOMAXPROCS CPU cap max_cores=2 total_cores=3
+2026-06-21T12:44:10.9821220Z --- PASS: TestApplyResourceLimits_EnvOverrides (0.00s)
+2026-06-21T12:44:10.9821320Z === RUN   TestStoreInitialization
+2026-06-21T12:44:10.9821420Z --- PASS: TestStoreInitialization (0.00s)
+2026-06-21T12:44:10.9821500Z === RUN   TestStoreSaveAndLoadLatest
+2026-06-21T12:44:10.9822010Z 2026/06/21 12:44:06 INFO scan state saved scope=program-a events=1 path=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestStoreSaveAndLoadLatest548571239/001/program-a_latest.json
+2026-06-21T12:44:10.9822120Z --- PASS: TestStoreSaveAndLoadLatest (0.00s)
+2026-06-21T12:44:10.9822190Z === RUN   TestStoreComputeDiff
+2026-06-21T12:44:10.9822670Z 2026/06/21 12:44:06 INFO scan state saved scope=program-b events=1 path=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestStoreComputeDiff99002660/001/program-b_latest.json
+2026-06-21T12:44:10.9823130Z 2026/06/21 12:44:06 INFO scan state saved scope=program-b events=2 path=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestStoreComputeDiff99002660/001/program-b_latest.json
+2026-06-21T12:44:10.9823220Z --- PASS: TestStoreComputeDiff (0.00s)
+2026-06-21T12:44:10.9823290Z === RUN   TestStorePaths
+2026-06-21T12:44:10.9823500Z --- PASS: TestStorePaths (0.00s)
+2026-06-21T12:44:10.9823650Z === RUN   TestStoreComputeDiff_RiskChangesAndNewlyExposed
+2026-06-21T12:44:10.9824260Z 2026/06/21 12:44:06 INFO scan state saved scope=program-c events=2 path=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestStoreComputeDiff_RiskChangesAndNewlyExposed3900440304/001/program-c_latest.json
+2026-06-21T12:44:10.9824830Z 2026/06/21 12:44:06 INFO scan state saved scope=program-c events=4 path=/var/folders/bh/cdl3cft92_dbvg852_fp7y7w0000gn/T/TestStoreComputeDiff_RiskChangesAndNewlyExposed3900440304/001/program-c_latest.json
+2026-06-21T12:44:10.9824990Z --- PASS: TestStoreComputeDiff_RiskChangesAndNewlyExposed (0.00s)
+2026-06-21T12:44:10.9825110Z === RUN   TestAutoSubmitSkipsUnconfiguredPlatform
+2026-06-21T12:44:10.9825550Z 2026/06/21 12:44:06 INFO [DRY-RUN] AutoSubmit finding (real submissions disabled to protect account) platform=hackerone program=example title=title severity=high
+2026-06-21T12:44:10.9825690Z --- PASS: TestAutoSubmitSkipsUnconfiguredPlatform (0.00s)
+2026-06-21T12:44:10.9825800Z === RUN   TestHackerOneSubmitReturnsHTTPErrorBody
+2026-06-21T12:44:10.9825940Z --- PASS: TestHackerOneSubmitReturnsHTTPErrorBody (0.00s)
+2026-06-21T12:44:10.9826050Z === RUN   TestBugcrowdSubmitHandlesNetworkError
+2026-06-21T12:44:10.9826180Z --- PASS: TestBugcrowdSubmitHandlesNetworkError (0.75s)
+2026-06-21T12:44:10.9826220Z PASS
+2026-06-21T12:44:10.9826290Z coverage: 53.4% of statements
+2026-06-21T12:44:10.9826550Z ok  	github.com/Developer-Army/BBPTS/internal/shared/utils	1.837s	coverage: 53.4% of statements
+2026-06-21T12:44:11.1580230Z ##[group]Run COVERAGE=$(go tool cover -func="coverage-macos-latest.out" | grep total | awk '{print $3}' | sed 's/%//')
+2026-06-21T12:44:11.1581000Z [36;1mCOVERAGE=$(go tool cover -func="coverage-macos-latest.out" | grep total | awk '{print $3}' | sed 's/%//')[0m
+2026-06-21T12:44:11.1581680Z [36;1mecho "Total coverage: $COVERAGE%"[0m
+2026-06-21T12:44:11.1581930Z [36;1mINT_COVERAGE=$(echo "$COVERAGE" | cut -d. -f1)[0m
+2026-06-21T12:44:11.1582180Z [36;1mif [ -z "$INT_COVERAGE" ]; then[0m
+2026-06-21T12:44:11.1582410Z [36;1m  echo "Failed to parse coverage"[0m
+2026-06-21T12:44:11.1582600Z [36;1m  exit 1[0m
+2026-06-21T12:44:11.1582740Z [36;1mfi[0m
+2026-06-21T12:44:11.1582890Z [36;1mif [ "$INT_COVERAGE" -lt 65 ]; then[0m
+2026-06-21T12:44:11.1583200Z [36;1m  echo "Error: Code coverage $INT_COVERAGE% is below threshold of 65%"[0m
+2026-06-21T12:44:11.1583490Z [36;1m  exit 1[0m
+2026-06-21T12:44:11.1583620Z [36;1mfi[0m
+2026-06-21T12:44:11.1796620Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-06-21T12:44:11.1796880Z ##[endgroup]
+2026-06-21T12:44:12.0088110Z Total coverage: 37.3%
+2026-06-21T12:44:12.0137280Z Error: Code coverage 37% is below threshold of 65%
+2026-06-21T12:44:12.0142070Z ##[error]Process completed with exit code 1.
+2026-06-21T12:44:12.0207110Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:44:12.0208180Z ##[group]Run actions/upload-artifact@v4
+2026-06-21T12:44:12.0208380Z with:
+2026-06-21T12:44:12.0208560Z   name: coverage-report-macos-latest
+2026-06-21T12:44:12.0208810Z   path: coverage-macos-latest.out
+2026-06-21T12:44:12.0209030Z   if-no-files-found: warn
+2026-06-21T12:44:12.0209200Z   compression-level: 6
+2026-06-21T12:44:12.0209380Z   overwrite: false
+2026-06-21T12:44:12.0209540Z   include-hidden-files: false
+2026-06-21T12:44:12.0209740Z ##[endgroup]
+2026-06-21T12:44:12.3295030Z (node:7741) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-06-21T12:44:12.3295860Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-06-21T12:44:12.3328910Z With the provided path, there will be 1 file uploaded
+2026-06-21T12:44:12.3331530Z Artifact name is valid!
+2026-06-21T12:44:12.3332050Z Root directory input is valid!
+2026-06-21T12:44:12.7194290Z Beginning upload of artifact content to blob storage
+2026-06-21T12:44:12.7515730Z (node:7741) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-06-21T12:44:13.1750700Z Uploaded bytes 82156
+2026-06-21T12:44:13.2533660Z Finished uploading artifact content to blob storage!
+2026-06-21T12:44:13.2545120Z SHA256 digest of uploaded artifact zip is ae87d6dce807f2c90292090eabbbb022f39b13d58066ddbab1001d6fbaf60173
+2026-06-21T12:44:13.2545640Z Finalizing artifact upload
+2026-06-21T12:44:13.4694840Z Artifact coverage-report-macos-latest.zip successfully finalized. Artifact ID 7775393297
+2026-06-21T12:44:13.4696840Z Artifact coverage-report-macos-latest has been successfully uploaded! Final size is 82156 bytes. Artifact ID is 7775393297
+2026-06-21T12:44:13.4701680Z Artifact download URL: https://github.com/Developer-Army/BBPTS/actions/runs/27904685442/artifacts/7775393297
+2026-06-21T12:44:13.4782020Z ##[group]Run echo "::error::Test and Build Verification job failed on macos-latest!"
+2026-06-21T12:44:13.4782530Z [36;1mecho "::error::Test and Build Verification job failed on macos-latest!"[0m
+2026-06-21T12:44:13.4813500Z shell: /bin/bash -e {0}
+2026-06-21T12:44:13.4813680Z ##[endgroup]
+2026-06-21T12:44:13.5110590Z ##[error]Test and Build Verification job failed on macos-latest!
+2026-06-21T12:44:13.5195150Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:44:13.5196460Z Post job cleanup.
+2026-06-21T12:44:13.6104440Z [command]/opt/homebrew/bin/git version
+2026-06-21T12:44:13.6169380Z git version 2.54.0
+2026-06-21T12:44:13.6185480Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/2c8d0920-934e-48b7-98cb-b98f2b9e7dad/.gitconfig'
+2026-06-21T12:44:13.6191600Z Temporarily overriding HOME='/Users/runner/work/_temp/2c8d0920-934e-48b7-98cb-b98f2b9e7dad' before making global git config changes
+2026-06-21T12:44:13.6192450Z Adding repository directory to the temporary git global config as a safe directory
+2026-06-21T12:44:13.6195120Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/BBPTS/BBPTS
+2026-06-21T12:44:13.6257770Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-06-21T12:44:13.6315660Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-06-21T12:44:13.7082850Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-06-21T12:44:13.7131150Z http.https://github.com/.extraheader
+2026-06-21T12:44:13.7137670Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-06-21T12:44:13.7196420Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-06-21T12:44:13.7948400Z Cleaning up orphan processes
+2026-06-21T12:44:14.4794470Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332, actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

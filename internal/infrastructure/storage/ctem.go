@@ -163,7 +163,7 @@ func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64, c
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	now := time.Now().UTC()
 
@@ -381,7 +381,7 @@ func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, 
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var lastID int64
 	if s.dbType == "postgres" {
@@ -454,7 +454,7 @@ func (s *Storage) UpdateAssignmentStatus(id int64, status string) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	now := time.Now().UTC()
 	var queryUpdate string

@@ -1,0 +1,29 @@
+﻿2026-06-21T12:42:51.4143454Z Current runner version: '2.335.1'
+2026-06-21T12:42:51.4180499Z ##[group]Runner Image Provisioner
+2026-06-21T12:42:51.4181723Z Hosted Compute Agent
+2026-06-21T12:42:51.4182768Z Version: 20260611.554
+2026-06-21T12:42:51.4183699Z Commit: 5e0782fdc9014723d3be820dd114dd31555c2bd1
+2026-06-21T12:42:51.4184912Z Build Date: 2026-06-11T21:40:46Z
+2026-06-21T12:42:51.4186362Z Worker ID: {3f5f2611-79e1-4afb-b1d4-cff8a69052a3}
+2026-06-21T12:42:51.4187542Z Azure Region: eastus2
+2026-06-21T12:42:51.4188625Z ##[endgroup]
+2026-06-21T12:42:51.4190603Z ##[group]Operating System
+2026-06-21T12:42:51.4191553Z Ubuntu
+2026-06-21T12:42:51.4192379Z 24.04.4
+2026-06-21T12:42:51.4193092Z LTS
+2026-06-21T12:42:51.4193962Z ##[endgroup]
+2026-06-21T12:42:51.4194854Z ##[group]Runner Image
+2026-06-21T12:42:51.4196453Z Image: ubuntu-24.04
+2026-06-21T12:42:51.4197388Z Version: 20260615.205.1
+2026-06-21T12:42:51.4199430Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260615.205/images/ubuntu/Ubuntu2404-Readme.md
+2026-06-21T12:42:51.4201995Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260615.205
+2026-06-21T12:42:51.4203580Z ##[endgroup]
+2026-06-21T12:42:51.4205284Z ##[group]GITHUB_TOKEN Permissions
+2026-06-21T12:42:51.4208516Z Contents: read
+2026-06-21T12:42:51.4209476Z Metadata: read
+2026-06-21T12:42:51.4210332Z ##[endgroup]
+2026-06-21T12:42:51.4213751Z Secret source: Actions
+2026-06-21T12:42:51.4215144Z Prepare workflow directory
+2026-06-21T12:42:51.4678448Z Prepare all required actions
+2026-06-21T12:42:51.4733645Z Getting action download info
+2026-06-21T12:42:51.7160425Z ##[error]Unable to resolve action `anchore/sbom-action@ab5b6b3fd037dfb61dbec777c6dbaa20bb61f58a`, unable to find version `ab5b6b3fd037dfb61dbec777c6dbaa20bb61f58a`. Unable to resolve action `anchore/scan-action@4f1cf2b489d816a7a0b81df98687a4192a6c8e3e`, unable to find version `4f1cf2b489d816a7a0b81df98687a4192a6c8e3e`

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -34,14 +35,14 @@ func CheckEnvironment() []ToolStatus {
 			if t == "amass" {
 				versionCmd = "version"
 			}
-			cmd, cmdErr := PrepareSecureCommand(nil, t, versionCmd)
+			cmd, cmdErr := PrepareSecureCommand(context.TODO(), t, versionCmd)
 			var out []byte
 			if cmdErr == nil {
 				out, err = cmd.CombinedOutput()
 			}
 			if (err != nil || cmdErr != nil) && t == "httpx" {
 				// Try Python httpx version check as fallback/detection
-				cmd2, cmd2Err := PrepareSecureCommand(nil, t, "--version")
+				cmd2, cmd2Err := PrepareSecureCommand(context.TODO(), t, "--version")
 				if cmd2Err == nil {
 					out, _ = cmd2.CombinedOutput()
 				}

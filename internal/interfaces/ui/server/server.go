@@ -171,7 +171,7 @@ func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 		if receivedToken == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error": "unauthorized: session token required"}`))
+			_, _ = w.Write([]byte(`{"error": "unauthorized: session token required"}`))
 			return
 		}
 
@@ -179,7 +179,7 @@ func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error": "unauthorized: invalid or expired session"}`))
+			_, _ = w.Write([]byte(`{"error": "unauthorized: invalid or expired session"}`))
 			return
 		}
 
@@ -187,7 +187,7 @@ func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 		if !hasPermission(r.URL.Path, r.Method, role) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(`{"error": "forbidden: insufficient permissions"}`))
+			_, _ = w.Write([]byte(`{"error": "forbidden: insufficient permissions"}`))
 			return
 		}
 

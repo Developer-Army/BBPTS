@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"context"
 	"log/slog"
 	"math"
 	"os"
@@ -126,7 +127,7 @@ func getSystemTotalMemory() int64 {
 
 	case "darwin":
 		// macOS: sysctl -n hw.memsize
-		cmd, cmdErr := PrepareSecureCommand(nil, "sysctl", "-n", "hw.memsize")
+		cmd, cmdErr := PrepareSecureCommand(context.TODO(), "sysctl", "-n", "hw.memsize")
 		if cmdErr == nil {
 			out, err := cmd.Output()
 			if err == nil {
@@ -139,7 +140,7 @@ func getSystemTotalMemory() int64 {
 
 	case "windows":
 		// Windows: wmic computersystem get TotalPhysicalMemory
-		cmd, cmdErr := PrepareSecureCommand(nil, "wmic", "computersystem", "get", "TotalPhysicalMemory")
+		cmd, cmdErr := PrepareSecureCommand(context.TODO(), "wmic", "computersystem", "get", "TotalPhysicalMemory")
 		if cmdErr == nil {
 			out, err := cmd.Output()
 			if err == nil {

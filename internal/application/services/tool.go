@@ -142,7 +142,7 @@ const (
 	quotaGuardContextKey    contextKey = "quota_guard"
 )
 
-const insecureContextKey = "insecure"
+const insecureContextKey contextKey = "insecure"
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
 	return context.WithValue(ctx, apiKeyContextKey, keys)

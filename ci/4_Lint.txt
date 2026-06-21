@@ -1,0 +1,276 @@
+﻿2026-06-21T12:42:52.0648563Z Current runner version: '2.335.1'
+2026-06-21T12:42:52.0686039Z ##[group]Runner Image Provisioner
+2026-06-21T12:42:52.0687590Z Hosted Compute Agent
+2026-06-21T12:42:52.0688493Z Version: 20260611.554
+2026-06-21T12:42:52.0689456Z Commit: 5e0782fdc9014723d3be820dd114dd31555c2bd1
+2026-06-21T12:42:52.0690759Z Build Date: 2026-06-11T21:40:46Z
+2026-06-21T12:42:52.0691816Z Worker ID: {bf049975-59c1-429d-91dc-01bda946a938}
+2026-06-21T12:42:52.0693065Z Azure Region: westcentralus
+2026-06-21T12:42:52.0694341Z ##[endgroup]
+2026-06-21T12:42:52.0696554Z ##[group]Operating System
+2026-06-21T12:42:52.0697655Z Ubuntu
+2026-06-21T12:42:52.0698468Z 24.04.4
+2026-06-21T12:42:52.0699275Z LTS
+2026-06-21T12:42:52.0700167Z ##[endgroup]
+2026-06-21T12:42:52.0701005Z ##[group]Runner Image
+2026-06-21T12:42:52.0702078Z Image: ubuntu-24.04
+2026-06-21T12:42:52.0702950Z Version: 20260615.205.1
+2026-06-21T12:42:52.0705292Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260615.205/images/ubuntu/Ubuntu2404-Readme.md
+2026-06-21T12:42:52.0707811Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260615.205
+2026-06-21T12:42:52.0709982Z ##[endgroup]
+2026-06-21T12:42:52.0711918Z ##[group]GITHUB_TOKEN Permissions
+2026-06-21T12:42:52.0715214Z Contents: read
+2026-06-21T12:42:52.0716248Z Metadata: read
+2026-06-21T12:42:52.0717085Z ##[endgroup]
+2026-06-21T12:42:52.0720353Z Secret source: Actions
+2026-06-21T12:42:52.0721862Z Prepare workflow directory
+2026-06-21T12:42:52.1122483Z Prepare all required actions
+2026-06-21T12:42:52.1174639Z Getting action download info
+2026-06-21T12:42:52.4247669Z Download action repository 'actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332' (SHA:692973e3d937129bcbf40652eb9f2f61becf3332)
+2026-06-21T12:42:52.5203731Z Download action repository 'actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32' (SHA:0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32)
+2026-06-21T12:42:53.3077127Z Download action repository 'golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86' (SHA:aaa42aa0628b4ae2578232a66b541047968fac86)
+2026-06-21T12:42:54.2128435Z Complete job name: Lint
+2026-06-21T12:42:54.3147072Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:42:54.3159719Z ##[group]Run actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+2026-06-21T12:42:54.3161371Z with:
+2026-06-21T12:42:54.3162216Z   repository: Developer-Army/BBPTS
+2026-06-21T12:42:54.3173408Z   token: ***
+2026-06-21T12:42:54.3174328Z   ssh-strict: true
+2026-06-21T12:42:54.3175165Z   ssh-user: git
+2026-06-21T12:42:54.3176012Z   persist-credentials: true
+2026-06-21T12:42:54.3176967Z   clean: true
+2026-06-21T12:42:54.3177816Z   sparse-checkout-cone-mode: true
+2026-06-21T12:42:54.3178832Z   fetch-depth: 1
+2026-06-21T12:42:54.3179711Z   fetch-tags: false
+2026-06-21T12:42:54.3180581Z   show-progress: true
+2026-06-21T12:42:54.3181542Z   lfs: false
+2026-06-21T12:42:54.3182327Z   submodules: false
+2026-06-21T12:42:54.3183191Z   set-safe-directory: true
+2026-06-21T12:42:54.3184760Z ##[endgroup]
+2026-06-21T12:42:54.4248814Z Syncing repository: Developer-Army/BBPTS
+2026-06-21T12:42:54.4251497Z ##[group]Getting Git version info
+2026-06-21T12:42:54.4252749Z Working directory is '/home/runner/work/BBPTS/BBPTS'
+2026-06-21T12:42:54.4255079Z [command]/usr/bin/git version
+2026-06-21T12:42:54.4302944Z git version 2.54.0
+2026-06-21T12:42:54.4325154Z ##[endgroup]
+2026-06-21T12:42:54.4342901Z Temporarily overriding HOME='/home/runner/work/_temp/6209cabe-c456-4e96-8306-958c27ed58a9' before making global git config changes
+2026-06-21T12:42:54.4347465Z Adding repository directory to the temporary git global config as a safe directory
+2026-06-21T12:42:54.4351235Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/BBPTS/BBPTS
+2026-06-21T12:42:54.4400930Z Deleting the contents of '/home/runner/work/BBPTS/BBPTS'
+2026-06-21T12:42:54.4405910Z ##[group]Initializing the repository
+2026-06-21T12:42:54.4411104Z [command]/usr/bin/git init /home/runner/work/BBPTS/BBPTS
+2026-06-21T12:42:54.4501971Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-06-21T12:42:54.4504432Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-06-21T12:42:54.4507599Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-06-21T12:42:54.4510085Z hint: call:
+2026-06-21T12:42:54.4511484Z hint:
+2026-06-21T12:42:54.4513123Z hint: 	git config --global init.defaultBranch <name>
+2026-06-21T12:42:54.4515484Z hint:
+2026-06-21T12:42:54.4517373Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-06-21T12:42:54.4520316Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-06-21T12:42:54.4522880Z hint:
+2026-06-21T12:42:54.4524448Z hint: 	git branch -m <name>
+2026-06-21T12:42:54.4525953Z hint:
+2026-06-21T12:42:54.4528205Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-06-21T12:42:54.4530790Z Initialized empty Git repository in /home/runner/work/BBPTS/BBPTS/.git/
+2026-06-21T12:42:54.4534724Z [command]/usr/bin/git remote add origin https://github.com/Developer-Army/BBPTS
+2026-06-21T12:42:54.4601951Z ##[endgroup]
+2026-06-21T12:42:54.4604709Z ##[group]Disabling automatic garbage collection
+2026-06-21T12:42:54.4607008Z [command]/usr/bin/git config --local gc.auto 0
+2026-06-21T12:42:54.4640372Z ##[endgroup]
+2026-06-21T12:42:54.4642740Z ##[group]Setting up auth
+2026-06-21T12:42:54.4647625Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-06-21T12:42:54.4684715Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-06-21T12:42:54.5037595Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-06-21T12:42:54.5073315Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-06-21T12:42:54.5314799Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-06-21T12:42:54.5353914Z ##[endgroup]
+2026-06-21T12:42:54.5358836Z ##[group]Fetching the repository
+2026-06-21T12:42:54.5367328Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +7ce73bce5ee6be983dbe86ccd58b845dd14afa64:refs/remotes/origin/main
+2026-06-21T12:42:55.2874153Z From https://github.com/Developer-Army/BBPTS
+2026-06-21T12:42:55.2875437Z  * [new ref]         7ce73bce5ee6be983dbe86ccd58b845dd14afa64 -> origin/main
+2026-06-21T12:42:55.2924479Z ##[endgroup]
+2026-06-21T12:42:55.2925513Z ##[group]Determining the checkout info
+2026-06-21T12:42:55.2926600Z ##[endgroup]
+2026-06-21T12:42:55.2927311Z [command]/usr/bin/git sparse-checkout disable
+2026-06-21T12:42:55.2979113Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-06-21T12:42:55.3011634Z ##[group]Checking out the ref
+2026-06-21T12:42:55.3016554Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-06-21T12:42:55.3283548Z Switched to a new branch 'main'
+2026-06-21T12:42:55.3284845Z branch 'main' set up to track 'origin/main'.
+2026-06-21T12:42:55.3337779Z ##[endgroup]
+2026-06-21T12:42:55.3341201Z [command]/usr/bin/git log -1 --format='%H'
+2026-06-21T12:42:55.3367560Z '7ce73bce5ee6be983dbe86ccd58b845dd14afa64'
+2026-06-21T12:42:55.3655742Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:42:55.3658430Z ##[group]Run actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32
+2026-06-21T12:42:55.3659031Z with:
+2026-06-21T12:42:55.3659461Z   go-version: 1.23
+2026-06-21T12:42:55.3659883Z   cache: true
+2026-06-21T12:42:55.3660279Z   check-latest: false
+2026-06-21T12:42:55.3663622Z   token: ***
+2026-06-21T12:42:55.3664355Z ##[endgroup]
+2026-06-21T12:42:55.5074510Z Setup go version spec 1.23
+2026-06-21T12:42:55.5153760Z Found in cache @ /opt/hostedtoolcache/go/1.23.12/x64
+2026-06-21T12:42:55.5156248Z (node:2253) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-06-21T12:42:55.5157161Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-06-21T12:42:55.5160172Z Added go to the path
+2026-06-21T12:42:55.5163757Z Successfully set up Go version 1.23
+2026-06-21T12:42:56.9285635Z [command]/opt/hostedtoolcache/go/1.23.12/x64/bin/go env GOMODCACHE
+2026-06-21T12:42:56.9323271Z [command]/opt/hostedtoolcache/go/1.23.12/x64/bin/go env GOCACHE
+2026-06-21T12:42:56.9355541Z /home/runner/go/pkg/mod
+2026-06-21T12:42:56.9373886Z /home/runner/.cache/go-build
+2026-06-21T12:42:57.0583919Z ##[warning]Failed to restore: Cache service responded with 400
+2026-06-21T12:42:57.0594212Z Cache is not found
+2026-06-21T12:42:57.0617451Z go version go1.23.12 linux/amd64
+2026-06-21T12:42:57.0617725Z 
+2026-06-21T12:42:57.0618107Z ##[group]go env
+2026-06-21T12:42:57.1986355Z GO111MODULE=''
+2026-06-21T12:42:57.1986756Z GOARCH='amd64'
+2026-06-21T12:42:57.1986991Z GOBIN=''
+2026-06-21T12:42:57.1987284Z GOCACHE='/home/runner/.cache/go-build'
+2026-06-21T12:42:57.1987669Z GOENV='/home/runner/.config/go/env'
+2026-06-21T12:42:57.1987973Z GOEXE=''
+2026-06-21T12:42:57.1988215Z GOEXPERIMENT=''
+2026-06-21T12:42:57.1988467Z GOFLAGS=''
+2026-06-21T12:42:57.1988684Z GOHOSTARCH='amd64'
+2026-06-21T12:42:57.1988922Z GOHOSTOS='linux'
+2026-06-21T12:42:57.1989167Z GOINSECURE=''
+2026-06-21T12:42:57.1989406Z GOMODCACHE='/home/runner/go/pkg/mod'
+2026-06-21T12:42:57.1989709Z GONOPROXY=''
+2026-06-21T12:42:57.1989925Z GONOSUMDB=''
+2026-06-21T12:42:57.1990127Z GOOS='linux'
+2026-06-21T12:42:57.1990345Z GOPATH='/home/runner/go'
+2026-06-21T12:42:57.1990604Z GOPRIVATE=''
+2026-06-21T12:42:57.1990904Z GOPROXY='https://proxy.golang.org,direct'
+2026-06-21T12:42:57.1991330Z GOROOT='/opt/hostedtoolcache/go/1.23.12/x64'
+2026-06-21T12:42:57.1991678Z GOSUMDB='sum.golang.org'
+2026-06-21T12:42:57.1991957Z GOTMPDIR=''
+2026-06-21T12:42:57.1992203Z GOTOOLCHAIN='auto'
+2026-06-21T12:42:57.1992640Z GOTOOLDIR='/opt/hostedtoolcache/go/1.23.12/x64/pkg/tool/linux_amd64'
+2026-06-21T12:42:57.1993011Z GOVCS=''
+2026-06-21T12:42:57.1993249Z GOVERSION='go1.23.12'
+2026-06-21T12:42:57.1993481Z GODEBUG=''
+2026-06-21T12:42:57.1993690Z GOTELEMETRY='local'
+2026-06-21T12:42:57.1994229Z GOTELEMETRYDIR='/home/runner/.config/go/telemetry'
+2026-06-21T12:42:57.1994660Z GCCGO='gccgo'
+2026-06-21T12:42:57.1994878Z GOAMD64='v1'
+2026-06-21T12:42:57.1995104Z AR='ar'
+2026-06-21T12:42:57.1995303Z CC='gcc'
+2026-06-21T12:42:57.1995550Z CXX='g++'
+2026-06-21T12:42:57.1995758Z CGO_ENABLED='1'
+2026-06-21T12:42:57.1996019Z GOMOD='/home/runner/work/BBPTS/BBPTS/go.mod'
+2026-06-21T12:42:57.1996344Z GOWORK=''
+2026-06-21T12:42:57.1996583Z CGO_CFLAGS='-O2 -g'
+2026-06-21T12:42:57.1996835Z CGO_CPPFLAGS=''
+2026-06-21T12:42:57.1997078Z CGO_CXXFLAGS='-O2 -g'
+2026-06-21T12:42:57.1997343Z CGO_FFLAGS='-O2 -g'
+2026-06-21T12:42:57.1997569Z CGO_LDFLAGS='-O2 -g'
+2026-06-21T12:42:57.1997814Z PKG_CONFIG='pkg-config'
+2026-06-21T12:42:57.1998514Z GOGCCFLAGS='-fPIC -m64 -pthread -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=/tmp/go-build3723156614=/tmp/go-build -gno-record-gcc-switches'
+2026-06-21T12:42:57.1999521Z 
+2026-06-21T12:42:57.2000050Z ##[endgroup]
+2026-06-21T12:42:57.2172748Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:42:57.2174736Z ##[group]Run golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86
+2026-06-21T12:42:57.2175164Z with:
+2026-06-21T12:42:57.2175662Z   version: v1.60.1
+2026-06-21T12:42:57.2176044Z   args: --timeout=10m
+2026-06-21T12:42:57.2176285Z   install-mode: binary
+2026-06-21T12:42:57.2179430Z   github-token: ***
+2026-06-21T12:42:57.2179671Z   only-new-issues: false
+2026-06-21T12:42:57.2179917Z   skip-cache: false
+2026-06-21T12:42:57.2180142Z   skip-save-cache: false
+2026-06-21T12:42:57.2180395Z   problem-matchers: false
+2026-06-21T12:42:57.2180653Z   cache-invalidation-interval: 7
+2026-06-21T12:42:57.2180919Z ##[endgroup]
+2026-06-21T12:42:57.3543836Z ##[group]prepare environment
+2026-06-21T12:42:57.3548306Z Checking for go.mod: go.mod
+2026-06-21T12:42:57.3554940Z (node:2318) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-06-21T12:42:57.3555855Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-06-21T12:42:57.4598003Z ##[warning]Failed to restore: Cache service responded with 400
+2026-06-21T12:42:57.4604830Z Cache not found for input keys: golangci-lint.cache-Linux-2946-bc31f81a1aa9620be6a2d1a17dc5892edd040244, golangci-lint.cache-Linux-2946-
+2026-06-21T12:42:57.4606116Z Finding needed golangci-lint version...
+2026-06-21T12:42:57.4609075Z Installation mode: binary
+2026-06-21T12:42:57.4609883Z Installing golangci-lint binary v1.60.1...
+2026-06-21T12:42:57.4611229Z Downloading binary https://github.com/golangci/golangci-lint/releases/download/v1.60.1/golangci-lint-1.60.1-linux-amd64.tar.gz ...
+2026-06-21T12:42:58.0407275Z [command]/usr/bin/tar xz --overwrite --warning=no-unknown-keyword --overwrite -C /home/runner -f /home/runner/work/_temp/45dd62e6-efbd-41eb-8edc-d10b8f0fbaa9
+2026-06-21T12:42:58.2618391Z Installed golangci-lint into /home/runner/golangci-lint-1.60.1-linux-amd64/golangci-lint in 801ms
+2026-06-21T12:42:58.2619375Z Prepared env in 907ms
+2026-06-21T12:42:58.2620926Z ##[endgroup]
+2026-06-21T12:42:58.2623280Z ##[group]run golangci-lint
+2026-06-21T12:42:58.2630217Z Running [/home/runner/golangci-lint-1.60.1-linux-amd64/golangci-lint run  --timeout=10m] in [/home/runner/work/BBPTS/BBPTS] ...
+2026-06-21T12:44:00.0922717Z ##[error]internal/infrastructure/storage/ctem.go:166:19: Error return value of `tx.Rollback` is not checked (errcheck)
+2026-06-21T12:44:00.0924944Z 	defer tx.Rollback()
+2026-06-21T12:44:00.0925358Z 	                 ^
+2026-06-21T12:44:00.0926639Z ##[error]internal/infrastructure/storage/ctem.go:384:19: Error return value of `tx.Rollback` is not checked (errcheck)
+2026-06-21T12:44:00.0928003Z 	defer tx.Rollback()
+2026-06-21T12:44:00.0928427Z 	                 ^
+2026-06-21T12:44:00.0929472Z ##[error]internal/infrastructure/storage/ctem.go:457:19: Error return value of `tx.Rollback` is not checked (errcheck)
+2026-06-21T12:44:00.0930973Z 	defer tx.Rollback()
+2026-06-21T12:44:00.0931415Z 	                 ^
+2026-06-21T12:44:00.0932929Z ##[error]internal/interfaces/ui/report/report.go:1205:12: Error return value of `fmt.Sscanf` is not checked (errcheck)
+2026-06-21T12:44:00.0934522Z 	fmt.Sscanf(hex[:2], "%02x", &r)
+2026-06-21T12:44:00.0934985Z 	          ^
+2026-06-21T12:44:00.0936201Z ##[error]internal/interfaces/ui/report/report.go:1206:12: Error return value of `fmt.Sscanf` is not checked (errcheck)
+2026-06-21T12:44:00.0937828Z 	fmt.Sscanf(hex[2:4], "%02x", &g)
+2026-06-21T12:44:00.0938255Z 	          ^
+2026-06-21T12:44:00.0939419Z ##[error]internal/interfaces/ui/report/report.go:1207:12: Error return value of `fmt.Sscanf` is not checked (errcheck)
+2026-06-21T12:44:00.0941023Z 	fmt.Sscanf(hex[4:6], "%02x", &b)
+2026-06-21T12:44:00.0941991Z 	          ^
+2026-06-21T12:44:00.0943201Z ##[error]internal/interfaces/ui/server/server.go:174:11: Error return value of `w.Write` is not checked (errcheck)
+2026-06-21T12:44:00.0945288Z 			w.Write([]byte(`{"error": "unauthorized: session token required"}`))
+2026-06-21T12:44:00.0945910Z 			       ^
+2026-06-21T12:44:00.0947183Z ##[error]internal/interfaces/ui/server/server.go:182:11: Error return value of `w.Write` is not checked (errcheck)
+2026-06-21T12:44:00.0949506Z 			w.Write([]byte(`{"error": "unauthorized: invalid or expired session"}`))
+2026-06-21T12:44:00.0950162Z 			       ^
+2026-06-21T12:44:00.0951317Z ##[error]internal/interfaces/ui/server/server.go:190:11: Error return value of `w.Write` is not checked (errcheck)
+2026-06-21T12:44:00.0953253Z 			w.Write([]byte(`{"error": "forbidden: insufficient permissions"}`))
+2026-06-21T12:44:00.0954154Z 			       ^
+2026-06-21T12:44:00.0955375Z ##[error]internal/interfaces/ui/report/report.go:1358:6: func `normalizeSeverity` is unused (unused)
+2026-06-21T12:44:00.0957085Z func normalizeSeverity(sev string) string {
+2026-06-21T12:44:00.0957581Z      ^
+2026-06-21T12:44:00.0958898Z ##[error]internal/domain/recon/scorer.go:111:3: ineffectual assignment to expScore (ineffassign)
+2026-06-21T12:44:00.0960458Z 		expScore = 50
+2026-06-21T12:44:00.0960794Z 		^
+2026-06-21T12:44:00.0963024Z ##[error]internal/shared/utils/doctor.go:37:40: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+2026-06-21T12:44:00.0965380Z 			cmd, cmdErr := PrepareSecureCommand(nil, t, versionCmd)
+2026-06-21T12:44:00.0966284Z 			                                    ^
+2026-06-21T12:44:00.0968381Z ##[error]internal/shared/utils/doctor.go:44:43: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+2026-06-21T12:44:00.0970648Z 				cmd2, cmd2Err := PrepareSecureCommand(nil, t, "--version")
+2026-06-21T12:44:00.0971603Z 				                                      ^
+2026-06-21T12:44:00.0973762Z ##[error]internal/shared/utils/resource_guard.go:129:39: SA1012: do not pass a nil Context, even if a function permits it; pass context.TODO if you are unsure about which Context to use (staticcheck)
+2026-06-21T12:44:00.0976180Z 		cmd, cmdErr := PrepareSecureCommand(nil, "sysctl", "-n", "hw.memsize")
+2026-06-21T12:44:00.0977080Z 		                                    ^
+2026-06-21T12:44:00.0979284Z ##[error]internal/application/services/tool.go:332:32: SA1029: should not use built-in type string as key for value; define your own type to avoid collisions (staticcheck)
+2026-06-21T12:44:00.0981341Z 	return context.WithValue(ctx, insecureContextKey, insecure)
+2026-06-21T12:44:00.0982141Z 	                              ^
+2026-06-21T12:44:00.0982379Z 
+2026-06-21T12:44:00.0985194Z ##[error]issues found
+2026-06-21T12:44:00.0986315Z Ran golangci-lint in 61826ms
+2026-06-21T12:44:00.0986764Z ##[endgroup]
+2026-06-21T12:44:00.1095475Z ##[group]Run echo "::error::Lint job failed! Check golangci-lint output for details."
+2026-06-21T12:44:00.1096111Z [36;1mecho "::error::Lint job failed! Check golangci-lint output for details."[0m
+2026-06-21T12:44:00.1256876Z shell: /usr/bin/bash -e {0}
+2026-06-21T12:44:00.1257206Z ##[endgroup]
+2026-06-21T12:44:00.1349915Z ##[error]Lint job failed! Check golangci-lint output for details.
+2026-06-21T12:44:00.1435192Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:44:00.1436420Z Post job cleanup.
+2026-06-21T12:44:00.2802241Z (node:5574) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-06-21T12:44:00.2803002Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-06-21T12:44:00.3079301Z [command]/usr/bin/tar --posix -cf cache.tzst --exclude cache.tzst -P -C /home/runner/work/BBPTS/BBPTS --files-from manifest.txt --use-compress-program zstdmt
+2026-06-21T12:44:00.5037075Z ##[warning]Failed to save: <h2>Our services aren't available right now</h2><p>We're working to restore all services as soon as possible. Please check back soon.</p>0kNw3agAAAAD0CXvHzMcPS5kjxKSf6MUxU0xDMzFFREdFMDcxOQBFZGdl
+2026-06-21T12:44:00.5040771Z Saved cache for golangci-lint from paths '/home/runner/.cache/golangci-lint' in 226ms
+2026-06-21T12:44:00.5207859Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-06-21T12:44:00.5209032Z Post job cleanup.
+2026-06-21T12:44:00.6132446Z [command]/usr/bin/git version
+2026-06-21T12:44:00.6172161Z git version 2.54.0
+2026-06-21T12:44:00.6209055Z Temporarily overriding HOME='/home/runner/work/_temp/1428f6bb-e94a-4621-a08e-6e334ced0813' before making global git config changes
+2026-06-21T12:44:00.6210121Z Adding repository directory to the temporary git global config as a safe directory
+2026-06-21T12:44:00.6215631Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/BBPTS/BBPTS
+2026-06-21T12:44:00.6256581Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-06-21T12:44:00.6318791Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-06-21T12:44:00.6582178Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-06-21T12:44:00.6610565Z http.https://github.com/.extraheader
+2026-06-21T12:44:00.6621356Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-06-21T12:44:00.6655602Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-06-21T12:44:00.7046022Z Cleaning up orphan processes
+2026-06-21T12:44:00.7338818Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332, actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32, golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
