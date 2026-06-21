@@ -9,10 +9,10 @@ import (
 )
 
 type QuotaUsage struct {
-	ShodanCalls  int       `json:"shodan_calls"`
-	ChaosCalls   int       `json:"chaos_calls"`
-	GitHubCalls  int       `json:"github_calls"`
-	LastReset    time.Time `json:"last_reset"`
+	ShodanCalls int       `json:"shodan_calls"`
+	ChaosCalls  int       `json:"chaos_calls"`
+	GitHubCalls int       `json:"github_calls"`
+	LastReset   time.Time `json:"last_reset"`
 }
 
 type QuotaGuard struct {

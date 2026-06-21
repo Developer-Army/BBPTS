@@ -114,13 +114,13 @@ func uploadToDefectDojo(ctx context.Context, ddURL, token, productID, filePath s
 
 func createGitHubIssue(ctx context.Context, token, repo string, f DetailedFinding) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/issues", repo)
-	
-	issueBody := fmt.Sprintf("### Description\n%s\n\n### Severity\n%s\n\n### Score\n%d\n\n### Target\n%s\n\n### Evidence\n```\n%s\n```\n\n### Impact\n%s\n\n### Remediation\n%s\n", 
+
+	issueBody := fmt.Sprintf("### Description\n%s\n\n### Severity\n%s\n\n### Score\n%d\n\n### Target\n%s\n\n### Evidence\n```\n%s\n```\n\n### Impact\n%s\n\n### Remediation\n%s\n",
 		f.Description, f.Severity, f.Score, f.Target, f.Evidence, f.Impact, f.Remediation)
 
 	payload := map[string]any{
-		"title": fmt.Sprintf("[%s] %s", strings.ToUpper(f.Severity), f.Title),
-		"body":  issueBody,
+		"title":  fmt.Sprintf("[%s] %s", strings.ToUpper(f.Severity), f.Title),
+		"body":   issueBody,
 		"labels": append([]string{"bug", "security", strings.ToLower(f.Severity)}, f.Tags...),
 	}
 
@@ -153,7 +153,7 @@ func createGitHubIssue(ctx context.Context, token, repo string, f DetailedFindin
 func createJiraTicket(ctx context.Context, jiraURL, username, token, project string, f DetailedFinding) error {
 	apiURL := fmt.Sprintf("%s/rest/api/2/issue", strings.TrimSuffix(jiraURL, "/"))
 
-	issueBody := fmt.Sprintf("Description: %s\n\nSeverity: %s\nScore: %d\nTarget: %s\n\nEvidence:\n%s\n\nImpact: %s\nRemediation: %s", 
+	issueBody := fmt.Sprintf("Description: %s\n\nSeverity: %s\nScore: %d\nTarget: %s\n\nEvidence:\n%s\n\nImpact: %s\nRemediation: %s",
 		f.Description, f.Severity, f.Score, f.Target, f.Evidence, f.Impact, f.Remediation)
 
 	payload := map[string]any{

@@ -21,7 +21,6 @@ type httpxOutput struct {
 	Technologies []string `json:"tech"`
 }
 
-
 func (t *HTTPXTool) Name() string {
 	return "httpx"
 }

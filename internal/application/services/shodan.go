@@ -45,7 +45,7 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 	}
 
 	events := make([]Event, 0)
-	client := NewSafeRateLimitedClient(10 * time.Second, 1000, 30000)
+	client := NewSafeRateLimitedClient(10*time.Second, 1000, 30000)
 
 	for i, target := range targets {
 		select {
@@ -124,7 +124,7 @@ func (t *ShodanTool) Run(ctx context.Context, targets []string, threads int) ([]
 			slog.Info("Fetched favicon and calculated hash", "target", target, "hash", hash)
 			favQuery := fmt.Sprintf("http.favicon.hash:%d", hash)
 			urlFav := fmt.Sprintf("https://api.shodan.io/shodan/host/search?query=%s&key=%s&limit=50", favQuery, apiKey)
-			
+
 			if qg != nil {
 				qg.Increment("shodan")
 			}
@@ -183,7 +183,7 @@ func fetchFaviconAndHash(ctx context.Context, target string) (int32, error) {
 		return 0, err
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := NewSafeHTTPClient(5 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		if strings.HasPrefix(favURL, "https://") {
@@ -218,7 +218,7 @@ func fetchFaviconAndHash(ctx context.Context, target string) (int32, error) {
 
 func calculateFaviconHash(data []byte) int32 {
 	b64 := base64.StdEncoding.EncodeToString(data)
-	
+
 	var formatted strings.Builder
 	for i := 0; i < len(b64); i++ {
 		formatted.WriteByte(b64[i])
@@ -229,7 +229,7 @@ func calculateFaviconHash(data []byte) int32 {
 	if len(b64)%76 != 0 {
 		formatted.WriteByte('\n')
 	}
-	
+
 	return murmur332([]byte(formatted.String()))
 }
 

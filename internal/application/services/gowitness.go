@@ -84,7 +84,7 @@ func (t *GowitnessTool) Run(ctx context.Context, targets []string, threads int) 
 					srcPath := filepath.Join(destDir, f.Name())
 					md5URL := fmt.Sprintf("%x.png", md5.Sum([]byte(target)))
 					md5Host := fmt.Sprintf("%x.png", md5.Sum([]byte(host)))
-					
+
 					targetWithSlash := target
 					if !strings.HasSuffix(targetWithSlash, "/") {
 						targetWithSlash += "/"

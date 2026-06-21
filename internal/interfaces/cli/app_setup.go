@@ -670,7 +670,7 @@ type bgpPrefixResponse struct {
 }
 
 func expandCompanyTargets(company string) ([]string, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := services.NewSafeHTTPClient(10 * time.Second)
 	searchURL := fmt.Sprintf("https://api.bgpview.io/search?query_term=%s", url.QueryEscape(company))
 	resp, err := client.Get(searchURL)
 	if err != nil {
@@ -704,7 +704,7 @@ func expandCompanyTargets(company string) ([]string, error) {
 }
 
 func expandASNPrefixes(asn int) ([]string, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := services.NewSafeHTTPClient(10 * time.Second)
 	prefixURL := fmt.Sprintf("https://api.bgpview.io/asn/%d/prefixes", asn)
 	pResp, err := client.Get(prefixURL)
 	if err != nil {
@@ -727,4 +727,3 @@ func expandASNPrefixes(asn int) ([]string, error) {
 	}
 	return expanded, nil
 }
-

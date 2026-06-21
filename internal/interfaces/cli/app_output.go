@@ -362,15 +362,16 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 	}
 
 	gen := ui.NewReportGenerator(ui.ReportConfig{
-		OutputPath:   reportDir,
-		MarkdownPath: opts.OutputPath,
-		IncludeHTML:  true,
-		IncludeJSON:  true,
-		IncludeBurp:  true,
-		IncludeCaido: true,
-		IncludeZAP:   true,
-		MinimumScore: 0,
-		TemplatePath: templatePath,
+		OutputPath:      reportDir,
+		MarkdownPath:    opts.OutputPath,
+		IncludeHTML:     true,
+		IncludeJSON:     true,
+		IncludeMarkdown: true,
+		IncludeBurp:     true,
+		IncludeCaido:    true,
+		IncludeZAP:      true,
+		MinimumScore:    0,
+		TemplatePath:    templatePath,
 	})
 	if err := gen.GenerateFullReport(insights, events, store); err != nil {
 		slog.Warn("failed to generate detailed report bundle", "dir", reportDir, "error", err)
@@ -382,14 +383,15 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		slog.Warn("failed to ensure output directory", "dir", outputDir, "error", err)
 	} else {
 		genOutput := ui.NewReportGenerator(ui.ReportConfig{
-			OutputPath:   outputDir,
-			IncludeHTML:  true,
-			IncludeJSON:  true,
-			IncludeBurp:  true,
-			IncludeCaido: true,
-			IncludeZAP:   true,
-			MinimumScore: 0,
-			TemplatePath: templatePath,
+			OutputPath:      outputDir,
+			IncludeHTML:     true,
+			IncludeJSON:     true,
+			IncludeMarkdown: true,
+			IncludeBurp:     true,
+			IncludeCaido:    true,
+			IncludeZAP:      true,
+			MinimumScore:    0,
+			TemplatePath:    templatePath,
 		})
 		if err := genOutput.GenerateFullReport(insights, events, store); err != nil {
 			slog.Warn("failed to generate output report bundle", "dir", outputDir, "error", err)
@@ -398,14 +400,15 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 
 	if globalReportDir != "" {
 		genGlobal := ui.NewReportGenerator(ui.ReportConfig{
-			OutputPath:   globalReportDir,
-			IncludeHTML:  true,
-			IncludeJSON:  true,
-			IncludeBurp:  true,
-			IncludeCaido: true,
-			IncludeZAP:   true,
-			MinimumScore: 0,
-			TemplatePath: templatePath,
+			OutputPath:      globalReportDir,
+			IncludeHTML:     true,
+			IncludeJSON:     true,
+			IncludeMarkdown: true,
+			IncludeBurp:     true,
+			IncludeCaido:    true,
+			IncludeZAP:      true,
+			MinimumScore:    0,
+			TemplatePath:    templatePath,
 		})
 		if err := genGlobal.GenerateFullReport(insights, events, store); err != nil {
 			slog.Warn("failed to generate global detailed report bundle", "dir", globalReportDir, "error", err)

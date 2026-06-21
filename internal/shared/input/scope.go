@@ -42,7 +42,7 @@ type H1ScopeItem struct {
 
 type H1ProgramResponse struct {
 	StructuredScopes []H1ScopeItem `json:"structured_scopes"`
-	Target struct {
+	Target           struct {
 		StructuredScopes []H1ScopeItem `json:"structured_scopes"`
 	} `json:"target"`
 }

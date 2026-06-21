@@ -84,4 +84,3 @@ func TestParseJSONScope(t *testing.T) {
 		t.Errorf("expected bcblock.com to be excluded")
 	}
 }
-

@@ -133,7 +133,6 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 		args = append(args, "-tags", strings.Join(finalTags, ","))
 	}
 
-
 	// Additional template paths
 	for _, tp := range t.TemplatePaths {
 		args = append(args, "-t", tp)
@@ -238,5 +237,3 @@ func getTechTagsForTargets(ctx context.Context, targets []string) []string {
 	}
 	return techTags
 }
-
-

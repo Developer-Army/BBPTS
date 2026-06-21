@@ -361,7 +361,6 @@ func (s *Storage) SaveSetting(key, val string) error {
 	return err
 }
 
-
 // SaveEvidence stores findings evidence.
 func (s *Storage) SaveEvidence(id, assetID, source string, confidence float64, rawData []byte, hash string) error {
 	query := `
@@ -758,6 +757,3 @@ func (s *Storage) SaveReportFinding(title, description, severity, target, screen
 	_, err = s.db.Exec(queryInsert, title, description, severity, target, screenshotPath, riskScore, confidence)
 	return err
 }
-
-
-

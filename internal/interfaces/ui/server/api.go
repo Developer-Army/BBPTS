@@ -958,5 +958,3 @@ func (a *API) GetFindings(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, findings)
 }
-
-

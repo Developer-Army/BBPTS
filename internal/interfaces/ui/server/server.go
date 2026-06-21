@@ -267,8 +267,6 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	mux.HandleFunc("/api/findings/triage", api.UpdateFindingTriage)
 	mux.HandleFunc("/api/findings", api.GetFindings)
 
-
-
 	// Static Frontend (Embedded or simply served from a string for now)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

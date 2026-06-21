@@ -25,17 +25,18 @@ import (
 
 // ReportConfig holds configuration for report generation
 type ReportConfig struct {
-	OutputPath    string
-	MarkdownPath  string
-	IncludeBurp   bool
-	IncludeCaido  bool
-	IncludeZAP    bool
-	IncludeHTML   bool
-	IncludeJSON   bool
-	Verbose       bool
-	MinimumScore  int
-	BugBountyType string // "standard", "h1", "intigriti", "bugcrowd", etc.
-	TemplatePath  string // Optional custom Go text/template file for HTML report
+	OutputPath      string
+	MarkdownPath    string
+	IncludeBurp     bool
+	IncludeCaido    bool
+	IncludeZAP      bool
+	IncludeHTML     bool
+	IncludeJSON     bool
+	IncludeMarkdown bool
+	Verbose         bool
+	MinimumScore    int
+	BugBountyType   string // "standard", "h1", "intigriti", "bugcrowd", etc.
+	TemplatePath    string // Optional custom Go text/template file for HTML report
 }
 
 // Report represents a comprehensive vulnerability report
@@ -83,8 +84,8 @@ type DetailedFinding struct {
 	FreshnessScore      int `json:"freshness_score"`
 	PathScore           int `json:"path_score"`
 
-	Risk recon.RiskVector `json:"risk_vector"`
-	ScreenshotPath string             `json:"screenshot_path,omitempty"`
+	Risk           recon.RiskVector `json:"risk_vector"`
+	ScreenshotPath string           `json:"screenshot_path,omitempty"`
 }
 
 // ReportStatistics holds statistical information about the scan
@@ -134,10 +135,11 @@ func (rg *ReportGenerator) GenerateFullReport(insights []analyze.Insight, events
 		ProcessTriageIntegrations(context.Background(), report, jsonPath)
 	}
 
-
 	// Generate Markdown report
-	if err := rg.generateMarkdownReport(report); err != nil {
-		return fmt.Errorf("failed to generate Markdown report: %w", err)
+	if rg.config.IncludeMarkdown {
+		if err := rg.generateMarkdownReport(report); err != nil {
+			return fmt.Errorf("failed to generate Markdown report: %w", err)
+		}
 	}
 
 	// Generate HTML report
@@ -1641,4 +1643,3 @@ func (rg *ReportGenerator) generateSARIFReport(report *Report) error {
 	}
 	return os.WriteFile(outputPath, data, 0644)
 }
-
