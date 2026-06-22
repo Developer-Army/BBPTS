@@ -19,9 +19,9 @@ import (
 	_ "modernc.org/sqlite" // Import Go-native SQLite driver
 )
 
-type contextKey string
+type storageContextKeyType struct{}
 
-const storageContextKey contextKey = "storage"
+var storageContextKey = storageContextKeyType{}
 
 func WithStorage(ctx context.Context, s *Storage) context.Context {
 	return context.WithValue(ctx, storageContextKey, s)

@@ -7,8 +7,6 @@
 
 > **Bug Bounty Recon on Autopilot.** Point it at target domains, gather intelligence, and get prioritized, actionable findings instantly.
 
-Early development was done with AI coding agents that unfortunately squashed the entire commit history into a single date. I tried to restore it but could not fully recover the original timestamps,but code and features are real and working on maintaining proper commit hygiene going forward.
-
 BBPTS automates the execution of **25+ elite penetration testing and reconnaissance tools** in a highly structured pipeline. It correlates, cleans, and deduplicates the results into a unified interactive report, scoring findings by risk severity so you know exactly where to start testing.
 
 ![BBPTS TUI Dashboard](docs/terminal.png)

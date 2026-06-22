@@ -123,26 +123,27 @@ func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(str
 	return events
 }
 
-type contextKey string
+type contextKey int
 
 const (
-	apiKeyContextKey        contextKey = "api_keys"
-	wordlistDirContextKey   contextKey = "wordlist_dir"
-	tmpResultsDirKey        contextKey = "tmp_results_dir"
-	proxiesContextKey       contextKey = "proxies"
-	rateLimitContextKey     contextKey = "rate_limit"
-	toolRateLimitsKey       contextKey = "tool_rate_limits"
-	lowResourceContextKey   contextKey = "low_resource"
-	scanModeContextKey      contextKey = "scan_mode"
-	headersContextKey       contextKey = "headers"
-	autoUpdateContextKey    contextKey = "auto_update"
-	portsContextKey         contextKey = "ports"
-	containerModeContextKey contextKey = "container_mode"
-	dockerImagesContextKey  contextKey = "docker_images"
-	quotaGuardContextKey    contextKey = "quota_guard"
+	_ contextKey = iota
+	apiKeyContextKey
+	wordlistDirContextKey
+	tmpResultsDirKey
+	proxiesContextKey
+	rateLimitContextKey
+	toolRateLimitsKey
+	lowResourceContextKey
+	scanModeContextKey
+	headersContextKey
+	autoUpdateContextKey
+	portsContextKey
+	containerModeContextKey
+	dockerImagesContextKey
+	quotaGuardContextKey
+	insecureContextKey
+	dryRunContextKey
 )
-
-const insecureContextKey contextKey = "insecure"
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
 	return context.WithValue(ctx, apiKeyContextKey, keys)
@@ -343,7 +344,7 @@ func InsecureFromCtx(ctx context.Context) bool {
 	return false
 }
 
-const dryRunContextKey contextKey = "dry_run"
+
 
 func WithDryRun(ctx context.Context, dryRun bool) context.Context {
 	return context.WithValue(ctx, dryRunContextKey, dryRun)
