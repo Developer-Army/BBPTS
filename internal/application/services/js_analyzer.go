@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"math"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -129,5 +130,43 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 		events = append(events, NewEvent(match[1], j.Name(), "api_endpoint", props))
 	}
 
+	// 4. Scan for exposed API keys and secrets using standard patterns and entropy
+	secretRegexes := map[string]*regexp.Regexp{
+		"aws_key":      regexp.MustCompile(`AKIA[0-9A-Z]{16}`),
+		"google_api":   regexp.MustCompile(`AIza[0-9A-Za-z-_]{35}`),
+		"slack_token":  regexp.MustCompile(`xox[baprs]-[0-9a-zA-Z]{10,48}`),
+		"github_token": regexp.MustCompile(`gh[pso]_[a-zA-Z0-9]{36}`),
+		"stripe_key":   regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24}`),
+	}
+
+	for keyType, re := range secretRegexes {
+		matches := re.FindAllString(content, -1)
+		for _, secretVal := range matches {
+			if computeEntropy(secretVal) > 3.0 {
+				events = append(events, NewEvent(url, j.Name(), "vulnerability", map[string]string{
+					"severity":  "high",
+					"vuln_name": "Exposed " + keyType,
+					"evidence":  "Found secret match: " + secretVal,
+				}))
+			}
+		}
+	}
+
 	return events
+}
+
+func computeEntropy(s string) float64 {
+	if len(s) == 0 {
+		return 0.0
+	}
+	counts := make(map[rune]int)
+	for _, r := range s {
+		counts[r]++
+	}
+	var entropy float64
+	for _, count := range counts {
+		p := float64(count) / float64(len(s))
+		entropy -= p * math.Log2(p)
+	}
+	return entropy
 }
