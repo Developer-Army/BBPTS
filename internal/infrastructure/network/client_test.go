@@ -95,3 +95,46 @@ func TestStealthClientPostSendsBody(t *testing.T) {
 		t.Errorf("expected body '%s', got '%s'", string(testBody), string(receivedBody))
 	}
 }
+
+func TestStealthClientProxyRotation(t *testing.T) {
+	var count1, count2 int
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count1++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server1.Close()
+
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count2++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server2.Close()
+
+	profile := BrowserProfile{
+		Name:      "TestProfile",
+		UserAgent: "TestUA",
+	}
+
+	proxyURLs := server1.URL + "," + server2.URL
+	client, err := NewStealthClientWithPool([]BrowserProfile{profile}, proxyURLs)
+	if err != nil {
+		t.Fatalf("failed to create stealth client with proxies: %v", err)
+	}
+	defer client.Close()
+
+	// Make 4 requests
+	for i := 0; i < 4; i++ {
+		req, err := http.NewRequest("GET", "http://example.com/test", nil)
+		if err != nil {
+			t.Fatalf("failed to create request: %v", err)
+		}
+		resp, err := client.Do(req)
+		if err == nil {
+			resp.Body.Close()
+		}
+	}
+
+	if count1 != 2 || count2 != 2 {
+		t.Errorf("expected round robin proxy rotation (2 and 2), got: server1=%d, server2=%d", count1, count2)
+	}
+}

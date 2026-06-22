@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -219,8 +220,14 @@ func (se *ScopeEngine) IsInScope(target string) bool {
 
 	// Check excludes first
 	for _, p := range se.Excludes {
-		if MatchPattern(host, p) {
-			return false
+		if isCIDRorIP(p) {
+			if MatchCIDRPattern(host, p) {
+				return false
+			}
+		} else {
+			if MatchPattern(host, p) {
+				return false
+			}
 		}
 	}
 
@@ -230,8 +237,14 @@ func (se *ScopeEngine) IsInScope(target string) bool {
 	}
 
 	for _, p := range se.Allows {
-		if MatchPattern(host, p) {
-			return true
+		if isCIDRorIP(p) {
+			if MatchCIDRPattern(host, p) {
+				return true
+			}
+		} else {
+			if MatchPattern(host, p) {
+				return true
+			}
 		}
 	}
 
@@ -258,4 +271,56 @@ func MatchPattern(host, pattern string) bool {
 		}
 	}
 	return host == pattern
+}
+
+// MatchCIDRPattern checks if a host (or its resolved IPs) matches a CIDR or single IP pattern.
+func MatchCIDRPattern(host, pattern string) bool {
+	_, ipnet, err := net.ParseCIDR(pattern)
+	if err != nil {
+		// Pattern is not a valid CIDR. Check if it's a single IP.
+		patIP := net.ParseIP(pattern)
+		if patIP == nil {
+			return false
+		}
+		// It's a single IP. Check if host is the same IP
+		hostIP := net.ParseIP(host)
+		if hostIP != nil {
+			return hostIP.Equal(patIP)
+		}
+		// If host is a domain, resolve it
+		ips, err := net.LookupIP(host)
+		if err == nil {
+			for _, ip := range ips {
+				if ip.Equal(patIP) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	// Pattern is a valid CIDR. Check if target is an IP.
+	hostIP := net.ParseIP(host)
+	if hostIP != nil {
+		return ipnet.Contains(hostIP)
+	}
+
+	// Resolve target domain to IPs and check if any fall in the CIDR
+	ips, err := net.LookupIP(host)
+	if err == nil {
+		for _, ip := range ips {
+			if ipnet.Contains(ip) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isCIDRorIP(p string) bool {
+	if strings.Contains(p, "/") {
+		_, _, err := net.ParseCIDR(p)
+		return err == nil
+	}
+	return net.ParseIP(p) != nil
 }

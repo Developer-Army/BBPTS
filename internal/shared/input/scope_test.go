@@ -84,3 +84,38 @@ func TestParseJSONScope(t *testing.T) {
 		t.Errorf("expected bcblock.com to be excluded")
 	}
 }
+
+func TestScopeEngineCIDR(t *testing.T) {
+	scopeContent := `
+# Allowed scope CIDR
+192.168.1.0/24
+10.0.0.5
+
+# Excluded scope CIDR
+!192.168.1.50
+exclude:192.168.1.128/25
+`
+	engine, err := ParseScope(strings.NewReader(scopeContent))
+	if err != nil {
+		t.Fatalf("failed to parse scope: %v", err)
+	}
+
+	tests := []struct {
+		target string
+		want   bool
+	}{
+		{"192.168.1.10", true},   // in CIDR
+		{"192.168.1.50", false},  // excluded single IP
+		{"192.168.1.200", false}, // excluded CIDR 192.168.1.128/25
+		{"10.0.0.5", true},       // allowed single IP
+		{"10.0.0.6", false},      // outside CIDR/IP
+		{"192.168.2.1", false},   // outside CIDR/IP
+	}
+
+	for _, tt := range tests {
+		got := engine.IsInScope(tt.target)
+		if got != tt.want {
+			t.Errorf("IsInScope(%q) = %v; want %v", tt.target, got, tt.want)
+		}
+	}
+}

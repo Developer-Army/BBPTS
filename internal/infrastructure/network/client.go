@@ -11,6 +11,8 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,6 +48,8 @@ type StealthClient struct {
 	mu             sync.RWMutex
 	humanTimer     *HumanTimer // optional; if nil, uses fixed jitter
 	customHeaders  map[string]string
+	proxyPool      []string
+	currentProxy   int
 }
 
 // NewStealthClient creates a new stealth HTTP client with TLS fingerprinting.
@@ -60,12 +64,23 @@ func NewStealthClientWithPool(profiles []BrowserProfile, proxyURL string) (*Stea
 		return nil, fmt.Errorf("profile pool cannot be empty")
 	}
 
+	var proxyPool []string
+	if proxyURL != "" {
+		for _, p := range strings.Split(proxyURL, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				proxyPool = append(proxyPool, p)
+			}
+		}
+	}
+
 	client := &StealthClient{
 		profile:        profiles[0],
 		profilePool:    profiles,
 		rotateAfter:    50,
 		currentProfile: 0,
 		humanTimer:     NewHumanTimer(), // enable human-like timing by default
+		proxyPool:      proxyPool,
 	}
 
 	if err := client.buildHTTPClient(); err != nil {
@@ -80,8 +95,36 @@ func NewStealthClientWithPool(profiles []BrowserProfile, proxyURL string) (*Stea
 
 // buildHTTPClient constructs the HTTP client with TLS fingerprinting.
 func (sc *StealthClient) buildHTTPClient() error {
+	isProxyAddr := func(addr string) bool {
+		sc.mu.RLock()
+		defer sc.mu.RUnlock()
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			host = addr
+		}
+		for _, pStr := range sc.proxyPool {
+			u, err := url.Parse(pStr)
+			if err == nil {
+				pHost := u.Hostname()
+				if pHost == host {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			// Bypass private IP SSRF checks if dialing configured proxy
+			if isProxyAddr(addr) {
+				dialer := &net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}
+				return dialer.DialContext(ctx, network, addr)
+			}
+
 			pinnedAddr, _, err := security.ResolveAndValidateAddr(ctx, addr)
 			if err != nil {
 				return nil, err
@@ -109,9 +152,39 @@ func (sc *StealthClient) buildHTTPClient() error {
 		},
 	}
 
+	// Dynamic Proxy Function
+	if len(sc.proxyPool) > 0 {
+		transport.Proxy = func(req *http.Request) (*url.URL, error) {
+			sc.mu.Lock()
+			defer sc.mu.Unlock()
+			if len(sc.proxyPool) == 0 {
+				return nil, nil
+			}
+			pStr := sc.proxyPool[sc.currentProxy]
+			sc.currentProxy = (sc.currentProxy + 1) % len(sc.proxyPool)
+			return url.Parse(pStr)
+		}
+	}
+
 	// Use uTLS for TLS fingerprinting based on current profile
 	profile := sc.profile
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// Bypass private IP SSRF checks if dialing configured proxy
+		if isProxyAddr(addr) {
+			tcpConn, err := net.DialTimeout(network, addr, 30*time.Second)
+			if err != nil {
+				return nil, err
+			}
+			uconn := utls.UClient(tcpConn, &utls.Config{
+				InsecureSkipVerify: true,
+			}, profile.TLSFingerprint.ClientHelloID)
+			if err := uconn.HandshakeContext(ctx); err != nil {
+				tcpConn.Close()
+				return nil, fmt.Errorf("TLS handshake failed: %w", err)
+			}
+			return uconn, nil
+		}
+
 		pinnedAddr, host, err := security.ResolveAndValidateAddr(ctx, addr)
 		if err != nil {
 			return nil, err
