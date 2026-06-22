@@ -93,6 +93,7 @@ func deriveInsightsWithTime(targets []string, events []recon.Event, currentTime 
 		&FingerprintAnalyzer{},
 		&ManualTestingAnalyzer{},
 		&ScorerAnalyzer{},
+		NewTakeoverAnalyzer(),
 	}
 	// Add cluster analyzer for post-processing
 	clusterAnalyzer := NewClusterAnalyzer()
