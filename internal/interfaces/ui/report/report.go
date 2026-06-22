@@ -605,6 +605,52 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 	findingsHTML := rg.generateFindingsHTML(report.Findings)
 	recsHTML := rg.generateRecommendationsHTML(report.Recommendations)
 
+	// Attack Paths Graph generation
+	type GraphNode struct {
+		ID    string `json:"id"`
+		Label string `json:"label"`
+		Group string `json:"group"`
+	}
+	type GraphEdge struct {
+		From string `json:"from"`
+		To   string `json:"to"`
+	}
+
+	graphNodes := make(map[string]GraphNode)
+	var graphEdges []GraphEdge
+	edgeMap := make(map[string]bool)
+
+	for _, p := range report.AttackPaths {
+		for i, nodeVal := range p.Path {
+			group := "asset"
+			if i == 0 {
+				group = "origin"
+			} else if i == len(p.Path)-1 {
+				group = "vulnerability"
+			}
+			graphNodes[nodeVal] = GraphNode{ID: nodeVal, Label: nodeVal, Group: group}
+			if i > 0 {
+				prev := p.Path[i-1]
+				key := prev + "->" + nodeVal
+				if !edgeMap[key] {
+					graphEdges = append(graphEdges, GraphEdge{From: prev, To: nodeVal})
+					edgeMap[key] = true
+				}
+			}
+		}
+	}
+
+	nodesList := []GraphNode{}
+	for _, n := range graphNodes {
+		nodesList = append(nodesList, n)
+	}
+	if len(graphEdges) == 0 {
+		graphEdges = []GraphEdge{}
+	}
+
+	nodesJSON, _ := json.Marshal(nodesList)
+	edgesJSON, _ := json.Marshal(graphEdges)
+
 	targetsHTML := ""
 	if len(report.TopTargets) > 0 {
 		targetsHTML += `
@@ -640,6 +686,10 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 	pathsHTML := ""
 	if len(report.AttackPaths) > 0 {
 		pathsHTML += `
+<div class="chart-section" style="margin-bottom: 28px;">
+  <h2>Attack Paths Network Graph</h2>
+  <div id="attack-path-network" style="width: 100%; height: 350px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; margin-top: 10px; position: relative;"></div>
+</div>
 <div class="chart-section" style="margin-bottom: 28px;">
   <h2>Top Attack Paths</h2>
   <ul style="list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">`
@@ -705,6 +755,7 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>BBPTS Recon Report</title>
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <style>
 :root{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;--text:#f8fafc;--muted:#94a3b8;--accent:#38bdf8;--primary:#3b82f6;--critical:#ef4444;--high:#fb923c;--medium:#eab308;--low:#22c55e}
 body.light-theme {
@@ -1048,6 +1099,47 @@ document.querySelectorAll('.finding').forEach(function(card){
     if(i)i.textContent='▲';
   }
 });
+
+// Attack Paths Graph initialization
+const graphNodes = ` + string(nodesJSON) + `;
+const graphEdges = ` + string(edgesJSON) + `;
+const netContainer = document.getElementById('attack-path-network');
+if (netContainer && graphNodes && graphNodes.length > 0) {
+  const data = {
+    nodes: new vis.DataSet(graphNodes),
+    edges: new vis.DataSet(graphEdges)
+  };
+  const options = {
+    nodes: {
+      shape: 'dot',
+      size: 10,
+      font: { size: 10, color: '#f8fafc' },
+      borderWidth: 1.5
+    },
+    edges: {
+      arrows: { to: { enabled: true, scaleFactor: 0.6 } },
+      color: { color: '#475569', highlight: '#3b82f6' }
+    },
+    groups: {
+      origin: { color: { background: '#22c55e', border: '#15803d' } },
+      vulnerability: { color: { background: '#ef4444', border: '#b91c1c' } },
+      asset: { color: { background: '#3b82f6', border: '#1d4ed8' } }
+    },
+    physics: {
+      forceAtlas2Based: {
+        gravitationalConstant: -26,
+        centralGravity: 0.005,
+        springLength: 150,
+        springConstant: 0.18
+      },
+      maxVelocity: 50,
+      solver: 'forceAtlas2Based',
+      timestep: 0.35,
+      stabilization: { iterations: 100 }
+    }
+  };
+  new vis.Network(netContainer, data, options);
+}
 </script>
 </body>
 </html>`
