@@ -50,6 +50,7 @@ type StealthClient struct {
 	customHeaders  map[string]string
 	proxyPool      []string
 	currentProxy   int
+	hostBackoff    *PerHostAdaptiveLimiter
 }
 
 // NewStealthClient creates a new stealth HTTP client with TLS fingerprinting.
@@ -81,6 +82,7 @@ func NewStealthClientWithPool(profiles []BrowserProfile, proxyURL string) (*Stea
 		currentProfile: 0,
 		humanTimer:     NewHumanTimer(), // enable human-like timing by default
 		proxyPool:      proxyPool,
+		hostBackoff:    NewPerHostAdaptiveLimiter(100, 30000), // base 100ms, max 30s
 	}
 
 	if err := client.buildHTTPClient(); err != nil {
@@ -254,6 +256,20 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 	// Apply browser profile headers
 	sc.applyProfileHeaders(req, currentProfile)
 
+	// Apply host-specific adaptive backoff delay if throttled
+	var host string
+	var ab *AdaptiveBackoff
+	if sc.hostBackoff != nil && req.URL != nil {
+		host = req.URL.Hostname()
+		ab = sc.hostBackoff.GetBackoff(host)
+		if ab.IsThrottled() {
+			delay := ab.GetCurrentDelay()
+			if delay > 0 {
+				time.Sleep(delay)
+			}
+		}
+	}
+
 	// Apply human-like timing
 	if sc.humanTimer != nil {
 		sc.humanTimer.Sleep()
@@ -262,7 +278,30 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 		time.Sleep(time.Duration(20+rand.Intn(80)) * time.Millisecond)
 	}
 
-	return sc.httpClient.Do(req)
+	resp, err := sc.httpClient.Do(req)
+	if err != nil {
+		if ab != nil {
+			ab.RecordBlock()
+		}
+		return nil, err
+	}
+
+	if ab != nil {
+		var body []byte
+		if resp.StatusCode == http.StatusForbidden && resp.Body != nil {
+			body, _ = io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+			resp.Body = io.NopCloser(bytes.NewReader(body))
+		}
+		if ab.ShouldBackoff(resp, body) {
+			// Block recorded inside ShouldBackoff
+		} else {
+			if resp.StatusCode < 400 || (resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode != http.StatusServiceUnavailable && resp.StatusCode != http.StatusForbidden) {
+				ab.Reset()
+			}
+		}
+	}
+
+	return resp, nil
 }
 
 // Get performs a GET request with stealth.

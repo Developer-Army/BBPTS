@@ -550,3 +550,35 @@ func BackoffWithJitter(base time.Duration, attempt int) time.Duration {
 	jitter := time.Duration(rand.Int63n(int64(base) / 2))
 	return backoff + jitter
 }
+
+// PerHostAdaptiveLimiter manages independent adaptive backoff states per target host.
+type PerHostAdaptiveLimiter struct {
+	limiters    map[string]*AdaptiveBackoff
+	baseDelayMs int
+	maxDelayMs  int
+	mu          sync.RWMutex
+}
+
+// NewPerHostAdaptiveLimiter creates a new PerHostAdaptiveLimiter.
+func NewPerHostAdaptiveLimiter(baseDelayMs, maxDelayMs int) *PerHostAdaptiveLimiter {
+	return &PerHostAdaptiveLimiter{
+		limiters:    make(map[string]*AdaptiveBackoff),
+		baseDelayMs: baseDelayMs,
+		maxDelayMs:  maxDelayMs,
+	}
+}
+
+// GetBackoff retrieves or instantiates the AdaptiveBackoff state for a specific host.
+func (phal *PerHostAdaptiveLimiter) GetBackoff(host string) *AdaptiveBackoff {
+	phal.mu.RLock()
+	ab, exists := phal.limiters[host]
+	phal.mu.RUnlock()
+
+	if !exists {
+		phal.mu.Lock()
+		ab = NewAdaptiveBackoff(phal.baseDelayMs, phal.maxDelayMs)
+		phal.limiters[host] = ab
+		phal.mu.Unlock()
+	}
+	return ab
+}
