@@ -33,12 +33,24 @@ type JSFinding struct {
 	Line      int    `json:"line,omitempty"`
 }
 
+// HTTPClient defines the interface required for fetching JS resources.
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 // JSAnalyzer fetches and analyzes JavaScript files for hidden endpoints and secrets.
 type JSAnalyzer struct {
-	httpClient    *http.Client
+	httpClient    HTTPClient
 	maxFileSize   int64
 	semanticCache map[string][]SemanticRoute // cache AST results per JS hash
 	mu            sync.RWMutex
+}
+
+// SetHTTPClient updates the HTTP client used for fetching JS files.
+func (a *JSAnalyzer) SetHTTPClient(client HTTPClient) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.httpClient = client
 }
 
 // NewJSAnalyzer creates a JSAnalyzer with sensible defaults.
@@ -79,6 +91,7 @@ func NewJSAnalyzer() *JSAnalyzer {
 		semanticCache: make(map[string][]SemanticRoute),
 	}
 }
+
 
 // Endpoint extraction patterns — these find API routes, paths, and URLs
 // embedded in JavaScript source code.
@@ -174,7 +187,11 @@ func (a *JSAnalyzer) AnalyzeURL(ctx context.Context, jsURL string) []JSFinding {
 		slog.Debug("js analyzer: fetch failed", "url", jsURL, "error", err)
 		return nil
 	}
+	return a.AnalyzeContent(jsURL, body)
+}
 
+// AnalyzeContent extracts endpoints and secrets from a JavaScript source string.
+func (a *JSAnalyzer) AnalyzeContent(jsURL string, body string) []JSFinding {
 	var findings []JSFinding
 
 	// 1. Compute content hash for dedup/diff

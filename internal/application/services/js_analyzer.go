@@ -4,12 +4,11 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"math"
-	"math/rand"
 	"net/http"
 	"regexp"
 	"strings"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 	"golang.org/x/time/rate"
 )
@@ -39,13 +38,19 @@ func (j *JSAnalyzer) Run(ctx context.Context, targets []string, threads int) ([]
 	proxies := GetProxies(ctx)
 	proxy := ""
 	if len(proxies) > 0 {
-		proxy = proxies[rand.Intn(len(proxies))]
+		proxy = proxies[len(proxies)-1]
 	}
 	profile := network.BrowserProfile{
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
-	client, _ := network.NewStealthClient(profile, proxy)
+	// We can use random or fallback for proxy
+	_ = proxy
+	client, _ := network.NewStealthClient(profile, "")
+	if len(proxies) > 0 {
+		// Rebuild client with proxy
+		client, _ = network.NewStealthClient(profile, proxies[0])
+	}
 	if client != nil {
 		client.SetCustomHeaders(HeadersFromCtx(ctx))
 	}
@@ -84,17 +89,7 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 
 	var events []Event
 
-	// 1. Recover React/Vue/Angular router paths
-	routeRe := regexp.MustCompile(`(?i)(?:path|route)\s*:\s*['"\x60](/[a-zA-Z0-9_/-]+)['"\x60]`)
-	routes := routeRe.FindAllStringSubmatch(content, -1)
-	for _, match := range routes {
-		events = append(events, NewEvent(match[1], j.Name(), "frontend_route", map[string]string{
-			"source": url,
-			"type":   "router_recovery",
-		}))
-	}
-
-	// 2. Recover GraphQL Mutations/Queries
+	// 1. GraphQL operation names (regex fallback)
 	gqlRe := regexp.MustCompile(`(?i)(mutation|query)\s+([a-zA-Z0-9_]+)\s*[{(]`)
 	gqlOps := gqlRe.FindAllStringSubmatch(content, -1)
 	for _, match := range gqlOps {
@@ -104,69 +99,72 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 		}))
 	}
 
-	// 3. Recover internal API routes and JWT context
-	apiRe := regexp.MustCompile(`['"\x60](/api/v[0-9]/[a-zA-Z0-9_/-]+)['"\x60]`)
-	apis := apiRe.FindAllStringSubmatch(content, -1)
-	for _, match := range apis {
-		props := map[string]string{
-			"source": url,
-		}
-		// Contextual heuristic: is JWT mentioned nearby?
-		idx := strings.Index(content, match[1])
-		if idx != -1 {
-			start := idx - 200
-			if start < 0 {
-				start = 0
-			}
-			end := idx + 200
-			if end > len(content) {
-				end = len(content)
-			}
-			window := content[start:end]
-			if strings.Contains(strings.ToLower(window), "jwt") || strings.Contains(strings.ToLower(window), "bearer") || strings.Contains(strings.ToLower(window), "admin") {
-				props["context"] = "auth_required or admin_context"
-			}
-		}
-		events = append(events, NewEvent(match[1], j.Name(), "api_endpoint", props))
-	}
+	// 2. Delegate to domain JSAnalyzer
+	domainAnalyzer := recon.NewJSAnalyzer()
+	domainAnalyzer.SetHTTPClient(client)
+	findings := domainAnalyzer.AnalyzeContent(url, content)
 
-	// 4. Scan for exposed API keys and secrets using standard patterns and entropy
-	secretRegexes := map[string]*regexp.Regexp{
-		"aws_key":      regexp.MustCompile(`AKIA[0-9A-Z]{16}`),
-		"google_api":   regexp.MustCompile(`AIza[0-9A-Za-z-_]{35}`),
-		"slack_token":  regexp.MustCompile(`xox[baprs]-[0-9a-zA-Z]{10,48}`),
-		"github_token": regexp.MustCompile(`gh[pso]_[a-zA-Z0-9]{36}`),
-		"stripe_key":   regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24}`),
-	}
+	for _, f := range findings {
+		switch f.Type {
+		case "secret", "entropy":
+			severity := f.Severity
+			if severity == "" {
+				severity = "high"
+			}
+			vulnName := "Exposed " + f.Name
+			nameLower := strings.ToLower(f.Name)
+			if strings.Contains(nameLower, "aws") {
+				vulnName += " (aws_key)"
+			} else if strings.Contains(nameLower, "slack") {
+				vulnName += " (slack_token)"
+			} else if strings.Contains(nameLower, "google") {
+				vulnName += " (google_api)"
+			} else if strings.Contains(nameLower, "github") {
+				vulnName += " (github_token)"
+			} else if strings.Contains(nameLower, "stripe") {
+				vulnName += " (stripe_key)"
+			}
+			events = append(events, NewEvent(url, j.Name(), "vulnerability", map[string]string{
+				"severity":  severity,
+				"vuln_name": vulnName,
+				"evidence":  "Found secret match: " + f.Value,
+			}))
+		case "endpoint", "semantic_endpoint":
+			props := map[string]string{
+				"source": url,
+			}
+			idx := strings.Index(content, f.Value)
+			if idx != -1 {
+				start := idx - 200
+				if start < 0 {
+					start = 0
+				}
+				end := idx + 200
+				if end > len(content) {
+					end = len(content)
+				}
+				window := content[start:end]
+				if strings.Contains(strings.ToLower(window), "jwt") || strings.Contains(strings.ToLower(window), "bearer") || strings.Contains(strings.ToLower(window), "admin") {
+					props["context"] = "auth_required or admin_context"
+				}
+			}
+			events = append(events, NewEvent(f.Value, j.Name(), "api_endpoint", props))
 
-	for keyType, re := range secretRegexes {
-		matches := re.FindAllString(content, -1)
-		for _, secretVal := range matches {
-			if computeEntropy(secretVal) > 3.0 {
-				events = append(events, NewEvent(url, j.Name(), "vulnerability", map[string]string{
-					"severity":  "high",
-					"vuln_name": "Exposed " + keyType,
-					"evidence":  "Found secret match: " + secretVal,
+			// Also emit a frontend_route if AST router definition
+			if f.Type == "semantic_endpoint" && strings.Contains(f.Name, "Route:") {
+				events = append(events, NewEvent(f.Value, j.Name(), "frontend_route", map[string]string{
+					"source": url,
+					"type":   "router_recovery",
 				}))
 			}
+		case "framework", "lazy_route", "sourcemap":
+			events = append(events, NewEvent(url, j.Name(), "discovery", map[string]string{
+				"source": url,
+				"detail": f.Name + ": " + f.Value,
+				"type":   f.Type,
+			}))
 		}
 	}
 
 	return events
-}
-
-func computeEntropy(s string) float64 {
-	if len(s) == 0 {
-		return 0.0
-	}
-	counts := make(map[rune]int)
-	for _, r := range s {
-		counts[r]++
-	}
-	var entropy float64
-	for _, count := range counts {
-		p := float64(count) / float64(len(s))
-		entropy -= p * math.Log2(p)
-	}
-	return entropy
 }

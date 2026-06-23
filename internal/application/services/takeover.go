@@ -80,6 +80,31 @@ var takeoverSignatures = []takeoverSig{
 		CNameSub: "ghost.io",
 		Response: []string{"The thing you're looking for is no longer here"},
 	},
+	{
+		Name:     "Squarespace",
+		CNameSub: "squarespace.com",
+		Response: []string{"Domain Not Claimed", "mapped to Squarespace"},
+	},
+	{
+		Name:     "Readme.io",
+		CNameSub: "readmessl.com",
+		Response: []string{"Project doesn't exist"},
+	},
+	{
+		Name:     "Bitbucket",
+		CNameSub: "bitbucket.io",
+		Response: []string{"Repository not found"},
+	},
+	{
+		Name:     "Cargo",
+		CNameSub: "cargo.site",
+		Response: []string{"404 Not Found", "This site is private", "domain is not yet configured"},
+	},
+	{
+		Name:     "WordPress",
+		CNameSub: "wordpress.com",
+		Response: []string{"Domain mapping upgrade for this domain not found", "Do you want to register"},
+	},
 }
 
 var takeoverHttpClient *http.Client
