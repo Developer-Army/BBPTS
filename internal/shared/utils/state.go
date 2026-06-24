@@ -43,14 +43,15 @@ type NewlyExposed struct {
 
 // Diff represents changes between two consecutive scans.
 type Diff struct {
-	NewTargets     []string       `json:"new_targets"`
-	RemovedTargets []string       `json:"removed_targets"`
-	NewEvents      []recon.Event  `json:"new_events"`
-	RemovedEvents  []recon.Event  `json:"removed_events"`
-	RiskChanges    []RiskChange   `json:"risk_changes"`
-	NewlyExposed   []NewlyExposed `json:"newly_exposed"`
-	Timestamp      time.Time      `json:"timestamp"`
-	PreviousTime   time.Time      `json:"previous_time"`
+	NewTargets     []string          `json:"new_targets"`
+	RemovedTargets []string          `json:"removed_targets"`
+	NewEvents      []recon.Event     `json:"new_events"`
+	RemovedEvents  []recon.Event     `json:"removed_events"`
+	RiskChanges    []RiskChange      `json:"risk_changes"`
+	NewlyExposed   []NewlyExposed    `json:"newly_exposed"`
+	Timestamp      time.Time         `json:"timestamp"`
+	PreviousTime   time.Time         `json:"previous_time"`
+	ChangeReasons  map[string]string `json:"change_reasons,omitempty"`
 }
 
 // Store manages persistent scan state on disk.
@@ -345,6 +346,38 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 	}
 	diff.NewlyExposed = newlyExposed
 
+	// Enrich new targets/events with change reasons
+	diff.ChangeReasons = make(map[string]string)
+	for _, t := range diff.NewTargets {
+		reason := "Newly discovered target subdomain/host"
+		for _, ev := range currentEvents {
+			if ev.Target == t {
+				if ev.Type == "port_open" {
+					reason = fmt.Sprintf("Newly discovered target with open port %s", ev.Properties["port"])
+				} else if ev.Type == "service" {
+					reason = "Newly resolved active service target"
+				}
+			}
+		}
+		diff.ChangeReasons[t] = reason
+	}
+
+	for _, ev := range diff.NewEvents {
+		key := eventKey(ev)
+		reason := "New security/recon discovery"
+		switch ev.Type {
+		case "port_open":
+			reason = fmt.Sprintf("Port %s became open/accessible", ev.Properties["port"])
+		case "vulnerability":
+			reason = fmt.Sprintf("New vulnerability detected: %s", ev.Properties["vuln_name"])
+		case "secret_exposed":
+			reason = "Exposed credential/secrets found"
+		case "discovery":
+			reason = "New interesting asset metadata discovered"
+		}
+		diff.ChangeReasons[key] = reason
+	}
+
 	// Persist the diff
 	data, err := json.MarshalIndent(diff, "", "  ")
 	if err == nil {
@@ -411,7 +444,11 @@ func (d *Diff) ToMarkdown(scope string) string {
 	if len(d.NewTargets) > 0 {
 		sb.WriteString("## New Targets\n\n")
 		for _, t := range d.NewTargets {
-			sb.WriteString(fmt.Sprintf("- `%s`\n", t))
+			reason := d.ChangeReasons[t]
+			if reason == "" {
+				reason = "Newly discovered target subdomain/host"
+			}
+			sb.WriteString(fmt.Sprintf("- `%s` (%s)\n", t, reason))
 		}
 		sb.WriteString("\n")
 	}
@@ -419,7 +456,11 @@ func (d *Diff) ToMarkdown(scope string) string {
 	if len(d.NewEvents) > 0 {
 		sb.WriteString("## New Events\n\n")
 		for _, ev := range d.NewEvents {
-			sb.WriteString(fmt.Sprintf("- **%s** `%s` (from %s)\n", ev.Type, ev.Target, ev.Source))
+			reason := d.ChangeReasons[eventKey(ev)]
+			if reason == "" {
+				reason = "New security/recon discovery"
+			}
+			sb.WriteString(fmt.Sprintf("- **%s** `%s` (from %s): %s\n", ev.Type, ev.Target, ev.Source, reason))
 		}
 		sb.WriteString("\n")
 	}
