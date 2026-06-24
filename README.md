@@ -4,6 +4,8 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/Developer-Army/BBPTS)](https://golang.org)
 [![Latest Release](https://img.shields.io/github/v/release/Developer-Army/BBPTS)](https://github.com/Developer-Army/BBPTS/releases)
 [![License](https://img.shields.io/github/license/Developer-Army/BBPTS)](LICENSE)
+[![Coverage](https://img.shields.io/badge/Coverage-38.4%25-green)](https://github.com/Developer-Army/BBPTS)
+[![Domain Coverage](https://img.shields.io/badge/Domain%20Coverage-60%25%2B-blue)](https://github.com/Developer-Army/BBPTS)
 
 > **Bug Bounty Recon on Autopilot.** Point it at target domains, gather intelligence, and get prioritized, actionable findings instantly.
 
@@ -231,6 +233,7 @@ For architecture details and to contribute to the enterprise features, see the [
 ## Additional Documentation
 
 * [User Guide](docs/user_guide.md) — Detailed configuration and usage walkthroughs.
+* [Real-World Case Study](docs/case_study.md) — Sanitized walk-through of scanning a public target (GitLab).
 * [Developer Guide](docs/developer_guide.md) — Code architecture and contribution guidelines.
 * [Containerization Roadmap](docs/CONTAINERIZATION.md) — Deploying BBPTS in Docker environments.
 
