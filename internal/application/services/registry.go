@@ -45,6 +45,10 @@ var toolFactories = map[string]struct {
 	"js_analyzer":   {factory: func() Tool { return &JSAnalyzer{} }, stage: 4},
 	"cloud_buckets": {factory: func() Tool { return &CloudBucketsTool{} }, stage: 1},
 	"takeover":      {factory: func() Tool { return &TakeoverTool{} }, stage: 3},
+	"cors":          {factory: func() Tool { return &CORSTool{} }, stage: 4},
+	"bypass403":     {factory: func() Tool { return &Bypass403Tool{} }, stage: 3},
+	"jwt_analyzer":  {factory: func() Tool { return &JWTAnalyzerTool{} }, stage: 4},
+	"open_redirect": {factory: func() Tool { return &OpenRedirectTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
