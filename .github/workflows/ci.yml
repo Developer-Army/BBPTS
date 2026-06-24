@@ -162,8 +162,8 @@ jobs:
             echo "Failed to parse coverage"
             exit 1
           fi
-          if [ "$INT_COVERAGE" -lt 35 ]; then
-            echo "Error: Code coverage $INT_COVERAGE% is below threshold of 35%"
+          if [ "$INT_COVERAGE" -lt 38 ]; then
+            echo "Error: Code coverage $INT_COVERAGE% is below threshold of 38%"
             exit 1
           fi
 
