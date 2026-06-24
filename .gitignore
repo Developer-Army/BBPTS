@@ -53,7 +53,7 @@ scratch/
 *.storage-wal
 
 # Runtime output
-results/*
+results/
 !results/.gitkeep
 output/
 internal/interfaces/cli/output/
@@ -88,4 +88,15 @@ admin_bootstrap.txt
 
 # Dev-only implementation plan
 docs/implementation_plan.md
+
+# VHS recording tools & temporary artifacts
+ttyd
+ffmpeg
+ffprobe
+ffmpeg.tar.xz
+test.tape
+test.gif
+targets.txt
+demo.tape
+
 

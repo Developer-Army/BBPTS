@@ -9,7 +9,7 @@
 
 BBPTS automates the execution of **25+ elite penetration testing and reconnaissance tools** in a highly structured pipeline. It correlates, cleans, and deduplicates the results into a unified interactive report, scoring findings by risk severity so you know exactly where to start testing.
 
-![BBPTS TUI Dashboard](docs/terminal.png)
+![BBPTS TUI Dashboard](docs/terminal.gif)
 
 ---
 
