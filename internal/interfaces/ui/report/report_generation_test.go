@@ -273,6 +273,65 @@ func TestReportFiltering(t *testing.T) {
 	t.Log("Report filtering working correctly")
 }
 
+// TestReportConfidenceFiltering tests that low-confidence findings are filtered
+func TestReportConfidenceFiltering(t *testing.T) {
+	tempDir := t.TempDir()
+
+	config := ReportConfig{
+		OutputPath:        tempDir,
+		MinimumConfidence: 60,
+	}
+
+	generator := NewReportGenerator(config)
+
+	// Since CalculateConfidenceScore relies on parameters / headers / status,
+	// we mock them using events.
+	// For "high.acme-corp.io", we trigger high-risk parameter (100) + static sources fallback (85) -> blended score should be >= 60.
+	// For "low.acme-corp.io", we don't have high-risk parameter -> blended score should be lower.
+	insights := []analyze.Insight{
+		{
+			Host:     "https://high.acme-corp.io?url=https://evil.com",
+			Score:    80,
+			Priority: "high",
+		},
+		{
+			Host:     "https://low.acme-corp.io",
+			Score:    80,
+			Priority: "high",
+		},
+	}
+
+	events := []recon.Event{
+		{
+			Target: "https://high.acme-corp.io?url=https://evil.com",
+			Source: "subfinder",
+			Type:   "discovery",
+		},
+		{
+			Target: "https://high.acme-corp.io?url=https://evil.com",
+			Source: "httpx",
+			Type:   "discovery",
+		},
+		{
+			Target: "https://low.acme-corp.io",
+			Source: "subfinder",
+			Type:   "discovery",
+		},
+	}
+
+	report := generator.buildReport(insights, events, nil)
+
+	// Verify only "high.acme-corp.io" is included because "low.acme-corp.io" falls below minimum confidence
+	if len(report.Findings) != 1 {
+		t.Fatalf("Expected exactly 1 finding after confidence filtering, got %d", len(report.Findings))
+	}
+
+	if !strings.Contains(report.Findings[0].Target, "high.acme-corp.io") {
+		t.Errorf("Expected finding containing high.acme-corp.io, got %s", report.Findings[0].Target)
+	}
+}
+
+
 // TestReportStatistics tests that statistics are properly calculated
 func TestReportStatistics(t *testing.T) {
 	tempDir := t.TempDir()

@@ -82,4 +82,5 @@ type Options struct {
 	DryRun            bool
 	AssetStore        string
 	DraftReport       bool
+	MinimumConfidence int
 }

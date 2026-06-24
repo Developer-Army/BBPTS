@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -22,18 +23,19 @@ import (
 
 // ReportConfig holds configuration for report generation
 type ReportConfig struct {
-	OutputPath      string
-	MarkdownPath    string
-	IncludeBurp     bool
-	IncludeCaido    bool
-	IncludeZAP      bool
-	IncludeHTML     bool
-	IncludeJSON     bool
-	IncludeMarkdown bool
-	Verbose         bool
-	MinimumScore    int
-	BugBountyType   string // "standard", "h1", "intigriti", "bugcrowd", etc.
-	TemplatePath    string // Optional custom Go text/template file for HTML report
+	OutputPath        string
+	MarkdownPath      string
+	IncludeBurp       bool
+	IncludeCaido      bool
+	IncludeZAP        bool
+	IncludeHTML       bool
+	IncludeJSON       bool
+	IncludeMarkdown   bool
+	Verbose           bool
+	MinimumScore      int
+	MinimumConfidence int
+	BugBountyType     string // "standard", "h1", "intigriti", "bugcrowd", etc.
+	TemplatePath      string // Optional custom Go text/template file for HTML report
 }
 
 // Report represents a comprehensive vulnerability report
@@ -310,8 +312,46 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 		eventMap[ev.Target] = append(eventMap[ev.Target], ev)
 	}
 
-	for _, insight := range insights {
+	type resultItem struct {
+		index      int
+		confidence int
+	}
+
+	resultsChan := make(chan resultItem, len(insights))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10)
+
+	for i, insight := range insights {
+		wg.Add(1)
+		go func(idx int, ins analyze.Insight) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			related := eventMap[ins.Host]
+			conf := CalculateConfidenceScore(ctx, ins, related)
+			resultsChan <- resultItem{index: idx, confidence: conf}
+		}(i, insight)
+	}
+
+	wg.Wait()
+	close(resultsChan)
+
+	confidenceMap := make(map[int]int)
+	for res := range resultsChan {
+		confidenceMap[res.index] = res.confidence
+	}
+
+	for i, insight := range insights {
 		if insight.Score < rg.config.MinimumScore {
+			continue
+		}
+
+		confVal := confidenceMap[i]
+		if confVal < rg.config.MinimumConfidence {
 			continue
 		}
 
@@ -357,7 +397,7 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			ExposureScore:       insight.ExposureScore,
 			AttackabilityScore:  insight.AttackabilityScore,
 			BusinessImpactScore: insight.BusinessImpactScore,
-			ConfidenceScore:     insight.ConfidenceScore,
+			ConfidenceScore:     confVal,
 			FreshnessScore:      insight.FreshnessScore,
 			PathScore:           insight.PathScore,
 			Risk:                insight.Risk,
