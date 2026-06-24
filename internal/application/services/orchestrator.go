@@ -256,6 +256,21 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			continue
 		}
 
+		// Filter stageTools based on discoveries (Dynamic Gating)
+		var gatedTools []Tool
+		for _, tool := range stageTools {
+			if o.shouldSkipTool(tool.Name(), currentTargets, allEvents) {
+				slog.Info("Dynamic Gating: skipping tool based on discoveries", "tool", tool.Name(), "stage", stageNum)
+				continue
+			}
+			gatedTools = append(gatedTools, tool)
+		}
+		stageTools = gatedTools
+		if len(stageTools) == 0 {
+			slog.Info("stage skipped: all tools gated", "stage", stageNum)
+			continue
+		}
+
 		// Check if stage is already completed
 		isCompleted := false
 		if o.config.Checkpoint != nil {
@@ -411,4 +426,52 @@ func (o *Orchestrator) ensureTmpResultsDir() error {
 		return nil
 	}
 	return os.MkdirAll(o.config.TmpResultsDir, 0700)
+}
+
+func (o *Orchestrator) shouldSkipTool(name string, targets []string, events []Event) bool {
+	name = strings.ToLower(strings.TrimSpace(name))
+
+	// 1. Skip TLS tools if no port 443/8443 or HTTPS target was found
+	if name == "tlsx" {
+		hasTLS := false
+		for _, t := range targets {
+			if strings.HasPrefix(strings.ToLower(t), "https://") || strings.Contains(t, ":443") || strings.Contains(t, ":8443") {
+				hasTLS = true
+				break
+			}
+		}
+		for _, ev := range events {
+			if ev.Type == "port_open" && (ev.Properties["port"] == "443" || ev.Properties["port"] == "8443") {
+				hasTLS = true
+				break
+			}
+		}
+		return !hasTLS
+	}
+
+	// 2. Skip dalfox if no query parameters crawled
+	if name == "dalfox" {
+		hasQueryParams := false
+		for _, t := range targets {
+			if strings.Contains(t, "?") {
+				hasQueryParams = true
+				break
+			}
+		}
+		return !hasQueryParams
+	}
+
+	// 3. Skip gobuster / ffuf / feroxbuster if no directories/web URLs resolved
+	if name == "gobuster" || name == "ffuf" || name == "feroxbuster" {
+		hasWeb := false
+		for _, t := range targets {
+			if strings.HasPrefix(strings.ToLower(t), "http://") || strings.HasPrefix(strings.ToLower(t), "https://") {
+				hasWeb = true
+				break
+			}
+		}
+		return !hasWeb
+	}
+
+	return false
 }
