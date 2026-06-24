@@ -238,5 +238,5 @@ For architecture details and to contribute to the enterprise features, see the [
 
 ## License & Credits
 
-* **License**: Licensed under the [MIT License](LICENSE).
+* **License**: Licensed under the [Apache License 2.0](LICENSE).
 * **Credits**: Built with respect for the incredible open-source creations from Project Discovery, OWASP, and the security community.

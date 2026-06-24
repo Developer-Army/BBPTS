@@ -298,7 +298,7 @@ For development questions:
 
 ## License
 
-By contributing to BBPTS, you agree that your contributions will be licensed under the MIT License.
+By contributing to BBPTS, you agree that your contributions will be licensed under the Apache License 2.0.
 
 ### `internal/engine/analysis/`
 
