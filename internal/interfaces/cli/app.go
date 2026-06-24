@@ -81,4 +81,5 @@ type Options struct {
 	PassiveMode       bool
 	DryRun            bool
 	AssetStore        string
+	DraftReport       bool
 }

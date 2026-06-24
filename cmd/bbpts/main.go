@@ -255,6 +255,7 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.WebEnder, "web-ender", "", "Custom research identifier tag (e.g. H1{username})")
 	flag.StringVar(&opts.WebEnder, "header-tag", "", "Alias for -web-ender")
 
+	flag.BoolVar(&opts.DraftReport, "draft-report", false, "Draft a platform-ready markdown report using AI")
 	flag.BoolVar(&opts.Resume, "resume", false, "Resume from previous checkpoint")
 	flag.BoolVar(&opts.Resume, "r", false, "Short for -resume")
 	flag.BoolVar(&opts.JSONOutput, "json", false, "Output results in JSON format to stdout")
