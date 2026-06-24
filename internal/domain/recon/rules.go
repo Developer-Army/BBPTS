@@ -37,7 +37,7 @@ type Condition struct {
 
 // Action defines what happens when all rule conditions match.
 type Action struct {
-	// Type is the action kind: "trigger_tool", "alert", or "tag".
+	// Type is the action kind: "trigger_tool", "alert", "tag", "block", or "elevate".
 	Type string `json:"type"`
 
 	// Tool is the tool name to inject into the pipeline (used when Type == "trigger_tool").

@@ -222,16 +222,34 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 	insights := analyze.DeriveInsights(normalized, events)
 
 	// Inject rule tags into insights
+	blockedHosts := make(map[string]bool)
 	for _, match := range matches {
 		for i := range insights {
 			if insights[i].Host == match.Event.Target || strings.Contains(match.Event.Target, insights[i].Host) {
-				if match.Rule.Action.Type == "tag" {
+				switch match.Rule.Action.Type {
+				case "tag":
 					insights[i].Tags = append(insights[i].Tags, match.Rule.Action.Tag)
 					insights[i].Reasons = append(insights[i].Reasons, match.Rule.Description)
 					insights[i].Score += 10 // Bonus for rule matches
+				case "block":
+					blockedHosts[insights[i].Host] = true
+				case "elevate":
+					insights[i].Priority = "critical"
+					insights[i].Score = 100 // Bumps score to max
+					insights[i].Reasons = append(insights[i].Reasons, "Elevated by triage rule: "+match.Rule.Description)
 				}
 			}
 		}
+	}
+
+	if len(blockedHosts) > 0 {
+		var filtered []analyze.Insight
+		for _, in := range insights {
+			if !blockedHosts[in.Host] {
+				filtered = append(filtered, in)
+			}
+		}
+		insights = filtered
 	}
 
 	if opts.JSONOutput {
