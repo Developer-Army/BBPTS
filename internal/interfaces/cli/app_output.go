@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -433,6 +436,16 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		}
 	}
 
+	// AI-Assisted Report Drafting
+	if opts.DraftReport {
+		draftPath := filepath.Join(reportDir, "ai_draft_report.md")
+		if err := draftReportWithLLM(ctx, insights, draftPath); err != nil {
+			slog.Warn("AI report drafting failed", "error", err)
+		} else {
+			slog.Info("AI-drafted report saved", "path", draftPath)
+		}
+	}
+
 	if store != nil && !opts.JSONOutput {
 		nodes, errNodes := store.GetAllAssetNodes(0, 0)
 		edges, errEdges := store.GetAllAssetEdges(0, 0)
@@ -650,3 +663,138 @@ func markAsReported(stateDir string, finding utils.Finding) error {
 	_, err = f.WriteString(hash + "\n")
 	return err
 }
+
+// draftReportWithLLM calls the Gemini API to generate a professional bug bounty
+// report draft from the scan findings. Requires GEMINI_API_KEY env var.
+func draftReportWithLLM(ctx context.Context, insights []analyze.Insight, outPath string) error {
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		return fmt.Errorf("GEMINI_API_KEY environment variable is not set")
+	}
+
+	if len(insights) == 0 {
+		return fmt.Errorf("no insights to draft report from")
+	}
+
+	// Build structured findings summary for the prompt
+	var findingsBuf strings.Builder
+	for i, in := range insights {
+		if i >= 50 { // Cap to avoid exceeding token limits
+			findingsBuf.WriteString(fmt.Sprintf("\n... and %d more findings omitted for brevity.\n", len(insights)-50))
+			break
+		}
+		findingsBuf.WriteString(fmt.Sprintf("### Finding %d\n", i+1))
+		findingsBuf.WriteString(fmt.Sprintf("- Host: %s\n", in.Host))
+		findingsBuf.WriteString(fmt.Sprintf("- Priority: %s\n", in.Priority))
+		findingsBuf.WriteString(fmt.Sprintf("- CVSS Score: %d\n", in.Score))
+		findingsBuf.WriteString(fmt.Sprintf("- Tags: %s\n", strings.Join(in.Tags, ", ")))
+		findingsBuf.WriteString("- Evidence:\n")
+		for _, r := range in.Reasons {
+			findingsBuf.WriteString(fmt.Sprintf("  - %s\n", r))
+		}
+		findingsBuf.WriteString("\n")
+	}
+
+	prompt := fmt.Sprintf(`You are an expert bug bounty hunter and security researcher. Draft a professional vulnerability report suitable for submission to HackerOne or Bugcrowd based on the following automated reconnaissance findings.
+
+## Requirements:
+1. Start with an Executive Summary
+2. Group findings by severity (Critical, High, Medium, Low)
+3. For each finding, include:
+   - Title
+   - Severity & CVSS 3.1 score
+   - Affected asset
+   - Description of the vulnerability
+   - Steps to reproduce (inferred from evidence)
+   - Impact assessment
+   - Remediation recommendation
+4. End with an Overall Risk Assessment
+
+## Scan Findings:
+%s
+
+Write the report in Markdown format. Be specific, professional, and actionable.`, findingsBuf.String())
+
+	// Build Gemini API request
+	type Part struct {
+		Text string `json:"text"`
+	}
+	type Content struct {
+		Parts []Part `json:"parts"`
+	}
+	type GenConfig struct {
+		Temperature float64 `json:"temperature"`
+		MaxTokens   int     `json:"maxOutputTokens"`
+	}
+	type GeminiRequest struct {
+		Contents         []Content `json:"contents"`
+		GenerationConfig GenConfig `json:"generationConfig"`
+	}
+
+	reqBody := GeminiRequest{
+		Contents: []Content{{Parts: []Part{{Text: prompt}}}},
+		GenerationConfig: GenConfig{
+			Temperature: 0.3,
+			MaxTokens:   8192,
+		},
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	endpoint := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=%s", apiKey)
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(jsonBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("Gemini API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Gemini API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	type Candidate struct {
+		Content Content `json:"content"`
+	}
+	type GeminiResponse struct {
+		Candidates []Candidate `json:"candidates"`
+	}
+
+	var geminiResp GeminiResponse
+	if err := json.Unmarshal(body, &geminiResp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
+		return fmt.Errorf("empty response from Gemini API")
+	}
+
+	draft := geminiResp.Candidates[0].Content.Parts[0].Text
+
+	// Write draft to file
+	header := fmt.Sprintf("# AI-Drafted Vulnerability Report\n\n> Generated by BBPTS using Gemini 2.0 Flash on %s\n> **Review and edit before submission** — this is an automated draft.\n\n---\n\n",
+		time.Now().UTC().Format("2006-01-02 15:04 UTC"))
+
+	if err := os.MkdirAll(filepath.Dir(outPath), 0700); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	return os.WriteFile(outPath, []byte(header+draft), 0600)
+}
+
