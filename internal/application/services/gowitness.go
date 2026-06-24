@@ -56,6 +56,11 @@ func (t *GowitnessTool) Run(ctx context.Context, targets []string, threads int) 
 
 	args := []string{"scan", "file", "-f", tmpFile.Name(), "--screenshot-path", destDir, "--threads", fmt.Sprintf("%d", threads)}
 
+	headers := HeadersFromCtx(ctx)
+	for k, v := range headers {
+		args = append(args, "--header", fmt.Sprintf("%s: %s", k, v))
+	}
+
 	// Execute gowitness
 	_, err = RunCommandLines(ctx, "gowitness", args...)
 	if err != nil {
