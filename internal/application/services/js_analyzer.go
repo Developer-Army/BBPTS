@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"golang.org/x/time/rate"
 )
 
@@ -104,6 +107,30 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 	domainAnalyzer.SetHTTPClient(client)
 	findings := domainAnalyzer.AnalyzeContent(url, content)
 
+	// --- Differential JS Change Detection ---
+	store := storage.FromContext(ctx)
+	if store != nil {
+		h := sha256.New()
+		h.Write(bodyBytes)
+		currentHash := fmt.Sprintf("%x", h.Sum(nil))
+
+		prevEv, err := store.GetEvidenceModel(url)
+		if err == nil && prevEv != nil && prevEv.Hash != currentHash {
+			oldFindings := domainAnalyzer.AnalyzeContent(url, string(prevEv.RawData))
+			diffText := diffFindings(oldFindings, findings)
+			if diffText != "" {
+				events = append(events, NewEventWithSeverity(url, j.Name(), "vulnerability", map[string]string{
+					"vuln_name":   "JavaScript File Changed (New Attack Surface)",
+					"severity":    "high",
+					"evidence":    diffText,
+					"description": "JS file content changed since last crawl. Diff:\n" + diffText,
+				}, "high"))
+				slog.Warn("JS file changed with new attack surface", "url", url)
+			}
+		}
+		_ = store.SaveEvidence(url, extractHost(url), j.Name(), 1.0, bodyBytes, currentHash)
+	}
+
 	for _, f := range findings {
 		switch f.Type {
 		case "secret", "entropy":
@@ -167,4 +194,36 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 	}
 
 	return events
+}
+
+func diffFindings(oldFindings, newFindings []recon.JSFinding) string {
+	oldMap := make(map[string]bool)
+	for _, f := range oldFindings {
+		key := f.Type + ":" + f.Value
+		oldMap[key] = true
+	}
+
+	var newEndpoints []string
+	var newSecrets []string
+
+	for _, f := range newFindings {
+		key := f.Type + ":" + f.Value
+		if !oldMap[key] {
+			if f.Type == "endpoint" || f.Type == "semantic_endpoint" {
+				newEndpoints = append(newEndpoints, f.Value)
+			} else if f.Type == "secret" || f.Type == "entropy" {
+				newSecrets = append(newSecrets, fmt.Sprintf("%s (%s)", f.Name, f.Value))
+			}
+		}
+	}
+
+	var parts []string
+	if len(newEndpoints) > 0 {
+		parts = append(parts, "New Endpoints:\n- " + strings.Join(newEndpoints, "\n- "))
+	}
+	if len(newSecrets) > 0 {
+		parts = append(parts, "New Secrets:\n- " + strings.Join(newSecrets, "\n- "))
+	}
+
+	return strings.Join(parts, "\n\n")
 }
