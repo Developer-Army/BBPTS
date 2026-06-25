@@ -113,6 +113,7 @@ func LightModeTools() []string {
 		"graphql",
 		"oauth",
 		"proto_pollution",
+		"websocket",
 	}
 }
 
@@ -129,6 +130,7 @@ func NormalModeTools() []string {
 		"graphql",
 		"oauth",
 		"proto_pollution",
+		"websocket",
 	}
 }
 

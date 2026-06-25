@@ -54,6 +54,7 @@ var toolFactories = map[string]struct {
 	"arjun":         {factory: func() Tool { return &ArjunTool{} }, stage: 3},
 	"oauth":         {factory: func() Tool { return &OAuthTesterTool{} }, stage: 4},
 	"proto_pollution": {factory: func() Tool { return &ProtoPollutionTool{} }, stage: 4},
+	"websocket":       {factory: func() Tool { return &WebSocketTool{} }, stage: 3},
 }
 
 var toolAliases = map[string]string{
