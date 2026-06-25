@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
@@ -124,7 +125,8 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 	// Apply tag filters
 	var finalTags []string
 	finalTags = append(finalTags, t.Tags...)
-	if techTags := getTechTagsForTargets(ctx, targets); len(techTags) > 0 {
+	techTags := getTechTagsForTargets(ctx, targets)
+	if len(techTags) > 0 {
 		finalTags = append(finalTags, techTags...)
 		slog.Info("Auto-selected Nuclei tags based on httpx technology fingerprint", "tags", techTags)
 	}
@@ -134,7 +136,18 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 	}
 
 	// Additional template paths
-	for _, tp := range t.TemplatePaths {
+	var finalTemplates []string
+	finalTemplates = append(finalTemplates, t.TemplatePaths...)
+
+	if len(techTags) > 0 {
+		subsets := recon.ResolveTemplateSubsets(techTags)
+		if len(subsets) > 0 {
+			finalTemplates = append(finalTemplates, subsets...)
+			slog.Info("Auto-selected Nuclei template subsets based on technology fingerprint", "subsets", subsets)
+		}
+	}
+
+	for _, tp := range finalTemplates {
 		args = append(args, "-t", tp)
 	}
 

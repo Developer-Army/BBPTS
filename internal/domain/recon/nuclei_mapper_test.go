@@ -224,3 +224,50 @@ func TestResolveTags_Ordering(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveTemplateSubsets(t *testing.T) {
+	tests := []struct {
+		name     string
+		techs    []string
+		expected []string
+	}{
+		{
+			name:     "WordPress and Laravel",
+			techs:    []string{"wordpress", "laravel"},
+			expected: []string{"wp-*", "php-*"},
+		},
+		{
+			name:     "Case insensitivity and spaces",
+			techs:    []string{"  WordPress ", "Django"},
+			expected: []string{"wp-*", "django-*", "python-*"},
+		},
+		{
+			name:     "Unmapped technology",
+			techs:    []string{"unknown-framework"},
+			expected: []string{},
+		},
+		{
+			name:     "Deduplication",
+			techs:    []string{"wordpress", "wordpress"},
+			expected: []string{"wp-*"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveTemplateSubsets(tt.techs)
+			if len(got) != len(tt.expected) {
+				t.Fatalf("ResolveTemplateSubsets() = %v, expected %v", got, tt.expected)
+			}
+			expectedMap := make(map[string]bool)
+			for _, e := range tt.expected {
+				expectedMap[e] = true
+			}
+			for _, g := range got {
+				if !expectedMap[g] {
+					t.Errorf("Unexpected subset found: %s", g)
+				}
+			}
+		})
+	}
+}

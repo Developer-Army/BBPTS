@@ -68,3 +68,43 @@ func ResolveSeverity(priority string) []string {
 	}
 	return []string{"high", "critical"}
 }
+
+// NucleiTemplateSubsetMapping maps detected technologies to Nuclei template subsets/patterns.
+var NucleiTemplateSubsetMapping = map[string][]string{
+	"wordpress":   {"wp-*"},
+	"laravel":     {"php-*"},
+	"drupal":      {"drupal-*"},
+	"joomla":      {"joomla-*"},
+	"shopify":     {"shopify-*"},
+	"magento":     {"magento-*"},
+	"django":      {"django-*", "python-*"},
+	"rails":       {"rails-*", "ruby-*"},
+	"express":     {"node-*", "js-*"},
+	"spring boot": {"spring-*", "java-*"},
+	"asp.net":     {"aspnet-*", "dotnet-*"},
+	"okta":        {"okta-*"},
+	"auth0":       {"auth0-*"},
+	"keycloak":    {"keycloak-*"},
+}
+
+// ResolveTemplateSubsets matches detected technologies to relevant nuclei template subsets.
+func ResolveTemplateSubsets(techs []string) []string {
+	seen := make(map[string]struct{})
+	var result []string
+
+	for _, tech := range techs {
+		subsets, ok := NucleiTemplateSubsetMapping[strings.ToLower(strings.TrimSpace(tech))]
+		if !ok {
+			continue
+		}
+		for _, sub := range subsets {
+			if _, exists := seen[sub]; exists {
+				continue
+			}
+			seen[sub] = struct{}{}
+			result = append(result, sub)
+		}
+	}
+
+	return result
+}

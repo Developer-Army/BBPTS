@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
 type HTTPXTool struct{}
@@ -19,6 +21,7 @@ type httpxOutput struct {
 	Server       string   `json:"server"`
 	IP           string   `json:"ip"`
 	Technologies []string `json:"tech"`
+	RawHeader    string   `json:"raw_header"`
 }
 
 func (t *HTTPXTool) Name() string {
@@ -128,7 +131,7 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 
 	args := []string{
-		"-silent", "-tech", "-json",
+		"-silent", "-tech", "-json", "-irh",
 		"-t", fmt.Sprintf("%d", threads),
 		"-timeout", "10",
 		"-retries", "1",
@@ -187,6 +190,21 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 			}
 		}
 
+		// Run Wappalyzer-style technology stack detection
+		detectedTechs := recon.Detect(out.RawHeader, out.Title)
+		allTechs := make(map[string]bool)
+		for _, tech := range out.Technologies {
+			allTechs[strings.ToLower(strings.TrimSpace(tech))] = true
+		}
+		for _, tech := range detectedTechs {
+			allTechs[strings.ToLower(strings.TrimSpace(tech))] = true
+		}
+
+		var techList []string
+		for tech := range allTechs {
+			techList = append(techList, tech)
+		}
+
 		props := map[string]string{
 			"status_code":   fmt.Sprintf("%d", out.StatusCode),
 			"title":         out.Title,
@@ -194,8 +212,8 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 			"ip":            out.IP,
 			"auth_required": authRequired,
 		}
-		if len(out.Technologies) > 0 {
-			props["technologies"] = strings.Join(out.Technologies, ",")
+		if len(techList) > 0 {
+			props["technologies"] = strings.Join(techList, ",")
 		}
 		events = append(events, NewEvent(out.URL, t.Name(), "service", props))
 		foundHosts[extractHost(out.URL)] = true
