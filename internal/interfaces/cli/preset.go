@@ -116,6 +116,7 @@ func LightModeTools() []string {
 		"websocket",
 		"smuggling",
 		"race",
+		"cache_poisoning",
 	}
 }
 
@@ -135,6 +136,7 @@ func NormalModeTools() []string {
 		"websocket",
 		"smuggling",
 		"race",
+		"cache_poisoning",
 	}
 }
 

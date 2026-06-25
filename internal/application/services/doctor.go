@@ -95,6 +95,7 @@ var builtInDoctorTools = map[string]string{
 	"websocket":       "built-in WebSocket security tester",
 	"smuggling":       "built-in HTTP request smuggling detector",
 	"race":            "built-in race condition tester",
+	"cache_poisoning": "built-in cache poisoning detector",
 	"js_analyzer":     "built-in JavaScript analyzer",
 	"secrets":         "built-in secret scanner",
 	"shodan":          "built-in Shodan API client",
