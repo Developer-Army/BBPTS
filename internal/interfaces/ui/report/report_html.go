@@ -95,6 +95,36 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 </div>`
 	}
 
+	chainsHTML := ""
+	if len(report.ChainedFindings) > 0 {
+		chainsHTML += `
+<div class="chart-section" style="margin-bottom: 28px;">
+  <h2>Vulnerability Chains (Attack Paths)</h2>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+    <thead>
+      <tr style="border-bottom: 2px solid var(--border); text-align: left;">
+        <th style="padding: 10px; font-weight: 700;">Target</th>
+        <th style="padding: 10px; font-weight: 700;">Chain Type</th>
+        <th style="padding: 10px; font-weight: 700;">CVSS</th>
+        <th style="padding: 10px; font-weight: 700;">Details</th>
+      </tr>
+    </thead>
+    <tbody>`
+		for _, c := range report.ChainedFindings {
+			chainsHTML += fmt.Sprintf(`
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 12px 10px; font-weight: 600;">%s</td>
+        <td style="padding: 12px 10px; color: var(--critical); font-weight: bold;">%s</td>
+        <td style="padding: 12px 10px;"><strong style="color: var(--critical);">%.1f</strong></td>
+        <td style="padding: 12px 10px; font-size: 0.85rem; color: var(--muted);">%s (Chained: %s)</td>
+      </tr>`, c.Target, c.ChainType, c.CombinedCVSS, c.Description, strings.Join(c.Findings, " + "))
+		}
+		chainsHTML += `
+    </tbody>
+  </table>
+</div>`
+	}
+
 	pathsHTML := ""
 	if len(report.AttackPaths) > 0 {
 		pathsHTML += `
@@ -422,7 +452,7 @@ body.light-theme .suppressed-finding {
     <div class="gstep"><div class="gstep-num">4</div><h3>Work the Checklist</h3><p>Each finding has checkboxes. Tick off tests as you go. Critical/High first. Look for parameterized URLs &mdash; main attack surface.</p></div>
 </div>
 
-` + targetsHTML + pathsHTML + `
+` + targetsHTML + chainsHTML + pathsHTML + `
 
 <div class="section-title">Detailed Findings</div>
 <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--muted);">

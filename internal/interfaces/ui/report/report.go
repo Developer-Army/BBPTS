@@ -56,6 +56,7 @@ type Report struct {
 	Executive       ExecutiveSummary              `json:"executive_summary"`
 	TopTargets      []analyze.InvestigationTarget `json:"top_targets,omitempty"`
 	AttackPaths     []analyze.AttackPath          `json:"attack_paths,omitempty"`
+	ChainedFindings []analyze.VulnerabilityChain  `json:"chained_findings,omitempty"`
 	ConfidenceSummary ReportConfidenceSummary     `json:"confidence_summary"`
 }
 
@@ -255,6 +256,7 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 
 	var topTargets []analyze.InvestigationTarget
 	var topPaths []analyze.AttackPath
+	var chains []analyze.VulnerabilityChain
 	if store != nil {
 		nodes, errNodes := store.GetAllAssetNodes(0, 0)
 		edges, errEdges := store.GetAllAssetEdges(0, 0)
@@ -282,6 +284,8 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 				}
 				topPaths[i].Path = resolved
 			}
+
+			chains = analyze.FindVulnerabilityChains(nodes, edges)
 		}
 	}
 
@@ -316,6 +320,7 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		Executive:       rg.buildExecutiveSummary(findings),
 		TopTargets:      topTargets,
 		AttackPaths:     topPaths,
+		ChainedFindings: chains,
 		ConfidenceSummary: ReportConfidenceSummary{
 			TotalEvaluated:  totalEv,
 			KeptCount:       keptEv,
