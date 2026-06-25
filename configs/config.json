@@ -7,7 +7,10 @@
     "virustotal": "",
     "passivetotal": "",
     "binaryedge": "",
-    "hunter": ""
+    "hunter": "",
+    "h1_username": "",
+    "h1_api_token": "",
+    "bugcrowd_api_token": ""
   },
   "headers": {
     "X-HackerOne-Research": "dev-army",

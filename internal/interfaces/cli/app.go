@@ -86,4 +86,8 @@ type Options struct {
 	FPThreshold       int
 	IncludeFP         bool
 	FPAudit           bool
+	H1                string
+	BC                string
+	Program           string
+	RefreshProgram    bool
 }

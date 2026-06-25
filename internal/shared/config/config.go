@@ -289,6 +289,9 @@ func (c *Config) LoadFromEnv() {
 		"BBPTS_VIRUSTOTAL_API_KEY":     "virustotal",
 		"BBPTS_PASSIVETOTAL_API_KEY":   "passivetotal",
 		"BBPTS_BINARYEDGE_API_KEY":     "binaryedge",
+		"BBPTS_H1_USERNAME":           "h1_username",
+		"BBPTS_H1_API_TOKEN":          "h1_api_token",
+		"BBPTS_BUGCROWD_API_TOKEN":    "bugcrowd_api_token",
 	}
 
 	for envVar, provider := range envKeys {
@@ -379,6 +382,9 @@ func WriteDefault(path string) error {
 		"virustotal":     "",
 		"passivetotal":   "",
 		"binaryedge":     "",
+		"h1_username":         "",
+		"h1_api_token":        "",
+		"bugcrowd_api_token":  "",
 	}
 	cfg.Proxies = []string{"socks5://127.0.0.1:9050"}
 	cfg.Headers = map[string]string{}

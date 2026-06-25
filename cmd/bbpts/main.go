@@ -178,6 +178,13 @@ func main() {
 		}))
 	}
 
+	if !opts.RunWorker {
+		if err := runPreScanHooks(cfg, &opts); err != nil {
+			slog.Error("pre-scan hook failed", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	// --- Start Telemetry ---
 	if opts.EnableMetrics {
 		port := fmt.Sprintf(":%d", opts.MetricsPort)
@@ -272,6 +279,11 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.JSONOutput, "json", false, "Output results in JSON format to stdout")
 	flag.BoolVar(&opts.JSONOutput, "j", false, "Short for -json")
 	flag.BoolVar(&opts.AutoUpdate, "auto-update", false, "Auto-update Nuclei templates before scan")
+
+	flag.StringVar(&opts.H1, "h1", "", "Load scope from HackerOne program handle (e.g. shopify)")
+	flag.StringVar(&opts.BC, "bc", "", "Load scope from Bugcrowd program handle (e.g. tesla)")
+	flag.StringVar(&opts.Program, "program", "", "Generic prefixed handle — h1:<handle> or bc:<handle>")
+	flag.BoolVar(&opts.RefreshProgram, "refresh-program", false, "Force refresh cached program profile")
 
 	flag.StringVar(&opts.ExcludeTools, "exclude-tools", "", "Comma-separated tools to skip (e.g. nuclei,dalfox)")
 	flag.StringVar(&opts.ExcludeTools, "x", "", "Short for -exclude-tools")
@@ -427,3 +439,77 @@ func resolveLogLevel(opts app.Options) slog.Level {
 	}
 	return slog.LevelInfo
 }
+
+func runPreScanHooks(cfg *config.Config, opts *app.Options) error {
+	handle := opts.Program
+	if handle == "" {
+		if opts.H1 != "" {
+			handle = "h1:" + opts.H1
+		} else if opts.BC != "" {
+			handle = "bc:" + opts.BC
+		}
+	}
+	if handle == "" {
+		return nil // no program flag — skip
+	}
+
+	loader := services.NewProgramLoader(services.ProgramLoaderConfig{
+		H1Username: cfg.APIKeys["h1_username"],
+		H1Token:    cfg.APIKeys["h1_api_token"],
+		BCToken:    cfg.APIKeys["bugcrowd_api_token"],
+	})
+
+	slog.Info("[program-loader] fetching profile...", "handle", handle)
+	profile, err := loader.Load(handle, opts.RefreshProgram)
+	if err != nil {
+		return fmt.Errorf("program loader: %w", err)
+	}
+
+	// Write scope file and auto-apply --scope-file if not already set
+	scopePath := fmt.Sprintf("configs/scope_%s.txt", profile.Handle)
+	if err := profile.WriteScopeFile(scopePath); err != nil {
+		return err
+	}
+	if opts.ScopeFile == "" {
+		opts.ScopeFile = scopePath
+		slog.Info("[program-loader] applied scope file",
+			"path", scopePath,
+			"in_scope", len(profile.InScope),
+			"out_of_scope", len(profile.OutOfScope),
+		)
+	}
+
+	// Write bounty-eligible targets file and auto-apply --input if not set
+	targetsPath := fmt.Sprintf("configs/targets_%s.txt", profile.Handle)
+	if err := profile.WriteTargetsFile(targetsPath); err != nil {
+		return err
+	}
+	if opts.InputPath == "" {
+		opts.InputPath = targetsPath
+		slog.Info("[program-loader] applied targets file", "path", targetsPath)
+	}
+
+	// Write config patch for fail-on severity and platform submission
+	configPatch := fmt.Sprintf("configs/program_%s.json", profile.Handle)
+	if err := profile.WriteConfigPatch(configPatch); err != nil {
+		return err
+	}
+
+	// Apply config patch overrides
+	if profile.FailOn != "" {
+		opts.CIFailOn = profile.FailOn
+	}
+	if profile.SubmitPlatform != "" {
+		cfg.Submit.Platform = profile.SubmitPlatform
+	}
+
+	// Print a scope summary to the TUI/console
+	slog.Info("[program-loader] loaded profile",
+		"name", profile.Name,
+		"in_scope_assets", len(profile.InScope),
+		"bounty", profile.OfferBounty,
+	)
+
+	return nil
+}
+
