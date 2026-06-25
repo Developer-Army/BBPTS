@@ -93,6 +93,7 @@ var builtInDoctorTools = map[string]string{
 	"oauth":           "built-in OAuth 2.0 flow tester",
 	"proto_pollution": "built-in Prototype Pollution detector",
 	"websocket":       "built-in WebSocket security tester",
+	"smuggling":       "built-in HTTP request smuggling detector",
 	"js_analyzer":     "built-in JavaScript analyzer",
 	"secrets":         "built-in secret scanner",
 	"shodan":          "built-in Shodan API client",

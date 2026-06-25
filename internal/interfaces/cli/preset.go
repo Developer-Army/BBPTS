@@ -114,6 +114,7 @@ func LightModeTools() []string {
 		"oauth",
 		"proto_pollution",
 		"websocket",
+		"smuggling",
 	}
 }
 
@@ -131,6 +132,7 @@ func NormalModeTools() []string {
 		"oauth",
 		"proto_pollution",
 		"websocket",
+		"smuggling",
 	}
 }
 
