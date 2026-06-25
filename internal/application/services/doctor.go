@@ -90,6 +90,7 @@ var builtInDoctorTools = map[string]string{
 	"crtsh":         "built-in crt.sh HTTP client",
 	"github":        "built-in GitHub API code search tool",
 	"graphql":       "built-in GraphQL scanner",
+	"oauth":         "built-in OAuth 2.0 flow tester",
 	"js_analyzer":   "built-in JavaScript analyzer",
 	"secrets":       "built-in secret scanner",
 	"shodan":        "built-in Shodan API client",

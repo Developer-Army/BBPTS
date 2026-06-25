@@ -57,12 +57,12 @@
   },
   "tool_presets": {
     "passive": {
-      "tools": "github_dorker,email_enum,subfinder,crtsh,assetfinder,chaos,tlsx,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox",
+      "tools": "github_dorker,email_enum,subfinder,crtsh,assetfinder,chaos,tlsx,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,graphql,oauth",
       "timeout": "30m",
       "rate_limit": 50
     },
     "normal": {
-      "tools": "subfinder,crtsh,assetfinder,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,ffuf",
+      "tools": "subfinder,crtsh,assetfinder,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,ffuf,graphql,oauth",
       "timeout": "2h",
       "rate_limit": 150
     }

@@ -110,6 +110,8 @@ func LightModeTools() []string {
 		"trufflehog", "browser", "js_analyzer", "gowitness", "tlsx", "github",
 		"cloud_buckets",
 		"takeover",
+		"graphql",
+		"oauth",
 	}
 }
 
@@ -123,6 +125,8 @@ func NormalModeTools() []string {
 		"trufflehog", "browser", "js_analyzer", "gowitness", "tlsx", "github",
 		"cloud_buckets",
 		"takeover",
+		"graphql",
+		"oauth",
 	}
 }
 
