@@ -449,6 +449,24 @@ func prepareTargetsForTool(toolName string, targets []string) []string {
 		return dalfoxTargets
 	}
 
+	if name == "arjun" {
+		var arjunTargets []string
+		seen := make(map[string]struct{})
+		for _, target := range targets {
+			if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+				continue
+			}
+			if _, ok := seen[target]; !ok {
+				seen[target] = struct{}{}
+				arjunTargets = append(arjunTargets, target)
+			}
+		}
+		if len(arjunTargets) > 50 {
+			arjunTargets = arjunTargets[:50]
+		}
+		return arjunTargets
+	}
+
 	if name == "nuclei" {
 		var nucleiTargets []string
 		seen := make(map[string]struct{})
