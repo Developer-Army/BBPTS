@@ -114,6 +114,13 @@ type Config struct {
 
 	// FPKeepSuppressed controls whether suppressed events are kept in the output report.
 	FPKeepSuppressed bool `json:"fp_keep_suppressed"`
+
+	// AI noise triage configuration
+	AITriageEnabled   bool   `json:"ai_triage_enabled"`
+	AITriageThreshold int    `json:"ai_triage_threshold"`
+	AITriageProvider  string `json:"ai_triage_provider"`
+	AITriageModel     string `json:"ai_triage_model"`
+	AITriageURL       string `json:"ai_triage_url"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -232,6 +239,11 @@ func DefaultConfig() *Config {
 		},
 		FPConfidenceThreshold: 40,
 		FPKeepSuppressed:      true,
+		AITriageEnabled:       false,
+		AITriageThreshold:     50,
+		AITriageProvider:      "gemini",
+		AITriageModel:         "gemini-2.5-flash",
+		AITriageURL:           "",
 	}
 }
 
@@ -389,6 +401,11 @@ func WriteDefault(path string) error {
 	cfg.Proxies = []string{"socks5://127.0.0.1:9050"}
 	cfg.Headers = map[string]string{}
 	cfg.RateLimit = 50
+	cfg.AITriageEnabled = false
+	cfg.AITriageThreshold = 50
+	cfg.AITriageProvider = "gemini"
+	cfg.AITriageModel = "gemini-2.5-flash"
+	cfg.AITriageURL = ""
 
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {

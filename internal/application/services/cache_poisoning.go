@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"time"
 
@@ -106,12 +107,23 @@ func (t *CachePoisoningTool) Run(ctx context.Context, targets []string, threads 
 					desc = fmt.Sprintf("Unkeyed header '%s: %s' reflected in response body of %s.", th.name, th.value, target)
 				}
 
+				reqDump, _ := httputil.DumpRequestOut(req, false)
+				var respBuilder strings.Builder
+				respBuilder.WriteString(fmt.Sprintf("%s %s\r\n", resp.Proto, resp.Status))
+				for k, v := range resp.Header {
+					respBuilder.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(v, ", ")))
+				}
+				respBuilder.WriteString("\r\n")
+				respBuilder.WriteString(bodyStr)
+
 				events = append(events, NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 					"vuln_name":   "Host Header Injection / Cache Poisoning",
 					"severity":    "medium",
 					"header":      th.name,
 					"value":       th.value,
 					"description": desc,
+					"request":     string(reqDump),
+					"response":    respBuilder.String(),
 				}, "medium"))
 				break
 			}

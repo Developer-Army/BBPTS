@@ -90,4 +90,9 @@ type Options struct {
 	BC                string
 	Program           string
 	RefreshProgram    bool
+	AITriage          bool
+	AITriageThreshold int
+	AITriageProvider  string
+	AITriageModel     string
+	AITriageURL       string
 }

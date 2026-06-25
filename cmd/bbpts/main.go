@@ -108,6 +108,21 @@ func main() {
 	if opts.IncludeFP {
 		cfg.FPKeepSuppressed = true
 	}
+	if opts.AITriage {
+		cfg.AITriageEnabled = true
+	}
+	if opts.AITriageThreshold >= 0 {
+		cfg.AITriageThreshold = opts.AITriageThreshold
+	}
+	if opts.AITriageProvider != "" {
+		cfg.AITriageProvider = opts.AITriageProvider
+	}
+	if opts.AITriageModel != "" {
+		cfg.AITriageModel = opts.AITriageModel
+	}
+	if opts.AITriageURL != "" {
+		cfg.AITriageURL = opts.AITriageURL
+	}
 	if opts.MaxCPUPercent > 0 {
 		cfg.ResourceLimits.MaxCPUPercent = opts.MaxCPUPercent
 	}
@@ -279,6 +294,11 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.JSONOutput, "json", false, "Output results in JSON format to stdout")
 	flag.BoolVar(&opts.JSONOutput, "j", false, "Short for -json")
 	flag.BoolVar(&opts.AutoUpdate, "auto-update", false, "Auto-update Nuclei templates before scan")
+	flag.BoolVar(&opts.AITriage, "ai-triage", false, "Enable AI-assisted noise triage and false-positive filtering")
+	flag.IntVar(&opts.AITriageThreshold, "ai-triage-threshold", -1, "Confidence threshold (0-100) below which findings are filtered")
+	flag.StringVar(&opts.AITriageProvider, "ai-triage-provider", "", "LLM provider for triage (gemini, ollama, local)")
+	flag.StringVar(&opts.AITriageModel, "ai-triage-model", "", "Model name for AI triage")
+	flag.StringVar(&opts.AITriageURL, "ai-triage-url", "", "Custom API URL for Ollama/local provider")
 
 	flag.StringVar(&opts.H1, "h1", "", "Load scope from HackerOne program handle (e.g. shopify)")
 	flag.StringVar(&opts.BC, "bc", "", "Load scope from Bugcrowd program handle (e.g. tesla)")

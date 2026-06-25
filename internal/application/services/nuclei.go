@@ -37,6 +37,8 @@ type nucleiOutput struct {
 	Timestamp        string     `json:"timestamp"`
 	CURLCmd          string     `json:"curl-command"`
 	ExtractedResults []string   `json:"extracted-results"`
+	Request          string     `json:"request"`
+	Response         string     `json:"response"`
 }
 
 // nucleiInfo holds template metadata from Nuclei output.
@@ -100,6 +102,7 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 		"-timeout", "10",
 		"-retries", "1",
 		"-no-httpx",
+		"-irr",
 	}
 
 	if rateLimit > 0 {
@@ -185,6 +188,13 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 			"matched_at":        out.Matched,
 			"ip":                out.IP,
 			"nuclei_severity":   out.Info.Severity,
+		}
+
+		if out.Request != "" {
+			props["request"] = out.Request
+		}
+		if out.Response != "" {
+			props["response"] = out.Response
 		}
 
 		if out.Info.Metadata != nil {

@@ -36,6 +36,12 @@ type ReportConfig struct {
 	MinimumConfidence int
 	BugBountyType     string // "standard", "h1", "intigriti", "bugcrowd", etc.
 	TemplatePath      string // Optional custom Go text/template file for HTML report
+	AITriageEnabled   bool
+	AITriageThreshold int
+	AITriageProvider  string
+	AITriageModel     string
+	AITriageURL       string
+	AITriageAPIKey    string
 }
 
 // Report represents a comprehensive vulnerability report
@@ -84,6 +90,8 @@ type DetailedFinding struct {
 	DiscoveredAt time.Time `json:"discovered_at"`
 	Effort       string    `json:"effort"` // "low", "medium", "high"
 	Priority     string    `json:"priority"`
+	Request      string    `json:"request,omitempty"`
+	Response     string    `json:"response,omitempty"`
 
 	ExposureScore       int `json:"exposure_score"`
 	AttackabilityScore  int `json:"attackability_score"`
@@ -225,6 +233,36 @@ func (rg *ReportGenerator) generateCustomTemplateReport(report *Report) error {
 // buildReport constructs the report structure from insights and events
 func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []recon.Event, store *storage.Storage) *Report {
 	findings := rg.convertInsightsToFindings(insights, events)
+
+	if rg.config.AITriageEnabled {
+		slog.Info("AI Noise Triage enabled, analyzing findings...", "total_findings", len(findings))
+		var filteredFindings []DetailedFinding
+		for _, f := range findings {
+			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			triageResult, err := TriageFindingWithLLM(ctx, &f, rg.config.AITriageProvider, rg.config.AITriageModel, rg.config.AITriageURL, rg.config.AITriageAPIKey)
+			cancel()
+
+			if err != nil {
+				slog.Error("AI triage failed for finding, keeping finding by default", "finding", f.Target, "error", err)
+				filteredFindings = append(filteredFindings, f)
+				continue
+			}
+
+			slog.Info("AI triage result", "finding", f.Target, "confidence", triageResult.Confidence, "explanation", triageResult.Explanation)
+
+			if triageResult.Confidence < rg.config.AITriageThreshold {
+				slog.Info("AI noise triage: suppressed finding (below threshold)", "finding", f.Target, "confidence", triageResult.Confidence, "threshold", rg.config.AITriageThreshold)
+				continue
+			}
+
+			f.ConfidenceScore = triageResult.Confidence
+			if triageResult.Explanation != "" {
+				f.Description = f.Description + " | AI Triage: " + triageResult.Explanation
+			}
+			filteredFindings = append(filteredFindings, f)
+		}
+		findings = filteredFindings
+	}
 
 	// Count severities
 	criticalCount := 0
@@ -429,6 +467,28 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			isSuppressed = allSuppressed
 		}
 
+		var reqVal, respVal string
+		for _, ev := range relatedEvents {
+			if r, ok := ev.Properties["request"]; ok && r != "" {
+				reqVal = r
+			}
+			if r, ok := ev.Properties["response"]; ok && r != "" {
+				respVal = r
+			} else if bodyBlob, ok := ev.Properties["response_body_blob"]; ok && bodyBlob != "" {
+				if strings.HasPrefix(bodyBlob, "file://") {
+					path := strings.TrimPrefix(bodyBlob, "file://")
+					if bytes, err := os.ReadFile(path); err == nil {
+						respVal = string(bytes)
+					}
+				}
+			} else if body, ok := ev.Properties["response_body"]; ok && body != "" {
+				respVal = body
+			}
+			if reqVal != "" && respVal != "" {
+				break
+			}
+		}
+
 		finding := DetailedFinding{
 			ID:                  fmt.Sprintf("FINDING-%d", len(findings)+1),
 			Title:               fmt.Sprintf("Reconnaissance finding on %s", insight.Host),
@@ -441,6 +501,8 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			Sources:             sourceList,
 			DiscoveredAt:        time.Now(),
 			Priority:            insight.Priority,
+			Request:             reqVal,
+			Response:            respVal,
 			ExposureScore:       insight.ExposureScore,
 			AttackabilityScore:  insight.AttackabilityScore,
 			BusinessImpactScore: insight.BusinessImpactScore,
