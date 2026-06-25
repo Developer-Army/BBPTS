@@ -52,6 +52,7 @@ var toolFactories = map[string]struct {
 	"jwt_analyzer":  {factory: func() Tool { return &JWTAnalyzerTool{} }, stage: 4},
 	"open_redirect": {factory: func() Tool { return &OpenRedirectTool{} }, stage: 4},
 	"arjun":         {factory: func() Tool { return &ArjunTool{} }, stage: 3},
+	"oauth":         {factory: func() Tool { return &OAuthTesterTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
