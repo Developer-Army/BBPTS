@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -348,7 +349,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 
 			var coreType string
 			switch ev.Type {
-			case "discovery", "subdomain", "domain-info", "vhost", "spa_route", "link", "js_file", "api_endpoint", "websocket_endpoint", "external_js":
+			case "discovery", "subdomain", "domain-info", "vhost", "spa_route", "link", "js_file", "api_endpoint", "websocket_endpoint", "external_js", "config_file", "internal_endpoint", "email_found", "email_pattern", "github_account":
 				coreType = queue.EventAssetDiscovered
 			case "service", "port_open", "graphql_endpoint", "oob_session":
 				coreType = queue.EventHostAlive
@@ -374,6 +375,37 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			}
 			if len(webURLs) > 0 {
 				o.proxyFeeder.FeedURLs(ctx, webURLs, o.config.Threads)
+			}
+		}
+
+		if stageNum == 4 {
+			swaggerEvents, swaggerErrs := o.processSwaggerSpecs(ctx, allEvents, threads)
+			if len(swaggerEvents) > 0 {
+				allEvents = append(allEvents, swaggerEvents...)
+				for _, ev := range swaggerEvents {
+					o.bus.Publish(queue.Event{Target: ev.Target, Source: ev.Source, Type: ev.Type, Properties: ev.Properties})
+
+					var coreType string
+					switch ev.Type {
+					case "discovery", "subdomain", "domain-info", "vhost", "spa_route", "link", "js_file", "api_endpoint", "websocket_endpoint", "external_js", "config_file", "internal_endpoint", "email_found", "email_pattern", "github_account":
+						coreType = queue.EventAssetDiscovered
+					case "service", "port_open", "graphql_endpoint", "oob_session":
+						coreType = queue.EventHostAlive
+					case "vulnerability", "secret_exposed":
+						coreType = queue.EventFindingCreated
+					}
+					if coreType != "" {
+						o.bus.Publish(queue.Event{
+							Target:     ev.Target,
+							Source:     ev.Source,
+							Type:       coreType,
+							Properties: ev.Properties,
+						})
+					}
+				}
+			}
+			if len(swaggerErrs) > 0 {
+				allErrs = append(allErrs, swaggerErrs...)
 			}
 		}
 
@@ -474,4 +506,105 @@ func (o *Orchestrator) shouldSkipTool(name string, targets []string, events []Ev
 	}
 
 	return false
+}
+
+func (o *Orchestrator) processSwaggerSpecs(ctx context.Context, allEvents []Event, threads int) ([]Event, []error) {
+	var newEvents []Event
+	var errs []error
+
+	swaggerPattern := regexp.MustCompile(`(?i)(/api-docs|swagger\.json|openapi\.yaml|openapi\.json|openapi\.yml|swagger\.yaml|swagger\.yml)`)
+	seenSpecs := make(map[string]bool)
+	var specURLs []string
+
+	for _, ev := range allEvents {
+		if swaggerPattern.MatchString(ev.Target) && strings.HasPrefix(ev.Target, "http") {
+			if !seenSpecs[ev.Target] {
+				seenSpecs[ev.Target] = true
+				specURLs = append(specURLs, ev.Target)
+			}
+		}
+	}
+
+	if len(specURLs) == 0 {
+		return nil, nil
+	}
+
+	parser := NewSwaggerParser(10 * time.Second)
+	var extractedURLs []string
+
+	for _, specURL := range specURLs {
+		slog.Info("Discovered API Spec - parsing for endpoints and auth schemes", "url", specURL)
+		events, targets, err := parser.FetchAndParse(ctx, specURL)
+		if err != nil {
+			slog.Error("failed to fetch or parse API spec", "url", specURL, "error", err)
+			errs = append(errs, fmt.Errorf("spec %s: %w", specURL, err))
+			continue
+		}
+
+		newEvents = append(newEvents, events...)
+		extractedURLs = append(extractedURLs, targets...)
+	}
+
+	if len(extractedURLs) == 0 {
+		return newEvents, errs
+	}
+
+	// Filter in-scope targets and deduplicate
+	var allowedTargets []string
+	seenTargets := make(map[string]bool)
+	for _, t := range extractedURLs {
+		if o.scopeGuard == nil || o.scopeGuard.IsAllowed(t) {
+			if !seenTargets[t] {
+				seenTargets[t] = true
+				allowedTargets = append(allowedTargets, t)
+			}
+		}
+	}
+
+	if len(allowedTargets) == 0 {
+		return newEvents, errs
+	}
+
+	// Find nuclei and dalfox tools from active tools
+	var nucleiTool Tool
+	var dalfoxTool Tool
+	for _, t := range o.tools {
+		if t.Name() == "nuclei" {
+			nucleiTool = t
+		} else if t.Name() == "dalfox" {
+			dalfoxTool = t
+		}
+	}
+
+	if nucleiTool != nil {
+		slog.Info("Running nuclei on Swagger-discovered endpoints", "targets_count", len(allowedTargets))
+		nEvents, err := nucleiTool.Run(ctx, allowedTargets, threads)
+		if err != nil {
+			slog.Error("failed to run nuclei on swagger endpoints", "error", err)
+			errs = append(errs, err)
+		} else {
+			newEvents = append(newEvents, nEvents...)
+		}
+	}
+
+	if dalfoxTool != nil {
+		var dalfoxTargets []string
+		for _, t := range allowedTargets {
+			if strings.Contains(t, "?") {
+				dalfoxTargets = append(dalfoxTargets, t)
+			}
+		}
+		if len(dalfoxTargets) > 0 {
+			slog.Info("Running dalfox on Swagger-discovered endpoints", "targets_count", len(dalfoxTargets))
+			dEvents, err := dalfoxTool.Run(ctx, dalfoxTargets, threads)
+			if err != nil {
+				slog.Error("failed to run dalfox on swagger endpoints", "error", err)
+				errs = append(errs, err)
+			} else {
+				newEvents = append(newEvents, dEvents...)
+			}
+		}
+	}
+
+	return newEvents, errs
 }

@@ -16,6 +16,7 @@ require (
 	golang.org/x/crypto v0.36.0
 	golang.org/x/sync v0.14.0
 	golang.org/x/time v0.11.0
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.36.3
 )
 
@@ -40,6 +41,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.19 // indirect

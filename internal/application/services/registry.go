@@ -11,8 +11,10 @@ var toolFactories = map[string]struct {
 	factory func() Tool
 	stage   int
 }{
-	"amass":         {factory: func() Tool { return &AmassTool{} }, stage: 1},
-	"assetfinder":   {factory: func() Tool { return &AssetfinderTool{} }, stage: 1},
+	"amass":          {factory: func() Tool { return &AmassTool{} }, stage: 1},
+	"assetfinder":    {factory: func() Tool { return &AssetfinderTool{} }, stage: 1},
+	"github_dorker": {factory: func() Tool { return &GithubDorkerTool{} }, stage: 0},
+	"email_enum":    {factory: func() Tool { return &EmailEnumTool{} }, stage: 0},
 	"crtsh":         {factory: func() Tool { return &CrtshTool{} }, stage: 1},
 	"httpx":         {factory: func() Tool { return &HTTPXTool{} }, stage: 3},
 	"subfinder":     {factory: func() Tool { return &SubfinderTool{} }, stage: 1},
@@ -72,6 +74,12 @@ var toolAliases = map[string]string{
 	"cloud":       "cloud_buckets",
 	"subjack":     "takeover",
 	"subtake":     "takeover",
+	"dorker":      "github_dorker",
+	"dork":        "github_dorker",
+	"ghrecon":     "github_dorker",
+	"email":       "email_enum",
+	"emails":      "email_enum",
+	"hunter":      "email_enum",
 }
 
 func normalizeToolName(name string) string {
