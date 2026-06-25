@@ -209,9 +209,10 @@ func diffFindings(oldFindings, newFindings []recon.JSFinding) string {
 	for _, f := range newFindings {
 		key := f.Type + ":" + f.Value
 		if !oldMap[key] {
-			if f.Type == "endpoint" || f.Type == "semantic_endpoint" {
+			switch f.Type {
+			case "endpoint", "semantic_endpoint":
 				newEndpoints = append(newEndpoints, f.Value)
-			} else if f.Type == "secret" || f.Type == "entropy" {
+			case "secret", "entropy":
 				newSecrets = append(newSecrets, fmt.Sprintf("%s (%s)", f.Name, f.Value))
 			}
 		}

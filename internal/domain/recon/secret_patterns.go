@@ -3,6 +3,7 @@ package recon
 
 import (
 	"regexp"
+	"strings"
 )
 
 // SecretPattern defines a named pattern for detecting a specific type of secret.
@@ -10,6 +11,14 @@ type SecretPattern struct {
 	Name     string
 	Severity string // "critical", "high", "medium", "low"
 	Pattern  *regexp.Regexp
+}
+
+// SecretMatch holds a single secret detection result with context.
+type SecretMatch struct {
+	PatternName string
+	Severity    string
+	Value       string
+	Line        int // 1-indexed line number where the match was found
 }
 
 // SecretPatterns is the curated list of high-confidence patterns.
@@ -21,7 +30,7 @@ var SecretPatterns = []SecretPattern{
 
 	// --- Google ---
 	{Name: "Google API Key", Severity: "high", Pattern: regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`)},
-	{Name: "Google OAuth Client Secret", Severity: "high", Pattern: regexp.MustCompile(`(?i)client_secret.*?['"]([\w\-]+)['"]`)},
+	{Name: "Google OAuth Client Secret", Severity: "high", Pattern: regexp.MustCompile(`(?i)client_secret.*?['"]([\\w\\-]+)['"]`)},
 
 	// --- GitHub ---
 	{Name: "GitHub Personal Access Token", Severity: "critical", Pattern: regexp.MustCompile(`ghp_[0-9a-zA-Z]{36}`)},
@@ -67,4 +76,32 @@ var SecretPatterns = []SecretPattern{
 
 	// --- Internal Endpoints ---
 	{Name: "Internal IP Address", Severity: "medium", Pattern: regexp.MustCompile(`(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})`)},
+}
+
+// ScanForSecrets scans content against all SecretPatterns and returns structured
+// matches with line context. Operates line-by-line for precise location reporting.
+func ScanForSecrets(content string) []SecretMatch {
+	lines := strings.Split(content, "\n")
+	var matches []SecretMatch
+	seen := make(map[string]struct{}) // dedupe key: patternName+value
+
+	for lineIdx, line := range lines {
+		for _, sp := range SecretPatterns {
+			found := sp.Pattern.FindAllString(line, -1)
+			for _, val := range found {
+				key := sp.Name + "|" + val
+				if _, ok := seen[key]; ok {
+					continue
+				}
+				seen[key] = struct{}{}
+				matches = append(matches, SecretMatch{
+					PatternName: sp.Name,
+					Severity:    sp.Severity,
+					Value:       val,
+					Line:        lineIdx + 1,
+				})
+			}
+		}
+	}
+	return matches
 }

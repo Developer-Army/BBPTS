@@ -350,7 +350,7 @@ func runDiagnostics(ctx context.Context) []DiagnosticCheck {
 	return checks
 }
 
-func checkPlaywrightBrowsers(ctx context.Context) DiagnosticCheck {
+func checkPlaywrightBrowsers(_ context.Context) DiagnosticCheck {
 	var cacheDir string
 	home, err := os.UserHomeDir()
 	if err == nil {
@@ -508,7 +508,8 @@ func FormatHealthReport(health *SystemHealth) string {
 	if len(missingInstructions) > 0 {
 		b.WriteString("\n  How to install missing tools:\n")
 		for _, inst := range missingInstructions {
-			b.WriteString(inst + "\n")
+			b.WriteString(inst)
+			b.WriteString("\n")
 		}
 	}
 

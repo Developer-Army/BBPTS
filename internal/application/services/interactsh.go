@@ -80,6 +80,9 @@ func (t *InteractshTool) Run(ctx context.Context, targets []string, threads int)
 				slog.Info("Interactsh interaction detected", "log", text)
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("Interactsh scanner error", "error", err)
+		}
 
 		_ = cmd.Wait() // Reclaim resources
 	}()

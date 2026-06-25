@@ -280,3 +280,54 @@ func TestSecretPatterns_SeverityLevels(t *testing.T) {
 		}
 	}
 }
+
+func TestScanForSecrets(t *testing.T) {
+	content := `line1: nothing here
+line2: AKIAIOSFODNN7EXAMPLE is leaked
+line3: some text
+line4: mongodb://user:pass@host:27017/db
+line5: AKIAIOSFODNN7EXAMPLE duplicate should be skipped`
+
+	matches := ScanForSecrets(content)
+
+	// Should find AWS key + DB connection string (duplicate AWS key deduplicated)
+	if len(matches) < 2 {
+		t.Fatalf("expected at least 2 matches, got %d", len(matches))
+	}
+
+	// Verify line numbers
+	foundAWS := false
+	foundDB := false
+	for _, m := range matches {
+		if m.PatternName == "AWS Access Key ID" && m.Line == 2 {
+			foundAWS = true
+		}
+		if m.PatternName == "Database Connection String" && m.Line == 4 {
+			foundDB = true
+		}
+	}
+	if !foundAWS {
+		t.Error("expected AWS Access Key ID match on line 2")
+	}
+	if !foundDB {
+		t.Error("expected Database Connection String match on line 4")
+	}
+
+	// Verify deduplication — same AWS key on line 5 should not produce second match
+	awsCount := 0
+	for _, m := range matches {
+		if m.PatternName == "AWS Access Key ID" && m.Value == "AKIAIOSFODNN7EXAMPLE" {
+			awsCount++
+		}
+	}
+	if awsCount != 1 {
+		t.Errorf("expected 1 deduplicated AWS key match, got %d", awsCount)
+	}
+}
+
+func TestScanForSecrets_Empty(t *testing.T) {
+	matches := ScanForSecrets("")
+	if len(matches) != 0 {
+		t.Errorf("expected 0 matches for empty content, got %d", len(matches))
+	}
+}

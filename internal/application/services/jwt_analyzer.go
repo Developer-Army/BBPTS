@@ -124,7 +124,7 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, targets []string, threads int
 	})
 }
 
-func (t *JWTAnalyzerTool) testNoneAlg(header, payload string) bool {
+func (t *JWTAnalyzerTool) testNoneAlg(header, _ string) bool {
 	// Simple check if base64 encoded alg field is "none"
 	return strings.Contains(strings.ToLower(header), "none")
 }
