@@ -56,6 +56,14 @@ type Report struct {
 	Executive       ExecutiveSummary              `json:"executive_summary"`
 	TopTargets      []analyze.InvestigationTarget `json:"top_targets,omitempty"`
 	AttackPaths     []analyze.AttackPath          `json:"attack_paths,omitempty"`
+	ConfidenceSummary ReportConfidenceSummary     `json:"confidence_summary"`
+}
+
+type ReportConfidenceSummary struct {
+	TotalEvaluated  int     `json:"total_evaluated"`
+	KeptCount       int     `json:"kept_count"`
+	SuppressedCount int     `json:"suppressed_count"`
+	NoiseReduction  float64 `json:"noise_reduction_percentage"`
 }
 
 // DetailedFinding represents a single finding with comprehensive details
@@ -85,6 +93,7 @@ type DetailedFinding struct {
 
 	Risk           recon.RiskVector `json:"risk_vector"`
 	ScreenshotPath string           `json:"screenshot_path,omitempty"`
+	Suppressed     bool             `json:"suppressed"`
 }
 
 // ReportStatistics holds statistical information about the scan
@@ -276,6 +285,21 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		}
 	}
 
+	totalEv := len(events)
+	keptEv := 0
+	suppressedEv := 0
+	for _, ev := range events {
+		if ev.Properties["suppressed"] == "true" {
+			suppressedEv++
+		} else {
+			keptEv++
+		}
+	}
+	reduction := 0.0
+	if totalEv > 0 {
+		reduction = float64(suppressedEv) / float64(totalEv) * 100.0
+	}
+
 	report := &Report{
 		Title:           fmt.Sprintf("BBPTS Security Assessment Report - %s", time.Now().Format("2006-01-02")),
 		Description:     "Comprehensive reconnaissance and vulnerability assessment report",
@@ -292,6 +316,12 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		Executive:       rg.buildExecutiveSummary(findings),
 		TopTargets:      topTargets,
 		AttackPaths:     topPaths,
+		ConfidenceSummary: ReportConfidenceSummary{
+			TotalEvaluated:  totalEv,
+			KeptCount:       keptEv,
+			SuppressedCount: suppressedEv,
+			NoiseReduction:  reduction,
+		},
 	}
 
 	if store != nil {
@@ -382,6 +412,18 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			evidenceParts = append(evidenceParts, fmt.Sprintf("Discovered by: %s", strings.Join(sourceList, ", ")))
 		}
 
+		isSuppressed := false
+		if len(relatedEvents) > 0 {
+			allSuppressed := true
+			for _, ev := range relatedEvents {
+				if ev.Properties["suppressed"] != "true" {
+					allSuppressed = false
+					break
+				}
+			}
+			isSuppressed = allSuppressed
+		}
+
 		finding := DetailedFinding{
 			ID:                  fmt.Sprintf("FINDING-%d", len(findings)+1),
 			Title:               fmt.Sprintf("Reconnaissance finding on %s", insight.Host),
@@ -401,6 +443,7 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			FreshnessScore:      insight.FreshnessScore,
 			PathScore:           insight.PathScore,
 			Risk:                insight.Risk,
+			Suppressed:          isSuppressed,
 		}
 
 		// Lookup screenshot path

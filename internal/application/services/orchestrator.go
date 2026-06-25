@@ -2,11 +2,14 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,6 +61,9 @@ type Config struct {
 	AssetStore         string
 	Checkpoint         *utils.Checkpoint
 	QuotaGuard         *utils.QuotaGuard
+	FPConfidenceThreshold int
+	FPKeepSuppressed      bool
+	FPAudit               bool
 }
 
 // FleetConfig holds Axiom distributed fleet configuration.
@@ -82,6 +88,7 @@ type Orchestrator struct {
 	circuitBreakers *network.CircuitBreakerRegistry
 	scopeGuard      *normalize.ScopeGuard
 	assetStoreMu    sync.Mutex
+	storage         *orchestratorStorage
 }
 
 type eventReporter interface {
@@ -142,6 +149,7 @@ func NewOrchestrator(config Config) *Orchestrator {
 		circuitBreakers: network.NewCircuitBreakerRegistry(
 			network.DefaultCircuitBreakerConfig(),
 		),
+		storage:     &orchestratorStorage{},
 	}
 
 	if config.ProxyURL != "" {
@@ -442,10 +450,84 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		allEvents = injectMockComplianceEvents(initialTargets, o.config.TmpResultsDir, allEvents)
 	}
 
+	allEvents = CorroborateEvents(allEvents)
+	kept, suppressed := o.runScoringPass(allEvents)
+	o.notify(kept)
+	o.storage.SaveEvents(kept)
+	_ = suppressed // keep variable bound
+
 	if len(allErrs) > 0 {
-		return allEvents, errors.Join(allErrs...)
+		return kept, errors.Join(allErrs...)
 	}
-	return allEvents, nil
+	return kept, nil
+}
+
+type orchestratorStorage struct{}
+
+func (s *orchestratorStorage) SaveEvents(events []Event) {}
+
+func (o *Orchestrator) notify(events []Event) {}
+
+func (o *Orchestrator) runScoringPass(events []Event) (kept []Event, suppressed []Event) {
+	threshold := o.config.FPConfidenceThreshold
+
+	var scored []ScoredEvent
+	for _, ev := range events {
+		score := ScoreEvent(ev)
+		if ev.Properties == nil {
+			ev.Properties = make(map[string]string)
+		}
+		ev.Properties["confidence_score"] = strconv.Itoa(score)
+		
+		suppressedFlag := score < threshold
+		ev.Properties["suppressed"] = strconv.FormatBool(suppressedFlag)
+
+		scoredEv := ScoredEvent{
+			Event:           ev,
+			ConfidenceScore: score,
+			Suppressed:      suppressedFlag,
+		}
+		scored = append(scored, scoredEv)
+	}
+
+	if o.config.FPAudit {
+		auditPath := "suppressed.jsonl"
+		if o.config.TmpResultsDir != "" {
+			auditPath = filepath.Join(o.config.TmpResultsDir, "suppressed.jsonl")
+		}
+		f, err := os.OpenFile(auditPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		if err == nil {
+			defer f.Close()
+			for _, se := range scored {
+				if se.Suppressed {
+					data, err := json.Marshal(se)
+					if err == nil {
+						_, _ = f.Write(append(data, '\n'))
+					}
+				}
+			}
+		} else {
+			slog.Warn("failed to open suppressed.jsonl for audit", "error", err)
+		}
+	}
+
+	var keptScored []ScoredEvent
+	if o.config.FPKeepSuppressed {
+		keptScored = scored
+	} else {
+		keptScored = Filter(scored)
+	}
+
+	for _, se := range keptScored {
+		kept = append(kept, se.Event)
+	}
+	for _, se := range scored {
+		if se.Suppressed {
+			suppressed = append(suppressed, se.Event)
+		}
+	}
+
+	return kept, suppressed
 }
 
 // Bus returns the internal event bus.

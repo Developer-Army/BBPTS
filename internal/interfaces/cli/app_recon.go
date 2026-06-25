@@ -157,6 +157,14 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 			FleetSize:   cfg.Fleet.FleetSize,
 			DeleteAfter: cfg.Fleet.DeleteAfter,
 		},
+		FPConfidenceThreshold: func() int {
+			if opts.FPThreshold >= 0 {
+				return opts.FPThreshold
+			}
+			return cfg.FPConfidenceThreshold
+		}(),
+		FPKeepSuppressed: opts.IncludeFP || cfg.FPKeepSuppressed,
+		FPAudit:          opts.FPAudit,
 	}
 	if err := writeSeedDomainsToTmp(reconConfig.TmpResultsDir, normalized); err != nil {
 		slog.Warn("failed to persist seed domains", "error", err, "dir", reconConfig.TmpResultsDir)

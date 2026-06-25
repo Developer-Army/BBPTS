@@ -25,6 +25,8 @@
   },
   "threads": 32,
   "insecure_skip_verify": false,
+  "fp_confidence_threshold": 40,
+  "fp_keep_suppressed": true,
   "notify": {
     "telegram_bot_token": "",
     "telegram_chat_id": "",

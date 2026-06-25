@@ -83,4 +83,7 @@ type Options struct {
 	AssetStore        string
 	DraftReport       bool
 	MinimumConfidence int
+	FPThreshold       int
+	IncludeFP         bool
+	FPAudit           bool
 }

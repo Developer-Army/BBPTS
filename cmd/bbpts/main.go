@@ -102,6 +102,12 @@ func main() {
 	}
 
 	// Apply CLI overrides to configuration
+	if opts.FPThreshold >= 0 {
+		cfg.FPConfidenceThreshold = opts.FPThreshold
+	}
+	if opts.IncludeFP {
+		cfg.FPKeepSuppressed = true
+	}
 	if opts.MaxCPUPercent > 0 {
 		cfg.ResourceLimits.MaxCPUPercent = opts.MaxCPUPercent
 	}
@@ -258,6 +264,9 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.DraftReport, "draft-report", false, "Draft a platform-ready markdown report using AI")
 	flag.IntVar(&opts.MinimumConfidence, "min-confidence", 0, "Minimum confidence score (0-100) to include in report")
 	flag.IntVar(&opts.MinimumConfidence, "c", 0, "Short for -min-confidence")
+	flag.IntVar(&opts.FPThreshold, "fp-threshold", -1, "False positive confidence threshold (0-100, default from config)")
+	flag.BoolVar(&opts.IncludeFP, "include-fp", false, "Include false positive/suppressed findings in the report with visual indicators")
+	flag.BoolVar(&opts.FPAudit, "fp-audit", false, "Audit mode: write suppressed/false positive findings to suppressed.jsonl")
 	flag.BoolVar(&opts.Resume, "resume", false, "Resume from previous checkpoint")
 	flag.BoolVar(&opts.Resume, "r", false, "Short for -resume")
 	flag.BoolVar(&opts.JSONOutput, "json", false, "Output results in JSON format to stdout")

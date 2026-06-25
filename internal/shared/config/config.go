@@ -108,6 +108,12 @@ type Config struct {
 
 	// MockMode gates simulated/mock event injection.
 	MockMode bool `json:"mock_mode"`
+
+	// FPConfidenceThreshold is the threshold below which events are marked suppressed.
+	FPConfidenceThreshold int `json:"fp_confidence_threshold"`
+
+	// FPKeepSuppressed controls whether suppressed events are kept in the output report.
+	FPKeepSuppressed bool `json:"fp_keep_suppressed"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -224,6 +230,8 @@ func DefaultConfig() *Config {
 			MaxMemoryMB:   0,
 			GCPercent:     0,
 		},
+		FPConfidenceThreshold: 40,
+		FPKeepSuppressed:      true,
 	}
 }
 

@@ -218,13 +218,17 @@ func WriteCSVSummary(path string, insights []Insight) error {
 
 	writer := csv.NewWriter(f)
 
-	if err := writer.Write([]string{"host", "dedupe_key", "severity", "score", "confidence", "sources", "tags", "reasons", "recommended_tools", "suggested_tests", "evidence_count"}); err != nil {
+	if err := writer.Write([]string{"host", "dedupe_key", "severity", "score", "confidence", "sources", "tags", "reasons", "recommended_tools", "suggested_tests", "evidence_count", "confidence_score", "fp_risk"}); err != nil {
 		return err
 	}
 	for _, in := range insights {
 		dk := in.DedupeKey
 		if dk == "" {
 			dk = in.Host
+		}
+		fpRisk := "low"
+		if in.ConfidenceScore < 40 {
+			fpRisk = "high"
 		}
 		if err := writer.Write([]string{
 			in.Host,
@@ -238,6 +242,8 @@ func WriteCSVSummary(path string, insights []Insight) error {
 			strings.Join(recommendedTools(in.Tags, in.Reasons, in.Sources), "; "),
 			strings.Join(in.SuggestedTests, "; "),
 			fmt.Sprintf("%d", in.EvidenceCount),
+			fmt.Sprintf("%d", in.ConfidenceScore),
+			fpRisk,
 		}); err != nil {
 			return err
 		}

@@ -15,13 +15,14 @@ import (
 type HTTPXTool struct{}
 
 type httpxOutput struct {
-	URL          string   `json:"url"`
-	StatusCode   int      `json:"statuscode"`
-	Title        string   `json:"title"`
-	Server       string   `json:"server"`
-	IP           string   `json:"ip"`
-	Technologies []string `json:"tech"`
-	RawHeader    string   `json:"raw_header"`
+	URL           string   `json:"url"`
+	StatusCode    int      `json:"statuscode"`
+	Title         string   `json:"title"`
+	Server        string   `json:"server"`
+	IP            string   `json:"ip"`
+	Technologies  []string `json:"tech"`
+	RawHeader     string   `json:"raw_header"`
+	ContentLength int64    `json:"content-length"`
 }
 
 func (t *HTTPXTool) Name() string {
@@ -206,11 +207,12 @@ func (t *HTTPXTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		}
 
 		props := map[string]string{
-			"status_code":   fmt.Sprintf("%d", out.StatusCode),
-			"title":         out.Title,
-			"server":        out.Server,
-			"ip":            out.IP,
-			"auth_required": authRequired,
+			"status_code":    fmt.Sprintf("%d", out.StatusCode),
+			"content_length": fmt.Sprintf("%d", out.ContentLength),
+			"title":          out.Title,
+			"server":         out.Server,
+			"ip":             out.IP,
+			"auth_required":  authRequired,
 		}
 		if len(techList) > 0 {
 			props["technologies"] = strings.Join(techList, ",")

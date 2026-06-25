@@ -326,6 +326,16 @@ a:hover{text-decoration:underline}
 .recs ol li{margin-bottom:9px;font-size:.9rem}
 .empty-state{text-align:center;padding:60px;color:var(--muted);background:var(--surface);border:1px dashed var(--border);border-radius:12px}
 footer{text-align:center;padding:36px 0 16px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--border);margin-top:16px}
+.suppressed-finding {
+  background: #1e293b !important;
+  opacity: 0.65;
+  border-color: #475569 !important;
+  filter: grayscale(80%);
+}
+body.light-theme .suppressed-finding {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
 </style>
 </head>
 <body>
@@ -415,6 +425,10 @@ footer{text-align:center;padding:36px 0 16px;color:var(--muted);font-size:.8rem;
 ` + targetsHTML + pathsHTML + `
 
 <div class="section-title">Detailed Findings</div>
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; color: var(--muted);">
+  <div><strong>Noise Filter Status:</strong> Total Evaluated: <span style="color: var(--text);">` + fmt.Sprintf("%d", report.ConfidenceSummary.TotalEvaluated) + `</span> &nbsp;|&nbsp; Kept: <span style="color: var(--low);">` + fmt.Sprintf("%d", report.ConfidenceSummary.KeptCount) + `</span> &nbsp;|&nbsp; Suppressed: <span style="color: var(--high);">` + fmt.Sprintf("%d", report.ConfidenceSummary.SuppressedCount) + `</span></div>
+  <div><strong>Noise Reduction:</strong> <span style="color: var(--accent); font-weight: bold;">` + fmt.Sprintf("%.1f%%", report.ConfidenceSummary.NoiseReduction) + `</span></div>
+</div>
 <div id="findings-container">
 ` + findingsHTML + `
 </div>
@@ -583,10 +597,17 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		targetURL := makeURL(f.Target)
 		cbPrefix := fmt.Sprintf("f%d", idx)
 
-		sb.WriteString(fmt.Sprintf(`<div class="finding sev-%s">`, sev))
+		extraClass := ""
+		if f.Suppressed {
+			extraClass = " suppressed-finding"
+		}
+		sb.WriteString(fmt.Sprintf(`<div class="finding sev-%s%s">`, sev, extraClass))
 		sb.WriteString(`<div class="finding-head">`)
 		sb.WriteString(fmt.Sprintf(`<div class="finding-host"><a href="%s" target="_blank" rel="noopener">%s</a></div>`, targetURL, f.Target))
 		sb.WriteString(`<div class="fmeta">`)
+		if f.Suppressed {
+			sb.WriteString(`<span class="sev-badge" style="background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3)">⚠ FP Risk: high</span>`)
+		}
 		sb.WriteString(fmt.Sprintf(`<span class="sev-badge" style="background:rgba(%s,.12);color:%s;border:1px solid rgba(%s,.3)">%s</span>`,
 			hexToRGBComponents(color), color, hexToRGBComponents(color), strings.ToUpper(sev)))
 		sb.WriteString(fmt.Sprintf(`<span class="score-pill">Score <strong>%d</strong>/100</span>`, f.Score))

@@ -41,11 +41,12 @@ type nucleiOutput struct {
 
 // nucleiInfo holds template metadata from Nuclei output.
 type nucleiInfo struct {
-	Name        string   `json:"name"`
-	Severity    string   `json:"severity"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
-	Reference   []string `json:"reference"`
+	Name        string                 `json:"name"`
+	Severity    string                 `json:"severity"`
+	Description string                 `json:"description"`
+	Tags        []string               `json:"tags"`
+	Reference   []string               `json:"reference"`
+	Metadata    map[string]interface{} `json:"metadata"`
 }
 
 func (t *NucleiTool) Name() string {
@@ -177,12 +178,19 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 		}
 
 		props := map[string]string{
-			"template_id": out.TemplateID,
-			"severity":    out.Info.Severity,
-			"vuln_name":   out.Info.Name,
-			"type":        out.Type,
-			"matched_at":  out.Matched,
-			"ip":          out.IP,
+			"template_id":       out.TemplateID,
+			"severity":          out.Info.Severity,
+			"vuln_name":         out.Info.Name,
+			"type":              out.Type,
+			"matched_at":        out.Matched,
+			"ip":                out.IP,
+			"nuclei_severity":   out.Info.Severity,
+		}
+
+		if out.Info.Metadata != nil {
+			if conf, ok := out.Info.Metadata["confidence"].(string); ok {
+				props["nuclei_confidence"] = conf
+			}
 		}
 
 		if out.Info.Description != "" {
