@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"os"
@@ -66,7 +67,7 @@ func TestJSONReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, events, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, events, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestMarkdownReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate Markdown report: %v", err)
 	}
@@ -140,7 +141,7 @@ func TestHTMLReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate HTML report: %v", err)
 	}
@@ -172,7 +173,7 @@ func TestZAPReportGeneration(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate ZAP report: %v", err)
 	}
@@ -217,7 +218,7 @@ func TestReportWithMultipleSeverities(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -265,7 +266,7 @@ func TestReportFiltering(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -379,7 +380,7 @@ func TestReportTimestamp(t *testing.T) {
 		{Host: "acme-corp.io", Score: 70, Priority: "medium"},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
@@ -426,7 +427,7 @@ func TestToolSpecificExports(t *testing.T) {
 		},
 	}
 
-	if err := generator.GenerateFullReport(insights, events, nil); err != nil {
+	if err := generator.GenerateFullReport(context.Background(), insights, events, nil); err != nil {
 		t.Fatalf("failed to generate tool-specific exports: %v", err)
 	}
 
@@ -512,7 +513,7 @@ func TestReportScoreBreakdown(t *testing.T) {
 		},
 	}
 
-	err := generator.GenerateFullReport(insights, []recon.Event{}, nil)
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
 	if err != nil {
 		t.Fatalf("Failed to generate report: %v", err)
 	}

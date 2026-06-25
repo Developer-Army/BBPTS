@@ -5,7 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
 func TestCleanJSON(t *testing.T) {
@@ -129,5 +135,68 @@ func TestTriageFindingWithLLMFallback(t *testing.T) {
 	}
 	if result.Explanation != "Target is secure." {
 		t.Errorf("expected explanation, got %q", result.Explanation)
+	}
+}
+
+func TestDraftReportWithLLM(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Mock LLM server
+	llmServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"choices": []map[string]any{
+				{
+					"message": map[string]any{
+						"role":    "assistant",
+						"content": "# Bug Bounty Draft Report\nThis is a mock draft report.",
+					},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer llmServer.Close()
+
+	config := ReportConfig{
+		OutputPath:       tempDir,
+		DraftReport:      true,
+		AITriageProvider: "local",
+		AITriageModel:    "llama3",
+		AITriageURL:      llmServer.URL,
+		AITriageAPIKey:   "test-key",
+	}
+
+	generator := NewReportGenerator(config)
+
+	insights := []analyze.Insight{
+		{
+			Host:     "api.acme-corp.io",
+			Score:    85,
+			Priority: "critical",
+		},
+	}
+
+	err := generator.GenerateFullReport(context.Background(), insights, []recon.Event{}, nil)
+	if err != nil {
+		t.Fatalf("GenerateFullReport with DraftReport failed: %v", err)
+	}
+
+	draftPath := filepath.Join(tempDir, "ai_draft_report.md")
+	if _, err := os.Stat(draftPath); err != nil {
+		t.Fatalf("Draft report file was not created: %v", err)
+	}
+
+	data, err := os.ReadFile(draftPath)
+	if err != nil {
+		t.Fatalf("failed to read draft report: %v", err)
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "BBPTS using local (llama3)") {
+		t.Errorf("expected header metadata in draft, got: %s", content)
+	}
+	if !strings.Contains(content, "This is a mock draft report.") {
+		t.Errorf("expected LLM content, got: %s", content)
 	}
 }
