@@ -86,16 +86,17 @@ var toolVersionFlags = map[string][]string{
 }
 
 var builtInDoctorTools = map[string]string{
-	"browser":       "built-in browser recon module",
-	"crtsh":         "built-in crt.sh HTTP client",
-	"github":        "built-in GitHub API code search tool",
-	"graphql":       "built-in GraphQL scanner",
-	"oauth":         "built-in OAuth 2.0 flow tester",
-	"js_analyzer":   "built-in JavaScript analyzer",
-	"secrets":       "built-in secret scanner",
-	"shodan":        "built-in Shodan API client",
-	"cloud_buckets": "built-in AWS/GCS/Azure cloud bucket scanner",
-	"takeover":      "built-in subdomain takeover scanner",
+	"browser":         "built-in browser recon module",
+	"crtsh":           "built-in crt.sh HTTP client",
+	"github":          "built-in GitHub API code search tool",
+	"graphql":         "built-in GraphQL scanner",
+	"oauth":           "built-in OAuth 2.0 flow tester",
+	"proto_pollution": "built-in Prototype Pollution detector",
+	"js_analyzer":     "built-in JavaScript analyzer",
+	"secrets":         "built-in secret scanner",
+	"shodan":          "built-in Shodan API client",
+	"cloud_buckets":   "built-in AWS/GCS/Azure cloud bucket scanner",
+	"takeover":        "built-in subdomain takeover scanner",
 }
 
 var toolBinaryNames = map[string]string{

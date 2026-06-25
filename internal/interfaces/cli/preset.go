@@ -112,6 +112,7 @@ func LightModeTools() []string {
 		"takeover",
 		"graphql",
 		"oauth",
+		"proto_pollution",
 	}
 }
 
@@ -127,6 +128,7 @@ func NormalModeTools() []string {
 		"takeover",
 		"graphql",
 		"oauth",
+		"proto_pollution",
 	}
 }
 
