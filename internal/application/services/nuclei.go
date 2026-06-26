@@ -118,6 +118,12 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 		)
 	}
 
+	// Wire interactsh OOB server for blind vulnerability detection
+	if oobURL := InteractshOOBURLFromCtx(ctx); oobURL != "" {
+		args = append(args, "-iserver", oobURL)
+		slog.Info("Nuclei: using interactsh OOB server for blind detection", "iserver", oobURL)
+	}
+
 	// Apply severity filter
 	if len(t.Severity) > 0 {
 		args = append(args, "-severity", strings.Join(t.Severity, ","))
@@ -153,6 +159,12 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 
 	for _, tp := range finalTemplates {
 		args = append(args, "-t", tp)
+	}
+
+	// Wire interactsh OOB URL for blind/OOB vulnerability detection
+	if oobURL := InteractshOOBURLFromCtx(ctx); oobURL != "" {
+		args = append(args, "-iserver", oobURL)
+		slog.Info("Nuclei using interactsh OOB server", "url", oobURL)
 	}
 
 	// Pass targets via stdin
