@@ -332,10 +332,10 @@ func (g *GraphQLScanner) sendProbe(ctx context.Context, url, method, payload str
 }
 
 func (g *GraphQLScanner) checkBatching(ctx context.Context, endpoint string) (bool, error) {
-	payload := []map[string]string{
-		{"query": "{ __typename }"},
-		{"query": "{ __typename }"},
-		{"query": "{ __typename }"},
+	const batchProbeSize = 100
+	payload := make([]map[string]string, 0, batchProbeSize)
+	for i := 0; i < batchProbeSize; i++ {
+		payload = append(payload, map[string]string{"query": "{ __typename }"})
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -365,7 +365,7 @@ func (g *GraphQLScanner) checkBatching(ctx context.Context, endpoint string) (bo
 	}
 
 	var results []interface{}
-	if err := json.Unmarshal(respBody, &results); err == nil && len(results) == 3 {
+	if err := json.Unmarshal(respBody, &results); err == nil && len(results) >= batchProbeSize {
 		return true, nil
 	}
 	return false, nil

@@ -72,6 +72,9 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 	if opts.PassiveMode {
 		toolNames = filterPassiveTools(toolNames)
 	}
+	if !opts.ExploitSQLI {
+		toolNames = FilterExcludedTools(toolNames, "sqlmap")
+	}
 
 	// Build run context with timeout
 	var runCtx context.Context
@@ -147,6 +150,8 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 		MockMode:           cfg.MockMode,
 		InsecureSkipVerify: cfg.InsecureSkipVerify,
 		DryRun:             opts.DryRun,
+		ExploitSQLI:        opts.ExploitSQLI,
+		ForceHTTP1:         opts.ForceHTTP1,
 		AssetStore:         opts.AssetStore,
 		Checkpoint:         cp,
 		QuotaGuard:         qg,

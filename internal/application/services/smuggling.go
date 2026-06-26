@@ -122,7 +122,7 @@ func (t *SmugglingTool) sendRaw(ctx context.Context, u *url.URL, payload string,
 func (t *SmugglingTool) checkCLTE(ctx context.Context, u *url.URL) (bool, error) {
 	// First establish a baseline response time
 	baselinePayload := fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s\r\nContent-Length: 0\r\n\r\n", u.Host)
-	baseline, err := t.sendRaw(ctx, u, baselinePayload, 3*time.Second)
+	baseline, err := t.sendRaw(ctx, u, baselinePayload, 8*time.Second)
 	if err != nil {
 		return false, err
 	}
@@ -137,13 +137,13 @@ func (t *SmugglingTool) checkCLTE(ctx context.Context, u *url.URL) (bool, error)
 		"Transfer-Encoding: chunked\r\n\r\n"+
 		"0\r\n\r\n", u.Host)
 
-	delay, err := t.sendRaw(ctx, u, cltePayload, 4*time.Second)
+	delay, err := t.sendRaw(ctx, u, cltePayload, 10*time.Second)
 	if err != nil {
 		return false, nil // assume non-vulnerable or connection error on malformed
 	}
 
 	// If baseline was fast but smuggling probe delayed by more than 2 seconds
-	if baseline < 1*time.Second && delay >= 3*time.Second {
+	if baseline < 2*time.Second && delay >= 8*time.Second {
 		return true, nil
 	}
 
@@ -152,7 +152,7 @@ func (t *SmugglingTool) checkCLTE(ctx context.Context, u *url.URL) (bool, error)
 
 func (t *SmugglingTool) checkTECL(ctx context.Context, u *url.URL) (bool, error) {
 	baselinePayload := fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s\r\nContent-Length: 0\r\n\r\n", u.Host)
-	baseline, err := t.sendRaw(ctx, u, baselinePayload, 3*time.Second)
+	baseline, err := t.sendRaw(ctx, u, baselinePayload, 8*time.Second)
 	if err != nil {
 		return false, err
 	}
@@ -168,12 +168,12 @@ func (t *SmugglingTool) checkTECL(ctx context.Context, u *url.URL) (bool, error)
 		"1a\r\n"+
 		"X", u.Host)
 
-	delay, err := t.sendRaw(ctx, u, teclPayload, 4*time.Second)
+	delay, err := t.sendRaw(ctx, u, teclPayload, 10*time.Second)
 	if err != nil {
 		return false, nil
 	}
 
-	if baseline < 1*time.Second && delay >= 3*time.Second {
+	if baseline < 2*time.Second && delay >= 8*time.Second {
 		return true, nil
 	}
 

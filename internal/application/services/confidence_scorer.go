@@ -53,7 +53,20 @@ func ScoreEvent(ev Event) int {
 	// Group 1: Source tool credibility
 	switch strings.ToLower(ev.Source) {
 	case "nuclei":
-		score += 15
+		// Nuclei bonus depends on severity - info/low shouldn't get flat +15
+		if ev.Properties != nil {
+			if nsVal, ok := ev.Properties["nuclei_severity"]; ok {
+				severity := strings.ToLower(nsVal)
+				if severity == "critical" || severity == "high" {
+					score += 15
+				} else if severity == "medium" {
+					score += 10
+				} else if severity == "low" {
+					score += 5
+				}
+				// info severity gets no bonus (handled in Group 6)
+			}
+		}
 	case "gau":
 		score += -10
 	case "shodan":
@@ -123,11 +136,26 @@ func ScoreEvent(ev Event) int {
 	if ev.Properties != nil {
 		if cbVal, ok := ev.Properties["corroborated_by"]; ok && cbVal != "" {
 			otherTools := strings.Split(cbVal, ",")
-			totalTools := len(otherTools) + 1
-			if totalTools >= 3 {
+			passiveSources := map[string]bool{"gau": true, "shodan": true}
+			corroborationWeight := 0.0
+			for _, tool := range otherTools {
+				tool = strings.ToLower(strings.TrimSpace(tool))
+				if tool == "" {
+					continue
+				}
+				if passiveSources[tool] {
+					corroborationWeight += 0.5
+				} else {
+					corroborationWeight += 1.0
+				}
+			}
+
+			if corroborationWeight >= 3 {
 				score += 20
-			} else if totalTools == 2 {
+			} else if corroborationWeight >= 2 {
 				score += 12
+			} else if corroborationWeight >= 1 {
+				score += 5
 			}
 		} else {
 			score += -5

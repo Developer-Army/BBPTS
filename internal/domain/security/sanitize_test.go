@@ -1046,5 +1046,3 @@ func TestValidateResolvedIPAndStrict(t *testing.T) {
 		t.Error("expected error for private IP")
 	}
 }
-
-

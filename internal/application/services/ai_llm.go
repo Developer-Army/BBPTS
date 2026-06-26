@@ -13,7 +13,7 @@ import (
 )
 
 // CallLLM sends a prompt to the configured LLM provider and returns the raw text response.
-// Supports "gemini" and "ollama"/"local" providers.
+// Supports "gemini", "openai", "anthropic", and "ollama"/"local" providers.
 func CallLLM(ctx context.Context, prompt, provider, model, apiURL, apiKey string) (string, error) {
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	if provider == "" {
@@ -23,11 +23,105 @@ func CallLLM(ctx context.Context, prompt, provider, model, apiURL, apiKey string
 	switch provider {
 	case "gemini":
 		return callGeminiRaw(ctx, prompt, model, apiKey)
+	case "openai":
+		return callOpenAIChatRaw(ctx, prompt, model, apiURL, apiKey)
+	case "anthropic", "claude":
+		return callAnthropicRaw(ctx, prompt, model, apiURL, apiKey)
 	case "ollama", "local":
 		return callOllamaRaw(ctx, prompt, model, apiURL, apiKey)
 	default:
 		return "", fmt.Errorf("unsupported LLM provider: %s", provider)
 	}
+}
+
+func callOpenAIChatRaw(ctx context.Context, prompt, model, apiURL, apiKey string) (string, error) {
+	if apiKey == "" {
+		apiKey = os.Getenv("OPENAI_API_KEY")
+	}
+	if apiKey == "" {
+		return "", fmt.Errorf("OPENAI_API_KEY is not set")
+	}
+	if apiURL == "" {
+		apiURL = "https://api.openai.com/v1/chat/completions"
+	}
+	if model == "" {
+		model = "gpt-4o"
+	}
+	return callOllamaRaw(ctx, prompt, model, apiURL, apiKey)
+}
+
+func callAnthropicRaw(ctx context.Context, prompt, model, apiURL, apiKey string) (string, error) {
+	if apiKey == "" {
+		apiKey = os.Getenv("ANTHROPIC_API_KEY")
+	}
+	if apiKey == "" {
+		return "", fmt.Errorf("ANTHROPIC_API_KEY is not set")
+	}
+	if apiURL == "" {
+		apiURL = "https://api.anthropic.com/v1/messages"
+	}
+	if model == "" {
+		model = "claude-sonnet-4-6"
+	}
+
+	type Message struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}
+	type AnthropicRequest struct {
+		Model       string    `json:"model"`
+		MaxTokens   int       `json:"max_tokens"`
+		Temperature float64   `json:"temperature"`
+		Messages    []Message `json:"messages"`
+	}
+	reqBody := AnthropicRequest{
+		Model:       model,
+		MaxTokens:   4096,
+		Temperature: 0.1,
+		Messages:    []Message{{Role: "user", Content: prompt}},
+	}
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", apiKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Anthropic API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var parsed struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", err
+	}
+	for _, part := range parsed.Content {
+		if strings.TrimSpace(part.Text) != "" {
+			return part.Text, nil
+		}
+	}
+	return "", fmt.Errorf("empty response from Anthropic API")
 }
 
 // callGeminiRaw calls the Gemini API and returns the raw text response.
@@ -216,6 +310,27 @@ func GetLLMConfig(ctx context.Context) (provider, model, apiURL, apiKey string) 
 	apiKey = GetAPIKey(ctx, "gemini")
 	if apiKey == "" {
 		apiKey = os.Getenv("GEMINI_API_KEY")
+	}
+	if apiKey == "" {
+		if key := GetAPIKey(ctx, "anthropic"); key != "" || os.Getenv("ANTHROPIC_API_KEY") != "" {
+			provider = "anthropic"
+			model = "claude-sonnet-4-6"
+			apiKey = key
+			if apiKey == "" {
+				apiKey = os.Getenv("ANTHROPIC_API_KEY")
+			}
+			return
+		}
+	}
+	if apiKey == "" {
+		if key := GetAPIKey(ctx, "openai"); key != "" || os.Getenv("OPENAI_API_KEY") != "" {
+			provider = "openai"
+			model = "gpt-4o"
+			apiKey = key
+			if apiKey == "" {
+				apiKey = os.Getenv("OPENAI_API_KEY")
+			}
+		}
 	}
 	return
 }

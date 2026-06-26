@@ -127,8 +127,8 @@ func (t *Bypass403Tool) Run(ctx context.Context, targets []string, threads int) 
 			value string
 			url   string
 		}{
-			{"X-Original-URL", parsed.Path, parsed.Scheme + "://" + parsed.Host},
-			{"X-Rewrite-URL", parsed.Path, parsed.Scheme + "://" + parsed.Host},
+			{"X-Original-URL", parsed.Path, parsed.Scheme + "://" + parsed.Host + "/"},
+			{"X-Rewrite-URL", parsed.Path, parsed.Scheme + "://" + parsed.Host + "/"},
 			{"X-Forwarded-For", "127.0.0.1", target},
 			{"X-Custom-IP-Authorization", "127.0.0.1", target},
 		}

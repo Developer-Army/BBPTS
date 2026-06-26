@@ -1,8 +1,0 @@
-2026-06-21T12:42:49.8250000Z Evaluating test.if
-2026-06-21T12:42:49.8250000Z Evaluating: success()
-2026-06-21T12:42:49.8250000Z Result: true
-2026-06-21T12:42:49.8270000Z Requested labels: macos-latest
-2026-06-21T12:42:49.8270000Z Job defined at: Developer-Army/BBPTS/.github/workflows/ci.yml@refs/heads/main
-2026-06-21T12:42:49.8270000Z Waiting for a runner to pick up this job...
-2026-06-21T12:42:49.8400000Z Job is about to start running on the hosted runner: GitHub Actions 1000000766
-2026-06-21T12:42:49.8390000Z Job is waiting for a hosted runner to come online.

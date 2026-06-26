@@ -250,7 +250,7 @@ fi
 
 # 4.5. PLAYWRIGHT BROWSER INSTALLATION
 echo "[*] Installing Playwright browser binaries..."
-go run github.com/playwright-community/playwright-go/cmd/playwright install chromium --with-deps || echo " Warning: Failed to install Playwright browsers automatically."
+go run github.com/playwright-community/playwright-go/cmd/playwright@latest install chromium --with-deps || echo " Warning: Failed to install Playwright browsers automatically."
 
 echo -e "\n BBPTS TOOLS INSTALLED!"
 echo "--------------------------------------------------"

@@ -94,6 +94,7 @@ func deriveInsightsWithTime(targets []string, events []recon.Event, currentTime 
 		&ManualTestingAnalyzer{},
 		&ScorerAnalyzer{},
 		NewTakeoverAnalyzer(),
+		&IDORAnalyzer{},
 	}
 	// Add cluster analyzer for post-processing
 	clusterAnalyzer := NewClusterAnalyzer()
@@ -641,6 +642,27 @@ func (s *SourceAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 
 type ManualTestingAnalyzer struct{}
 
+type IDORAnalyzer struct{}
+
+func (i *IDORAnalyzer) Analyze(ev recon.Event, insight *Insight) {
+	if ev.Source != "idor_assist" {
+		return
+	}
+
+	addTag(insight, "idor-candidate")
+	addReason(insight, "IDOR assistant detected ID-like parameters in URLs")
+
+	if param, ok := ev.Properties["parameter"]; ok && param != "" {
+		addSuggestedTest(insight, fmt.Sprintf("Test IDOR on parameter '%s': try sequential IDs, cross-account access, and UUID enumeration", param))
+	}
+
+	if cluster, ok := ev.Properties["cluster"]; ok && cluster != "" {
+		addReason(insight, fmt.Sprintf("IDOR parameter cluster: %s", cluster))
+	}
+
+	insight.Score += 15
+}
+
 func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 	targetLower := strings.ToLower(ev.Target)
 
@@ -749,6 +771,11 @@ func enrichSuggestedTests(insight *Insight) {
 		"api": {
 			"Test BOLA/IDOR on object IDs",
 			"Check mass assignment in JSON bodies",
+		},
+		"idor-candidate": {
+			"Test sequential ID enumeration",
+			"Try cross-account object access",
+			"Test UUID predictability and collision",
 		},
 		"sqli-candidate": {
 			"Run boolean, time-based, and error-based SQLi probes",

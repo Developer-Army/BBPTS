@@ -80,6 +80,8 @@ type Options struct {
 	ScopeFile         string
 	PassiveMode       bool
 	DryRun            bool
+	ExploitSQLI       bool
+	ForceHTTP1        bool
 	AssetStore        string
 	DraftReport       bool
 	MinimumConfidence int

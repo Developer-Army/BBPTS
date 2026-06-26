@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -52,6 +53,10 @@ func (t *RaceTool) Run(ctx context.Context, targets []string, threads int) ([]Ev
 		}
 
 		if !isStateChanging {
+			isStateChanging = t.looksStateChangingByResponse(ctx, target)
+		}
+
+		if !isStateChanging {
 			return nil, nil
 		}
 
@@ -73,6 +78,35 @@ func (t *RaceTool) Run(ctx context.Context, targets []string, threads int) ([]Ev
 
 		return events, nil
 	})
+}
+
+func (t *RaceTool) looksStateChangingByResponse(ctx context.Context, target string) bool {
+	client := NewSafeHTTPClient(5 * time.Second)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewBuffer([]byte("{}")))
+	if err != nil {
+		return false
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	for k, v := range HeadersFromCtx(ctx) {
+		req.Header.Set(k, v)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	bodyLower := strings.ToLower(string(body))
+	for _, marker := range []string{"success", "applied", "used", "redeemed"} {
+		if strings.Contains(bodyLower, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *RaceTool) testRace(ctx context.Context, target string) (bool, int, error) {

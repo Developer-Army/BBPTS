@@ -58,6 +58,8 @@ type Config struct {
 	MockMode           bool
 	InsecureSkipVerify bool
 	DryRun             bool
+	ExploitSQLI        bool
+	ForceHTTP1         bool
 	AssetStore         string
 	Checkpoint         *utils.Checkpoint
 	QuotaGuard         *utils.QuotaGuard
@@ -207,6 +209,8 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = WithDockerImages(ctx, o.config.DockerImages)
 	ctx = WithInsecure(ctx, o.config.InsecureSkipVerify)
 	ctx = WithDryRun(ctx, o.config.DryRun)
+	ctx = WithExploitSQLI(ctx, o.config.ExploitSQLI)
+	ctx = WithForceHTTP1(ctx, o.config.ForceHTTP1)
 	if o.config.QuotaGuard != nil {
 		ctx = WithQuotaGuard(ctx, o.config.QuotaGuard)
 	}
@@ -330,6 +334,15 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 				ctx = WithInteractshOOBURL(ctx, ev.Target)
 				slog.Info("Interactsh OOB URL injected into context", "url", ev.Target)
 				break
+			}
+		}
+		for _, ev := range events {
+			if ev.Source == "wafw00f" {
+				if waf := strings.TrimSpace(ev.Properties["waf_type"]); waf != "" {
+					ctx = WithWAFContext(ctx, waf)
+					slog.Info("WAF context injected into downstream active tools", "waf", waf)
+					break
+				}
 			}
 		}
 

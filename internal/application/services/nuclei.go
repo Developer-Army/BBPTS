@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -155,22 +158,21 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 			finalTemplates = append(finalTemplates, subsets...)
 			slog.Info("Auto-selected Nuclei template subsets based on technology fingerprint", "subsets", subsets)
 		}
+		customTemplates := generateCustomNucleiTemplates(techTags)
+		finalTemplates = append(finalTemplates, customTemplates...)
 	}
 
 	for _, tp := range finalTemplates {
 		args = append(args, "-t", tp)
 	}
 
-	// Wire interactsh OOB URL for blind/OOB vulnerability detection
-	if oobURL := InteractshOOBURLFromCtx(ctx); oobURL != "" {
-		args = append(args, "-iserver", oobURL)
-		slog.Info("Nuclei using interactsh OOB server", "url", oobURL)
-	}
-
 	// Pass targets via stdin
 	headers := HeadersFromCtx(ctx)
 	for k, v := range headers {
 		args = append(args, "-header", fmt.Sprintf("%s: %s", k, v))
+	}
+	for _, header := range wafBypassHeaders(WAFContextFromCtx(ctx)) {
+		args = append(args, "-header", header)
 	}
 
 	input := strings.Join(targets, "\n")
@@ -240,6 +242,65 @@ func (t *NucleiTool) Run(ctx context.Context, targets []string, threads int) ([]
 	}
 
 	return events, nil
+}
+
+func generateCustomNucleiTemplates(techs []string) []string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	dir := filepath.Join(home, ".config", "nuclei", "custom-templates")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil
+	}
+
+	var templates []string
+	for _, tech := range techs {
+		tech = strings.TrimSpace(strings.ToLower(tech))
+		if tech == "" || len(recon.ResolveTemplateSubsets([]string{tech})) > 0 {
+			continue
+		}
+		slug := regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(tech, "-")
+		slug = strings.Trim(slug, "-")
+		if slug == "" {
+			continue
+		}
+		path := filepath.Join(dir, "bbpts-"+slug+".yaml")
+		content := fmt.Sprintf(`id: bbpts-%s-basic-exposure
+
+info:
+  name: BBPTS %s Basic Exposure Checks
+  author: bbpts
+  severity: info
+  tags: bbpts,custom,%s,exposure
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/version"
+      - "{{BaseURL}}/debug"
+      - "{{BaseURL}}/debug/vars"
+      - "{{BaseURL}}/actuator/env"
+      - "{{BaseURL}}/admin"
+      - "{{BaseURL}}/login"
+
+    matchers-condition: or
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "version"
+          - "debug"
+          - "default password"
+          - "admin"
+          - "%s"
+`, slug, strings.Title(tech), slug, tech)
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+			continue
+		}
+		templates = append(templates, path)
+	}
+	return templates
 }
 
 func getTechTagsForTargets(ctx context.Context, targets []string) []string {

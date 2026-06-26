@@ -144,6 +144,9 @@ const (
 	insecureContextKey
 	dryRunContextKey
 	interactshOOBURLKey
+	wafContextKey
+	forceHTTP1ContextKey
+	exploitSQLIContextKey
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -414,4 +417,37 @@ func InteractshOOBURLFromCtx(ctx context.Context) string {
 		return url
 	}
 	return ""
+}
+
+func WithWAFContext(ctx context.Context, waf string) context.Context {
+	return context.WithValue(ctx, wafContextKey, waf)
+}
+
+func WAFContextFromCtx(ctx context.Context) string {
+	if waf, ok := ctx.Value(wafContextKey).(string); ok {
+		return waf
+	}
+	return ""
+}
+
+func WithForceHTTP1(ctx context.Context, force bool) context.Context {
+	return context.WithValue(ctx, forceHTTP1ContextKey, force)
+}
+
+func ForceHTTP1FromCtx(ctx context.Context) bool {
+	if force, ok := ctx.Value(forceHTTP1ContextKey).(bool); ok {
+		return force
+	}
+	return false
+}
+
+func WithExploitSQLI(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, exploitSQLIContextKey, enabled)
+}
+
+func ExploitSQLIFromCtx(ctx context.Context) bool {
+	if enabled, ok := ctx.Value(exploitSQLIContextKey).(bool); ok {
+		return enabled
+	}
+	return false
 }

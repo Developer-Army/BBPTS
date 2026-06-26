@@ -63,17 +63,18 @@ func (t *DalfoxTool) Run(ctx context.Context, targets []string, threads int) ([]
 			}
 
 			args := []string{"url", url, "--json"}
-			// Wire interactsh OOB URL for blind XSS detection
 			if oobURL := InteractshOOBURLFromCtx(ctx); oobURL != "" {
-				args = append(args, "--blind", oobURL)
+				args = append(args, "-b", oobURL)
 			}
 			headers := HeadersFromCtx(ctx)
 			for k, v := range headers {
 				args = append(args, "-H", fmt.Sprintf("%s: %s", k, v))
 			}
-			// Wire interactsh OOB server for blind XSS detection
-			if oobURL := InteractshOOBURLFromCtx(ctx); oobURL != "" {
-				args = append(args, "--blind", "--blind-url", oobURL)
+			for _, header := range wafBypassHeaders(WAFContextFromCtx(ctx)) {
+				args = append(args, "-H", header)
+			}
+			if WAFContextFromCtx(ctx) != "" {
+				args = append(args, "--waf-evasion")
 			}
 			lines, err := RunCommandLines(ctx, "dalfox", args...)
 			if err != nil {

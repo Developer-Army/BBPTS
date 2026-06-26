@@ -256,6 +256,8 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.LogFilePath, "log-file", "bbpts.log", "Path to log file")
 	flag.BoolVar(&opts.RunDoctor, "doctor", false, "Run environment diagnostics")
 	flag.BoolVar(&opts.DryRun, "dry-run", false, "Dry-run mode: prints which tools would run against which targets without execution")
+	flag.BoolVar(&opts.ExploitSQLI, "exploit-sqli", false, "Opt in to conservative SQL injection exploitation checks with sqlmap (risk 1)")
+	flag.BoolVar(&opts.ForceHTTP1, "force-http1", false, "Force HTTP/1.1 comparison probes for HTTP/2 downgrade testing")
 	flag.StringVar(&opts.AssetStore, "asset-store", "", "Path to write live JSONL asset discoveries in real time")
 	flag.IntVar(&opts.CronInterval, "cron", 0, "Continuous monitoring interval (minutes)")
 	flag.StringVar(&opts.ExportBurp, "export-burp", "", "Export Burp Suite XML findings")
@@ -532,4 +534,3 @@ func runPreScanHooks(cfg *config.Config, opts *app.Options) error {
 
 	return nil
 }
-

@@ -58,7 +58,7 @@ func (pl *ProgramLoader) shouldRefresh(path string) bool {
 	if err != nil {
 		return true // File does not exist or cannot be accessed
 	}
-	return time.Since(info.ModTime()) > 6*time.Hour
+	return time.Since(info.ModTime()) > 1*time.Hour
 }
 
 // Load fetches the program profile, prioritizing the local cache if fresh.

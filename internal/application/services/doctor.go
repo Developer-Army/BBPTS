@@ -383,7 +383,7 @@ func checkPlaywrightBrowsers(_ context.Context) DiagnosticCheck {
 	return DiagnosticCheck{
 		Name:    "playwright-browsers",
 		Status:  "warn",
-		Message: "Playwright browser binaries not found in standard cache path. Run 'go run github.com/playwright-community/playwright-go/cmd/playwright install chromium' to install them.",
+		Message: "Playwright browser binaries not found in standard cache path. Run 'go run github.com/playwright-community/playwright-go/cmd/playwright@latest install chromium --with-deps' to install them.",
 	}
 }
 
