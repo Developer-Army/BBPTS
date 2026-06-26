@@ -143,6 +143,7 @@ const (
 	quotaGuardContextKey
 	insecureContextKey
 	dryRunContextKey
+	interactshOOBURLKey
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -402,4 +403,15 @@ func NewSafeHTTPClient(timeout time.Duration) *http.Client {
 func NewSafeRateLimitedClient(timeout time.Duration, baseDelayMs, maxDelayMs int) *network.RateLimiter {
 	client := NewSafeHTTPClient(timeout)
 	return network.NewRateLimiter(client, baseDelayMs, maxDelayMs)
+}
+
+func WithInteractshOOBURL(ctx context.Context, url string) context.Context {
+	return context.WithValue(ctx, interactshOOBURLKey, url)
+}
+
+func InteractshOOBURLFromCtx(ctx context.Context) string {
+	if url, ok := ctx.Value(interactshOOBURLKey).(string); ok {
+		return url
+	}
+	return ""
 }

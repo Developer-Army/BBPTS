@@ -62,6 +62,26 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 	sem := make(chan struct{}, maxConcurrentTools)
 	var wg sync.WaitGroup
 
+	// Run interactsh first if present in stage tools so its OOB URL
+	// is available to nuclei/dalfox via context.
+	var interactshEvents []Event
+	var remainingTools []Tool
+	for _, tool := range tools {
+		if tool.Name() == "interactsh" {
+			interactshEvents = o.runInteractshFirst(ctx, tool, targets, threads, spanID)
+			for _, ev := range interactshEvents {
+				if ev.Type == "oob_session" && ev.Target != "" {
+					ctx = WithInteractshOOBURL(ctx, ev.Target)
+					slog.Info("Interactsh OOB URL available for downstream tools", "url", ev.Target)
+					break
+				}
+			}
+		} else {
+			remainingTools = append(remainingTools, tool)
+		}
+	}
+	tools = remainingTools
+
 	for _, tool := range tools {
 		tool := tool
 		wg.Add(1)
@@ -185,6 +205,40 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 		events = append(events, result.events...)
 	}
 	return events, errs
+}
+
+// runInteractshFirst executes interactsh synchronously before other tools
+// so its OOB URL can be wired to nuclei/dalfox via context.
+func (o *Orchestrator) runInteractshFirst(ctx context.Context, tool Tool, targets []string, threads int, parentSpanID string) []Event {
+	toolTargets := prepareTargetsForTool(tool.Name(), targets)
+	if len(toolTargets) == 0 {
+		toolTargets = targets
+	}
+
+	o.reportToolStatus(tool.Name(), "running", fmt.Sprintf("%d targets", len(toolTargets)))
+	slog.Info("Running interactsh first for OOB URL", "targets", len(toolTargets))
+
+	toolSpanName := fmt.Sprintf("Tool.%s", tool.Name())
+	toolCtx, toolSpanID := telemetry.InternalTracer.StartSpan(ctx, toolSpanName, parentSpanID)
+
+	events, err := RunToolWithRetry(toolCtx, tool, toolTargets, threads, ToolRetryConfig())
+
+	telemetry.InternalTracer.EndSpan(toolSpanID, map[string]interface{}{
+		"targets_count": len(toolTargets),
+		"events_count":  len(events),
+		"error":         fmt.Sprintf("%v", err),
+	})
+
+	if err != nil {
+		slog.Warn("interactsh first-run failed", "error", err)
+		return nil
+	}
+
+	for _, ev := range events {
+		o.reportEvent(ev)
+	}
+	slog.Info("interactsh first-run completed", "events", len(events))
+	return events
 }
 
 func (o *Orchestrator) appendStageEventsToTmp(tool string, events []Event) error {
