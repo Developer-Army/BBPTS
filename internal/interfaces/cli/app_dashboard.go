@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/server"
-	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
@@ -86,7 +85,3 @@ func waitForDashboard(cancel context.CancelFunc, dashboardDone chan struct{}) {
 	<-dashboardDone
 }
 
-// runEntryPoint is the TUI/headless entry dispatcher.
-func runEntryPoint(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Bridge) {
-	runLoop(ctx, opts, cfg, bridge)
-}

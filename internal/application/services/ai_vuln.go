@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -405,7 +404,6 @@ func truncateStr(s string, maxLen int) string {
 	return s[:maxLen] + "...(truncated)"
 }
 
-// aiEndpointRe matches AI-related path segments in URLs.
-var aiEndpointRe = regexp.MustCompile(`(?i)(/chat|/completions?|/generate|/assistant|/copilot|/ai/|/llm|/openai)`)
+
 
 var _ Tool = (*AIVulnTool)(nil)

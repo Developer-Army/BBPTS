@@ -43,10 +43,16 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 		var hasOpenRedirect, hasOAuth bool
 		var hasSelfXSS, hasCSRF bool
 		var hasSSRF, hasInternalPort bool
+		var hasSubdomainTakeover, hasCookieScope bool
+		var hasXXE, hasPathTraversal, hasFileRead bool
+		var hasCORSMisconfig bool
 
 		var openRedirectTitle, oauthTitle string
 		var selfXSSTitle, csrfTitle string
 		var ssrfTitle, internalPortTitle string
+		var takeoverTitle, cookieScopeTitle string
+		var xxeTitle, pathTraversalTitle, fileReadTitle string
+		var corsTitle string
 
 		for _, v := range vulns {
 			name := strings.ToLower(v.Value)
@@ -95,6 +101,36 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 				hasInternalPort = true
 				internalPortTitle = title
 			}
+			// Subdomain Takeover
+			if strings.Contains(name, "subdomain") || strings.Contains(name, "takeover") {
+				hasSubdomainTakeover = true
+				takeoverTitle = title
+			}
+			// Cookie Scope Issues
+			if strings.Contains(name, "cookie") || strings.Contains(desc, "cookie scope") || strings.Contains(desc, "domain scope") {
+				hasCookieScope = true
+				cookieScopeTitle = title
+			}
+			// XXE
+			if strings.Contains(name, "xxe") || strings.Contains(desc, "xml external") || strings.Contains(desc, "xml entity") {
+				hasXXE = true
+				xxeTitle = title
+			}
+			// Path Traversal / LFI
+			if strings.Contains(name, "path-traversal") || strings.Contains(name, "path_traversal") || strings.Contains(name, "lfi") || strings.Contains(desc, "path traversal") || strings.Contains(desc, "directory traversal") {
+				hasPathTraversal = true
+				pathTraversalTitle = title
+			}
+			// File Read
+			if strings.Contains(name, "file-read") || strings.Contains(name, "file_read") || strings.Contains(name, "arbitrary file") || strings.Contains(desc, "file read") {
+				hasFileRead = true
+				fileReadTitle = title
+			}
+			// CORS Misconfiguration
+			if strings.Contains(name, "cors") || strings.Contains(desc, "cors misconfiguration") || strings.Contains(desc, "access-control-allow") {
+				hasCORSMisconfig = true
+				corsTitle = title
+			}
 		}
 
 		// 1. Open Redirect + OAuth = Account Takeover
@@ -127,6 +163,50 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 				CombinedCVSS: 9.9,
 				ChainType:    "Remote Code Execution (RCE) via SSRF",
 				Description:  "Chaining Server-Side Request Forgery (SSRF) with internal port/service access (e.g. Docker API, Redis, K8s metadata) enables remote command execution or complete host compromise.",
+			})
+		}
+
+		// 4. Subdomain Takeover + Cookie Scope = Cross-domain Session Theft
+		if hasSubdomainTakeover && hasCookieScope {
+			chains = append(chains, VulnerabilityChain{
+				Target:       target,
+				Findings:     []string{takeoverTitle, cookieScopeTitle},
+				CombinedCVSS: 9.1,
+				ChainType:    "Cross-domain Session Theft via Takeover + Cookie Scope",
+				Description:  "A takeover-eligible subdomain with overly broad cookie scope allows an attacker who claims the subdomain to steal session cookies for the parent domain, leading to account takeover.",
+			})
+		}
+
+		// 5. XXE + SSRF = Internal Network Exfiltration
+		if hasXXE && hasSSRF {
+			chains = append(chains, VulnerabilityChain{
+				Target:       target,
+				Findings:     []string{xxeTitle, ssrfTitle},
+				CombinedCVSS: 9.4,
+				ChainType:    "Internal Network Exfiltration via XXE + SSRF",
+				Description:  "An XXE injection combined with SSRF allows an attacker to use the server as a proxy to scan and exfiltrate data from the internal network, reading files and accessing internal services.",
+			})
+		}
+
+		// 6. CORS Misconfiguration + Auth Endpoint = Account Takeover
+		if hasCORSMisconfig && hasOAuth {
+			chains = append(chains, VulnerabilityChain{
+				Target:       target,
+				Findings:     []string{corsTitle, oauthTitle},
+				CombinedCVSS: 8.8,
+				ChainType:    "Account Takeover via CORS + Auth Endpoint",
+				Description:  "A CORS misconfiguration (reflecting Origin with credentials) on an authentication endpoint allows a malicious page to read authenticated responses and steal tokens or session data.",
+			})
+		}
+
+		// 7. Path Traversal + File Read = Sensitive File Disclosure
+		if hasPathTraversal && hasFileRead {
+			chains = append(chains, VulnerabilityChain{
+				Target:       target,
+				Findings:     []string{pathTraversalTitle, fileReadTitle},
+				CombinedCVSS: 7.5,
+				ChainType:    "Sensitive File Disclosure via Path Traversal",
+				Description:  "Path traversal combined with arbitrary file read allows an attacker to read /etc/passwd, application secrets, private keys, and configuration files from the server.",
 			})
 		}
 	}

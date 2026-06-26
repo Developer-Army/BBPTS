@@ -9,6 +9,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
 const markdownTemplate = `# BBPTS Reconnaissance Report
@@ -355,6 +357,23 @@ func ExportToObsidian(dir string, insights []Insight) error {
 		for _, t := range in.SuggestedTests {
 			fmt.Fprintf(f, "- [ ] %s\n", t)
 		}
+
+		// Add IDOR-specific section if IDOR candidate
+		hasIDOR := false
+		for _, tag := range in.Tags {
+			if tag == "idor-candidate" {
+				hasIDOR = true
+				break
+			}
+		}
+		if hasIDOR {
+			fmt.Fprintf(f, "\n## IDOR Testing Checklist\n")
+			fmt.Fprintf(f, "- [ ] Sequential ID enumeration (id=1, id=2, id=3...)\n")
+			fmt.Fprintf(f, "- [ ] Cross-account object access (swap user IDs between sessions)\n")
+			fmt.Fprintf(f, "- [ ] UUID predictability testing\n")
+			fmt.Fprintf(f, "- [ ] Check for missing authorization checks on object endpoints\n")
+		}
+
 		fmt.Fprintf(f, "\n## Recommended Tools\n")
 		for _, tool := range recommendedTools(in.Tags, in.Reasons, in.Sources) {
 			fmt.Fprintf(f, "- %s\n", tool)
@@ -449,4 +468,92 @@ func recommendedTools(tags, reasons, sources []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// ExportIDORNotes writes dedicated IDOR testing notes from raw events to an Obsidian vault.
+// Each idor_checklist event gets its own Markdown file with the full checklist.
+func ExportIDORNotes(vaultDir string, events []recon.Event) error {
+	if len(vaultDir) == 0 {
+		return nil
+	}
+
+	idorDir := filepath.Join(vaultDir, "BBPTS", "IDOR")
+	if err := os.MkdirAll(idorDir, 0700); err != nil {
+		return fmt.Errorf("create IDOR notes dir: %w", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	written := 0
+
+	for _, ev := range events {
+		if ev.Source != "idor_assist" || ev.Type != "idor_checklist" {
+			continue
+		}
+
+		pattern := ev.Properties["pattern"]
+		if pattern == "" {
+			pattern = ev.Target
+		}
+
+		slug := strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+				return r
+			}
+			if r >= 'A' && r <= 'Z' {
+				return r + 32
+			}
+			return '-'
+		}, pattern)
+		slug = strings.Trim(slug, "-")
+		if slug == "" {
+			slug = "idor-target"
+		}
+
+		var b strings.Builder
+		b.WriteString("---\n")
+		b.WriteString(fmt.Sprintf("created: %s\n", now))
+		b.WriteString("type: idor-testing\n")
+		b.WriteString(fmt.Sprintf("risk: %s\n", ev.Properties["risk"]))
+		b.WriteString(fmt.Sprintf("object: %s\n", ev.Properties["object_type"]))
+		b.WriteString(fmt.Sprintf("param: %s (%s)\n", ev.Properties["param_name"], ev.Properties["param_type"]))
+		b.WriteString(fmt.Sprintf("target: %s\n", ev.Target))
+		b.WriteString("tags:\n")
+		b.WriteString("  - bbpts\n")
+		b.WriteString("  - idor\n")
+		if risk := ev.Properties["risk"]; risk != "" {
+			b.WriteString(fmt.Sprintf("  - %s\n", risk))
+		}
+		b.WriteString("---\n\n")
+
+		b.WriteString(fmt.Sprintf("# IDOR Testing: %s\n\n", pattern))
+		b.WriteString(fmt.Sprintf("**Target:** `%s`\n", ev.Target))
+		b.WriteString(fmt.Sprintf("**Parameter:** `%s` (%s)\n", ev.Properties["param_name"], ev.Properties["param_type"]))
+		b.WriteString(fmt.Sprintf("**Object Type:** %s\n", ev.Properties["object_type"]))
+		b.WriteString(fmt.Sprintf("**Risk:** %s\n\n", strings.ToUpper(ev.Properties["risk"])))
+
+		if sampleIDs := ev.Properties["sample_ids"]; sampleIDs != "" {
+			b.WriteString("## Sample IDs\n")
+			for _, id := range strings.Split(sampleIDs, ", ") {
+				b.WriteString(fmt.Sprintf("- `%s`\n", strings.TrimSpace(id)))
+			}
+			b.WriteString("\n")
+		}
+
+		if checklist := ev.Properties["checklist"]; checklist != "" {
+			b.WriteString("## Testing Checklist\n\n")
+			b.WriteString(checklist)
+			b.WriteString("\n")
+		}
+
+		filePath := filepath.Join(idorDir, slug+".md")
+		if err := os.WriteFile(filePath, []byte(b.String()), 0644); err != nil {
+			continue
+		}
+		written++
+	}
+
+	if written > 0 {
+		fmt.Printf("  IDOR notes: %d written to %s\n", written, idorDir)
+	}
+	return nil
 }

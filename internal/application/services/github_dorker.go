@@ -132,13 +132,21 @@ func (t *GithubDorkerTool) Run(ctx context.Context, targets []string, threads in
 	// Limit concurrent domain processing
 	sem := make(chan struct{}, threads)
 
+	// Collect unique domains for org enumeration
+	var uniqueDomains []string
+	domainSeen := make(map[string]bool)
+
 	for _, target := range targets {
 		domain := strings.TrimSpace(target)
 		if domain == "" {
 			continue
 		}
-		// Strip protocol prefixes — dorking works on bare domains
 		domain = stripProtocol(domain)
+
+		if !domainSeen[domain] {
+			domainSeen[domain] = true
+			uniqueDomains = append(uniqueDomains, domain)
+		}
 
 		wg.Add(1)
 		go func(dom string) {
@@ -280,8 +288,211 @@ func (t *GithubDorkerTool) Run(ctx context.Context, targets []string, threads in
 		}(domain)
 	}
 
+	// Phase 6: Organization member enumeration
+	for _, dom := range uniqueDomains {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+		orgEvents := t.enumerateOrgMembers(ctx, apiKey, dom)
+		events = append(events, orgEvents...)
+	}
+
 	wg.Wait()
 	return events, nil
+}
+
+// enumerateOrgMembers queries the GitHub API /orgs/{org}/members to list public org members,
+// then scans their personal repos for leaked secrets about the target company.
+func (t *GithubDorkerTool) enumerateOrgMembers(ctx context.Context, apiKey, domain string) []Event {
+	var events []Event
+	orgName := extractOrgName(domain)
+	if orgName == "" {
+		return nil
+	}
+
+	client := NewSafeHTTPClient(20 * time.Second)
+	apiURL := fmt.Sprintf("https://api.github.com/orgs/%s/members?per_page=50", orgName)
+
+	cfg := RetryConfig{
+		MaxRetries:     2,
+		BaseDelay:      3 * time.Second,
+		MaxDelay:       30 * time.Second,
+		Multiplier:     2.0,
+		JitterFraction: 0.25,
+	}
+
+	var members []struct {
+		Login string `json:"login"`
+	}
+
+	err := ExecuteWithRetry(ctx, cfg, func(ctx context.Context, attempt int) (bool, error) {
+		limitGithubSearch()
+		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		if err != nil {
+			return false, err
+		}
+		req.Header.Set("Authorization", "token "+apiKey)
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+		r, err := client.Do(req)
+		if err != nil {
+			return true, err
+		}
+		defer r.Body.Close()
+
+		if r.StatusCode == 403 || r.StatusCode == 429 {
+			return true, fmt.Errorf("rate limited: %d", r.StatusCode)
+		}
+		if r.StatusCode == 404 {
+			return false, nil // org not found or no public members
+		}
+		if r.StatusCode != 200 {
+			return false, fmt.Errorf("unexpected status: %d", r.StatusCode)
+		}
+
+		return false, json.NewDecoder(io.LimitReader(r.Body, 1*1024*1024)).Decode(&members)
+	})
+
+	if err != nil || len(members) == 0 {
+		return nil
+	}
+
+	slog.Info("GitHub org member enumeration found members", "org", orgName, "count", len(members))
+
+	subdomainRegex := regexp.MustCompile(fmt.Sprintf(`(?i)([a-z0-9]([a-z0-9\-]*[a-z0-9])?\.)*%s`, regexp.QuoteMeta(domain)))
+
+	for _, member := range members {
+		select {
+		case <-ctx.Done():
+			return events
+		default:
+		}
+
+		memberRepos := t.fetchMemberRepos(ctx, client, apiKey, member.Login)
+		for _, repo := range memberRepos {
+			rawContent, err := fetchRawContent(ctx, client, apiKey, repo)
+			if err != nil {
+				continue
+			}
+
+			// Scan for leaked secrets referencing the target domain
+			secretMatches := recon.ScanForSecrets(rawContent)
+			for _, sm := range secretMatches {
+				props := map[string]string{
+					"source":      "github_dorker",
+					"category":    "org_member_leak",
+					"member":      member.Login,
+					"repo":        repo.Repository.FullName,
+					"file":        repo.HTMLURL,
+					"match_type":  sm.PatternName,
+					"severity":    sm.Severity,
+					"description": fmt.Sprintf("Secret '%s' found in %s's repo %s referencing target %s", sm.PatternName, member.Login, repo.Repository.FullName, domain),
+				}
+				events = append(events, NewEventWithSeverity(domain, t.Name(), "secret_exposed", props, sm.Severity))
+			}
+
+			// Extract subdomains from member's repos
+			subMatches := subdomainRegex.FindAllString(rawContent, -1)
+			for _, match := range subMatches {
+				match = strings.ToLower(strings.TrimSpace(match))
+				if match == "" || match == domain {
+					continue
+				}
+				props := map[string]string{
+					"source":   "github_dorker",
+					"category": "org_member_subdomain",
+					"member":   member.Login,
+					"repo":     repo.Repository.FullName,
+				}
+				events = append(events, NewEvent(match, t.Name(), "subdomain", props))
+			}
+		}
+	}
+
+	return events
+}
+
+func (t *GithubDorkerTool) fetchMemberRepos(ctx context.Context, client *http.Client, apiKey, username string) []githubSearchItem {
+	apiURL := fmt.Sprintf("https://api.github.com/users/%s/repos?per_page=30&sort=updated", username)
+
+	cfg := RetryConfig{
+		MaxRetries:     2,
+		BaseDelay:      2 * time.Second,
+		MaxDelay:       10 * time.Second,
+		Multiplier:     2.0,
+		JitterFraction: 0.2,
+	}
+
+	type repoItem struct {
+		Name          string `json:"name"`
+		FullName      string `json:"full_name"`
+		DefaultBranch string `json:"default_branch"`
+		HTMLURL       string `json:"html_url"`
+	}
+
+	var repos []repoItem
+	err := ExecuteWithRetry(ctx, cfg, func(ctx context.Context, attempt int) (bool, error) {
+		limitGithubSearch()
+		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		if err != nil {
+			return false, err
+		}
+		req.Header.Set("Authorization", "token "+apiKey)
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+		r, err := client.Do(req)
+		if err != nil {
+			return true, err
+		}
+		defer r.Body.Close()
+
+		if r.StatusCode == 403 || r.StatusCode == 429 {
+			return true, fmt.Errorf("rate limited: %d", r.StatusCode)
+		}
+		if r.StatusCode != 200 {
+			return false, fmt.Errorf("unexpected status: %d", r.StatusCode)
+		}
+
+		return false, json.NewDecoder(io.LimitReader(r.Body, 2*1024*1024)).Decode(&repos)
+	})
+
+	if err != nil {
+		return nil
+	}
+
+	var items []githubSearchItem
+	for _, repo := range repos {
+		items = append(items, githubSearchItem{
+			Name:    repo.Name,
+			HTMLURL: repo.HTMLURL,
+			Repository: struct {
+				FullName      string `json:"full_name"`
+				DefaultBranch string `json:"default_branch"`
+			}{
+				FullName:      repo.FullName,
+				DefaultBranch: repo.DefaultBranch,
+			},
+		})
+	}
+	return items
+}
+
+// extractOrgName attempts to extract a GitHub organization name from a domain.
+// E.g., "example.com" → "example", "acme-corp.com" → "acme-corp".
+func extractOrgName(domain string) string {
+	domain = strings.TrimSpace(domain)
+	domain = strings.TrimPrefix(domain, "www.")
+	parts := strings.Split(domain, ".")
+	if len(parts) == 0 {
+		return ""
+	}
+	org := parts[0]
+	if org == "" || len(org) < 2 {
+		return ""
+	}
+	return org
 }
 
 // searchGithubCode queries the GitHub Code Search API with rate limiting and retry.

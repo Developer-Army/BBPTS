@@ -158,6 +158,12 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, s
 	}
 
 	if len(triggeredTools) > 0 {
+		if !opts.ExploitSQLI {
+			triggeredTools = FilterExcludedTools(triggeredTools, "sqlmap")
+		}
+	}
+
+	if len(triggeredTools) > 0 {
 		slog.Info("recon triggered additional tools", "count", len(triggeredTools), "tools", triggeredTools)
 		// Extract targets from triagedEvents
 		var triagedTargets []string
@@ -179,6 +185,8 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, s
 				WordlistsDir:  cfg.WordlistsDir,
 				ContainerMode: cfg.ContainerMode,
 				DockerImages:  cfg.DockerImages,
+				ExploitSQLI:   opts.ExploitSQLI,
+				ForceHTTP1:    opts.ForceHTTP1,
 			}
 			orchestrator := services.NewOrchestrator(reconConfig)
 			if orchestrator != nil {
@@ -361,6 +369,9 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 	if opts.ObsidianDir != "" {
 		if err := analyze.ExportToObsidian(opts.ObsidianDir, insights); err != nil {
 			slog.Error("failed to export to obsidian", "dir", opts.ObsidianDir, "error", err)
+		}
+		if err := analyze.ExportIDORNotes(opts.ObsidianDir, events); err != nil {
+			slog.Error("failed to export IDOR notes to obsidian", "dir", opts.ObsidianDir, "error", err)
 		}
 	}
 
@@ -663,6 +674,5 @@ func markAsReported(stateDir string, finding utils.Finding) error {
 	_, err = f.WriteString(hash + "\n")
 	return err
 }
-
 
 

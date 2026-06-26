@@ -868,7 +868,7 @@ func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.Exec("INSERT INTO dashboard_users (username, password_hash, role) VALUES (?, ?, ?)", "admin", storedValue, "admin")
 	if err != nil {

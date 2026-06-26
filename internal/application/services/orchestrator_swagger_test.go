@@ -33,7 +33,7 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/swagger.json" {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(swaggerServed))
+			_, _ = w.Write([]byte(swaggerServed))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)

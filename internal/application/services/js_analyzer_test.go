@@ -19,7 +19,7 @@ const slackToken = "` + strings.Replace("xoxb_12345678901_123456789012_123456789
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(jsContent))
+		_, _ = w.Write([]byte(jsContent))
 	}))
 	defer server.Close()
 
@@ -77,7 +77,7 @@ const awsKey = "AKIAIOSFODNN7EXAMPLE";
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(currentJS))
+		_, _ = w.Write([]byte(currentJS))
 	}))
 	defer server.Close()
 

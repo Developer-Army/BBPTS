@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -140,7 +139,3 @@ func (rg *ReportGenerator) generateSARIFReport(report *Report) error {
 	return os.WriteFile(outputPath, data, 0644)
 }
 
-// Wrapper/Forwarder for ProcessTriageIntegrations, defined in triage_integrations.go
-func processTriageIntegrationsWrapper(report *Report, jsonPath string) {
-	ProcessTriageIntegrations(context.Background(), report, jsonPath)
-}

@@ -938,7 +938,7 @@ func (s *Storage) UpdateAssignmentStatusWithComment(id int64, status string, com
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	now := time.Now().UTC()
 	var queryUpdate string

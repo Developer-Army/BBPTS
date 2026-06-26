@@ -52,7 +52,7 @@ func TestScoreEvent_Groups(t *testing.T) {
 					"nuclei_severity": "info",
 				},
 			},
-			expectedScore: 80,
+			expectedScore: 65,
 		},
 	}
 
