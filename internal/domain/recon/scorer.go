@@ -175,10 +175,11 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 	result.Score = weightedScore
 
 	// Apply environment adjustments
-	if s.AssetEnvironment == "staging" {
+	switch s.AssetEnvironment {
+	case "staging":
 		result.Score = int(float64(result.Score) * 0.75)
 		result.Justification = append(result.Justification, "Score adjusted down: Staging environment")
-	} else if s.AssetEnvironment == "dev" {
+	case "dev":
 		result.Score = int(float64(result.Score) * 0.50)
 		result.Justification = append(result.Justification, "Score adjusted down: Dev/Local environment")
 	}
