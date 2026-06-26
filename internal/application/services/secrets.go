@@ -25,7 +25,6 @@ var secretPatterns = map[string]*regexp.Regexp{
 	"slack_token":  regexp.MustCompile(`xox[baprs]-[0-9a-zA-Z]{10,48}`),
 	"github_token": regexp.MustCompile(`gh[pso]_[a-zA-Z0-9]{36}`),
 	"stripe_key":   regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24}`),
-	"shodan_key":   regexp.MustCompile(`[a-zA-Z0-9]{32}`), // Heuristic
 }
 
 func (t *SecretsTool) Run(ctx context.Context, targets []string, threads int) ([]Event, error) {
