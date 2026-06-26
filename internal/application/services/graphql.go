@@ -84,6 +84,12 @@ const introspectionQuery = `
 	}
 `
 
+// Bypass probes for when standard introspection is blocked.
+const (
+	suggestionProbe = `{"query":"{ __typename }"}`
+	aliasBypassQuery = `{"query":"query{__schema{queryType{name}}}"}` // Works with some WAFs that block __schema without alias
+)
+
 type TypeInfo struct {
 	Name   string `json:"name"`
 	Kind   string `json:"kind"`
@@ -243,15 +249,43 @@ func (g *GraphQLScanner) Run(ctx context.Context, targets []string, threads int)
 }
 
 func (g *GraphQLScanner) testEndpoint(ctx context.Context, url string) (bool, *IntrospectionData, string, error) {
-	payload := map[string]string{
-		"query": introspectionQuery,
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return false, nil, "", err
+	// Try multiple introspection methods including bypass techniques
+	probes := []struct {
+		name    string
+		method  string
+		payload string
+	}{
+		{"standard_post", http.MethodPost, fmt.Sprintf(`{"query":"%s"}`, introspectionQuery)},
+		{"suggestion_probe", http.MethodPost, suggestionProbe},
+		{"alias_bypass", http.MethodPost, aliasBypassQuery},
+		{"get_introspection", http.MethodGet, ""},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
+	for _, probe := range probes {
+		found, schema, rawSchema, err := g.sendProbe(ctx, url, probe.method, probe.payload)
+		if err != nil {
+			slog.Debug("GraphQL probe failed", "url", url, "probe", probe.name, "error", err)
+			continue
+		}
+		if found {
+			return found, schema, rawSchema, nil
+		}
+	}
+
+	return false, nil, "", nil
+}
+
+func (g *GraphQLScanner) sendProbe(ctx context.Context, url, method, payload string) (bool, *IntrospectionData, string, error) {
+	var req *http.Request
+	var err error
+
+	if method == http.MethodGet {
+		// GET-based introspection: ?query={__schema{types{name}}}
+		getQuery := `query{__schema{types{name}}}`
+		req, err = http.NewRequestWithContext(ctx, method, url+"?query="+getQuery, nil)
+	} else {
+		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewBufferString(payload))
+	}
 	if err != nil {
 		return false, nil, "", err
 	}
@@ -273,23 +307,28 @@ func (g *GraphQLScanner) testEndpoint(ctx context.Context, url string) (bool, *I
 		return false, nil, "", err
 	}
 
-	if bytes.Contains(respBody, []byte(`"__schema"`)) || bytes.Contains(respBody, []byte(`"data"`)) {
-		var parsed struct {
-			Data IntrospectionData `json:"data"`
-		}
-		schemaParsed := &parsed.Data
-		if errJSON := json.Unmarshal(respBody, &parsed); errJSON != nil {
-			schemaParsed = nil
-		}
-
-		preview := string(respBody)
-		if len(preview) > 1000 {
-			preview = preview[:1000] + "...(truncated)"
-		}
-		return true, schemaParsed, preview, nil
+	// Stricter check: response must contain introspection-specific fields,
+	// not just generic "data" which could be any JSON API echoing back.
+	hasIntrospection := bytes.Contains(respBody, []byte(`"__schema"`)) ||
+		bytes.Contains(respBody, []byte(`"queryType"`)) ||
+		bytes.Contains(respBody, []byte(`"types"`))
+	if !hasIntrospection {
+		return false, nil, "", nil
 	}
 
-	return false, nil, "", nil
+	var parsed struct {
+		Data IntrospectionData `json:"data"`
+	}
+	schemaParsed := &parsed.Data
+	if errJSON := json.Unmarshal(respBody, &parsed); errJSON != nil {
+		schemaParsed = nil
+	}
+
+	preview := string(respBody)
+	if len(preview) > 1000 {
+		preview = preview[:1000] + "...(truncated)"
+	}
+	return true, schemaParsed, preview, nil
 }
 
 func (g *GraphQLScanner) checkBatching(ctx context.Context, endpoint string) (bool, error) {
