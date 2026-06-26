@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -193,7 +194,196 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 		}
 	}
 
+	// AI-powered semantic JS analysis (runs if LLM key is available)
+	aiEvents := j.analyzeJSWithLLM(ctx, url, content)
+	events = append(events, aiEvents...)
+
 	return events
+}
+
+// jsAIFinding represents a single finding from the LLM JS analysis.
+type jsAIFinding struct {
+	Type        string `json:"type"`        // endpoint, parameter, auth_logic, hardcoded_value, security_op
+	Value       string `json:"value"`       // The actual finding (URL, key, etc.)
+	Description string `json:"description"` // Explanation of why it's interesting
+	Severity    string `json:"severity"`    // info, low, medium, high
+}
+
+// analyzeJSWithLLM sends beautified JS chunks to an LLM for semantic analysis.
+func (j *JSAnalyzer) analyzeJSWithLLM(ctx context.Context, sourceURL, content string) []Event {
+	provider, model, apiURL, apiKey := GetLLMConfig(ctx)
+	if apiKey == "" {
+		return nil // No LLM key configured, skip gracefully
+	}
+
+	beautified := beautifyJS(content)
+	chunks := chunkContent(beautified, 4000)
+	if len(chunks) == 0 {
+		return nil
+	}
+
+	// Limit to first 5 chunks to avoid token exhaustion
+	if len(chunks) > 5 {
+		chunks = chunks[:5]
+	}
+
+	var events []Event
+	for i, chunk := range chunks {
+		prompt := fmt.Sprintf(`You are a security researcher analyzing JavaScript source code from %s (chunk %d/%d).
+
+Analyze this JavaScript code and identify:
+1. API endpoints and URLs (internal APIs, external services)
+2. Request parameters and their purposes
+3. Authentication/authorization logic (token handling, session management, role checks)
+4. Hardcoded values (API keys, tokens, secrets, credentials, internal IPs/hostnames)
+5. Security-sensitive operations (eval, innerHTML, postMessage, crypto operations, file uploads)
+
+JavaScript Code:
+%s
+
+Output your findings as a JSON array. Each finding must have:
+- "type": one of "endpoint", "parameter", "auth_logic", "hardcoded_value", "security_op"
+- "value": the actual code/string found
+- "description": brief explanation of security relevance
+- "severity": "info", "low", "medium", or "high"
+
+If no findings, return an empty array [].
+Output ONLY valid JSON, no markdown.`, sourceURL, i+1, len(chunks), chunk)
+
+		rawText, err := CallLLM(ctx, prompt, provider, model, apiURL, apiKey)
+		if err != nil {
+			slog.Debug("AI JS analysis failed for chunk", "url", sourceURL, "chunk", i, "error", err)
+			continue
+		}
+
+		var findings []jsAIFinding
+		cleaned := CleanLLMJSON(rawText)
+		if err := json.Unmarshal([]byte(cleaned), &findings); err != nil {
+			// Try extracting JSON array
+			start := strings.Index(cleaned, "[")
+			end := strings.LastIndex(cleaned, "]")
+			if start != -1 && end != -1 && end > start {
+				_ = json.Unmarshal([]byte(cleaned[start:end+1]), &findings)
+			}
+		}
+
+		for _, f := range findings {
+			if f.Value == "" {
+				continue
+			}
+			switch f.Type {
+			case "endpoint":
+				events = append(events, NewEvent(f.Value, j.Name(), "api_endpoint", map[string]string{
+					"source":      sourceURL,
+					"ai_analysis": f.Description,
+					"method":      "llm_semantic",
+				}))
+			case "hardcoded_value":
+				severity := f.Severity
+				if severity == "" {
+					severity = "medium"
+				}
+				events = append(events, NewEventWithSeverity(sourceURL, j.Name(), "vulnerability", map[string]string{
+					"vuln_name":   "AI-Detected Hardcoded Value in JavaScript",
+					"severity":    severity,
+					"evidence":    f.Value,
+					"description": f.Description,
+				}, severity))
+			case "auth_logic":
+				events = append(events, NewEvent(sourceURL, j.Name(), "discovery", map[string]string{
+					"source":      sourceURL,
+					"type":        "auth_logic",
+					"detail":      f.Value,
+					"ai_analysis": f.Description,
+				}))
+			case "security_op":
+				severity := f.Severity
+				if severity == "" {
+					severity = "low"
+				}
+				events = append(events, NewEventWithSeverity(sourceURL, j.Name(), "vulnerability", map[string]string{
+					"vuln_name":   "AI-Detected Security-Sensitive JS Operation",
+					"severity":    severity,
+					"evidence":    f.Value,
+					"description": f.Description,
+				}, severity))
+			case "parameter":
+				events = append(events, NewEvent(f.Value, j.Name(), "discovery", map[string]string{
+					"source":      sourceURL,
+					"type":        "js_parameter",
+					"ai_analysis": f.Description,
+				}))
+			}
+		}
+	}
+
+	if len(events) > 0 {
+		slog.Info("AI JS analysis completed", "url", sourceURL, "findings", len(events))
+	}
+	return events
+}
+
+// beautifyJS applies simple formatting to minified JS for better LLM comprehension.
+func beautifyJS(content string) string {
+	var b strings.Builder
+	b.Grow(len(content) + len(content)/10)
+
+	indent := 0
+	for i := 0; i < len(content); i++ {
+		c := content[i]
+		switch c {
+		case '{':
+			b.WriteByte(c)
+			b.WriteByte('\n')
+			indent++
+			writeIndent(&b, indent)
+		case '}':
+			b.WriteByte('\n')
+			if indent > 0 {
+				indent--
+			}
+			writeIndent(&b, indent)
+			b.WriteByte(c)
+		case ';':
+			b.WriteByte(c)
+			b.WriteByte('\n')
+			writeIndent(&b, indent)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+func writeIndent(b *strings.Builder, level int) {
+	for i := 0; i < level; i++ {
+		b.WriteString("  ")
+	}
+}
+
+// chunkContent splits content into overlapping chunks for LLM processing.
+func chunkContent(content string, chunkSize int) []string {
+	if len(content) <= chunkSize {
+		if len(content) == 0 {
+			return nil
+		}
+		return []string{content}
+	}
+
+	overlap := chunkSize / 10 // 10% overlap
+	var chunks []string
+	for i := 0; i < len(content); {
+		end := i + chunkSize
+		if end > len(content) {
+			end = len(content)
+		}
+		chunks = append(chunks, content[i:end])
+		i = end - overlap
+		if i >= len(content) {
+			break
+		}
+	}
+	return chunks
 }
 
 func diffFindings(oldFindings, newFindings []recon.JSFinding) string {
