@@ -101,6 +101,8 @@ var builtInDoctorTools = map[string]string{
 	"shodan":          "built-in Shodan API client",
 	"cloud_buckets":   "built-in AWS/GCS/Azure cloud bucket scanner",
 	"takeover":        "built-in subdomain takeover scanner",
+	"ai_vuln":         "built-in AI/LLM vulnerability and prompt injection tester",
+	"idor_assist":     "built-in semi-automated IDOR assistant",
 }
 
 var toolBinaryNames = map[string]string{

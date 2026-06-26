@@ -58,6 +58,8 @@ var toolFactories = map[string]struct {
 	"smuggling":       {factory: func() Tool { return &SmugglingTool{} }, stage: 3},
 	"race":            {factory: func() Tool { return &RaceTool{} }, stage: 4},
 	"cache_poisoning": {factory: func() Tool { return &CachePoisoningTool{} }, stage: 4},
+	"ai_vuln":         {factory: func() Tool { return &AIVulnTool{} }, stage: 4},
+	"idor_assist":     {factory: func() Tool { return &IDORAssistTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
@@ -87,6 +89,9 @@ var toolAliases = map[string]string{
 	"email":       "email_enum",
 	"emails":      "email_enum",
 	"hunter":      "email_enum",
+	"prompt":      "ai_vuln",
+	"injection":   "ai_vuln",
+	"idor":        "idor_assist",
 }
 
 func normalizeToolName(name string) string {

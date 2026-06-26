@@ -324,6 +324,15 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			allErrs = append(allErrs, errs...)
 		}
 
+		// Wire interactsh OOB URL into context for downstream tools (nuclei, dalfox)
+		for _, ev := range events {
+			if ev.Type == "oob_session" && ev.Source == "interactsh" && ev.Target != "" {
+				ctx = WithInteractshOOBURL(ctx, ev.Target)
+				slog.Info("Interactsh OOB URL injected into context", "url", ev.Target)
+				break
+			}
+		}
+
 		nextTargets := append(currentTargets, extractTargets(events)...)
 		normalizedTargets := normalize.DeduplicateAndPreserveURLs(nextTargets)
 		currentTargets = scopeGuard.Filter(normalizedTargets)

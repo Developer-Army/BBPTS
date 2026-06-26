@@ -66,6 +66,7 @@ func (t *CORSTool) Run(ctx context.Context, targets []string, threads int) ([]Ev
 		}
 
 		for _, test := range tests {
+			// Test 1: Standard GET request with Origin header
 			req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 			if err != nil {
 				continue
@@ -94,11 +95,48 @@ func (t *CORSTool) Run(ctx context.Context, targets []string, threads int) ([]Ev
 					"severity":    "medium",
 					"cors_type":   test.name,
 					"origin":      test.origin,
+					"method":      "GET",
 					"description": fmt.Sprintf("Permissive CORS policy: Allow-Origin reflects %s with credentials enabled.", test.origin),
 				}, "medium"))
 				mu.Unlock()
-				slog.Warn("Found CORS misconfiguration", "target", target, "type", test.name)
+				slog.Warn("Found CORS misconfiguration", "target", target, "type", test.name, "method", "GET")
 				break // One CORS finding is enough per host
+			}
+
+			// Test 2: OPTIONS preflight — many servers only reflect origin on preflight
+			preflightReq, err := http.NewRequestWithContext(ctx, "OPTIONS", target, nil)
+			if err != nil {
+				continue
+			}
+			for k, v := range headers {
+				preflightReq.Header.Set(k, v)
+			}
+			preflightReq.Header.Set("Origin", test.origin)
+			preflightReq.Header.Set("Access-Control-Request-Method", "GET")
+			preflightReq.Header.Set("Access-Control-Request-Headers", "Authorization, Content-Type")
+
+			preflightResp, err := client.Do(preflightReq)
+			if err != nil {
+				continue
+			}
+			preflightResp.Body.Close()
+
+			preflightACAO := preflightResp.Header.Get("Access-Control-Allow-Origin")
+			preflightACAC := preflightResp.Header.Get("Access-Control-Allow-Credentials")
+
+			if preflightACAO == test.origin && preflightACAC == "true" {
+				mu.Lock()
+				events = append(events, NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
+					"vuln_name":   "CORS Misconfiguration (Preflight)",
+					"severity":    "medium",
+					"cors_type":   test.name,
+					"origin":      test.origin,
+					"method":      "OPTIONS",
+					"description": fmt.Sprintf("Permissive CORS policy on preflight: Allow-Origin reflects %s with credentials enabled.", test.origin),
+				}, "medium"))
+				mu.Unlock()
+				slog.Warn("Found CORS misconfiguration (preflight)", "target", target, "type", test.name)
+				break
 			}
 		}
 
