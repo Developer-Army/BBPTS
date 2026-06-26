@@ -65,7 +65,7 @@ func TestApplyPresetAndProfileDefaults_LightModeFiltersExplicitTools(t *testing.
 
 	ApplyPresetAndProfileDefaults(opts, cfg)
 
-	want := "crtsh,subfinder,amass,assetfinder,chaos,puredns,dnsx,massdns,whois,naabu,httpx,shodan,katana,gau,hakrawler,uro,dalfox,nuclei,interactsh,secrets,trufflehog,browser,js_analyzer,gowitness,tlsx,github,cloud_buckets,takeover,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning"
+	want := "crtsh,subfinder,amass,assetfinder,chaos,puredns,dnsx,massdns,whois,naabu,httpx,shodan,katana,gau,hakrawler,uro,dalfox,nuclei,interactsh,secrets,trufflehog,browser,js_analyzer,gowitness,tlsx,github,cloud_buckets,takeover,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,ai_vuln,idor_assist"
 	if opts.Tools != want {
 		t.Fatalf("unexpected tools after light filter: %q", opts.Tools)
 	}
@@ -77,7 +77,7 @@ func TestApplyPresetAndProfileDefaults_LightModeFiltersDefaultTools(t *testing.T
 
 	ApplyPresetAndProfileDefaults(opts, cfg)
 
-	want := "crtsh,subfinder,amass,assetfinder,chaos,puredns,dnsx,massdns,whois,naabu,httpx,shodan,katana,gau,hakrawler,uro,dalfox,nuclei,interactsh,secrets,trufflehog,browser,js_analyzer,gowitness,tlsx,github,cloud_buckets,takeover,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning"
+	want := "crtsh,subfinder,amass,assetfinder,chaos,puredns,dnsx,massdns,whois,naabu,httpx,shodan,katana,gau,hakrawler,uro,dalfox,nuclei,interactsh,secrets,trufflehog,browser,js_analyzer,gowitness,tlsx,github,cloud_buckets,takeover,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,ai_vuln,idor_assist"
 	if opts.Tools != want {
 		t.Fatalf("unexpected tools for light mode: %q", opts.Tools)
 	}

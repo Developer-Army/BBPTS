@@ -220,12 +220,7 @@ func TestSemanticRoute_Structure(t *testing.T) {
 	route := SemanticRoute{
 		Path:       "/api/users",
 		Method:     "GET",
-		IsGraphQL:  false,
-		IsAuthFlow: false,
-		Variable:   "",
 		SourceFile: "bundle.js",
-		Line:       10,
-		Signature:  "abc123",
 	}
 
 	if route.Path != "/api/users" {

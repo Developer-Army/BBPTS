@@ -117,6 +117,8 @@ func LightModeTools() []string {
 		"smuggling",
 		"race",
 		"cache_poisoning",
+		"ai_vuln",
+		"idor_assist",
 	}
 }
 
@@ -137,6 +139,8 @@ func NormalModeTools() []string {
 		"smuggling",
 		"race",
 		"cache_poisoning",
+		"ai_vuln",
+		"idor_assist",
 	}
 }
 
