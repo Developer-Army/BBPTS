@@ -276,7 +276,8 @@ func (gi *Introspector) Analyze(schema *Schema) *SchemaAnalysis {
 
 		switch t.Kind {
 		case "OBJECT":
-			if t.Name == schema.QueryType {
+			switch t.Name {
+			case schema.QueryType:
 				for _, field := range t.Fields {
 					analysis.QueryFields = append(analysis.QueryFields, field.Name)
 					if isSensitiveField(field.Name) {
@@ -286,7 +287,7 @@ func (gi *Introspector) Analyze(schema *Schema) *SchemaAnalysis {
 						analysis.DeprecatedFields = append(analysis.DeprecatedFields, fmt.Sprintf("%s.%s", t.Name, field.Name))
 					}
 				}
-			} else if t.Name == schema.MutationType {
+			case schema.MutationType:
 				for _, field := range t.Fields {
 					analysis.MutationFields = append(analysis.MutationFields, field.Name)
 					if isSensitiveField(field.Name) {
@@ -296,7 +297,7 @@ func (gi *Introspector) Analyze(schema *Schema) *SchemaAnalysis {
 						analysis.DeprecatedFields = append(analysis.DeprecatedFields, fmt.Sprintf("%s.%s", t.Name, field.Name))
 					}
 				}
-			} else {
+			default:
 				// Check for sensitive fields in other object types
 				for _, field := range t.Fields {
 					if isSensitiveField(field.Name) {

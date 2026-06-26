@@ -186,10 +186,11 @@ func (f *Fingerprinter) jarmHash(ctx context.Context, pinnedAddr string, host st
 	}
 
 	h := fnv.New64a()
+loop:
 	for _, ver := range versions {
 		select {
 		case <-ctx.Done():
-			break
+			break loop
 		default:
 		}
 		skipVerify := false

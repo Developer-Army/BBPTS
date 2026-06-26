@@ -367,8 +367,7 @@ func (a *JSAnalyzer) extractRoutesFromNode(node ast.Node, routes *[]SemanticRout
 
 	case *ast.NewExpression:
 		// Detect: new Router(), new ApiClient(), etc.
-		if ident, ok := n.Callee.(*ast.Identifier); ok {
-			className := ident.Name.String()
+		if _, ok := n.Callee.(*ast.Identifier); ok {
 			if len(n.ArgumentList) > 0 {
 				if objLit, ok := n.ArgumentList[0].(*ast.ObjectLiteral); ok {
 					for _, prop := range objLit.Value {
@@ -377,7 +376,7 @@ func (a *JSAnalyzer) extractRoutesFromNode(node ast.Node, routes *[]SemanticRout
 								if arr, ok := keyed.Value.(*ast.ArrayLiteral); ok {
 									for _, item := range arr.Value {
 										if obj, ok := item.(*ast.ObjectLiteral); ok {
-											a.extractRouteObjectFromConfig(obj, routes, file, className)
+											a.extractRouteObjectFromConfig(obj, routes, file)
 										}
 									}
 								}
@@ -468,7 +467,7 @@ func (a *JSAnalyzer) extractRouteObjects(objLit *ast.ObjectLiteral, routes *[]Se
 	}
 }
 
-func (a *JSAnalyzer) extractRouteObjectFromConfig(objLit *ast.ObjectLiteral, routes *[]SemanticRoute, file, className string) {
+func (a *JSAnalyzer) extractRouteObjectFromConfig(objLit *ast.ObjectLiteral, routes *[]SemanticRoute, file string) {
 	var path, method string
 	for _, prop := range objLit.Value {
 		if keyed, ok := prop.(*ast.PropertyKeyed); ok {
