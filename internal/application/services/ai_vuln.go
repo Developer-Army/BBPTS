@@ -338,7 +338,31 @@ func (a *AIVulnTool) sendInjectionPayload(ctx context.Context, client *network.S
 		responses = append(responses, resp)
 	}
 
-	// Format 3: Form-encoded
+	// Format 3: JSON prompt field
+	promptJSON := fmt.Sprintf(`{"prompt":%q}`, payload)
+	if resp := a.postPayload(ctx, client, endpoint, "application/json", promptJSON); resp != "" {
+		responses = append(responses, resp)
+	}
+
+	// Format 4: JSON query field
+	queryJSON := fmt.Sprintf(`{"query":%q}`, payload)
+	if resp := a.postPayload(ctx, client, endpoint, "application/json", queryJSON); resp != "" {
+		responses = append(responses, resp)
+	}
+
+	// Format 5: JSON input field
+	inputJSON := fmt.Sprintf(`{"input":%q}`, payload)
+	if resp := a.postPayload(ctx, client, endpoint, "application/json", inputJSON); resp != "" {
+		responses = append(responses, resp)
+	}
+
+	// Format 6: JSON text field
+	textJSON := fmt.Sprintf(`{"text":%q}`, payload)
+	if resp := a.postPayload(ctx, client, endpoint, "application/json", textJSON); resp != "" {
+		responses = append(responses, resp)
+	}
+
+	// Format 7: Form-encoded
 	formPayload := "message=" + strings.ReplaceAll(strings.ReplaceAll(payload, " ", "+"), "\n", "%0A")
 	if resp := a.postPayload(ctx, client, endpoint, "application/x-www-form-urlencoded", formPayload); resp != "" {
 		responses = append(responses, resp)
