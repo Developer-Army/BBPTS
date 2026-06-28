@@ -4,112 +4,146 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BBPTS | Mission Control</title>
-    <!-- tailwindcss self-hosted -->
     <script src="/static/tailwind.js"></script>
     <script src="/static/chart.js"></script>
     <link rel="stylesheet" href="/style.css">
 </head>
-<body class="flex h-screen">
+<body class="flex h-screen selection:bg-cyan-500/30 selection:text-cyan-300">
     <!-- Sidebar -->
-    <aside class="sidebar glass flex flex-col p-6 shrink-0">
-        <div class="mb-10 px-2">
-            <h1 class="text-2xl font-bold tracking-tighter"><span class="accent-purple">BBPTS</span><span class="text-slate-500 font-light">.io</span></h1>
-            <p class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Elite Recon Engine</p>
+    <aside class="sidebar flex flex-col p-6 shrink-0">
+        <div class="mb-8 px-2">
+            <h1 class="text-2xl font-black tracking-tight text-white"><span class="text-cyan-400">BB</span>PTS</h1>
+            <p class="text-[9px] text-cyan-500/80 font-mono uppercase tracking-widest mt-0.5">Bug Bounty Recon Console</p>
         </div>
-        
+
         <nav class="flex-grow space-y-1">
             <a onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item nav-active flex items-center gap-3 p-3 rounded-lg text-sm font-medium">
-                <span>Dashboard</span>
+                <span class="font-mono text-xs opacity-50">01//</span> <span>Dashboard</span>
             </a>
             <a onclick="switchTab('config')" id="nav-config" class="nav-item flex items-center gap-3 p-3 rounded-lg text-sm font-medium text-slate-400">
-                <span>Config Editor</span>
+                <span class="font-mono text-xs opacity-50">02//</span> <span>Configuration</span>
             </a>
             <a onclick="switchTab('logs')" id="nav-logs" class="nav-item flex items-center gap-3 p-3 rounded-lg text-sm font-medium text-slate-400">
-                <span>Console Logs</span>
+                <span class="font-mono text-xs opacity-50">03//</span> <span>Console Logs</span>
             </a>
             <a onclick="switchTab('triage')" id="nav-triage" class="nav-item flex items-center gap-3 p-3 rounded-lg text-sm font-medium text-slate-400">
-                <span>Triage Center</span>
+                <span class="font-mono text-xs opacity-50">04//</span> <span>Triage Center</span>
             </a>
-
         </nav>
 
-        <div class="mt-auto pt-6 border-t border-slate-800/50">
-            <div class="flex items-center gap-3 px-2 mb-4">
-                <div class="w-8 h-8 rounded-full bg-accent-purple/20 flex items-center justify-center text-accent-purple text-xs font-bold" id="user-avatar">DA</div>
-                <div>
-                    <p class="text-xs font-semibold" id="user-display-name">Developer-Army</p>
-                    <p class="text-[10px] text-slate-500 uppercase" id="user-display-role">Operator</p>
+        <div class="mt-auto pt-4 border-t border-slate-800/80 space-y-3">
+            <div class="px-2">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50" id="connection-dot"></div>
+                    <span class="text-[10px] font-mono text-slate-500 uppercase" id="connection-label">Connecting...</span>
                 </div>
+                <p class="text-[10px] font-mono text-slate-600" id="server-addr">--</p>
             </div>
-            <button onclick="logout()" class="w-full bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-rose-400 py-1.5 rounded-lg text-xs font-medium transition-colors border border-slate-800">Logout</button>
+            <div class="px-2">
+                <p class="text-[9px] font-mono text-slate-600 uppercase tracking-wider">Local Access Only</p>
+            </div>
         </div>
     </aside>
 
     <!-- Main Content -->
-    <div class="flex-grow overflow-y-auto bg-[#0b0e14] relative">
+    <div class="flex-grow overflow-y-auto bg-[#030712] relative">
         <!-- Dashboard Panel -->
         <div id="panel-dashboard" class="panel panel-active">
-            <header class="p-8 pb-4 flex justify-between items-start">
+            <header class="p-8 pb-4 flex justify-between items-start border-b border-slate-900/40">
                 <div>
-                    <h2 class="text-3xl font-semibold tracking-tight">Mission Control</h2>
-                    <p class="text-slate-400 text-sm mt-1">System operational. Monitoring attack surface telemetry.</p>
+                    <h2 class="text-3xl font-extrabold tracking-tight text-white">Dashboard</h2>
+                    <p class="text-slate-400 text-xs font-mono mt-1">// Pipeline operational. Monitoring attack surface telemetry.</p>
                 </div>
-                <button class="glass px-4 py-2 rounded-lg text-xs font-semibold hover:bg-slate-800 transition">Deploy Scanner</button>
+                <button onclick="startNewScan()" id="btn-start-scan" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-cyan-950/20 font-mono">START SCAN</button>
             </header>
 
-            <main class="p-8 pt-4">
+            <main class="p-8 pt-6">
+                <!-- Quick Start Banner -->
+                <div id="quick-start-banner" class="glass rounded-xl p-6 mb-8 border-l-4 border-cyan-500 hidden">
+                    <div class="flex items-start gap-4">
+                        <div class="shrink-0 mt-0.5">
+                            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <div class="flex-grow">
+                            <h3 class="text-sm font-bold text-white mb-1">Getting Started</h3>
+                            <p class="text-xs text-slate-400 mb-3" id="quick-start-text">
+                                Configure your API keys in the Configuration tab, then run a scan from the terminal or click START SCAN.
+                            </p>
+                            <div class="flex flex-wrap gap-3 text-[10px] font-mono">
+                                <div class="bg-slate-900/80 rounded-lg px-3 py-2 border border-slate-800">
+                                    <span class="text-slate-500">CLI SCAN:</span>
+                                    <span class="text-cyan-400 ml-1" id="cli-scan-cmd">bbpts -t &lt;target&gt;</span>
+                                </div>
+                                <div class="bg-slate-900/80 rounded-lg px-3 py-2 border border-slate-800">
+                                    <span class="text-slate-500">WEB DASHBOARD:</span>
+                                    <span class="text-emerald-400 ml-1" id="dashboard-url">http://127.0.0.1:--</span>
+                                </div>
+                                <div class="bg-slate-900/80 rounded-lg px-3 py-2 border border-slate-800">
+                                    <span class="text-slate-500">DOCS:</span>
+                                    <span class="text-purple-400 ml-1">docs/configuration.md</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="dismissQuickStart()" class="shrink-0 text-slate-600 hover:text-slate-400 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Stats Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div class="glass p-6 rounded-2xl relative overflow-hidden">
-                        <h3 class="text-slate-400 text-[10px] uppercase tracking-widest font-bold mb-1">Total Targets</h3>
-                        <p id="stat-targets" class="text-3xl font-bold">0</p>
-                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-blue-500/10 rounded-full blur-xl"></div>
+                    <div class="glass p-6 rounded-xl relative overflow-hidden">
+                        <h3 class="text-slate-400 text-[10px] uppercase tracking-widest font-bold mb-1 font-mono">Total Targets</h3>
+                        <p id="stat-targets" class="text-3xl font-extrabold text-white">0</p>
+                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-cyan-500/5 rounded-full blur-xl"></div>
                     </div>
-                    <div class="glass p-6 rounded-2xl relative overflow-hidden">
-                        <h3 class="text-slate-400 text-[10px] uppercase tracking-widest font-bold mb-1">Active Scans</h3>
-                        <p id="stat-scans" class="text-3xl font-bold">0</p>
-                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-purple-500/10 rounded-full blur-xl"></div>
+                    <div class="glass p-6 rounded-xl relative overflow-hidden">
+                        <h3 class="text-slate-400 text-[10px] uppercase tracking-widest font-bold mb-1 font-mono">Active Scans</h3>
+                        <p id="stat-scans" class="text-3xl font-extrabold text-white">0</p>
+                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-blue-500/5 rounded-full blur-xl"></div>
                     </div>
-                    <div class="glass p-6 rounded-2xl relative overflow-hidden glow-critical">
-                        <h3 class="text-rose-400 text-[10px] uppercase tracking-widest font-bold mb-1">Critical Vulns</h3>
-                        <p id="stat-critical" class="text-3xl font-bold text-rose-500">0</p>
-                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-rose-500/10 rounded-full blur-xl"></div>
+                    <div class="glass p-6 rounded-xl relative overflow-hidden glow-critical">
+                        <h3 class="text-rose-400 text-[10px] uppercase tracking-widest font-bold mb-1 font-mono">Critical Vulns</h3>
+                        <p id="stat-critical" class="text-3xl font-extrabold text-rose-500">0</p>
+                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-rose-500/5 rounded-full blur-xl"></div>
                     </div>
-                    <div class="glass p-6 rounded-2xl relative overflow-hidden">
-                        <h3 class="text-emerald-400 text-[10px] uppercase tracking-widest font-bold mb-1">Fleet Health</h3>
-                        <p class="text-3xl font-bold text-emerald-400">98%</p>
-                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl"></div>
+                    <div class="glass p-6 rounded-xl relative overflow-hidden">
+                        <h3 class="text-emerald-400 text-[10px] uppercase tracking-widest font-bold mb-1 font-mono">Tools Ready</h3>
+                        <p id="stat-tools" class="text-3xl font-extrabold text-emerald-400">--</p>
+                        <div class="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl"></div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Findings Table -->
-                    <div class="lg:col-span-2 glass p-6 rounded-2xl">
+                    <!-- Recent Scans -->
+                    <div class="lg:col-span-2 glass p-6 rounded-xl">
                         <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-lg font-semibold tracking-tight">Recent Scans</h3>
+                            <h3 class="text-lg font-bold tracking-tight text-white font-mono">// Recent Scans</h3>
+                            <span class="text-[10px] font-mono text-slate-500" id="scan-count">0 total</span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead>
-                                    <tr class="text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-800/50">
-                                        <th class="pb-4 font-medium">Scope</th>
-                                        <th class="pb-4 font-medium">Status</th>
-                                        <th class="pb-4 font-medium">Time</th>
+                                    <tr class="text-slate-500 text-[9px] uppercase tracking-widest border-b border-slate-800/80 font-mono">
+                                        <th class="pb-4 font-bold pl-2">Target</th>
+                                        <th class="pb-4 font-bold">Status</th>
+                                        <th class="pb-4 font-bold pr-2">Started</th>
                                     </tr>
                                 </thead>
-                                <tbody id="scan-history" class="divide-y divide-slate-800/50">
-                                    <!-- Data injected here -->
+                                <tbody id="scan-history" class="divide-y divide-slate-900/40">
+                                    <tr><td colspan="3" class="py-8 text-center text-slate-600 font-mono text-xs">No scans yet. Run <span class="text-cyan-400">bbpts -t &lt;target&gt;</span> to start.</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
                     <!-- Chart -->
-                    <div class="glass p-6 rounded-2xl">
-                        <h3 class="text-lg font-semibold tracking-tight mb-6">Attack Surface</h3>
+                    <div class="glass p-6 rounded-xl">
+                        <h3 class="text-lg font-bold tracking-tight text-white mb-6 font-mono">// Attack Surface</h3>
                         <div class="relative h-[250px] flex items-center justify-center">
                             <canvas id="surface-chart"></canvas>
                         </div>
+                        <p class="text-center text-[10px] text-slate-600 font-mono mt-3" id="chart-empty-msg">Data populates after first scan</p>
                     </div>
                 </div>
             </main>
@@ -117,100 +151,93 @@
 
         <!-- Config Editor Panel -->
         <div id="panel-config" class="panel">
-            <header class="p-8 pb-4">
-                <h2 class="text-3xl font-semibold tracking-tight">Configuration Editor</h2>
-                <p class="text-slate-400 text-sm mt-1">Read and update BBPTS global engine settings.</p>
+            <header class="p-8 pb-4 border-b border-slate-900/40">
+                <h2 class="text-3xl font-extrabold tracking-tight text-white">Configuration</h2>
+                <p class="text-slate-400 text-xs font-mono mt-1">// Settings: customize rate limits, API keys, and tool parameters.</p>
             </header>
 
-            <main class="p-8 pt-4">
+            <main class="p-8 pt-6">
                 <form id="config-form" class="space-y-8 max-w-4xl" onsubmit="event.preventDefault(); saveConfig();">
-                    <!-- Container Mode Toggle -->
-                    <div class="glass p-6 rounded-2xl flex items-center justify-between">
+                    <div class="glass p-6 rounded-xl flex items-center justify-between">
                         <div>
-                            <h3 class="text-base font-semibold text-slate-200">Docker Tool Isolation (Container Mode)</h3>
-                            <p class="text-xs text-slate-400 mt-1">Run active/passive scanners inside secure docker containers instead of locally.</p>
+                            <h3 class="text-base font-semibold text-slate-200">Docker Tool Isolation</h3>
+                            <p class="text-xs text-slate-400 mt-1">Run scanners inside docker containers instead of locally.</p>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="cfg-container-mode" class="sr-only peer">
-                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
                         </label>
                     </div>
 
-                    <!-- API Keys -->
-                    <div class="glass p-6 rounded-2xl space-y-4">
-                        <h3 class="text-lg font-semibold text-purple-400 border-b border-slate-800 pb-2">Provider API Keys</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="api-keys-container">
-                            <!-- Injected dynamically -->
-                        </div>
+                    <div class="glass p-6 rounded-xl space-y-4">
+                        <h3 class="text-base font-bold text-cyan-400 border-b border-slate-800/80 pb-2 font-mono">// Provider API Keys</h3>
+                        <p class="text-xs text-slate-500">API keys are redacted for security. Enter new values to update.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="api-keys-container"></div>
                     </div>
 
-                    <!-- Scan Settings -->
-                    <div class="glass p-6 rounded-2xl space-y-4">
-                        <h3 class="text-lg font-semibold text-purple-400 border-b border-slate-800 pb-2">Scan Parameters</h3>
+                    <div class="glass p-6 rounded-xl space-y-4">
+                        <h3 class="text-base font-bold text-cyan-400 border-b border-slate-800/80 pb-2 font-mono">// Scan Parameters</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Global Rate Limit (RPS)</label>
-                                <input type="number" id="cfg-rate-limit" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Rate Limit (RPS)</label>
+                                <input type="number" id="cfg-rate-limit" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Threads</label>
-                                <input type="number" id="cfg-threads" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Threads</label>
+                                <input type="number" id="cfg-threads" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Batch Size</label>
-                                <input type="number" id="cfg-batch-size" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Batch Size</label>
+                                <input type="number" id="cfg-batch-size" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Wordlists Directory</label>
-                                <input type="text" id="cfg-wordlists-dir" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Wordlists Directory</label>
+                                <input type="text" id="cfg-wordlists-dir" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">State Directory</label>
-                                <input type="text" id="cfg-state-dir" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">State Directory</label>
+                                <input type="text" id="cfg-state-dir" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Wordlist Mapping -->
-                    <div class="glass p-6 rounded-2xl space-y-4">
-                        <h3 class="text-lg font-semibold text-purple-400 border-b border-slate-800 pb-2">Wordlist Assignments</h3>
+                    <div class="glass p-6 rounded-xl space-y-4">
+                        <h3 class="text-base font-bold text-cyan-400 border-b border-slate-800/80 pb-2 font-mono">// Wordlist Assignments</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">DNS Enumeration</label>
-                                <input type="text" id="cfg-wl-dns" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">DNS Enumeration</label>
+                                <input type="text" id="cfg-wl-dns" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Directory Fuzzing</label>
-                                <input type="text" id="cfg-wl-dir" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Directory Fuzzing</label>
+                                <input type="text" id="cfg-wl-dir" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Subdomain Brute</label>
-                                <input type="text" id="cfg-wl-subdomain" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Subdomain Brute</label>
+                                <input type="text" id="cfg-wl-subdomain" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">API Endpoints</label>
-                                <input type="text" id="cfg-wl-api" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">API Endpoints</label>
+                                <input type="text" id="cfg-wl-api" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Fleet Security -->
-                    <div class="glass p-6 rounded-2xl space-y-4">
-                        <h3 class="text-lg font-semibold text-purple-400 border-b border-slate-800 pb-2">Fleet Sync Settings</h3>
+                    <div class="glass p-6 rounded-xl space-y-4">
+                        <h3 class="text-base font-bold text-cyan-400 border-b border-slate-800/80 pb-2 font-mono">// Fleet Sync</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Fleet Sync Token (X-Sync-Token)</label>
-                                <input type="text" id="cfg-fleet-sync-token" placeholder="Secure token for merging node SQLite DBs" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Sync Token</label>
+                                <input type="text" id="cfg-fleet-sync-token" placeholder="Token for merging node SQLite DBs" class="w-full rounded-lg p-2.5 text-sm font-mono">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Submit Buttons -->
                     <div class="flex gap-4">
-                        <button type="submit" class="bg-purple-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-purple-700 transition-colors">Save Settings</button>
-                        <button type="button" onclick="loadConfig()" class="bg-slate-800 text-slate-300 px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-slate-700 transition-colors">Discard Changes</button>
+                        <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2.5 rounded-lg font-bold text-xs transition-colors font-mono">SAVE_CONFIG</button>
+                        <button type="button" onclick="loadConfig()" class="bg-slate-900 hover:bg-slate-800 text-slate-400 px-6 py-2.5 rounded-lg font-bold text-xs transition-colors border border-slate-800 font-mono">RELOAD</button>
                     </div>
                 </form>
             </main>
@@ -218,66 +245,53 @@
 
         <!-- Console Logs Panel -->
         <div id="panel-logs" class="panel">
-            <header class="p-8 pb-4 flex justify-between items-center">
+            <header class="p-8 pb-4 flex justify-between items-center border-b border-slate-900/40">
                 <div>
-                    <h2 class="text-3xl font-semibold tracking-tight">Console Stream</h2>
-                    <p class="text-slate-400 text-sm mt-1">Real-time output logs of current active tasks.</p>
+                    <h2 class="text-3xl font-extrabold tracking-tight text-white">Console Output</h2>
+                    <p class="text-slate-400 text-xs font-mono mt-1">// Real-time log stream from the engine.</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span id="log-status" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400">Connecting</span>
-                    <button onclick="clearLogs()" class="bg-slate-800 text-xs text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-700 transition-colors">Clear Console</button>
-                    <label class="flex items-center gap-2 text-xs text-slate-400">
-                        <input type="checkbox" id="log-autoscroll" checked class="accent-purple"> Auto-Scroll
+                    <span id="log-status" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400 font-mono">CONNECTING</span>
+                    <button onclick="clearLogs()" class="bg-slate-900 text-xs text-slate-400 px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors border border-slate-800 font-mono">CLEAR</button>
+                    <label class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                        <input type="checkbox" id="log-autoscroll" checked class="accent-cyan-500"> AUTO_SCROLL
                     </label>
                 </div>
             </header>
 
-            <main class="px-8 pb-8">
-                <div id="log-terminal" class="bg-black/80 font-mono text-xs text-emerald-400/90 p-6 rounded-2xl h-[calc(100vh-210px)] overflow-y-auto border border-slate-800/80 shadow-2xl leading-relaxed whitespace-pre-wrap">
-                    <!-- Logs stream here -->
+            <main class="px-8 py-6">
+                <div id="log-terminal" class="terminal-window p-6 rounded-xl h-[calc(100vh-210px)] overflow-y-auto border border-slate-900 shadow-2xl leading-relaxed whitespace-pre-wrap text-[11px]">
+                    <div class="text-slate-600">Waiting for log events...</div>
                 </div>
             </main>
         </div>
 
         <!-- Triage Center Panel -->
         <div id="panel-triage" class="panel">
-            <header class="p-8 pb-4">
-                <h2 class="text-3xl font-semibold tracking-tight">Triage Center</h2>
-                <p class="text-slate-400 text-sm mt-1">Review, override severity, and transition findings workflow state.</p>
+            <header class="p-8 pb-4 border-b border-slate-900/40">
+                <h2 class="text-3xl font-extrabold tracking-tight text-white">Triage Center</h2>
+                <p class="text-slate-400 text-xs font-mono mt-1">// Review, classify, and manage discovered vulnerabilities.</p>
             </header>
 
-            <main class="p-8 pt-4">
-                <div class="glass p-6 rounded-2xl">
+            <main class="p-8 pt-6">
+                <div class="glass p-6 rounded-xl">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
                             <thead>
-                                <tr class="text-slate-500 text-[10px] uppercase tracking-widest border-b border-slate-800/50">
-                                    <th class="pb-4 font-medium">Target / Title</th>
-                                    <th class="pb-4 font-medium">Severity</th>
-                                    <th class="pb-4 font-medium">Workflow State</th>
-                                    <th class="pb-4 font-medium">Override Actions</th>
+                                <tr class="text-slate-500 text-[9px] uppercase tracking-widest border-b border-slate-800/80 font-mono">
+                                    <th class="pb-4 font-bold pl-2">Finding</th>
+                                    <th class="pb-4 font-bold">Severity</th>
+                                    <th class="pb-4 font-bold">State</th>
+                                    <th class="pb-4 font-bold pr-2">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="triage-findings-body" class="divide-y divide-slate-800/50">
-                                <!-- Populated dynamically -->
+                            <tbody id="triage-findings-body" class="divide-y divide-slate-900/40">
+                                <tr><td colspan="4" class="py-8 text-center text-slate-600 font-mono text-xs">No findings yet. Run a scan to discover vulnerabilities.</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </main>
-        </div>
-    </div>
-
-
-    <!-- Login Modal -->
-    <div id="login-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden">
-        <div class="glass p-8 rounded-2xl w-full max-w-md border border-slate-800 text-center animate-fade-in">
-            <h1 class="text-2xl font-bold tracking-tighter mb-2"><span class="accent-purple">BBPTS</span><span class="text-slate-500 font-light">.io</span></h1>
-            <p class="text-slate-400 text-xs uppercase tracking-wider mb-6">Mission Control Access</p>
-            <input type="text" id="login-username" placeholder="Username" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none mb-4 text-center text-slate-200">
-            <input type="password" id="login-password" placeholder="Password" class="w-full bg-[#0b0e14]/50 border border-slate-800 rounded-lg p-2.5 text-sm focus:border-purple-600 focus:outline-none mb-4 text-center text-slate-200">
-            <button onclick="submitLogin()" class="w-full bg-purple-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-purple-700 transition-colors">Authenticate</button>
-            <p id="login-error" class="text-rose-500 text-xs mt-3 hidden"></p>
         </div>
     </div>
 

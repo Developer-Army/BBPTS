@@ -90,6 +90,12 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 			return fmt.Errorf("failed to generate self-signed cert: %w", err)
 		}
 		slog.Info("using generated self-signed certificate for HTTPS")
+		fmt.Printf("\n")
+		fmt.Printf("  BBPTS Dashboard is live (HTTPS)!\n")
+		fmt.Printf("  \033[36mhttps://%s\033[0m\n", addr)
+		fmt.Printf("\n")
+		fmt.Printf("  Open the URL above in your browser.\n")
+		fmt.Printf("  Press 'q' or Ctrl+C to stop.\n\n")
 		server := &http.Server{
 			Addr:    addr,
 			Handler: handler,
@@ -101,5 +107,11 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	}
 
 	slog.Info("dashboard server starting", "addr", "http://"+addr)
+	fmt.Printf("\n")
+	fmt.Printf("  BBPTS Dashboard is live!\n")
+	fmt.Printf("  \033[36mhttp://%s\033[0m\n", addr)
+	fmt.Printf("\n")
+	fmt.Printf("  Open the URL above in your browser.\n")
+	fmt.Printf("  Press 'q' or Ctrl+C to stop.\n\n")
 	return http.ListenAndServe(addr, handler)
 }

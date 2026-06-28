@@ -1,11 +1,7 @@
 package server
 
 import (
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -125,85 +121,36 @@ func TestEnrollmentFlow(t *testing.T) {
 	}
 	defer db.Close()
 
-	// 1. Bootstrap without env password should generate setup token
+	// 1. Bootstrap without env password should create default admin user
 	err = BootstrapAdminUser(db)
 	if err != nil {
 		t.Fatalf("failed to bootstrap admin user: %v", err)
 	}
 
-	// Verify setup token exists in database
+	// Verify admin user was created with default password
 	rawDB := db.GetDB()
-	var token string
-	err = rawDB.QueryRow("SELECT token FROM setup_tokens LIMIT 1").Scan(&token)
-	if err != nil {
-		t.Fatalf("expected setup token to exist in db: %v", err)
-	}
-	if len(token) != 64 { // hex-encoded 32 bytes = 64 characters
-		t.Errorf("expected setup token of length 64, got %d", len(token))
-	}
-
-	// 2. Test API handlers
-	api := NewAPI(db, "", "")
-
-	// GetSetupToken from non-localhost IP should be forbidden
-	reqLocalForbidden := httptest.NewRequest("GET", "/api/setup-token", nil)
-	reqLocalForbidden.RemoteAddr = "192.168.1.50:1234"
-	w1 := httptest.NewRecorder()
-	api.GetSetupToken(w1, reqLocalForbidden)
-	if w1.Code != http.StatusForbidden {
-		t.Errorf("expected 403 Forbidden from remote IP, got %d", w1.Code)
-	}
-
-	// GetSetupToken from localhost should return setup token
-	reqLocalSuccess := httptest.NewRequest("GET", "/api/setup-token", nil)
-	reqLocalSuccess.RemoteAddr = "127.0.0.1:1234"
-	w2 := httptest.NewRecorder()
-	api.GetSetupToken(w2, reqLocalSuccess)
-	if w2.Code != http.StatusOK {
-		t.Errorf("expected 200 OK from localhost, got %d", w2.Code)
-	}
-
-	// 3. Test EnrollAdmin from remote IP should be forbidden
-	bodyRemote := strings.NewReader(`{"token": "invalid_token", "password": "newpassword123"}`)
-	reqEnrollRemote := httptest.NewRequest("POST", "/api/enroll", bodyRemote)
-	reqEnrollRemote.RemoteAddr = "192.168.1.50:1234"
-	wRemote := httptest.NewRecorder()
-	api.EnrollAdmin(wRemote, reqEnrollRemote)
-	if wRemote.Code != http.StatusForbidden {
-		t.Errorf("expected 403 Forbidden from remote IP for EnrollAdmin, got %d", wRemote.Code)
-	}
-
-	// Test EnrollAdmin with invalid token on localhost
-	bodyInvalid := strings.NewReader(`{"token": "invalid_token", "password": "newpassword123"}`)
-	reqEnrollInvalid := httptest.NewRequest("POST", "/api/enroll", bodyInvalid)
-	reqEnrollInvalid.RemoteAddr = "127.0.0.1:1234"
-	w3 := httptest.NewRecorder()
-	api.EnrollAdmin(w3, reqEnrollInvalid)
-	if w3.Code != http.StatusForbidden {
-		t.Errorf("expected 403 Forbidden for invalid setup token on localhost, got %d", w3.Code)
-	}
-
-	// Test EnrollAdmin with valid token
-	bodyValid := strings.NewReader(fmt.Sprintf(`{"token": "%s", "password": "securepassword123"}`, token))
-	reqEnrollValid := httptest.NewRequest("POST", "/api/enroll", bodyValid)
-	reqEnrollValid.RemoteAddr = "127.0.0.1:1234"
-	w4 := httptest.NewRecorder()
-	api.EnrollAdmin(w4, reqEnrollValid)
-	if w4.Code != http.StatusOK {
-		t.Errorf("expected 200 OK for valid setup token, got %d. Body: %s", w4.Code, w4.Body.String())
-	}
-
-	// Verify admin user exists now
 	var userCount int
 	err = rawDB.QueryRow("SELECT COUNT(*) FROM dashboard_users WHERE username = 'admin'").Scan(&userCount)
 	if err != nil || userCount != 1 {
-		t.Fatalf("expected admin user to exist after enrollment, got %d, err %v", userCount, err)
+		t.Fatalf("expected admin user to exist after bootstrap, got %d, err %v", userCount, err)
 	}
 
-	// Verify setup token is deleted
-	var tokenCount int
-	err = rawDB.QueryRow("SELECT COUNT(*) FROM setup_tokens").Scan(&tokenCount)
-	if err != nil || tokenCount != 0 {
-		t.Errorf("expected setup token to be deleted, got count %d, err %v", tokenCount, err)
+	// 2. Verify we can authenticate with the default password
+	role, err := AuthenticateUser(db, "admin", "local-only")
+	if err != nil {
+		t.Fatalf("failed to authenticate with default password: %v", err)
+	}
+	if role != "admin" {
+		t.Errorf("expected role 'admin', got '%s'", role)
+	}
+
+	// 3. Test that re-bootstrapping doesn't duplicate users
+	err = BootstrapAdminUser(db)
+	if err != nil {
+		t.Fatalf("failed to re-bootstrap: %v", err)
+	}
+	err = rawDB.QueryRow("SELECT COUNT(*) FROM dashboard_users WHERE username = 'admin'").Scan(&userCount)
+	if err != nil || userCount != 1 {
+		t.Errorf("expected still 1 admin user after re-bootstrap, got %d", userCount)
 	}
 }

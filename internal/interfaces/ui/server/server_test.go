@@ -55,8 +55,8 @@ func TestDashboardHTMLContainsScriptTags(t *testing.T) {
 }
 
 func TestDashboardHTMLContainsTailwind(t *testing.T) {
-	if !containsSubstring(DashboardHTML, "tailwindcss") {
-		t.Error("Expected DashboardHTML to contain Tailwind CSS CDN")
+	if !containsSubstring(DashboardHTML, "tailwind.js") {
+		t.Error("Expected DashboardHTML to contain Tailwind JS reference")
 	}
 }
 
@@ -223,20 +223,20 @@ func TestDashboardHTMLContainsGlassEffect(t *testing.T) {
 }
 
 func TestDashboardHTMLContainsAccentColor(t *testing.T) {
-	if !containsSubstring(DashboardHTML, "accent-purple") {
-		t.Error("Expected DashboardHTML to contain accent-purple class")
+	if !containsSubstring(DashboardHTML, "text-cyan-400") {
+		t.Error("Expected DashboardHTML to contain accent color class")
 	}
 }
 
 func TestDashboardHTMLContainsFooter(t *testing.T) {
-	if !containsSubstring(DashboardHTML, "Developer-Army") {
-		t.Error("Expected DashboardHTML to contain Developer-Army footer")
+	if !containsSubstring(DashboardHTML, "Bug Bounty Recon Console") {
+		t.Error("Expected DashboardHTML to contain Bug Bounty Recon Console tagline")
 	}
 }
 
 func TestDashboardHTMLContainsDeployButton(t *testing.T) {
-	if !containsSubstring(DashboardHTML, "Deploy Scanner") {
-		t.Error("Expected DashboardHTML to contain Deploy Scanner button")
+	if !containsSubstring(DashboardHTML, "START SCAN") {
+		t.Error("Expected DashboardHTML to contain START SCAN button")
 	}
 }
 

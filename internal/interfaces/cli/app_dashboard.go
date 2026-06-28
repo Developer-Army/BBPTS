@@ -63,8 +63,6 @@ func launchDashboard(opts Options, cfg *config.Config) chan struct{} {
 
 // waitForDashboard blocks until the dashboard server exits or user presses 'q'.
 func waitForDashboard(cancel context.CancelFunc, dashboardDone chan struct{}) {
-	slog.Info("dashboard is active. press 'q' or Ctrl+C to stop.")
-
 	go func() {
 		var b [1]byte
 		for {

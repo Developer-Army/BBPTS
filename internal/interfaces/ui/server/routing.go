@@ -31,6 +31,7 @@ func RegisterRoutes(mux *http.ServeMux, api *API) {
 	mux.HandleFunc("/api/graph/edges", api.GetGraphEdges)
 	mux.HandleFunc("/api/findings/triage", api.UpdateFindingTriage)
 	mux.HandleFunc("/api/findings", api.GetFindings)
+	mux.HandleFunc("/api/status", api.GetStatus)
 
 	// Static Frontend (Embedded or simply served from a string for now)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

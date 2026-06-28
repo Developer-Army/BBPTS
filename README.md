@@ -100,6 +100,58 @@ Your scan reports are saved under the `./results/` directory:
 
 ---
 
+## CLI Command Guide & Workflows
+
+Here are copy-pasteable commands for the most common recon scenarios:
+
+### 1. Passive Recon (Stealth Mode)
+Runs passive tools only (Subfinder, Amass, Chaos) to discover subdomains without active probing:
+```bash
+./bbpts -i targets.txt -passive
+```
+
+### 2. Full Vulnerability Scan (Aggressive Mode)
+Runs active directories fuzzing, port scans, and Nuclei/Dalfox vulnerability scans:
+```bash
+./bbpts -i targets.txt -mode full
+```
+
+### 3. Local Web Dashboard
+Launches the local, dark-themed OSINT Mission Control dashboard:
+```bash
+# Run a scan and open the dashboard
+./bbpts -i targets.txt -web -port 8080
+
+# Just boot the dashboard to view previous scan histories
+./bbpts -web -port 8080
+```
+
+### 4. Continuous Monitoring (Cron Scan)
+Runs a scan every 2 hours (120 minutes) and writes a diff report of newly discovered assets or vulnerabilities:
+```bash
+./bbpts -i targets.txt -scope acme_program -cron 120 -diff
+```
+
+### 5. Headless CI/CD Automation
+Runs silently inside CI runners and fails (exit code 1) if high or critical findings are detected:
+```bash
+./bbpts -i targets.txt -ci -fail-on high
+```
+
+### 6. Distributed Axiom Fleet
+Orchestrates AX instance fleets to scan targets concurrently in minutes instead of hours:
+```bash
+./bbpts -i targets.txt -enable-fleet -fleet-size 5 -delete-after
+```
+
+### 7. Troubleshooting & Verification
+Validate that all external dependencies are correctly path-resolved and installed:
+```bash
+./bbpts -doctor
+```
+
+---
+
 ## Scan Profiles
 
 | Profile / Mode | Setup CLI Flag | Go Tools Installed | Additional Dependencies Checked |

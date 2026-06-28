@@ -943,6 +943,39 @@ func (a *API) UpdateFindingTriage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetStatus returns server connection info and config state for the frontend.
+func (a *API) GetStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	status := map[string]interface{}{
+		"status":         "running",
+		"config_loaded":  a.configPath != "",
+		"database_ready": a.db != nil,
+	}
+
+	if a.configPath != "" {
+		cfg, err := config.LoadFromFile(a.configPath)
+		if err == nil {
+			status["container_mode"] = cfg.ContainerMode
+			status["rate_limit"] = cfg.RateLimit
+			status["threads"] = cfg.Threads
+
+			keyCount := 0
+			for _, v := range cfg.APIKeys {
+				if v != "" {
+					keyCount++
+				}
+			}
+			status["api_keys_configured"] = keyCount
+		}
+	}
+
+	respondWithJSON(w, http.StatusOK, status)
+}
+
 // GetFindings returns all findings.
 func (a *API) GetFindings(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {

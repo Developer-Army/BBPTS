@@ -119,6 +119,8 @@ func LightModeTools() []string {
 		"cache_poisoning",
 		"ai_vuln",
 		"idor_assist",
+		"github_dorker", "github_actions", "github_org_discovery",
+		"mobile_static", "app_store_recon",
 	}
 }
 
@@ -150,6 +152,9 @@ func NormalModeTools() []string {
 		"dns_zone_transfer",
 		"http2_downgrade",
 		"tls_misconfig",
+		"github_dorker", "github_actions", "github_vuln_scanning",
+		"github_org_discovery", "github_private_repos",
+		"mobile_static", "mobile_dynamic", "mobile_api_discovery", "app_store_recon",
 	}
 }
 

@@ -438,7 +438,7 @@ func (pl *ProgramLoader) fetchBugcrowd(handle string) (*ProgramProfile, error) {
 
 			category, _ := inc.Attributes["category"].(string)
 			category = strings.ToLower(category)
-			if category == "android" || category == "ios" || category == "hardware" {
+			if category == "hardware" {
 				continue
 			}
 

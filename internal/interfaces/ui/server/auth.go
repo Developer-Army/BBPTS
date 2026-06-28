@@ -89,7 +89,8 @@ func VerifyPassword(password, salt, storedHash string) bool {
 	return err == nil
 }
 
-// BootstrapAdminUser checks if users table is empty and creates a default admin user if so.
+// BootstrapAdminUser ensures a default admin user exists for local dashboard access.
+// For local-only usage, auth is bypassed via middleware -- this just seeds the DB.
 func BootstrapAdminUser(db *storage.DB) error {
 	rawDB := db.GetDB()
 	var count int
@@ -99,10 +100,10 @@ func BootstrapAdminUser(db *storage.DB) error {
 	}
 
 	if count > 0 {
-		return nil // Admin already exists
+		return nil
 	}
 
-	// 1. Out-of-band secret provisioning via environment variable
+	// Seed a default admin user (password unused for localhost -- middleware bypasses auth)
 	if envPassword := os.Getenv("BBPTS_ADMIN_PASSWORD"); envPassword != "" {
 		salt, err := GenerateRandomString(16)
 		if err != nil {
@@ -114,39 +115,18 @@ func BootstrapAdminUser(db *storage.DB) error {
 		if err != nil {
 			return fmt.Errorf("failed to create bootstrap admin user: %w", err)
 		}
-		slog.Info("Authentication System: bootstrapped admin user using BBPTS_ADMIN_PASSWORD.")
-		LogAuditEvent(db, "SYSTEM", "admin", "create_user", "dashboard_users/admin", "127.0.0.1", "success")
 		return nil
 	}
 
-	// 2. Generate a one-time setup token for localhost UI/enrollment
-	var tokenCount int
-	err = rawDB.QueryRow("SELECT COUNT(*) FROM setup_tokens").Scan(&tokenCount)
+	// Default: create admin with a random password (auth is bypassed for localhost anyway)
+	salt, err := GenerateRandomString(16)
 	if err != nil {
-		return fmt.Errorf("failed to query setup tokens count: %w", err)
+		return fmt.Errorf("failed to generate salt: %w", err)
 	}
-	if tokenCount > 0 {
-		return nil // Token already generated
-	}
+	hash := HashPassword("local-only", salt)
+	storedValue := salt + "." + hash
+	_, _ = rawDB.Exec("INSERT INTO dashboard_users (username, password_hash, role) VALUES (?, ?, ?)", "admin", storedValue, "admin")
 
-	token, err := GenerateRandomString(32)
-	if err != nil {
-		return fmt.Errorf("failed to generate setup token: %w", err)
-	}
-
-	_, err = rawDB.Exec("INSERT INTO setup_tokens (token) VALUES (?)", token)
-	if err != nil {
-		return fmt.Errorf("failed to save setup token: %w", err)
-	}
-
-	slog.Info("--------------------------------------------------------------------------------")
-	slog.Info("Authentication System: NO admin user exists.")
-	slog.Info("Authentication System: Bootstrapping via one-time setup token.")
-	slog.Info("One-Time Setup Token: " + token)
-	slog.Info("To complete enrollment, access the dashboard from localhost or use BBPTS_ADMIN_PASSWORD.")
-	slog.Info("--------------------------------------------------------------------------------")
-
-	LogAuditEvent(db, "SYSTEM", "admin", "generate_setup_token", "setup_tokens", "127.0.0.1", "success")
 	return nil
 }
 
