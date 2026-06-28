@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -39,11 +40,31 @@ func hasPermission(path string, method string, role string) bool {
 	return false
 }
 
+func isLoopback(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	ip := net.ParseIP(host)
+	if ip != nil {
+		return ip.IsLoopback()
+	}
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
+
 func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Allow static assets, main UI page, auth/sync, and setup-token/enroll endpoints to bypass token validation
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" || strings.HasPrefix(r.URL.Path, "/static/") || r.URL.Path == "/api/auth" || r.URL.Path == "/api/fleet/sync" || r.URL.Path == "/api/setup-token" || r.URL.Path == "/api/enroll" {
 			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Bypass token verification for loopback/localhost requests (local operator access)
+		if isLoopback(r.RemoteAddr) {
+			ctx := context.WithValue(r.Context(), UsernameKey, "local")
+			ctx = context.WithValue(ctx, RoleKey, "admin")
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 

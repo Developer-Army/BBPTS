@@ -619,3 +619,37 @@ func TestLoginRateLimit(t *testing.T) {
 		t.Errorf("Expected 6th attempt to be rate limited (429), got %d", w.Code)
 	}
 }
+
+func TestAuthMiddlewareLoopbackBypass(t *testing.T) {
+	// Create an endpoint handler that just returns the auth details from context
+	handler := authMiddleware(nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, _ := r.Context().Value(UsernameKey).(string)
+		role, _ := r.Context().Value(RoleKey).(string)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"username":"` + username + `","role":"` + role + `"}`))
+	}))
+
+	// Test 1: Loopback request gets admin auto-auth
+	reqLoopback := httptest.NewRequest("GET", "/api/stats", nil)
+	reqLoopback.RemoteAddr = "127.0.0.1:1234"
+	w1 := httptest.NewRecorder()
+	handler.ServeHTTP(w1, reqLoopback)
+
+	if w1.Code != http.StatusOK {
+		t.Errorf("Expected status 200 for loopback request, got %d", w1.Code)
+	}
+	if !strings.Contains(w1.Body.String(), `"username":"local"`) || !strings.Contains(w1.Body.String(), `"role":"admin"`) {
+		t.Errorf("Expected local/admin auto-auth, got %s", w1.Body.String())
+	}
+
+	// Test 2: Remote request without credentials gets 401 Unauthorized
+	reqRemote := httptest.NewRequest("GET", "/api/stats", nil)
+	reqRemote.RemoteAddr = "192.168.1.1:1234"
+	w2 := httptest.NewRecorder()
+	handler.ServeHTTP(w2, reqRemote)
+
+	if w2.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401 for unauthorized remote request, got %d", w2.Code)
+	}
+}
