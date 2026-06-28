@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/workers"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
@@ -45,9 +46,13 @@ func registerRealHandlers(ctx context.Context, executor *workers.Executor, cfg *
 }
 
 func executeToolsForTask(ctx context.Context, toolNames []string, t workers.Task, cfg *config.Config, worker *workers.Worker) error {
-	jobCtx := services.WithAPIKeys(ctx, cfg.APIKeys)
-	jobCtx = services.WithWordlistsDir(jobCtx, cfg.WordlistsDir)
-	jobCtx = services.WithProxies(jobCtx, cfg.Proxies)
+	jobCtx := recon.WithAPIKeys(ctx, cfg.APIKeys)
+	jobCtx = recon.WithWordlistsDir(jobCtx, cfg.WordlistsDir)
+	jobCtx = recon.WithProxies(jobCtx, cfg.Proxies)
+
+	scanCtx := &recon.ScanContext{
+		APIKeys:      cfg.APIKeys,
+	}
 
 	totalEvents := 0
 	for _, name := range toolNames {
@@ -58,7 +63,7 @@ func executeToolsForTask(ctx context.Context, toolNames []string, t workers.Task
 		}
 
 		// Run tool independently
-		events, err := tool.Run(jobCtx, []string{t.Target}, 1)
+		events, err := tool.Run(jobCtx, scanCtx, []string{t.Target}, 1)
 		if err != nil {
 			slog.Error("Worker tool execution failed", "tool", name, "error", err)
 			continue

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Developer-Army/BBPTS/internal/application/services"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
@@ -26,7 +26,7 @@ func TestCleanJSON(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		got := services.CleanLLMJSON(tc.input)
+		got := tools.CleanLLMJSON(tc.input)
 		if got != tc.expected {
 			t.Errorf("CleanLLMJSON(%q) = %q; expected %q", tc.input, got, tc.expected)
 		}

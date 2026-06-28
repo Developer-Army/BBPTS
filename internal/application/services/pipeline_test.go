@@ -7,17 +7,20 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
 // TestMockToolInterface verifies MockTool implements the Tool interface.
 func TestMockToolInterface(t *testing.T) {
-	var _ Tool = &MockTool{} // compile-time check
+	var _ Tool = &tools.MockTool{} // compile-time check
 }
 
 // TestMockToolReturnsEvents verifies mock tools return configured events.
 func TestMockToolReturnsEvents(t *testing.T) {
-	tool := GetMockTool("subfinder")
-	events, err := tool.Run(context.Background(), []string{"acme-corp.io"}, 10)
+	tool := tools.GetMockTool("subfinder")
+	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{"acme-corp.io"}, 10)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -32,8 +35,8 @@ func TestMockToolReturnsEvents(t *testing.T) {
 // TestFailingMockTool verifies error-returning mock tools.
 func TestFailingMockTool(t *testing.T) {
 	expectedErr := errors.New("tool binary not found")
-	tool := NewFailingMockTool("broken-tool", expectedErr)
-	_, err := tool.Run(context.Background(), []string{"acme-corp.io"}, 5)
+	tool := tools.NewFailingMockTool("broken-tool", expectedErr)
+	_, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{"acme-corp.io"}, 5)
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected error %v, got %v", expectedErr, err)
 	}
@@ -41,7 +44,7 @@ func TestFailingMockTool(t *testing.T) {
 
 // TestMockPipelineFullFlow verifies NewMockPipeline produces realistic results.
 func TestMockPipelineFullFlow(t *testing.T) {
-	events := NewMockPipeline("acme-corp.io")
+	events := tools.NewMockPipeline("acme-corp.io")
 	if len(events) == 0 {
 		t.Fatal("expected pipeline events, got none")
 	}
@@ -173,20 +176,20 @@ func TestCacheKeyDeterminism(t *testing.T) {
 
 // TestGetAllMockTools verifies we get tools for all registered mock outputs.
 func TestGetAllMockTools(t *testing.T) {
-	tools := GetAllMockTools()
-	if len(tools) == 0 {
+	mockToolsList := tools.GetAllMockTools()
+	if len(mockToolsList) == 0 {
 		t.Fatal("expected mock tools, got none")
 	}
-	if len(tools) != len(MockToolOutputs) {
-		t.Fatalf("expected %d mock tools, got %d", len(MockToolOutputs), len(tools))
+	if len(mockToolsList) != len(tools.MockToolOutputs) {
+		t.Fatalf("expected %d mock tools, got %d", len(tools.MockToolOutputs), len(mockToolsList))
 	}
 }
 
 // TestMockToolTracksTargets verifies MockTool records what was passed.
 func TestMockToolTracksTargets(t *testing.T) {
-	tool := GetMockTool("httpx")
+	tool := tools.GetMockTool("httpx")
 	targets := []string{"a.com", "b.com"}
-	_, _ = tool.Run(context.Background(), targets, 5)
+	_, _ = tool.Run(context.Background(), &recon.ScanContext{}, targets, 5)
 
 	if len(tool.LastTargets) != 2 {
 		t.Fatalf("expected 2 recorded targets, got %d", len(tool.LastTargets))

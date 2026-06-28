@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
@@ -272,7 +273,7 @@ func checkToolHealth(ctx context.Context, name string) ToolHealth {
 	versionCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	cmd := prepareCommand(versionCtx, binaryName, versionArgs...)
+	cmd := tools.PrepareCommand(versionCtx, binaryName, versionArgs...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Tool exists but version check failed — still available
@@ -407,11 +408,11 @@ func checkDNSResolution(ctx context.Context) DiagnosticCheck {
 	dnsCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	cmd := prepareCommand(dnsCtx, "dig", "+short", "google.com")
+	cmd := tools.PrepareCommand(dnsCtx, "dig", "+short", "google.com")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Try nslookup as fallback
-		cmd2 := prepareCommand(dnsCtx, "nslookup", "google.com")
+		cmd2 := tools.PrepareCommand(dnsCtx, "nslookup", "google.com")
 		_, err2 := cmd2.CombinedOutput()
 		if err2 != nil {
 			return DiagnosticCheck{

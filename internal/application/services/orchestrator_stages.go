@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
@@ -71,7 +72,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 			interactshEvents = o.runInteractshFirst(ctx, tool, targets, threads, spanID)
 			for _, ev := range interactshEvents {
 				if ev.Type == "oob_session" && ev.Target != "" {
-					ctx = WithInteractshOOBURL(ctx, ev.Target)
+					ctx = recon.WithInteractshOOBURL(ctx, ev.Target)
 					slog.Info("Interactsh OOB URL available for downstream tools", "url", ev.Target)
 					break
 				}
@@ -143,7 +144,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 					events = NewEventsFromLines(lines, tool.Name(), nil)
 				}
 			} else {
-				if o.cache != nil && !DryRunFromCtx(toolCtx) {
+				if o.cache != nil && !recon.DryRunFromCtx(toolCtx) {
 					if entry, ok := o.cache.Get(tool.Name(), toolTargets, toolThreads); ok {
 						slog.Debug("cache hit", "tool", tool.Name(), "events", len(entry.Events))
 						o.reportToolStatus(tool.Name(), "done", fmt.Sprintf("%d findings (cached)", len(entry.Events)))
@@ -159,13 +160,13 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 				cb := o.circuitBreakers.Get(tool.Name())
 				cbErr := network.Execute(cb, func() error {
 					var e error
-					events, e = RunToolWithRetry(toolCtx, tool, toolTargets, toolThreads, ToolRetryConfig())
+					events, e = RunToolWithRetry(toolCtx, tool, o.BuildScanContext(toolCtx), toolTargets, toolThreads, ToolRetryConfig())
 					return e
 				})
 
 				if cbErr != nil {
 					err = cbErr
-				} else if o.cache != nil && !DryRunFromCtx(toolCtx) {
+				} else if o.cache != nil && !recon.DryRunFromCtx(toolCtx) {
 					if errPut := o.cache.Put(tool.Name(), toolTargets, toolThreads, events); errPut != nil {
 						slog.Warn("failed to write to tool execution cache", "tool", tool.Name(), "error", errPut)
 					}
@@ -218,10 +219,8 @@ func (o *Orchestrator) runInteractshFirst(ctx context.Context, tool Tool, target
 	o.reportToolStatus(tool.Name(), "running", fmt.Sprintf("%d targets", len(toolTargets)))
 	slog.Info("Running interactsh first for OOB URL", "targets", len(toolTargets))
 
-	toolSpanName := fmt.Sprintf("Tool.%s", tool.Name())
-	toolCtx, toolSpanID := telemetry.InternalTracer.StartSpan(ctx, toolSpanName, parentSpanID)
-
-	events, err := RunToolWithRetry(toolCtx, tool, toolTargets, threads, ToolRetryConfig())
+	toolCtx, toolSpanID := telemetry.InternalTracer.StartSpan(ctx, "Tool."+tool.Name(), parentSpanID)
+	events, err := RunToolWithRetry(toolCtx, tool, o.BuildScanContext(toolCtx), toolTargets, threads, ToolRetryConfig())
 
 	telemetry.InternalTracer.EndSpan(toolSpanID, map[string]interface{}{
 		"targets_count": len(toolTargets),

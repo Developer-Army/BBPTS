@@ -15,10 +15,12 @@ import (
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 	"github.com/Developer-Army/BBPTS/internal/shared/normalize"
+	"github.com/Developer-Army/BBPTS/internal/shared/quota"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
@@ -63,7 +65,7 @@ type Config struct {
 	ForceHTTP1         bool
 	AssetStore         string
 	Checkpoint         *utils.Checkpoint
-	QuotaGuard         *utils.QuotaGuard
+	QuotaGuard         *quota.QuotaGuard
 	FPConfidenceThreshold int
 	FPKeepSuppressed      bool
 	FPAudit               bool
@@ -204,20 +206,20 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		})
 	}()
 
-	ctx = WithAPIKeys(ctx, o.config.APIKeys)
-	ctx = WithWordlistsDir(ctx, o.config.WordlistsDir)
-	ctx = WithTmpResultsDir(ctx, o.config.TmpResultsDir)
-	ctx = WithRateLimit(ctx, o.config.RateLimit)
-	ctx = WithToolRateLimits(ctx, o.config.ToolRateLimits)
-	ctx = WithAutoUpdate(ctx, o.config.AutoUpdate)
-	ctx = WithContainerMode(ctx, o.config.ContainerMode)
-	ctx = WithDockerImages(ctx, o.config.DockerImages)
-	ctx = WithInsecure(ctx, o.config.InsecureSkipVerify)
-	ctx = WithDryRun(ctx, o.config.DryRun)
-	ctx = WithExploitSQLI(ctx, o.config.ExploitSQLI)
-	ctx = WithForceHTTP1(ctx, o.config.ForceHTTP1)
+	ctx = recon.WithAPIKeys(ctx, o.config.APIKeys)
+	ctx = recon.WithWordlistsDir(ctx, o.config.WordlistsDir)
+	ctx = recon.WithTmpResultsDir(ctx, o.config.TmpResultsDir)
+	ctx = recon.WithRateLimit(ctx, o.config.RateLimit)
+	ctx = recon.WithToolRateLimits(ctx, o.config.ToolRateLimits)
+	ctx = recon.WithAutoUpdate(ctx, o.config.AutoUpdate)
+	ctx = recon.WithContainerMode(ctx, o.config.ContainerMode)
+	ctx = recon.WithDockerImages(ctx, o.config.DockerImages)
+	ctx = recon.WithInsecure(ctx, o.config.InsecureSkipVerify)
+	ctx = recon.WithDryRun(ctx, o.config.DryRun)
+	ctx = recon.WithExploitSQLI(ctx, o.config.ExploitSQLI)
+	ctx = recon.WithForceHTTP1(ctx, o.config.ForceHTTP1)
 	if o.config.QuotaGuard != nil {
-		ctx = WithQuotaGuard(ctx, o.config.QuotaGuard)
+		ctx = recon.WithQuotaGuard(ctx, o.config.QuotaGuard)
 	}
 
 	if err := o.ensureTmpResultsDir(); err != nil {
@@ -336,7 +338,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		// Wire interactsh OOB URL into context for downstream tools (nuclei, dalfox)
 		for _, ev := range events {
 			if ev.Type == "oob_session" && ev.Source == "interactsh" && ev.Target != "" {
-				ctx = WithInteractshOOBURL(ctx, ev.Target)
+				ctx = recon.WithInteractshOOBURL(ctx, ev.Target)
 				slog.Info("Interactsh OOB URL injected into context", "url", ev.Target)
 				break
 			}
@@ -344,7 +346,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		for _, ev := range events {
 			if ev.Source == "wafw00f" {
 				if waf := strings.TrimSpace(ev.Properties["waf_type"]); waf != "" {
-					ctx = WithWAFContext(ctx, waf)
+					ctx = recon.WithWAFContext(ctx, waf)
 					slog.Info("WAF context injected into downstream active tools", "waf", waf)
 					break
 				}
@@ -638,7 +640,7 @@ func (o *Orchestrator) processSwaggerSpecs(ctx context.Context, allEvents []Even
 		return nil, nil
 	}
 
-	parser := NewSwaggerParser(10 * time.Second)
+	parser := tools.NewSwaggerParser(10 * time.Second)
 	var extractedURLs []string
 
 	for _, specURL := range specURLs {
@@ -687,7 +689,7 @@ func (o *Orchestrator) processSwaggerSpecs(ctx context.Context, allEvents []Even
 
 	if nucleiTool != nil {
 		slog.Info("Running nuclei on Swagger-discovered endpoints", "targets_count", len(allowedTargets))
-		nEvents, err := nucleiTool.Run(ctx, allowedTargets, threads)
+		nEvents, err := nucleiTool.Run(ctx, o.BuildScanContext(ctx), allowedTargets, threads)
 		if err != nil {
 			slog.Error("failed to run nuclei on swagger endpoints", "error", err)
 			errs = append(errs, err)
@@ -705,7 +707,7 @@ func (o *Orchestrator) processSwaggerSpecs(ctx context.Context, allEvents []Even
 		}
 		if len(dalfoxTargets) > 0 {
 			slog.Info("Running dalfox on Swagger-discovered endpoints", "targets_count", len(dalfoxTargets))
-			dEvents, err := dalfoxTool.Run(ctx, dalfoxTargets, threads)
+			dEvents, err := dalfoxTool.Run(ctx, o.BuildScanContext(ctx), dalfoxTargets, threads)
 			if err != nil {
 				slog.Error("failed to run dalfox on swagger endpoints", "error", err)
 				errs = append(errs, err)
@@ -716,4 +718,22 @@ func (o *Orchestrator) processSwaggerSpecs(ctx context.Context, allEvents []Even
 	}
 
 	return newEvents, errs
+}
+
+func (o *Orchestrator) BuildScanContext(ctx context.Context) *recon.ScanContext {
+	return &recon.ScanContext{
+		Ports:            recon.PortsFromCtx(ctx),
+		ContainerMode:    o.config.ContainerMode,
+		DockerImages:     o.config.DockerImages,
+		QuotaGuard:       o.config.QuotaGuard,
+		Insecure:         o.config.InsecureSkipVerify,
+		DryRun:           o.config.DryRun,
+		InteractshOOBURL: recon.InteractshOOBURLFromCtx(ctx),
+		WAFContext:       recon.WAFContextFromCtx(ctx),
+		ForceHTTP1:       o.config.ForceHTTP1,
+		LowResource:      recon.LowResourceFromCtx(ctx),
+		APIKeys:          o.config.APIKeys,
+		Headers:          recon.HeadersFromCtx(ctx),
+		ExploitSQLI:      o.config.ExploitSQLI,
+	}
 }

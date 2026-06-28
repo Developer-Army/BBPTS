@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
 func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
@@ -45,7 +47,7 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 
 	// 2. Set up mock tools
 	// A directory bruteforcer (ffuf) that discovers the swagger.json spec
-	mockFfuf := &MockTool{
+	mockFfuf := &tools.MockTool{
 		ToolName: "ffuf",
 		Events: []Event{
 			NewEvent(swaggerURL, "ffuf", "directory", nil),
@@ -53,7 +55,7 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 	}
 
 	// Nuclei tool to assert it receives the parsed endpoints
-	mockNuclei := &MockTool{
+	mockNuclei := &tools.MockTool{
 		ToolName: "nuclei",
 		Events: []Event{
 			NewEvent(server.URL+"/api/v1/users", "nuclei", "vulnerability", map[string]string{
@@ -63,7 +65,7 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 	}
 
 	// Dalfox tool to assert it receives the parameter-rich endpoint
-	mockDalfox := &MockTool{
+	mockDalfox := &tools.MockTool{
 		ToolName: "dalfox",
 		Events: []Event{
 			NewEvent(server.URL+"/api/v1/users?id=1", "dalfox", "vulnerability", map[string]string{

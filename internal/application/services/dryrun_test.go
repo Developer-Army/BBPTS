@@ -7,25 +7,28 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
 func TestDryRunContext(t *testing.T) {
 	ctx := context.Background()
-	if DryRunFromCtx(ctx) {
+	if recon.DryRunFromCtx(ctx) {
 		t.Error("expected default context to not be dry-run")
 	}
 
-	dryCtx := WithDryRun(ctx, true)
-	if !DryRunFromCtx(dryCtx) {
+	dryCtx := recon.WithDryRun(ctx, true)
+	if !recon.DryRunFromCtx(dryCtx) {
 		t.Error("expected dry-run context to be active")
 	}
 }
 
 func TestRunCommandDryRun(t *testing.T) {
-	ctx := WithDryRun(context.Background(), true)
+	ctx := recon.WithDryRun(context.Background(), true)
 
 	// Since subfinder is in allowedBinaries, it should hit the mock logic in RunCommandStreamWithInput
-	lines, err := RunCommandStreamWithInput(ctx, nil, "subfinder", "-silent")
+	lines, err := tools.RunCommandStreamWithInput(ctx, nil, "subfinder", "-silent")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

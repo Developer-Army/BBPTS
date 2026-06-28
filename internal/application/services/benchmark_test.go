@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
 // BenchmarkBatchProcessorSmall benchmarks batch processing with a small target list.
@@ -80,7 +82,7 @@ func BenchmarkParseOutputLines(b *testing.B) {
 func BenchmarkMockPipeline(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		NewMockPipeline("acme-corp.io")
+		tools.NewMockPipeline("acme-corp.io")
 	}
 }
 

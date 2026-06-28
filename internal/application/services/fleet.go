@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	_ "modernc.org/sqlite"
 )
@@ -83,7 +84,7 @@ func (r *AxiomRunner) Close() {
 		slog.Info("fleet cleanup: destroying instances", "fleet", r.cfg.FleetName)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		cmd := prepareCommand(ctx, "axiom-fleet", "rm", r.cfg.FleetName, "--force")
+		cmd := tools.PrepareCommand(ctx, "axiom-fleet", "rm", r.cfg.FleetName, "--force")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			slog.Warn("failed to destroy fleet", "error", err, "output", string(out))
 		}
@@ -96,7 +97,7 @@ func (r *AxiomRunner) ProvisionFleet(ctx context.Context) error {
 		"fleet", r.cfg.FleetName,
 		"size", r.cfg.FleetSize,
 	)
-	cmd := prepareCommand(ctx, "axiom-fleet",
+	cmd := tools.PrepareCommand(ctx, "axiom-fleet",
 		r.cfg.FleetName,
 		fmt.Sprintf("%d", r.cfg.FleetSize),
 	)
@@ -163,7 +164,7 @@ func (r *AxiomRunner) RunTool(ctx context.Context, toolName string, targets []st
 		"fleet", r.cfg.FleetName,
 	)
 
-	cmd := prepareCommand(ctx, "axiom-scan", args...)
+	cmd := tools.PrepareCommand(ctx, "axiom-scan", args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return nil, fmt.Errorf("axiom-scan failed for %s: %w\nOutput: %s", toolName, err, string(out))
 	}
@@ -225,7 +226,7 @@ type InstanceStatus struct {
 
 // Status returns the current status of all fleet instances.
 func (r *AxiomRunner) Status(ctx context.Context) (*StatusReport, error) {
-	cmd := prepareCommand(ctx, "axiom-ls", "--json")
+	cmd := tools.PrepareCommand(ctx, "axiom-ls", "--json")
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to query axiom status: %w", err)

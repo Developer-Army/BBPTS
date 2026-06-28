@@ -18,6 +18,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
+	"github.com/Developer-Army/BBPTS/internal/shared/quota"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 	"golang.org/x/sync/errgroup"
 )
@@ -86,11 +87,11 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 	}
 	defer cancel()
 
-	runCtx = services.WithLowResource(runCtx, opts.LowResource)
-	runCtx = services.WithScanMode(runCtx, opts.Mode)
-	runCtx = services.WithHeaders(runCtx, cfg.Headers)
+	runCtx = recon.WithLowResource(runCtx, opts.LowResource)
+	runCtx = recon.WithScanMode(runCtx, opts.Mode)
+	runCtx = recon.WithHeaders(runCtx, cfg.Headers)
 	if cfg.Ports != "" {
-		runCtx = services.WithPorts(runCtx, cfg.Ports)
+		runCtx = recon.WithPorts(runCtx, cfg.Ports)
 	}
 
 	eventBus := initEventBus(cfg)
@@ -108,7 +109,7 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 	if scopeName == "" {
 		scopeName = "default_run"
 	}
-	qg := utils.NewQuotaGuard(cfg.StateDir)
+	qg := quota.NewQuotaGuard(cfg.StateDir)
 
 	cp, errCheckpoint := utils.NewCheckpoint(cfg.StateDir, scopeName, normalized)
 	if errCheckpoint != nil {

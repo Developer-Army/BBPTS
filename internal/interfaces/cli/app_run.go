@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
@@ -49,7 +48,7 @@ func runLoop(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.
 func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Bridge) {
 	abortCtx, cancelAbort := context.WithCancel(ctx)
 	defer cancelAbort()
-	abortCtx = services.WithDryRun(abortCtx, opts.DryRun)
+	abortCtx = recon.WithDryRun(abortCtx, opts.DryRun)
 
 	// Monitor ScanAbortChan to cancel abortCtx
 	go func() {

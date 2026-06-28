@@ -21,6 +21,7 @@ import (
 	ui "github.com/Developer-Army/BBPTS/internal/interfaces/ui/report"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
+	"github.com/Developer-Army/BBPTS/internal/shared/quota"
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
@@ -532,7 +533,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 	}
 
 	// Print API quota usage summary
-	qg := utils.NewQuotaGuard(cfg.StateDir)
+	qg := quota.NewQuotaGuard(cfg.StateDir)
 	usage := qg.GetUsage()
 	fmt.Println("\n=== API QUOTA USAGE SUMMARY ===")
 	fmt.Printf("Shodan calls:  %d\n", usage.ShodanCalls)

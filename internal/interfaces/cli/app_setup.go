@@ -18,6 +18,7 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 	"github.com/Developer-Army/BBPTS/internal/shared/input"
@@ -182,8 +183,8 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 	// Sort alive list to keep deterministic order
 	sort.Strings(alive)
 
-	httpxTool := &services.HTTPXTool{}
-	events, err := httpxTool.Run(ctx, alive, threads)
+	httpxTool := &tools.HTTPXTool{}
+	events, err := httpxTool.Run(ctx, &recon.ScanContext{}, alive, threads)
 	if err != nil {
 		slog.Warn("Target validation via httpx failed or skipped; proceeding with DNS-resolved targets", "error", err)
 		return alive, nil
@@ -670,7 +671,7 @@ type bgpPrefixResponse struct {
 }
 
 func expandCompanyTargets(company string) ([]string, error) {
-	client := services.NewSafeHTTPClient(10 * time.Second)
+	client := tools.NewSafeHTTPClient(10 * time.Second)
 	searchURL := fmt.Sprintf("https://api.bgpview.io/search?query_term=%s", url.QueryEscape(company))
 	resp, err := client.Get(searchURL)
 	if err != nil {
@@ -704,7 +705,7 @@ func expandCompanyTargets(company string) ([]string, error) {
 }
 
 func expandASNPrefixes(asn int) ([]string, error) {
-	client := services.NewSafeHTTPClient(10 * time.Second)
+	client := tools.NewSafeHTTPClient(10 * time.Second)
 	prefixURL := fmt.Sprintf("https://api.bgpview.io/asn/%d/prefixes", asn)
 	pResp, err := client.Get(prefixURL)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Developer-Army/BBPTS/internal/application/services"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
 // AITriageResult represents the LLM response.
@@ -30,7 +30,7 @@ func TriageFindingWithLLM(ctx context.Context, f *DetailedFinding, provider, mod
 		slog.Info("Request/Response missing for AI triage, performing fallback request", "target", f.Target)
 		req, err := http.NewRequestWithContext(ctx, "GET", f.Target, nil)
 		if err == nil {
-			client := services.NewSafeHTTPClient(3 * time.Second)
+			client := tools.NewSafeHTTPClient(3 * time.Second)
 			client.CheckRedirect = func(r *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			}
@@ -77,7 +77,7 @@ You must output your analysis strictly in valid JSON format:
   "explanation": "<your explanation here>"
 }`, f.Title, f.Description, reqData, respData)
 
-	rawText, err := services.CallLLM(ctx, prompt, provider, model, apiURL, apiKey)
+	rawText, err := tools.CallLLM(ctx, prompt, provider, model, apiURL, apiKey)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ You must output your analysis strictly in valid JSON format:
 }
 
 func parseTriageJSON(text string) (*AITriageResult, error) {
-	cleaned := services.CleanLLMJSON(text)
+	cleaned := tools.CleanLLMJSON(text)
 	var result AITriageResult
 	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
 		// Attempt parsing by looking for JSON block

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	utls "github.com/refraction-networking/utls"
 )
@@ -42,7 +43,7 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 			return nil, err
 		}
 
-		uConn := utls.UClient(conn, &utls.Config{ServerName: host, InsecureSkipVerify: InsecureFromCtx(ctx)}, utls.HelloChrome_Auto)
+		uConn := utls.UClient(conn, &utls.Config{ServerName: host, InsecureSkipVerify: recon.InsecureFromCtx(ctx)}, utls.HelloChrome_Auto)
 		if err := uConn.HandshakeContext(ctx); err != nil {
 			conn.Close()
 			return nil, fmt.Errorf("utls handshake failed: %w", err)

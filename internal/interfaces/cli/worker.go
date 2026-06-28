@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/workers"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
@@ -112,10 +113,14 @@ func ProcessJob(ctx context.Context, ev queue.Event, eventBus queue.EventBus, cf
 	}
 
 	// Prepare context with API keys and Wordlists
-	jobCtx := services.WithAPIKeys(ctx, cfg.APIKeys)
-	jobCtx = services.WithWordlistsDir(jobCtx, cfg.WordlistsDir)
+	jobCtx := recon.WithAPIKeys(ctx, cfg.APIKeys)
+	jobCtx = recon.WithWordlistsDir(jobCtx, cfg.WordlistsDir)
 
-	events, err := tool.Run(jobCtx, job.Targets, job.Threads)
+	scanCtx := &recon.ScanContext{
+		APIKeys:      cfg.APIKeys,
+	}
+
+	events, err := tool.Run(jobCtx, scanCtx, job.Targets, job.Threads)
 	if err != nil {
 		slog.Error("Job execution failed", "job_id", job.ID, "tool", job.ToolName, "error", err)
 		return
