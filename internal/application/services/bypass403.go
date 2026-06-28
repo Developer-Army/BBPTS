@@ -2,7 +2,10 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -73,6 +76,41 @@ func (t *Bypass403Tool) Run(ctx context.Context, targets []string, threads int) 
 		var events []Event
 		var mu sync.Mutex
 
+		// Perform canary check for wildcard 200 OK or CDN behavior
+		var hasCanary200 bool
+		var canaryLen int64
+		var canaryHash string
+
+		canaryURL := parsed.Scheme + "://" + parsed.Host + "/$bbpts_canary_404/"
+		canaryReq, err := http.NewRequestWithContext(ctx, "GET", canaryURL, nil)
+		if err == nil {
+			for k, v := range headers {
+				canaryReq.Header.Set(k, v)
+			}
+			canaryResp, err := client.Do(canaryReq)
+			if err == nil {
+				if canaryResp.StatusCode == http.StatusOK {
+					hasCanary200 = true
+					canaryLen, canaryHash = getResponseFingerprint(canaryResp)
+				}
+				canaryResp.Body.Close()
+			}
+		}
+
+		// Helper to read and close response
+		checkBypassResponse := func(bypassResp *http.Response) bool {
+			defer bypassResp.Body.Close()
+			if bypassResp.StatusCode != http.StatusOK {
+				return false
+			}
+			bLen, bHash := getResponseFingerprint(bypassResp)
+			// A valid bypass must differ from the wildcard 200 canary response.
+			if hasCanary200 && bLen == canaryLen && bHash == canaryHash {
+				return false
+			}
+			return true
+		}
+
 		// 1. Test Path Normalizations and encoding bypasses
 		path := parsed.Path
 		pathBypasses := []string{
@@ -104,8 +142,7 @@ func (t *Bypass403Tool) Run(ctx context.Context, targets []string, threads int) 
 			}
 			bypassResp, err := client.Do(bypassReq)
 			if err == nil {
-				bypassResp.Body.Close()
-				if bypassResp.StatusCode == http.StatusOK {
+				if checkBypassResponse(bypassResp) {
 					mu.Lock()
 					events = append(events, NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 						"vuln_name":   "403/401 Auth Bypass",
@@ -144,8 +181,7 @@ func (t *Bypass403Tool) Run(ctx context.Context, targets []string, threads int) 
 			bypassReq.Header.Set(bypass.name, bypass.value)
 			bypassResp, err := client.Do(bypassReq)
 			if err == nil {
-				bypassResp.Body.Close()
-				if bypassResp.StatusCode == http.StatusOK {
+				if checkBypassResponse(bypassResp) {
 					mu.Lock()
 					events = append(events, NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 						"vuln_name":   "403/401 Auth Bypass",
@@ -170,8 +206,7 @@ func (t *Bypass403Tool) Run(ctx context.Context, targets []string, threads int) 
 			methodReq.Header.Set("X-HTTP-Method-Override", "GET")
 			methodResp, err := client.Do(methodReq)
 			if err == nil {
-				methodResp.Body.Close()
-				if methodResp.StatusCode == http.StatusOK {
+				if checkBypassResponse(methodResp) {
 					mu.Lock()
 					events = append(events, NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 						"vuln_name":   "403/401 Auth Bypass",
@@ -187,6 +222,19 @@ func (t *Bypass403Tool) Run(ctx context.Context, targets []string, threads int) 
 
 		return events, nil
 	})
+}
+
+func getResponseFingerprint(resp *http.Response) (int64, string) {
+	if resp == nil || resp.Body == nil {
+		return 0, ""
+	}
+	limitReader := io.LimitReader(resp.Body, 4096)
+	bodyBytes, err := io.ReadAll(limitReader)
+	if err != nil {
+		return 0, ""
+	}
+	h := sha256.Sum256(bodyBytes)
+	return int64(len(bodyBytes)), hex.EncodeToString(h[:])
 }
 
 var _ Tool = (*Bypass403Tool)(nil)

@@ -47,8 +47,70 @@ func callOpenAIChatRaw(ctx context.Context, prompt, model, apiURL, apiKey string
 	if model == "" {
 		model = "gpt-4o"
 	}
-	return callOllamaRaw(ctx, prompt, model, apiURL, apiKey)
+
+	type Message struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}
+	type OpenAIRequest struct {
+		Model       string    `json:"model"`
+		Messages    []Message `json:"messages"`
+		Temperature float64   `json:"temperature"`
+	}
+
+	reqBody := OpenAIRequest{
+		Model:       model,
+		Messages:    []Message{{Role: "user", Content: prompt}},
+		Temperature: 0.1,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(jsonBody))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("OpenAI API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	type Choice struct {
+		Message Message `json:"message"`
+	}
+	type OpenAIResponse struct {
+		Choices []Choice `json:"choices"`
+	}
+
+	var openAIResp OpenAIResponse
+	if err := json.Unmarshal(body, &openAIResp); err != nil {
+		return "", err
+	}
+
+	if len(openAIResp.Choices) == 0 {
+		return "", fmt.Errorf("empty choice from OpenAI Chat Completions API")
+	}
+
+	return openAIResp.Choices[0].Message.Content, nil
 }
+
 
 func callAnthropicRaw(ctx context.Context, prompt, model, apiURL, apiKey string) (string, error) {
 	if apiKey == "" {

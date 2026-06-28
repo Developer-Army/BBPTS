@@ -61,6 +61,28 @@ func TestBypass403Tool(t *testing.T) {
 	}
 }
 
+func TestBypass403Tool_Wildcard200(t *testing.T) {
+	tool := &Bypass403Tool{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Wildcard Content"))
+	}))
+	defer server.Close()
+
+	events, err := tool.Run(context.Background(), []string{server.URL}, 1)
+	if err != nil {
+		t.Fatalf("Bypass403 Run failed: %v", err)
+	}
+
+	if len(events) != 0 {
+		t.Errorf("Expected 0 bypass vulnerability events for wildcard 200 server, got %d", len(events))
+	}
+}
+
 func TestJWTAnalyzerTool(t *testing.T) {
 	tool := &JWTAnalyzerTool{}
 	if tool.Name() != "jwt_analyzer" {
