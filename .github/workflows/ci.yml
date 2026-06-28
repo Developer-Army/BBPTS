@@ -116,6 +116,8 @@ jobs:
         with:
           sbom: sbom.spdx.json
           fail-build: true
+        env:
+          GRYPE_DB_MAX_ALLOWED_BUILT_AGE: "120d"
 
       - name: Upload SBOM Report
         uses: actions/upload-artifact@v4
