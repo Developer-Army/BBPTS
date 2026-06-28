@@ -56,6 +56,19 @@ func main() {
 		return
 	}
 
+	if opts.ValidateConfig {
+		cfg, err := config.LoadFromFile(opts.ConfigPath)
+		if err != nil {
+			slog.Error("failed to load config", "error", err)
+			os.Exit(1)
+		}
+		cfg.LoadFromEnv()
+		if config.ValidateAndPrint(os.Stdout, cfg) {
+			os.Exit(0)
+		}
+		os.Exit(1)
+	}
+
 	// --- Signal Handling ---
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -255,6 +268,7 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.UseTUI, "tui", true, "Enable interactive TUI dashboard")
 	flag.StringVar(&opts.LogFilePath, "log-file", "bbpts.log", "Path to log file")
 	flag.BoolVar(&opts.RunDoctor, "doctor", false, "Run environment diagnostics")
+	flag.BoolVar(&opts.ValidateConfig, "validate-config", false, "Validate config file")
 	flag.BoolVar(&opts.DryRun, "dry-run", false, "Dry-run mode: prints which tools would run against which targets without execution")
 	flag.BoolVar(&opts.ExploitSQLI, "exploit-sqli", false, "Opt in to conservative SQL injection exploitation checks with sqlmap (risk 1)")
 	flag.BoolVar(&opts.ForceHTTP1, "force-http1", false, "Force HTTP/1.1 comparison probes for HTTP/2 downgrade testing")

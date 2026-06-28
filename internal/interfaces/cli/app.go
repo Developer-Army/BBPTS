@@ -45,6 +45,7 @@ type Options struct {
 	LowResource       bool
 	UseTUI            bool
 	RunDoctor         bool
+	ValidateConfig    bool
 	Preset            string
 	Profile           string
 	Mode              string
