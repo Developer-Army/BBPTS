@@ -27,7 +27,7 @@ func TestCalculateProgress_FallsBackToStageCompletion(t *testing.T) {
 	m.stages[1] = stageInfo{complete: true}
 
 	got := m.calculateProgress()
-	if got != 2.0/7.0 {
+	if got != 2.0/5.0 {
 		t.Fatalf("expected stage fallback progress, got %f", got)
 	}
 }

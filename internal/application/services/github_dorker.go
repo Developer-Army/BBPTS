@@ -288,18 +288,20 @@ func (t *GithubDorkerTool) Run(ctx context.Context, targets []string, threads in
 		}(domain)
 	}
 
+	wg.Wait()
+
 	// Phase 6: Organization member enumeration
+outer:
 	for _, dom := range uniqueDomains {
 		select {
 		case <-ctx.Done():
-			break
+			break outer
 		default:
 		}
 		orgEvents := t.enumerateOrgMembers(ctx, apiKey, dom)
 		events = append(events, orgEvents...)
 	}
 
-	wg.Wait()
 	return events, nil
 }
 

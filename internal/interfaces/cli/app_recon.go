@@ -250,7 +250,7 @@ func filterPassiveTools(toolNames []string) []string {
 func initEventBus(cfg *config.Config) queue.EventBus {
 	busType := cfg.EventBus.Type
 	if busType == "" {
-		busType = "nats"
+		busType = "in-memory"
 	}
 	switch busType {
 	case "nats":
@@ -260,25 +260,17 @@ func initEventBus(cfg *config.Config) queue.EventBus {
 		}
 		eventBus, err := queue.NewNatsBus(url)
 		if err != nil {
-			if !cfg.MockMode {
-				slog.Error("NATS event bus required for production but unavailable", "error", err)
-				os.Exit(1)
-			}
-			slog.Warn("NATS event bus unavailable; falling back to in-memory bus for mock mode", "error", err)
+			slog.Warn("NATS event bus unavailable; falling back to in-memory bus", "error", err)
 			return queue.New()
 		}
 		slog.Info("NATS event bus enabled", "url", url)
 		return eventBus
 	case "in-memory":
-		if !cfg.MockMode {
-			slog.Error("in-memory event bus is not allowed in production; NATS must be configured")
-			os.Exit(1)
-		}
+		slog.Warn("Using in-memory event bus; fleet distributed worker mode will be disabled.")
 		return queue.New()
 	default:
-		slog.Error("Invalid event bus type", "type", cfg.EventBus.Type)
-		os.Exit(1)
-		return nil
+		slog.Warn("Invalid event bus type, falling back to in-memory bus", "type", cfg.EventBus.Type)
+		return queue.New()
 	}
 }
 

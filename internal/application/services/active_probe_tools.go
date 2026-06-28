@@ -332,7 +332,7 @@ func (t *TLSMisconfigTool) Run(ctx context.Context, targets []string, threads in
 		}
 		lines, err := RunCommandLines(ctx, "testssl.sh", "--warnings", "off", "--fast", "--jsonfile", "/dev/stdout", host)
 		if err != nil || len(lines) == 0 {
-			return nativeTLSChecks(ctx, t.Name(), host)
+			return nativeTLSChecks(t.Name(), host)
 		}
 		joined := strings.ToLower(strings.Join(lines, "\n"))
 		checks := []string{"beast", "poodle", "drown", "robot", "expired", "self-signed", "dh bits"}
@@ -440,7 +440,7 @@ func bodyFingerprint(body []byte) string {
 	return fmt.Sprintf("%d:%x", len(body), body)
 }
 
-func nativeTLSChecks(ctx context.Context, source, host string) []Event {
+func nativeTLSChecks(source, host string) []Event {
 	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 6 * time.Second}, "tcp", net.JoinHostPort(host, "443"), &tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		return nil

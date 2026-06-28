@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,15 @@ func TestGraphQLScanner(t *testing.T) {
 
 		if strings.HasPrefix(bodyStr, "[") {
 			w.WriteHeader(http.StatusOK)
+			var reqArr []interface{}
+			if err := json.Unmarshal(bodyBytes, &reqArr); err == nil {
+				respArr := make([]string, len(reqArr))
+				for i := range respArr {
+					respArr[i] = `{"data":{"__typename":"Query"}}`
+				}
+				_, _ = w.Write([]byte("[" + strings.Join(respArr, ",") + "]"))
+				return
+			}
 			_, _ = w.Write([]byte(`[{"data":{"__typename":"Query"}}, {"data":{"__typename":"Query"}}, {"data":{"__typename":"Query"}}]`))
 			return
 		}

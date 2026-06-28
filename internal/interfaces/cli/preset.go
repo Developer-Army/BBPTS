@@ -141,6 +141,15 @@ func NormalModeTools() []string {
 		"cache_poisoning",
 		"ai_vuln",
 		"idor_assist",
+		"ssrf",
+		"crlf",
+		"email_header_injection",
+		"api_version_probe",
+		"jsonp",
+		"webdav",
+		"dns_zone_transfer",
+		"http2_downgrade",
+		"tls_misconfig",
 	}
 }
 

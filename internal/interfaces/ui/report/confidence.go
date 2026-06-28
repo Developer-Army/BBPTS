@@ -171,10 +171,11 @@ func calculateStatusConsistency(ctx context.Context, insight analyze.Insight, ev
 	client := services.NewSafeHTTPClient(2 * time.Second)
 	statusCodes := make([]int, 0, 3)
 
+loop:
 	for i := 0; i < 3; i++ {
 		select {
 		case <-ctx.Done():
-			break
+			break loop
 		default:
 		}
 		req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)

@@ -56,12 +56,12 @@ func ScoreEvent(ev Event) int {
 		// Nuclei bonus depends on severity - info/low shouldn't get flat +15
 		if ev.Properties != nil {
 			if nsVal, ok := ev.Properties["nuclei_severity"]; ok {
-				severity := strings.ToLower(nsVal)
-				if severity == "critical" || severity == "high" {
+				switch strings.ToLower(nsVal) {
+				case "critical", "high":
 					score += 15
-				} else if severity == "medium" {
+				case "medium":
 					score += 10
-				} else if severity == "low" {
+				case "low":
 					score += 5
 				}
 				// info severity gets no bonus (handled in Group 6)
@@ -85,9 +85,10 @@ func ScoreEvent(ev Event) int {
 	if ev.Properties != nil {
 		if scVal, ok := ev.Properties["status_code"]; ok {
 			if sc, err := strconv.Atoi(scVal); err == nil {
-				if sc == 200 {
+				switch sc {
+				case 200:
 					score += 10
-				} else if sc == 404 {
+				case 404:
 					score += -20
 				}
 			}

@@ -16,6 +16,7 @@ import (
 
 // AdaptiveBackoff implements intelligent backoff for 429, CAPTCHA, and WAF blocks.
 type AdaptiveBackoff struct {
+	mu                sync.RWMutex
 	baseDelayMs       int
 	maxDelayMs        int
 	currentDelayMs    int
@@ -61,6 +62,8 @@ func NewAdaptiveBackoff(baseDelayMs int, maxDelayMs int) *AdaptiveBackoff {
 
 // ShouldBackoff determines if a request should be backed off based on response analysis.
 func (ab *AdaptiveBackoff) ShouldBackoff(resp *http.Response, body []byte) bool {
+	ab.mu.Lock()
+	defer ab.mu.Unlock()
 	if resp.StatusCode == http.StatusTooManyRequests {
 		ab.isThrottled = true
 		ab.consecutiveErrors++
@@ -85,7 +88,7 @@ func (ab *AdaptiveBackoff) ShouldBackoff(resp *http.Response, body []byte) bool 
 	return false
 }
 
-// isCaptchaOrWafBlock detects CAPTCHA challenges or WAF blocks in response.
+// isCaptchaOrWafBlock detects CAPTCHA challenges or WAF blocks in response (called under lock).
 func (ab *AdaptiveBackoff) isCaptchaOrWafBlock(resp *http.Response, body []byte) bool {
 	bodyStr := strings.ToLower(string(body))
 
@@ -118,6 +121,8 @@ func (ab *AdaptiveBackoff) isCaptchaOrWafBlock(resp *http.Response, body []byte)
 
 // CalculateDelay calculates the next backoff delay with exponential backoff + jitter.
 func (ab *AdaptiveBackoff) CalculateDelay() time.Duration {
+	ab.mu.Lock()
+	defer ab.mu.Unlock()
 	// Exponential backoff: delay = base * (2 ^ errors) + random jitter
 	exponentialComponent := int(math.Pow(2.0, float64(ab.consecutiveErrors)))
 	delayMs := ab.baseDelayMs * exponentialComponent
@@ -151,7 +156,9 @@ func (ab *AdaptiveBackoff) WaitAndRetry(ctx context.Context, cb func() error) er
 	case <-time.After(delay):
 		// Retry
 		if err := cb(); err != nil {
+			ab.mu.Lock()
 			ab.consecutiveErrors++
+			ab.mu.Unlock()
 			return fmt.Errorf("retry failed after backoff: %w", err)
 		}
 		ab.Reset() // Reset on success
@@ -164,6 +171,8 @@ func (ab *AdaptiveBackoff) WaitAndRetry(ctx context.Context, cb func() error) er
 
 // Reset resets the backoff state on successful request.
 func (ab *AdaptiveBackoff) Reset() {
+	ab.mu.Lock()
+	defer ab.mu.Unlock()
 	ab.consecutiveErrors = 0
 	ab.currentDelayMs = ab.baseDelayMs
 	ab.isThrottled = false
@@ -172,26 +181,36 @@ func (ab *AdaptiveBackoff) Reset() {
 
 // IsThrottled returns true if currently throttled/rate-limited.
 func (ab *AdaptiveBackoff) IsThrottled() bool {
+	ab.mu.RLock()
+	defer ab.mu.RUnlock()
 	return ab.isThrottled
 }
 
 // GetCurrentDelay returns the current calculated delay.
 func (ab *AdaptiveBackoff) GetCurrentDelay() time.Duration {
+	ab.mu.RLock()
+	defer ab.mu.RUnlock()
 	return time.Duration(ab.currentDelayMs) * time.Millisecond
 }
 
 // AddCAPTCHAPattern adds a custom CAPTCHA detection pattern.
 func (ab *AdaptiveBackoff) AddCAPTCHAPattern(pattern string) {
+	ab.mu.Lock()
+	defer ab.mu.Unlock()
 	ab.captchaPatterns = append(ab.captchaPatterns, strings.ToLower(pattern))
 }
 
 // AddWAFPattern adds a custom WAF block detection pattern.
 func (ab *AdaptiveBackoff) AddWAFPattern(pattern string) {
+	ab.mu.Lock()
+	defer ab.mu.Unlock()
 	ab.wafPatterns = append(ab.wafPatterns, strings.ToLower(pattern))
 }
 
 // IsBlockDetected checks if the given text matches any CAPTCHA or WAF patterns.
 func (ab *AdaptiveBackoff) IsBlockDetected(text string) bool {
+	ab.mu.RLock()
+	defer ab.mu.RUnlock()
 	lower := strings.ToLower(text)
 	for _, pattern := range ab.captchaPatterns {
 		if strings.Contains(lower, pattern) {
@@ -208,6 +227,8 @@ func (ab *AdaptiveBackoff) IsBlockDetected(text string) bool {
 
 // RecordBlock records a WAF block or rate-limit error, incrementing consecutive errors.
 func (ab *AdaptiveBackoff) RecordBlock() {
+	ab.mu.Lock()
+	defer ab.mu.Unlock()
 	ab.isThrottled = true
 	ab.consecutiveErrors++
 }
@@ -503,6 +524,7 @@ type HumanTimer struct {
 	pauseProb float64       // probability of a long pause (0.05 = 5%)
 	pauseDur  time.Duration // long pause duration
 	rng       *rand.Rand
+	mu        sync.Mutex
 }
 
 // NewHumanTimer creates a timer with realistic human pacing.
@@ -521,10 +543,15 @@ func (ht *HumanTimer) Sleep() {
 	// Lognormal: if X ~ Normal(μ, σ), then exp(X) is lognormal.
 	// Mean = exp(μ + σ²/2). For desired mean ≈ baseMu, solve μ.
 	// For simplicity: use normal distribution with positive support clamp.
-	delay := time.Duration(math.Abs(ht.rng.NormFloat64()*float64(ht.baseSigma) + float64(ht.baseMu)))
+	ht.mu.Lock()
+	normVal := ht.rng.NormFloat64()
+	isPause := ht.rng.Float64() < ht.pauseProb
+	ht.mu.Unlock()
+
+	delay := time.Duration(math.Abs(normVal*float64(ht.baseSigma) + float64(ht.baseMu)))
 
 	// Occasionally insert a longer pause (reading, thinking)
-	if ht.rng.Float64() < ht.pauseProb {
+	if isPause {
 		delay += ht.pauseDur
 	}
 

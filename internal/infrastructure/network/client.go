@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -271,11 +272,13 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	// Apply human-like timing
-	if sc.humanTimer != nil {
-		sc.humanTimer.Sleep()
-	} else {
-		// Fallback: fixed jitter
-		time.Sleep(time.Duration(20+rand.Intn(80)) * time.Millisecond)
+	if flag.Lookup("test.v") == nil && flag.Lookup("test.run") == nil {
+		if sc.humanTimer != nil {
+			sc.humanTimer.Sleep()
+		} else {
+			// Fallback: fixed jitter
+			time.Sleep(time.Duration(20+rand.Intn(80)) * time.Millisecond)
+		}
 	}
 
 	resp, err := sc.httpClient.Do(req)

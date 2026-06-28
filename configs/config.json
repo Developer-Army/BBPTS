@@ -6,15 +6,36 @@
     "chaos": "",
     "virustotal": "",
     "passivetotal": "",
+    "passivetotal_email": "",
     "binaryedge": "",
+    "censys_id": "",
+    "censys_secret": "",
+    "fullhunt": "",
+    "netlas": "",
+    "whoisxmlapi": "",
+    "intelx": "",
+    "fofa_email": "",
+    "fofa_key": "",
+    "zoomeye": "",
+    "quake": "",
+    "bevigil": "",
+    "robtex": "",
+    "certspotter": "",
+    "c99": "",
+    "chinaz": "",
+    "threatbook": "",
+    "dnsdb": "",
+    "redhuntlabs": "",
+    "facebook": "",
+    "facebook_secret": "",
     "hunter": "",
     "h1_username": "",
     "h1_api_token": "",
     "bugcrowd_api_token": ""
   },
   "headers": {
-    "X-HackerOne-Research": "dev-army",
-    "User-Agent": "dev-army"
+    "X-HackerOne-Research": "",
+    "User-Agent": ""
   },
   "proxies": [],
   "rate_limit": 20,
@@ -41,7 +62,7 @@
   },
   "web_ender": "",
   "event_bus": {
-    "type": "nats",
+    "type": "in-memory",
     "url": "nats://127.0.0.1:4222"
   },
   "dashboard_tls": {
@@ -65,6 +86,11 @@
       "tools": "subfinder,crtsh,assetfinder,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,ffuf,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning",
       "timeout": "2h",
       "rate_limit": 150
+    },
+    "full": {
+      "tools": "crtsh,subfinder,amass,assetfinder,chaos,puredns,dnsx,massdns,whois,naabu,httpx,shodan,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,uro,dalfox,nuclei,interactsh,secrets,trufflehog,browser,js_analyzer,gowitness,tlsx,github,cloud_buckets,takeover,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,ai_vuln,idor_assist,ssrf,crlf,email_header_injection,api_version_probe,jsonp,webdav,dns_zone_transfer,http2_downgrade,tls_misconfig",
+      "timeout": "4h",
+      "rate_limit": 200
     }
   },
   "program_profiles": {

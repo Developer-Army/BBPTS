@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -110,3 +111,146 @@ func TestOpenRedirectTool(t *testing.T) {
 		t.Errorf("Expected 1 open redirect event, got %d", len(events))
 	}
 }
+
+func TestSSRFTool(t *testing.T) {
+	tool := &SSRFTool{}
+	if tool.Name() != "ssrf" {
+		t.Errorf("Expected name ssrf, got %s", tool.Name())
+	}
+	ctx := WithInteractshOOBURL(context.Background(), "http://interactsh-oob.com")
+	events, err := tool.Run(ctx, []string{"http://example.com/api?url=test"}, 1)
+	if err != nil {
+		t.Fatalf("SSRF Run failed: %v", err)
+	}
+	if len(events) == 0 {
+		t.Error("Expected at least 1 SSRF probe event")
+	}
+}
+
+func TestCRLFTool(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.RawQuery, "X-BBPTS-CRLF") {
+			w.Header().Set("X-BBPTS-CRLF", "injected")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	tool := &CRLFTool{}
+	events, err := tool.Run(context.Background(), []string{server.URL + "?param=test"}, 1)
+	if err != nil {
+		t.Fatalf("CRLF Run failed: %v", err)
+	}
+	if len(events) != 1 {
+		t.Errorf("Expected 1 CRLF event, got %d", len(events))
+	}
+}
+
+func TestEmailHeaderInjectionTool(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		email := r.FormValue("email")
+		if strings.Contains(email, "Bcc: injected") {
+			_, _ = w.Write([]byte("injected-bbpts@example.com"))
+		}
+	}))
+	defer server.Close()
+
+	tool := &EmailHeaderInjectionTool{}
+	events, err := tool.Run(context.Background(), []string{server.URL + "?email=test"}, 1)
+	if err != nil {
+		t.Fatalf("Email Header Run failed: %v", err)
+	}
+	if len(events) != 1 {
+		t.Errorf("Expected 1 Email Header Injection event, got %d", len(events))
+	}
+}
+
+func TestAPIVersionProbeTool(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	tool := &APIVersionProbeTool{}
+	events, err := tool.Run(context.Background(), []string{server.URL + "/api/v1/users"}, 1)
+	if err != nil {
+		t.Fatalf("API Version Probe Run failed: %v", err)
+	}
+	if len(events) == 0 {
+		t.Error("Expected discovery events for other API versions")
+	}
+}
+
+func TestJSONPTool(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cb := r.URL.Query().Get("callback")
+		if cb != "" {
+			_, _ = w.Write([]byte(cb + "({}))"))
+		}
+	}))
+	defer server.Close()
+
+	tool := &JSONPTool{}
+	events, err := tool.Run(context.Background(), []string{server.URL + "?callback=test"}, 1)
+	if err != nil {
+		t.Fatalf("JSONP Run failed: %v", err)
+	}
+	if len(events) != 1 {
+		t.Errorf("Expected 1 JSONP event, got %d", len(events))
+	}
+}
+
+func TestWebDAVTool(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	tool := &WebDAVTool{}
+	events, err := tool.Run(context.Background(), []string{server.URL}, 1)
+	if err != nil {
+		t.Fatalf("WebDAV Run failed: %v", err)
+	}
+	if len(events) == 0 {
+		t.Error("Expected WebDAV events")
+	}
+}
+
+func TestDNSZoneTransferTool(t *testing.T) {
+	tool := &DNSZoneTransferTool{}
+	events, err := tool.Run(context.Background(), []string{"localhost"}, 1)
+	if err != nil {
+		t.Fatalf("DNS Zone Transfer Run failed: %v", err)
+	}
+	// localhost has no NS records, so 0 events is expected but it should not error
+	if len(events) != 0 {
+		t.Errorf("Expected 0 events, got %d", len(events))
+	}
+}
+
+func TestHTTP2DowngradeTool(t *testing.T) {
+	tool := &HTTP2DowngradeTool{}
+	ctx := WithForceHTTP1(context.Background(), true)
+	// Against example.com or a non-running target, it should handle failure gracefully
+	events, err := tool.Run(ctx, []string{"http://127.0.0.1:9999/"}, 1)
+	if err != nil {
+		t.Fatalf("HTTP2 Downgrade Run failed: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("Expected 0 events, got %d", len(events))
+	}
+}
+
+func TestTLSMisconfigTool(t *testing.T) {
+	tool := &TLSMisconfigTool{}
+	// Run against example.com or localhost on a closed port
+	events, err := tool.Run(context.Background(), []string{"http://127.0.0.1:9999/"}, 1)
+	if err != nil {
+		t.Fatalf("TLS Misconfig Run failed: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("Expected 0 events, got %d", len(events))
+	}
+}
+

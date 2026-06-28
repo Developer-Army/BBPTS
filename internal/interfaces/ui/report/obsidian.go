@@ -55,7 +55,7 @@ func WriteIDORNotes(vaultDir string, notes []IDORNote) error {
 		var b strings.Builder
 		b.WriteString("---\n")
 		b.WriteString(fmt.Sprintf("created: %s\n", now))
-		b.WriteString(fmt.Sprintf("type: idor-testing\n"))
+		b.WriteString("type: idor-testing\n")
 		b.WriteString(fmt.Sprintf("risk: %s\n", note.Risk))
 		b.WriteString(fmt.Sprintf("object: %s\n", note.ObjectType))
 		b.WriteString(fmt.Sprintf("param: %s (%s)\n", note.ParamName, note.ParamType))

@@ -6,19 +6,19 @@ import (
 )
 
 var (
-	// --- Colors (Modern Palette inspired by Antigravity Code) ---
-	ColorBackground = lipgloss.Color("#0f0f0f")
-	ColorForeground = lipgloss.Color("#f0f0f0")
-	ColorSelection  = lipgloss.Color("#2a2a2a")
-	ColorComment    = lipgloss.Color("#6c7086")
-	ColorCyan       = lipgloss.Color("#89dceb")
-	ColorGreen      = lipgloss.Color("#a6e3a1")
-	ColorOrange     = lipgloss.Color("#fab387")
-	ColorPink       = lipgloss.Color("#f5c2e7")
-	ColorPurple     = lipgloss.Color("#cba6f7")
-	ColorRed        = lipgloss.Color("#f38ba8")
-	ColorYellow     = lipgloss.Color("#f9e2af")
-	ColorBorder     = lipgloss.Color("#444c56")
+	// --- Colors (Tokyo Night Color Palette) ---
+	ColorBackground = lipgloss.Color("#1a1b26")
+	ColorForeground = lipgloss.Color("#c0caf5")
+	ColorSelection  = lipgloss.Color("#292e42")
+	ColorComment    = lipgloss.Color("#565f89")
+	ColorCyan       = lipgloss.Color("#7dcfff")
+	ColorGreen      = lipgloss.Color("#9ece6a")
+	ColorOrange     = lipgloss.Color("#ff9e64")
+	ColorPink       = lipgloss.Color("#bb9af7")
+	ColorPurple     = lipgloss.Color("#9d7cd8")
+	ColorRed        = lipgloss.Color("#f7768e")
+	ColorYellow     = lipgloss.Color("#e0af68")
+	ColorBorder     = lipgloss.Color("#3b4261")
 
 	// --- Styles ---
 	StyleMain = lipgloss.NewStyle().
@@ -140,12 +140,11 @@ var (
 			Foreground(ColorRed).
 			Bold(true)
 
-	LogoBBPTS = `██████╗ ██████╗ ██████╗ ████████╗███████╗
-██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██╔════╝
-██████╔╝██████╔╝██████╔╝   ██║   ███████╗
-██╔══██╗██╔══██╗██╔═══╝    ██║   ╚════██║
-██████╔╝██████╔╝██║        ██║   ███████║
-╚══════╝╚══════╝╚═╝        ╚═╝   ╚══════╝`
+	LogoBBPTS = `    ____  ____  ____  ___________
+   / __ )/ __ )/ __ \/_  __/ ___/
+  / __  / __  / /_/ / / /  \__ \ 
+ / /_/ / /_/ / ____/ / /  ___/ / 
+/_____/_____/_/     /_/  /____/  `
 )
 
 // GetPriorityStyle returns a Lip Gloss style based on finding priority.

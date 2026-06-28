@@ -50,6 +50,7 @@ var objectTypeKeywords = map[string]string{
 	"comments":    "comment",
 	"review":      "comment",
 	"payment":     "payment",
+	"payments":    "payment",
 	"transaction": "payment",
 	"transfer":    "payment",
 	"project":     "project",
@@ -456,14 +457,22 @@ func inferObjectType(path string) string {
 	pathLower := strings.ToLower(path)
 	segments := strings.Split(strings.Trim(pathLower, "/"), "/")
 
-	for _, seg := range segments {
+	// Check segments from right to left, ignoring generic segments like "api"
+	for i := len(segments) - 1; i >= 0; i-- {
+		seg := segments[i]
+		if seg == "api" {
+			continue
+		}
 		if objType, ok := objectTypeKeywords[seg]; ok {
 			return objType
 		}
 	}
 
-	// Fallback: check if path contains any keywords
+	// Fallback: check if path contains any keywords (ignoring "api")
 	for keyword, objType := range objectTypeKeywords {
+		if keyword == "api" {
+			continue
+		}
 		if strings.Contains(pathLower, keyword) {
 			return objType
 		}

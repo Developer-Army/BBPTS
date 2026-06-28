@@ -57,10 +57,19 @@ var toolFactories = map[string]struct {
 	"websocket":       {factory: func() Tool { return &WebSocketTool{} }, stage: 3},
 	"smuggling":       {factory: func() Tool { return &SmugglingTool{} }, stage: 3},
 	"race":            {factory: func() Tool { return &RaceTool{} }, stage: 4},
-	"cache_poisoning": {factory: func() Tool { return &CachePoisoningTool{} }, stage: 4},
-	"ai_vuln":         {factory: func() Tool { return &AIVulnTool{} }, stage: 4},
-	"idor_assist":     {factory: func() Tool { return &IDORAssistTool{} }, stage: 4},
-	"sqlmap":          {factory: func() Tool { return &SQLMapTool{} }, stage: 4},
+	"cache_poisoning":       {factory: func() Tool { return &CachePoisoningTool{} }, stage: 4},
+	"ai_vuln":               {factory: func() Tool { return &AIVulnTool{} }, stage: 4},
+	"idor_assist":           {factory: func() Tool { return &IDORAssistTool{} }, stage: 4},
+	"sqlmap":                {factory: func() Tool { return &SQLMapTool{} }, stage: 4},
+	"ssrf":                  {factory: func() Tool { return &SSRFTool{} }, stage: 4},
+	"crlf":                  {factory: func() Tool { return &CRLFTool{} }, stage: 4},
+	"email_header_injection":{factory: func() Tool { return &EmailHeaderInjectionTool{} }, stage: 4},
+	"api_version_probe":     {factory: func() Tool { return &APIVersionProbeTool{} }, stage: 4},
+	"jsonp":                 {factory: func() Tool { return &JSONPTool{} }, stage: 4},
+	"webdav":                {factory: func() Tool { return &WebDAVTool{} }, stage: 4},
+	"dns_zone_transfer":     {factory: func() Tool { return &DNSZoneTransferTool{} }, stage: 4},
+	"http2_downgrade":       {factory: func() Tool { return &HTTP2DowngradeTool{} }, stage: 4},
+	"tls_misconfig":         {factory: func() Tool { return &TLSMisconfigTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{

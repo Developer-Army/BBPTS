@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
 type SubfinderTool struct{}
@@ -24,6 +26,13 @@ func (t *SubfinderTool) Run(ctx context.Context, targets []string, threads int) 
 		"-silent",
 		"-t", fmt.Sprintf("%d", threads),
 		"-timeout", "20",
+	}
+
+	// Generate provider config from BBPTS API keys
+	keys := APIKeysFromCtx(ctx)
+	if providerConfigPath, err := config.WriteSubfinderProviderConfig(keys); err == nil && providerConfigPath != "" {
+		args = append(args, "-pc", providerConfigPath)
+		defer os.Remove(providerConfigPath)
 	}
 
 	if _, err := os.Stat("configs/resolvers.txt"); err == nil {

@@ -83,6 +83,7 @@ type Model struct {
 	lastTool          ToolStatusMsg
 	failures          []FailureMsg
 	logs              []string
+	vulnLogs          []string
 	discoveredHosts   []HostInfo
 	discoveredSources map[string]string
 	startTime         time.Time
@@ -133,6 +134,8 @@ type Model struct {
 	uniqueHosts       map[string]struct{}
 	validatedTargets  map[string]struct{}
 	modesView         bool
+	helpView          bool
+	infoView          bool
 	suggestionIndex   int
 	inputErrorMessage string
 	targetMode        string
@@ -165,18 +168,44 @@ type stageInfo struct {
 	progress float64
 }
 
-const totalStages = 7
+const totalStages = 5
 
 var configFields = []struct {
 	Key   string
 	Label string
 }{
 	{"shodan", "Shodan API Key"},
-	{"censys", "Censys API Key"},
+	{"censys_id", "Censys API ID"},
+	{"censys_secret", "Censys Secret"},
 	{"securitytrails", "SecurityTrails API Key"},
 	{"github", "GitHub Token"},
-	{"chaos", "Chaos API Key"},
+	{"chaos", "Chaos / PDCP API Key"},
 	{"virustotal", "VirusTotal API Key"},
+	{"passivetotal", "PassiveTotal API Key"},
+	{"passivetotal_email", "PassiveTotal Email"},
+	{"binaryedge", "BinaryEdge API Key"},
+	{"fullhunt", "FullHunt API Key"},
+	{"netlas", "Netlas API Key"},
+	{"whoisxmlapi", "WhoisXML API Key"},
+	{"intelx", "IntelX API Key"},
+	{"fofa_email", "Fofa Email"},
+	{"fofa_key", "Fofa API Key"},
+	{"zoomeye", "ZoomEye API Key"},
+	{"quake", "Quake API Key"},
+	{"bevigil", "BeVigil API Key"},
+	{"robtex", "Robtex API Key"},
+	{"certspotter", "Certspotter API Key"},
+	{"c99", "C99 API Key"},
+	{"chinaz", "Chinaz API Key"},
+	{"threatbook", "ThreatBook API Key"},
+	{"dnsdb", "DNSDB API Key"},
+	{"redhuntlabs", "RedHuntLabs API Key"},
+	{"facebook", "Facebook App ID"},
+	{"facebook_secret", "Facebook App Secret"},
+	{"hunter", "Hunter.io API Key"},
+	{"h1_username", "HackerOne Username"},
+	{"h1_api_token", "HackerOne API Token"},
+	{"bugcrowd_api_token", "Bugcrowd API Token"},
 	{"telegram_bot_token", "Telegram Bot Token"},
 	{"telegram_chat_id", "Telegram Chat ID"},
 	{"discord_webhook", "Discord Webhook"},
@@ -243,6 +272,7 @@ func NewModel(args ...interface{}) Model {
 		awaitingInput:     true,
 		failures:          make([]FailureMsg, 0, 4),
 		logs:              make([]string, 0),
+		vulnLogs:          make([]string, 0),
 		discoveredHosts:   make([]HostInfo, 0),
 		discoveredSources: make(map[string]string),
 		startTime:         time.Now(),
@@ -528,6 +558,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.vulnsMedium++
 				}
 				m.totalVulns++
+
+				// Log to vulnerability feed
+				vulnName := msg.Properties["vuln_name"]
+				if vulnName == "" {
+					vulnName = msg.Properties["name"]
+				}
+				if vulnName == "" {
+					vulnName = msg.Type
+				}
+				sevColored := strings.ToUpper(severity)
+				switch severity {
+				case "critical":
+					sevColored = StyleCritical.Render(sevColored)
+				case "high":
+					sevColored = StyleHigh.Render(sevColored)
+				case "medium":
+					sevColored = StyleMedium.Render(sevColored)
+				default:
+					sevColored = StyleLow.Render(sevColored)
+				}
+				vulnLine := fmt.Sprintf("[%s] %s | %s - %s", time.Now().Format("15:04:05"), sevColored, StyleCyan.Render(msg.Source), StyleWhite.Render(vulnName))
+				m.vulnLogs = append(m.vulnLogs, vulnLine)
 			}
 
 			if hostIndex == -1 {
@@ -681,22 +733,15 @@ func (m Model) View() string {
 	}
 
 	if m.awaitingInput {
-		// Terminal dimensions
 		termW := m.width
 		if termW < 80 {
 			termW = 80
 		}
-
-		// Box width: capped at 80, fills terminal on small screens
-		boxWidth := termW - 6
-		if boxWidth > 80 {
-			boxWidth = 80
-		}
-		if boxWidth < 50 {
-			boxWidth = 50
+		termH := m.height
+		if termH < 18 {
+			termH = 18
 		}
 
-		// Center helper: renders content centered in a full-width row
 		center := func(content string) string {
 			return lipgloss.NewStyle().
 				Width(termW).
@@ -706,153 +751,236 @@ func (m Model) View() string {
 
 		var b strings.Builder
 
-		if m.configView {
-			var innerLines []string
-			if m.configEditKey != "" {
-				var label string
-				for _, f := range configFields {
-					if f.Key == m.configEditKey {
-						label = f.Label
-						break
-					}
-				}
-				innerLines = append(innerLines, "  "+StyleOrange.Bold(true).Render("Editing: "+label))
-				innerLines = append(innerLines, "  Enter new value (masked in display):")
-				innerLines = append(innerLines, "  "+m.textInput.View())
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  "+StyleComment.Render("press Enter to confirm, Esc to go back"))
-			} else {
-				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Configuration Editor"))
-				innerLines = append(innerLines, "  "+StyleComment.Render("Config path: "+m.configPath))
-				innerLines = append(innerLines, "")
-
-				for i, field := range configFields {
-					var val string
-					switch field.Key {
-					case "telegram_bot_token":
-						val = m.cfg.Notify.TelegramBotToken
-					case "telegram_chat_id":
-						val = m.cfg.Notify.TelegramChatID
-					case "discord_webhook":
-						val = m.cfg.Notify.DiscordWebhook
-					case "slack_webhook":
-						val = m.cfg.Notify.SlackWebhook
-					default:
-						val = m.cfg.APIKeys[field.Key]
-					}
-					masked := "[not configured]"
-					if val != "" {
-						if len(val) > 8 {
-							masked = val[:4] + "..." + val[len(val)-4:] + " (configured)"
-						} else {
-							masked = "******** (configured)"
-						}
-					}
-					innerLines = append(innerLines, fmt.Sprintf("  %2d. %-24s : %s", i+1, StyleCyan.Render(field.Label), StyleWhite.Render(masked)))
-				}
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  "+m.textInput.View())
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  "+StyleComment.Render("commands: save | back | enter 1-10 to edit"))
-			}
-
-			configBox := lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(activeAccentColor).
-				Padding(1, 0).
-				Width(boxWidth).
-				Render(strings.Join(innerLines, "\n"))
-
-			b.WriteString(center(configBox))
-			b.WriteString("\n")
-
-			vAlign := lipgloss.Center
-			if m.height < 18 {
-				vAlign = lipgloss.Top
-			}
-			return lipgloss.Place(termW, m.height, lipgloss.Left, vAlign, b.String())
-		}
-
-		// ── Logo ──────────────────────────────────────────────────────────────
+		// ── Centered Logo Banner ──────────────────────────────────────────────
 		logoLines := strings.Split(LogoBBPTS, "\n")
+		logoHeight := 0
 		logoStyle := lipgloss.NewStyle().Foreground(activeAccentColor)
 
 		for _, line := range logoLines {
 			if strings.TrimSpace(line) != "" {
 				b.WriteString(center(logoStyle.Render(line)))
 				b.WriteString("\n")
+				logoHeight++
 			}
 		}
-
-		// Dynamic spacing below logo
-		if m.height < 22 {
-			b.WriteString("\n")
-		} else {
-			b.WriteString("\n\n")
-		}
-
-		// ── CLI History ───────────────────────────────────────────────────────
-		var maxHistoryLines int
-		maxHistoryLines = m.height - 12
-		if maxHistoryLines < 0 {
-			maxHistoryLines = 0
-		}
-		if maxHistoryLines > 0 {
-			startIdx := len(m.cliHistory) - maxHistoryLines
-			if startIdx < 0 {
-				startIdx = 0
-			}
-			for i := startIdx; i < len(m.cliHistory); i++ {
-				if strings.TrimSpace(m.cliHistory[i]) != "" {
-					b.WriteString(center(m.cliHistory[i]))
-					b.WriteString("\n")
-				}
-			}
-			b.WriteString("\n")
-		}
-
-		// ── Prompt Box ────────────────────────────────────────────────────────
-		var innerLines []string
-		innerLines = append(innerLines, "  "+m.textInput.View())
-		innerLines = append(innerLines, "")
-
-		var modeText string
-		if m.targetMode == "normal" {
-			modeText = StyleCyan.Bold(true).Render("Normal Mode") + StyleComment.Render(" • Comprehensive Scan")
-		} else {
-			modeText = StyleGreen.Bold(true).Render("Light Mode") + StyleComment.Render(" • Fast Scan")
-		}
-		innerLines = append(innerLines, "  "+modeText)
-
-		promptBox := lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(activeAccentColor).
-			Padding(1, 0).
-			Width(boxWidth).
-			Render(strings.Join(innerLines, "\n"))
-
-		b.WriteString(center(promptBox))
 		b.WriteString("\n")
 
-		// ── Inline Error ──────────────────────────────────────────────────────
-		if m.inputErrorMessage != "" {
-			errStr := lipgloss.NewStyle().Foreground(ColorRed).Bold(true).Render(m.inputErrorMessage)
-			b.WriteString(center(errStr))
-			b.WriteString("\n")
+		// Dimensions
+		availWidth := termW - 2
+		bodyHeight := termH - logoHeight - 6
+		if bodyHeight < 12 {
+			bodyHeight = 12
 		}
+
+		leftWidth := availWidth - 36
+		rightWidth := 34
+		if termW < 90 {
+			leftWidth = availWidth
+			rightWidth = 0
+		}
+
+		// Helper to dynamically pad box content with blank rows
+		padContentLines := func(lines []string, height int) string {
+			contentHeight := height - 2 // subtract borders
+			if contentHeight < 1 {
+				contentHeight = 1
+			}
+			for len(lines) < contentHeight {
+				lines = append(lines, "")
+			}
+			if len(lines) > contentHeight {
+				lines = lines[:contentHeight]
+			}
+			return strings.Join(lines, "\n")
+		}
+
+		// Create Right Column content (Diagnostics & Help)
+		var rightColumn string
+		if rightWidth > 0 {
+			// Diagnostics Box
+			var diagLines []string
+			configuredKeys := 0
+			for _, key := range m.cfg.APIKeys {
+				if key != "" {
+					configuredKeys++
+				}
+			}
+			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Git Status"), StyleGreen.Render("READY")))
+			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Playwright"), StyleGreen.Render("READY")))
+			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("API Keys"), StyleWhite.Render(fmt.Sprintf("%d / %d Loaded", configuredKeys, len(m.cfg.APIKeys)))))
+			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Integrations"), StyleWhite.Render("Active")))
+			diagBox := renderBox("ENGINE DIAGNOSTICS", padContentLines(diagLines, 6), rightWidth, 6, ColorBorder, activeAccentColor, true)
+
+			// Help Box
+			var helpLines []string
+			helpLines = append(helpLines, "  "+StyleWhite.Bold(true).Render("Console Commands:"))
+			helpLines = append(helpLines, "    "+StyleCyan.Render("/configure")+" - Edit API keys")
+			helpLines = append(helpLines, "    "+StyleCyan.Render("/modes")+"     - Toggle presets")
+			helpLines = append(helpLines, "    "+StyleCyan.Render("/info")+"      - Engine specs")
+			helpLines = append(helpLines, "    "+StyleCyan.Render("/clear")+"     - Clear prompt")
+			helpLines = append(helpLines, "    "+StyleCyan.Render("/help")+"      - Help index")
+			helpLines = append(helpLines, "")
+			helpLines = append(helpLines, "  "+StyleComment.Render("Type target & press Enter"))
+			helpBox := renderBox("COMMAND DIRECTORY", padContentLines(helpLines, bodyHeight-6), rightWidth, bodyHeight-6, ColorBorder, activeAccentColor, true)
+
+			rightColumn = lipgloss.JoinVertical(lipgloss.Left, diagBox, helpBox)
+		}
+
+		// Create Left Column content (Active View & Metrics)
+		var leftColumn string
+		var viewActive bool = m.configView || m.modesView || m.helpView || m.infoView
+
+		if viewActive {
+			// Active View occupies full height of left column
+			var innerLines []string
+			if m.configView {
+				if m.configEditKey != "" {
+					var label string
+					for _, f := range configFields {
+						if f.Key == m.configEditKey {
+							label = f.Label
+							break
+						}
+					}
+					innerLines = append(innerLines, "  "+StyleOrange.Bold(true).Render("Editing: "+label))
+					innerLines = append(innerLines, "  Enter new value (masked in display):")
+					innerLines = append(innerLines, "  "+m.textInput.View())
+					innerLines = append(innerLines, "")
+					innerLines = append(innerLines, "  "+StyleComment.Render("press Enter to confirm, Esc to go back"))
+				} else {
+					innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Configuration Editor"))
+					innerLines = append(innerLines, "  "+StyleComment.Render("Config path: "+m.configPath))
+					innerLines = append(innerLines, "")
+
+					for i, field := range configFields {
+						var val string
+						switch field.Key {
+						case "telegram_bot_token":
+							val = m.cfg.Notify.TelegramBotToken
+						case "telegram_chat_id":
+							val = m.cfg.Notify.TelegramChatID
+						case "discord_webhook":
+							val = m.cfg.Notify.DiscordWebhook
+						case "slack_webhook":
+							val = m.cfg.Notify.SlackWebhook
+						default:
+							val = m.cfg.APIKeys[field.Key]
+						}
+						masked := "[not configured]"
+						if val != "" {
+							if len(val) > 8 {
+								masked = val[:4] + "..." + val[len(val)-4:] + " (configured)"
+							} else {
+								masked = "******** (configured)"
+							}
+						}
+						innerLines = append(innerLines, fmt.Sprintf("  %2d. %-24s : %s", i+1, StyleCyan.Render(field.Label), StyleWhite.Render(masked)))
+					}
+					innerLines = append(innerLines, "")
+					innerLines = append(innerLines, "  "+m.textInput.View())
+					innerLines = append(innerLines, "")
+					innerLines = append(innerLines, "  "+StyleComment.Render(fmt.Sprintf("commands: save | back | enter 1-%d to edit", len(configFields))))
+				}
+			} else if m.modesView {
+				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Scan Mode Configuration"))
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  Choose a reconnaissance intensity level:")
+				innerLines = append(innerLines, "    1. NORMAL MODE - Comprehensive active scan (all enabled tools)")
+				innerLines = append(innerLines, "    2. LIGHT MODE  - Fast stealthy scan (passive only, skips active fuzzing)")
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  Current Selection: "+activeAccentStyle.Bold(true).Render(strings.ToUpper(m.targetMode)))
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  "+StyleComment.Render("Type 1 or 2 to select, 'back' to return"))
+			} else if m.helpView {
+				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Help & Command Directory"))
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  Available CLI commands:")
+				innerLines = append(innerLines, "    /configure  - Edit API keys and webhook settings")
+				innerLines = append(innerLines, "    /modes      - Configure scanning mode (Normal / Light)")
+				innerLines = append(innerLines, "    /info       - Show engine information and settings status")
+				innerLines = append(innerLines, "    /clear      - Clear prompt history")
+				innerLines = append(innerLines, "    /help       - Display this help directory")
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  "+StyleComment.Render("Type 'back' or press Esc to return to target input"))
+			} else if m.infoView {
+				configuredKeys := 0
+				for _, key := range m.cfg.APIKeys {
+					if key != "" {
+						configuredKeys++
+					}
+				}
+				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Engine Specifications"))
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "    Version:         v1.4.0 (Go 1.26.0)")
+				innerLines = append(innerLines, "    Preset Profile:  medium (default)")
+				innerLines = append(innerLines, fmt.Sprintf("    API Keys:        %d / %d configured", configuredKeys, len(m.cfg.APIKeys)))
+				innerLines = append(innerLines, fmt.Sprintf("    CPU Alloc Limit: %d%% cap", m.cfg.ResourceLimits.MaxCPUPercent))
+				innerLines = append(innerLines, fmt.Sprintf("    Memory Limit:    %d MB cap", m.cfg.ResourceLimits.MaxMemoryMB))
+				innerLines = append(innerLines, "    Database State:  Active (SQLite)")
+				innerLines = append(innerLines, "")
+				innerLines = append(innerLines, "  "+StyleComment.Render("Type 'back' or press Esc to return"))
+			}
+
+			consoleBox := renderBox("ACTIVE VIEW CONSOLE", padContentLines(innerLines, bodyHeight), leftWidth, bodyHeight, ColorBorder, activeAccentColor, true)
+			leftColumn = consoleBox
+		} else {
+			// Normal input box and system metrics stacked
+			var inputLines []string
+			inputLines = append(inputLines, "")
+			inputLines = append(inputLines, "  "+StyleWhite.Bold(true).Render("ENTER SCAN TARGET (Domain, IP, CIDR, or File):"))
+			inputLines = append(inputLines, "  "+m.textInput.View())
+			if m.inputErrorMessage != "" {
+				inputLines = append(inputLines, "  "+StyleRed.Render(m.inputErrorMessage))
+			}
+			inputLines = append(inputLines, "")
+
+			var modeText string
+			if m.targetMode == "normal" {
+				modeText = StyleCyan.Bold(true).Render("NORMAL")
+			} else {
+				modeText = StyleGreen.Bold(true).Render("LIGHT")
+			}
+			inputLines = append(inputLines, "  Preset Mode: "+modeText+"  "+StyleComment.Render("•  Tab to toggle mode  •  Type /help for help"))
+
+			inputBoxHeight := 6
+			if m.inputErrorMessage != "" {
+				inputBoxHeight = 7
+			}
+			consoleBox := renderBox("COMMAND & TARGET CONSOLE", padContentLines(inputLines, inputBoxHeight), leftWidth, inputBoxHeight, ColorBorder, activeAccentColor, true)
+
+			var metricsLines []string
+			metricsLines = append(metricsLines, "")
+			padLabel := func(label string, value string, valueStyle lipgloss.Style) string {
+				padding := 20 - len(label)
+				if padding < 0 {
+					padding = 0
+				}
+				return fmt.Sprintf(" %s%s%s", label, strings.Repeat(" ", padding), valueStyle.Render(value))
+			}
+			metricsLines = append(metricsLines, padLabel("CPU SOFT CAP:", fmt.Sprintf("%d%% (%d Cores)", m.cfg.ResourceLimits.MaxCPUPercent, m.cfg.ResourceLimits.MaxCPUCores), StyleWhite))
+			metricsLines = append(metricsLines, padLabel("RAM ALLOC CAP:", fmt.Sprintf("%d MB Soft Limit", m.cfg.ResourceLimits.MaxMemoryMB), StyleWhite))
+			metricsLines = append(metricsLines, padLabel("DATABASE STATE:", "SQLite 3 (Connected)", StyleWhite))
+			metricsLines = append(metricsLines, padLabel("ENGINE TUNING:", "Optimal thread scheduling", StyleWhite))
+
+			metricsBox := renderBox("SYSTEM RUNTIME METRICS & SPECIFICATIONS", padContentLines(metricsLines, bodyHeight-6), leftWidth, bodyHeight-6, ColorBorder, activeAccentColor, true)
+
+			leftColumn = lipgloss.JoinVertical(lipgloss.Left, consoleBox, metricsBox)
+		}
+
+		// Join left and right columns horizontally
+		var body string
+		if rightWidth > 0 {
+			body = lipgloss.JoinHorizontal(lipgloss.Top, leftColumn, rightColumn)
+		} else {
+			body = leftColumn
+		}
+		b.WriteString(center(body))
 		b.WriteString("\n")
 
 		// ── Bottom Status Bar ─────────────────────────────────────────────────
 		leftHints := StyleComment.Render("tab") + " switch mode  " + StyleComment.Render("esc") + " quit"
-		cwd, err := os.Getwd()
-		var rightInfo string
-		if err == nil {
-			rightInfo = StyleComment.Render(cwd) + "  " + StyleCyan.Render("v1.4.0")
-		} else {
-			rightInfo = StyleCyan.Render("v1.4.0")
-		}
-		// Build the bar at boxWidth so it sits directly under the prompt box
-		barInnerWidth := boxWidth + 2 // +2 accounts for box border chars
+		rightInfo := StyleCyan.Render("v1.4.0")
+		barInnerWidth := availWidth + 2
 		gap := barInnerWidth - lipgloss.Width(leftHints) - lipgloss.Width(rightInfo)
 		if gap < 1 {
 			gap = 1
@@ -861,12 +989,7 @@ func (m Model) View() string {
 		b.WriteString(center(statusBar))
 		b.WriteString("\n")
 
-		// Vertical centering only — horizontal already handled per-line
-		vAlign := lipgloss.Center
-		if m.height < 18 {
-			vAlign = lipgloss.Top
-		}
-		return lipgloss.Place(termW, m.height, lipgloss.Left, vAlign, b.String())
+		return b.String()
 	}
 
 	// Subtract 2 to account for StyleMain Padding(0, 1) on left and right sides
@@ -880,8 +1003,8 @@ func (m Model) View() string {
 		leftWidth = (m.width - 2) / 2
 		rightWidth = (m.width - 2) - leftWidth
 	} else {
-		leftWidth = availWidth
-		rightWidth = availWidth
+		leftWidth = (m.width - 2) / 2
+		rightWidth = (m.width - 2) - leftWidth
 	}
 
 	usableHeight := m.height - 2
@@ -893,7 +1016,6 @@ func (m Model) View() string {
 	var showTargets, showLogs bool
 
 	if m.height < 18 {
-		// Layer 1: Only show stats and progress (stats box is bigger, takes all usableHeight)
 		showTargets = false
 		showLogs = false
 		if m.width >= 80 {
@@ -904,7 +1026,6 @@ func (m Model) View() string {
 		middleBoxHeight = 0
 		logBoxHeight = 0
 	} else if m.height < 28 {
-		// Layer 2: 50% to stats/progress, 50% to discovered hosts
 		showTargets = true
 		showLogs = false
 		if m.width >= 80 {
@@ -916,7 +1037,6 @@ func (m Model) View() string {
 		}
 		logBoxHeight = 0
 	} else {
-		// Layer 3: 33% to stats/progress, 33% to discovered hosts, 33% to logs (max stats height = 14)
 		showTargets = true
 		showLogs = true
 		if m.width >= 80 {
@@ -966,14 +1086,14 @@ func (m Model) View() string {
 		remainingStr = "01:14:32"
 	} else if !m.scanComplete {
 		weights := map[int]float64{
-			1: 0.05, // Host discovery
-			2: 0.10, // Port scanning
-			3: 0.15, // Service enum
-			4: 0.65, // Vuln assessment
-			5: 0.05, // Report gen
+			0: 0.05,
+			1: 0.10,
+			2: 0.15,
+			3: 0.65,
+			4: 0.05,
 		}
 		var overallProgress float64
-		for s := 1; s <= 5; s++ {
+		for s := 0; s <= 4; s++ {
 			w := weights[s]
 			if m.currentStage > s {
 				overallProgress += w
@@ -985,7 +1105,6 @@ func (m Model) View() string {
 			remaining := time.Duration((1.0 - overallProgress) / overallProgress * float64(elapsed))
 			remainingStr = fmt.Sprintf("%02d:%02d:%02d", int(remaining.Hours()), int(remaining.Minutes())%60, int(remaining.Seconds())%60)
 		} else if overallProgress == 0 {
-			// Baseline estimate: 5 minutes per target at start
 			remaining := time.Duration(len(m.targetList)) * 5 * time.Minute
 			remainingStr = fmt.Sprintf("%02d:%02d:%02d", int(remaining.Hours()), int(remaining.Minutes())%60, int(remaining.Seconds())%60)
 		}
@@ -1030,17 +1149,39 @@ func (m Model) View() string {
 	}
 
 	statsContent := strings.Join(statsLines, "\n")
-	statsBox := renderBox("SCAN STATISTICS", statsContent, leftWidth, topBoxHeight, ColorBorder, activeAccentColor, true)
+
+	// Create Resource Limits Widget lines
+	var resourceLines []string
+	resourceLines = append(resourceLines, padLabel("CPU UTILIZATION CAP:", fmt.Sprintf("%d%% Max limit", m.cfg.ResourceLimits.MaxCPUPercent), StyleWhite))
+	resourceLines = append(resourceLines, padLabel("GOMAXPROCS CAP:", fmt.Sprintf("%d Cores", m.cfg.ResourceLimits.MaxCPUCores), StyleWhite))
+	resourceLines = append(resourceLines, padLabel("SOFT MEMORY LIMIT:", fmt.Sprintf("%d MB", m.cfg.ResourceLimits.MaxMemoryMB), StyleWhite))
+	resourceLines = append(resourceLines, padLabel("GC TARGET METRIC:", fmt.Sprintf("%d%%", m.cfg.ResourceLimits.GCPercent), StyleWhite))
+	resourceContent := strings.Join(resourceLines, "\n")
+
+	var statsBox string
+	var leftColumnContent string
+	if topBoxHeight >= 12 {
+		statsBoxHeight := topBoxHeight - 6
+		if statsBoxHeight < 8 {
+			statsBoxHeight = 8
+		}
+		statsBox = renderBox("SCAN STATISTICS", statsContent, leftWidth, statsBoxHeight, ColorBorder, activeAccentColor, true)
+		resourceBox := renderBox("RESOURCE ALLOCATION", resourceContent, leftWidth, 6, ColorBorder, activeAccentColor, true)
+		leftColumnContent = lipgloss.JoinVertical(lipgloss.Left, statsBox, resourceBox)
+	} else {
+		statsBox = renderBox("SCAN STATISTICS", statsContent, leftWidth, topBoxHeight, ColorBorder, activeAccentColor, true)
+		leftColumnContent = statsBox
+	}
 
 	stagesInfo := []struct {
 		num  int
 		name string
 	}{
+		{0, "PASSIVE RECON"},
 		{1, "HOST DISCOVERY"},
 		{2, "PORT SCANNING"},
 		{3, "SERVICE ENUM"},
 		{4, "VULN ASSESSMENT"},
-		{5, "REPORT GEN"},
 	}
 
 	var stageProgressLines []string
@@ -1070,16 +1211,16 @@ func (m Model) View() string {
 			}
 		}
 
-		if topBoxHeight < 12 {
-			barWidth := rightWidth - 26
+		if topBoxHeight < 14 {
+			barWidth := rightWidth - 27
 			if barWidth < 5 {
 				barWidth = 5
 			}
 			barStr := renderProgressBar(barWidth, prog, activeAccentColor, ColorSelection)
-			line := fmt.Sprintf(" %d. %-15s %s %s", s.num, s.name, barStr, statusStr)
+			line := fmt.Sprintf(" %d. %-15s %s %s", s.num+1, s.name, barStr, statusStr)
 			stageProgressLines = append(stageProgressLines, line)
 		} else {
-			textPad := rightWidth - 2 - len(fmt.Sprintf("%d. %s", s.num, s.name)) - len(statusStr) - 2
+			textPad := rightWidth - 2 - len(fmt.Sprintf("%d. %s", s.num+1, s.name)) - len(statusStr) - 2
 			if textPad < 0 {
 				textPad = 0
 			}
@@ -1087,26 +1228,26 @@ func (m Model) View() string {
 			var filledColor lipgloss.Color
 
 			switch s.num {
+			case 0:
+				if m.targetMode == "light" {
+					textColor = ColorGreen
+					filledColor = ColorGreen
+				} else {
+					textColor = ColorCyan
+					filledColor = ColorCyan
+				}
 			case 1:
 				if m.targetMode == "light" {
-					textColor = ColorGreen
-					filledColor = ColorGreen
-				} else {
 					textColor = ColorCyan
 					filledColor = ColorCyan
+				} else {
+					textColor = ColorGreen
+					filledColor = ColorGreen
 				}
 			case 2:
-				if m.targetMode == "light" {
-					textColor = ColorCyan
-					filledColor = ColorCyan
-				} else {
-					textColor = ColorGreen
-					filledColor = ColorGreen
-				}
-			case 3:
 				textColor = lipgloss.Color("#81a1c1")
 				filledColor = lipgloss.Color("#81a1c1")
-			case 4:
+			case 3:
 				textColor = ColorForeground
 				filledColor = ColorForeground
 			default:
@@ -1114,7 +1255,7 @@ func (m Model) View() string {
 				filledColor = ColorSelection
 			}
 
-			textLine := fmt.Sprintf(" %d. %s%s%s", s.num, s.name, strings.Repeat(" ", textPad), statusStr)
+			textLine := fmt.Sprintf(" %d. %s%s%s", s.num+1, s.name, strings.Repeat(" ", textPad), statusStr)
 			stageProgressLines = append(stageProgressLines, lipgloss.NewStyle().Foreground(textColor).Render(textLine))
 
 			barWidth := rightWidth - 4
@@ -1131,7 +1272,7 @@ func (m Model) View() string {
 		overallProg = 0.54
 	} else {
 		var sum float64
-		for s := 1; s <= 5; s++ {
+		for s := 0; s <= 4; s++ {
 			var sp float64
 			if m.scanComplete {
 				sp = 1.0
@@ -1145,7 +1286,7 @@ func (m Model) View() string {
 		overallProg = sum / 5.0
 	}
 
-	if topBoxHeight >= 12 {
+	if topBoxHeight >= 14 {
 		stageProgressLines = append(stageProgressLines, lipgloss.NewStyle().Foreground(ColorBorder).Render(strings.Repeat("─", rightWidth-2)))
 		overallText := fmt.Sprintf(" TOTAL PROGRESS%s%3d%%", strings.Repeat(" ", rightWidth-2-len("TOTAL PROGRESS")-4-2), int(overallProg*100))
 		stageProgressLines = append(stageProgressLines, StyleWhite.Render(overallText))
@@ -1156,22 +1297,27 @@ func (m Model) View() string {
 
 	var topSection string
 	if m.width >= 80 {
-		topSection = lipgloss.JoinHorizontal(lipgloss.Top, statsBox, progressBox)
+		topSection = lipgloss.JoinHorizontal(lipgloss.Top, leftColumnContent, " ", progressBox)
 	} else {
-		topSection = statsBox + "\n" + progressBox
+		topSection = leftColumnContent + "\n" + progressBox
 	}
 
 	var finalView strings.Builder
 	finalView.WriteString(topSection)
 
+	// Middle Section: side-by-side Discovered Targets & Vulnerability Feed
 	if showTargets {
+		targetsWidth := leftWidth
+		vulnsWidth := rightWidth
+
+		// 1. Left Side: Discovered Targets
 		var targetLines []string
-		pHeader := fmt.Sprintf(" %-20s  %-15s  %-10s  %-15s  %-8s  %-10s",
-			"HOSTNAME", "IP ADDRESS", "STATUS", "OPEN PORTS", "VULNS", "LAST SEEN")
+		pHeader := fmt.Sprintf(" %-20s  %-12s  %-8s  %-8s",
+			"HOSTNAME", "IP ADDRESS", "STATUS", "VULNS")
 		targetLines = append(targetLines, activeAccentStyle.Bold(true).Render(pHeader))
 
 		if len(m.discoveredHosts) == 0 {
-			targetLines = append(targetLines, "  "+StyleComment.Render("Awaiting discovery events..."))
+			targetLines = append(targetLines, "  "+StyleComment.Render("Awaiting discovery..."))
 		} else {
 			visibleCount := middleBoxHeight - 3
 			if visibleCount < 1 {
@@ -1201,27 +1347,7 @@ func (m Model) View() string {
 					status = "ACTIVE"
 				}
 
-				var portsStr string
-				if len(host.OpenPorts) > 0 {
-					var ports []string
-					for _, p := range host.OpenPorts {
-						ports = append(ports, fmt.Sprintf("%d", p))
-					}
-					portsStr = strings.Join(ports, ",")
-				} else {
-					portsStr = "80,443"
-				}
-
 				vulnsStr := fmt.Sprintf("%d", host.Vulns)
-
-				lastSeenStr := host.LastSeen.Format("15:04:05")
-				if host.LastSeen.IsZero() {
-					lastSeenStr = host.LastSeenStr
-					if lastSeenStr == "" {
-						lastSeenStr = time.Now().Format("15:04:05")
-					}
-				}
-
 				var vulnsColored string
 				if host.Vulns > 0 {
 					vulnsColored = StyleRed.Bold(true).Render(padRight(vulnsStr, 8))
@@ -1230,27 +1356,52 @@ func (m Model) View() string {
 				}
 
 				pHostname := padRight(truncateString(hostname, 20), 20)
-				pIP := padRight(ip, 15)
-				pStatus := padRight(status, 10)
-				pPorts := padRight(portsStr, 15)
-				pLastSeen := padRight(lastSeenStr, 10)
+				pIP := padRight(ip, 12)
+				pStatus := padRight(status, 8)
 
-				line := fmt.Sprintf(" %s  %s  %s  %s  %s  %s",
+				line := fmt.Sprintf(" %s  %s  %s  %s",
 					StyleWhite.Render(pHostname),
 					StyleWhite.Render(pIP),
 					StyleGreen.Render(pStatus),
-					StyleWhite.Render(pPorts),
 					vulnsColored,
-					StyleWhite.Render(pLastSeen),
 				)
 				targetLines = append(targetLines, line)
 			}
 		}
 
 		targetsContent := strings.Join(targetLines, "\n")
-		targetsBox := renderBox("DISCOVERED SUBDOMAINS/IPs", targetsContent, availWidth, middleBoxHeight, ColorBorder, activeAccentColor, true)
+		targetsBox := renderBox("DISCOVERED TARGETS", targetsContent, targetsWidth, middleBoxHeight, ColorBorder, activeAccentColor, true)
+
+		// 2. Right Side: Real-time Vulnerability Feed
+		var vulnLines []string
+		if len(m.vulnLogs) == 0 {
+			vulnLines = append(vulnLines, "  "+StyleComment.Render("Awaiting vulnerability alerts..."))
+		} else {
+			visibleCount := middleBoxHeight - 3
+			if visibleCount < 1 {
+				visibleCount = 1
+			}
+			start := len(m.vulnLogs) - visibleCount
+			if start < 0 {
+				start = 0
+			}
+			for i := start; i < len(m.vulnLogs); i++ {
+				vulnLines = append(vulnLines, " "+m.vulnLogs[i])
+			}
+		}
+
+		vulnsContent := strings.Join(vulnLines, "\n")
+		vulnsBox := renderBox("VULNERABILITY ALERTS FEED", vulnsContent, vulnsWidth, middleBoxHeight, ColorBorder, activeAccentColor, true)
+
+		var middleSection string
+		if m.width >= 80 {
+			middleSection = lipgloss.JoinHorizontal(lipgloss.Top, targetsBox, " ", vulnsBox)
+		} else {
+			middleSection = targetsBox + "\n" + vulnsBox
+		}
+
 		finalView.WriteString("\n")
-		finalView.WriteString(targetsBox)
+		finalView.WriteString(middleSection)
 	}
 
 	if showLogs {

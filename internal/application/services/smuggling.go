@@ -143,7 +143,7 @@ func (t *SmugglingTool) checkCLTE(ctx context.Context, u *url.URL) (bool, error)
 	}
 
 	// If baseline was fast but smuggling probe delayed by more than 2 seconds
-	if baseline < 2*time.Second && delay >= 8*time.Second {
+	if baseline < 2*time.Second && delay >= 3*time.Second {
 		return true, nil
 	}
 
@@ -173,7 +173,7 @@ func (t *SmugglingTool) checkTECL(ctx context.Context, u *url.URL) (bool, error)
 		return false, nil
 	}
 
-	if baseline < 2*time.Second && delay >= 8*time.Second {
+	if baseline < 2*time.Second && delay >= 3*time.Second {
 		return true, nil
 	}
 

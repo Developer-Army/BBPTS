@@ -71,6 +71,7 @@ tests/test_report.md
 # Logs
 bbpts.log
 *.log
+ci_log
 
 # CSV exports
 *.csv
@@ -98,5 +99,3 @@ test.tape
 test.gif
 targets.txt
 demo.tape
-
-

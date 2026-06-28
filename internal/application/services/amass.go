@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
 type AmassTool struct{}
@@ -30,13 +32,18 @@ func (t *AmassTool) Run(ctx context.Context, targets []string, threads int) ([]E
 		if wordlistsDir != "" {
 			subdomainWordlist := GetWordlistPath(ctx, "subdomain")
 			if subdomainWordlist == "" {
-				// Fallback to default subdomain wordlist
 				subdomainWordlist = filepath.Join(wordlistsDir, "subdomains-top1million-5000.txt")
 			}
 			if _, err := os.Stat(subdomainWordlist); err == nil {
 				args = append(args, "-brute", "-w", subdomainWordlist)
 			}
 		}
+	}
+
+	keys := APIKeysFromCtx(ctx)
+	if dsConfigPath, err := config.WriteAmassDatasourcesConfig(keys); err == nil && dsConfigPath != "" {
+		args = append(args, "-config", dsConfigPath)
+		defer os.Remove(dsConfigPath)
 	}
 
 	input := strings.Join(targets, "\n")

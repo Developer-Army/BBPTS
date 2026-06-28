@@ -160,6 +160,13 @@ func GetAPIKey(ctx context.Context, provider string) string {
 	return ""
 }
 
+func APIKeysFromCtx(ctx context.Context) map[string]string {
+	if keys, ok := ctx.Value(apiKeyContextKey).(map[string]string); ok {
+		return keys
+	}
+	return nil
+}
+
 func WithWordlistsDir(ctx context.Context, dir string) context.Context {
 	return context.WithValue(ctx, wordlistDirContextKey, dir)
 }

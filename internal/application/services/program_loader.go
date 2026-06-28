@@ -532,14 +532,18 @@ func (p *ProgramProfile) WriteScopeFile(path string) error {
 
 	sb.WriteString("# --- IN SCOPE ---\n")
 	for _, item := range p.InScope {
-		sb.WriteString(item + "\n")
+		sb.WriteString(item)
+		sb.WriteString("\n")
 	}
 	sb.WriteString("\n# --- OUT OF SCOPE ---\n")
 	for _, item := range p.OutOfScope {
 		if strings.HasPrefix(item, "!") {
-			sb.WriteString(item + "\n")
+			sb.WriteString(item)
+			sb.WriteString("\n")
 		} else {
-			sb.WriteString("!" + item + "\n")
+			sb.WriteString("!")
+			sb.WriteString(item)
+			sb.WriteString("\n")
 		}
 	}
 
@@ -554,7 +558,8 @@ func (p *ProgramProfile) WriteTargetsFile(path string) error {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# Targets: %s — %s\n", p.Handle, p.Platform))
 	for _, item := range p.BountyTargets {
-		sb.WriteString(item + "\n")
+		sb.WriteString(item)
+		sb.WriteString("\n")
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {

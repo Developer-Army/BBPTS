@@ -368,8 +368,8 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		MediumCount:     mediumCount,
 		LowCount:        lowCount,
 		Findings:        findings,
-		Statistics:      rg.buildStatistics(insights, events),
-		Recommendations: rg.buildRecommendations(findings),
+		Statistics:      rg.buildStatistics(insights),
+		Recommendations: rg.buildRecommendations(),
 		Executive:       rg.buildExecutiveSummary(findings),
 		TopTargets:      topTargets,
 		AttackPaths:     topPaths,
@@ -554,7 +554,7 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 }
 
 // buildStatistics creates statistical summary
-func (rg *ReportGenerator) buildStatistics(insights []analyze.Insight, events []recon.Event) ReportStatistics {
+func (rg *ReportGenerator) buildStatistics(insights []analyze.Insight) ReportStatistics {
 	stats := ReportStatistics{
 		TotalTargets:      len(insights),
 		TotalFindings:     len(insights),
@@ -578,7 +578,7 @@ func (rg *ReportGenerator) buildStatistics(insights []analyze.Insight, events []
 }
 
 // buildRecommendations creates actionable recommendations
-func (rg *ReportGenerator) buildRecommendations(findings []DetailedFinding) []string {
+func (rg *ReportGenerator) buildRecommendations() []string {
 	recommendations := []string{
 		"Prioritize remediation of critical severity findings immediately",
 		"Implement Web Application Firewall (WAF) for discovered endpoints",
