@@ -51,6 +51,7 @@ type Config struct {
 	EventBus           queue.EventBus
 	Timeout            time.Duration
 	CacheEnabled       bool
+	CacheDBPath        string
 	ToolRateLimits     map[string]int
 	AutoUpdate         bool
 	ContainerMode      bool
@@ -164,7 +165,11 @@ func NewOrchestrator(config Config) *Orchestrator {
 	}
 
 	if config.CacheEnabled {
-		cache, err := NewResultCache(DefaultCacheConfig())
+		cacheConfig := DefaultCacheConfig()
+		if config.CacheDBPath != "" {
+			cacheConfig.DBPath = config.CacheDBPath
+		}
+		cache, err := NewResultCache(cacheConfig)
 		if err != nil {
 			slog.Warn("result cache unavailable", "error", err)
 		} else {

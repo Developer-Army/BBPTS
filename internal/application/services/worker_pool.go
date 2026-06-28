@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/Developer-Army/BBPTS/internal/domain/assets"
 	"github.com/Developer-Army/BBPTS/internal/domain/ownership"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
@@ -51,6 +52,27 @@ func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx 
 		score  int
 	}
 	store := storage.FromContext(ctx)
+
+	var assetsMap map[string]*assets.Asset
+	var evidenceCounts map[string]int
+	var attackPaths map[string]bool
+
+	if store != nil {
+		var err error
+		assetsMap, err = store.GetAssetsByIDs(ctx, targets)
+		if err != nil {
+			slog.Warn("Failed to batch get assets", "error", err)
+		}
+		evidenceCounts, err = store.GetEvidenceCounts(ctx, targets)
+		if err != nil {
+			slog.Warn("Failed to batch get evidence counts", "error", err)
+		}
+		attackPaths, err = store.GetAttackPathFlags(ctx, targets)
+		if err != nil {
+			slog.Warn("Failed to batch get attack path flags", "error", err)
+		}
+	}
+
 	scored := make([]scoredTarget, len(targets))
 	for i, t := range targets {
 		var hasOwner, hasAttackPath bool
@@ -59,28 +81,25 @@ func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx 
 		var isAuthRequired bool
 
 		if store != nil {
-			if asset, err := store.GetAsset(t); err == nil && asset != nil {
-				ao := &ownership.AssetOwnership{
-					AssetID: asset.ID,
+			if assetsMap != nil {
+				if asset, ok := assetsMap[t]; ok && asset != nil {
+					ao := &ownership.AssetOwnership{
+						AssetID: asset.ID,
+					}
+					if asset.OwnerID != nil {
+						ao.OwnerID = *asset.OwnerID
+						ao.Confidence = asset.Confidence
+					}
+					hasOwner = !ao.IsUnmanagedRisk()
 				}
-				if asset.OwnerID != nil {
-					ao.OwnerID = *asset.OwnerID
-					ao.Confidence = asset.Confidence
-				}
-				hasOwner = !ao.IsUnmanagedRisk()
 			}
 
-			if evs, err := store.GetEvidenceByAssetID(t); err == nil {
-				evidenceCount = len(evs)
+			if evidenceCounts != nil {
+				evidenceCount = evidenceCounts[t]
 			}
 
-			if db := store.GetDB(); db != nil {
-				var count int
-				nodeID := storage.GenerateNodeID("domain", t, "")
-				err := db.QueryRow("SELECT COUNT(*) FROM asset_edges WHERE target_id = ? OR target_id = ?", t, nodeID).Scan(&count)
-				if err == nil && count > 0 {
-					hasAttackPath = true
-				}
+			if attackPaths != nil {
+				hasAttackPath = attackPaths[t]
 			}
 		}
 

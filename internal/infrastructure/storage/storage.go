@@ -757,3 +757,168 @@ func (s *Storage) SaveReportFinding(title, description, severity, target, screen
 	_, err = s.db.Exec(queryInsert, title, description, severity, target, screenshotPath, riskScore, confidence)
 	return err
 }
+
+// GetAssetsByIDs loads multiple assets in chunked database queries.
+func (s *Storage) GetAssetsByIDs(ctx context.Context, ids []string) (map[string]*assets.Asset, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	defer s.trackQuery("get_batch", "assets", time.Now())
+	
+	res := make(map[string]*assets.Asset)
+	chunkSize := 500
+	for i := 0; i < len(ids); i += chunkSize {
+		end := i + chunkSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[i:end]
+		
+		placeholders := make([]string, len(chunk))
+		args := make([]interface{}, len(chunk))
+		for j, id := range chunk {
+			placeholders[j] = "?"
+			if s.dbType == "postgres" {
+				placeholders[j] = fmt.Sprintf("$%d", j+1)
+			}
+			args[j] = id
+		}
+		
+		query := fmt.Sprintf(`
+			SELECT id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status
+			FROM assets
+			WHERE id IN (%s)
+		`, strings.Join(placeholders, ","))
+		
+		rows, err := s.db.QueryContext(ctx, query, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		
+		for rows.Next() {
+			var a assets.Asset
+			err := rows.Scan(&a.ID, &a.Type, &a.Name, &a.Criticality, &a.Environment, &a.OwnerID, &a.Confidence, &a.FirstSeen, &a.LastSeen, &a.Status)
+			if err != nil {
+				return nil, err
+			}
+			res[a.ID] = &a
+		}
+	}
+	return res, nil
+}
+
+// GetEvidenceCounts fetches evidence counts for multiple assets in chunked database queries.
+func (s *Storage) GetEvidenceCounts(ctx context.Context, assetIDs []string) (map[string]int, error) {
+	if len(assetIDs) == 0 {
+		return nil, nil
+	}
+	defer s.trackQuery("count_batch", "evidence", time.Now())
+	
+	res := make(map[string]int)
+	chunkSize := 500
+	for i := 0; i < len(assetIDs); i += chunkSize {
+		end := i + chunkSize
+		if end > len(assetIDs) {
+			end = len(assetIDs)
+		}
+		chunk := assetIDs[i:end]
+		
+		placeholders := make([]string, len(chunk))
+		args := make([]interface{}, len(chunk))
+		for j, id := range chunk {
+			placeholders[j] = "?"
+			if s.dbType == "postgres" {
+				placeholders[j] = fmt.Sprintf("$%d", j+1)
+			}
+			args[j] = id
+		}
+		
+		query := fmt.Sprintf(`
+			SELECT asset_id, COUNT(*)
+			FROM evidence
+			WHERE asset_id IN (%s)
+			GROUP BY asset_id
+		`, strings.Join(placeholders, ","))
+		
+		rows, err := s.db.QueryContext(ctx, query, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		
+		for rows.Next() {
+			var assetID string
+			var count int
+			if err := rows.Scan(&assetID, &count); err != nil {
+				return nil, err
+			}
+			res[assetID] = count
+		}
+	}
+	return res, nil
+}
+
+// GetAttackPathFlags queries attack path presence (asset_edges) for multiple targets in chunked database queries.
+func (s *Storage) GetAttackPathFlags(ctx context.Context, targets []string) (map[string]bool, error) {
+	if len(targets) == 0 {
+		return nil, nil
+	}
+	defer s.trackQuery("count_batch", "asset_edges", time.Now())
+	
+	allTargetIDs := make([]string, 0, len(targets)*2)
+	targetIDMap := make(map[string]string)
+	for _, t := range targets {
+		nodeID := GenerateNodeID("domain", t, "")
+		allTargetIDs = append(allTargetIDs, t, nodeID)
+		targetIDMap[t] = t
+		targetIDMap[nodeID] = t
+	}
+	
+	res := make(map[string]bool)
+	chunkSize := 250
+	for i := 0; i < len(allTargetIDs); i += chunkSize * 2 {
+		end := i + chunkSize * 2
+		if end > len(allTargetIDs) {
+			end = len(allTargetIDs)
+		}
+		chunk := allTargetIDs[i:end]
+		
+		placeholders := make([]string, len(chunk))
+		args := make([]interface{}, len(chunk))
+		for j, id := range chunk {
+			placeholders[j] = "?"
+			if s.dbType == "postgres" {
+				placeholders[j] = fmt.Sprintf("$%d", j+1)
+			}
+			args[j] = id
+		}
+		
+		query := fmt.Sprintf(`
+			SELECT target_id, COUNT(*)
+			FROM asset_edges
+			WHERE target_id IN (%s)
+			GROUP BY target_id
+		`, strings.Join(placeholders, ","))
+		
+		rows, err := s.db.QueryContext(ctx, query, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		
+		for rows.Next() {
+			var targetID string
+			var count int
+			if err := rows.Scan(&targetID, &count); err != nil {
+				return nil, err
+			}
+			if count > 0 {
+				if original, ok := targetIDMap[targetID]; ok {
+					res[original] = true
+				}
+			}
+		}
+	}
+	return res, nil
+}

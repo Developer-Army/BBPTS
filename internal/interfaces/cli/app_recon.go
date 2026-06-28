@@ -145,6 +145,7 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 		EventBus:           eventBus,
 		Timeout:            scanTimeout(opts.Timeout, len(toolNames)),
 		CacheEnabled:       true,
+		CacheDBPath:        resolveDBSource(cfg),
 		ContainerMode:      cfg.ContainerMode,
 		DockerImages:       cfg.DockerImages,
 		MockMode:           cfg.MockMode,
@@ -274,8 +275,7 @@ func initEventBus(cfg *config.Config) queue.EventBus {
 	}
 }
 
-// initStorage creates and wires the Storage instance + CTEM escalator.
-func initStorage(ctx context.Context, cfg *config.Config, orchestrator *services.Orchestrator) *storage.Storage {
+func resolveDBSource(cfg *config.Config) string {
 	dbType := cfg.Database.Type
 	if dbType == "" {
 		dbType = "sqlite3"
@@ -285,6 +285,16 @@ func initStorage(ctx context.Context, cfg *config.Config, orchestrator *services
 		home, _ := os.UserHomeDir()
 		dbSource = filepath.Join(home, ".bbpts", "bbpts.db")
 	}
+	return dbSource
+}
+
+// initStorage creates and wires the Storage instance + CTEM escalator.
+func initStorage(ctx context.Context, cfg *config.Config, orchestrator *services.Orchestrator) *storage.Storage {
+	dbType := cfg.Database.Type
+	if dbType == "" {
+		dbType = "sqlite3"
+	}
+	dbSource := resolveDBSource(cfg)
 
 	store, err := storage.NewStorage(dbType, dbSource)
 	if err != nil {
