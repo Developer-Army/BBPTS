@@ -121,6 +121,7 @@ type Config struct {
 	AITriageProvider  string `json:"ai_triage_provider"`
 	AITriageModel     string `json:"ai_triage_model"`
 	AITriageURL       string `json:"ai_triage_url"`
+	AutoTransition    bool   `json:"auto_transition"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.
@@ -244,6 +245,7 @@ func DefaultConfig() *Config {
 		AITriageProvider:      "gemini",
 		AITriageModel:         "gemini-2.5-flash",
 		AITriageURL:           "",
+		AutoTransition:        true,
 	}
 }
 

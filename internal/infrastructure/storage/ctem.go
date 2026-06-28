@@ -1015,3 +1015,131 @@ func (s *Storage) VerifyFindingFix(id int64, comment string, verifiedBy string) 
 func (s *Storage) ApproveRiskException(id int64, comment string, approvedBy string) error {
 	return s.UpdateAssignmentStatusWithComment(id, "SLA Exception", comment, approvedBy)
 }
+
+type ScanFinding struct {
+	Title    string
+	Target   string
+	Severity string
+}
+
+// AutoTransitionFindingStates automates assignment status updates based on scanner re-detections.
+func (s *Storage) AutoTransitionFindingStates(detected []ScanFinding, scannedTargets []string) error {
+	detectedMap := make(map[string]bool)
+	for _, f := range detected {
+		key := fmt.Sprintf("%s:%s", f.Target, f.Title)
+		detectedMap[key] = true
+	}
+
+	for _, f := range detected {
+		var findingID int64
+		queryID := "SELECT id FROM findings WHERE target = ? AND title = ?"
+		if s.dbType == "postgres" {
+			queryID = "SELECT id FROM findings WHERE target = $1 AND title = $2"
+		}
+		err := s.db.QueryRow(queryID, f.Target, f.Title).Scan(&findingID)
+		if err != nil {
+			continue // Finding not saved in DB, skip
+		}
+
+		var assignmentID int64
+		var status string
+		queryAss := "SELECT id, status FROM finding_assignments WHERE finding_id = ?"
+		if s.dbType == "postgres" {
+			queryAss = "SELECT id, status FROM finding_assignments WHERE finding_id = $1"
+		}
+		err = s.db.QueryRow(queryAss, findingID).Scan(&assignmentID, &status)
+
+		if err == sql.ErrNoRows {
+			// Auto-assign to asset owners if found
+			owners, errOwners := s.GetAssetOwners(f.Target)
+			var activeOwnerID, activeTeamID *int64
+			if errOwners == nil {
+				for _, o := range owners {
+					if o.EndTime == nil {
+						activeOwnerID = o.OwnerID
+						activeTeamID = o.TeamID
+						break
+					}
+				}
+			}
+			_, _ = s.AssignFinding(findingID, activeTeamID, activeOwnerID, f.Severity)
+		} else if err == nil {
+			normalized := normalizeCTEMState(status)
+			if normalized == "Verified" || normalized == "Remediated" {
+				_ = s.UpdateAssignmentStatusWithComment(assignmentID, "Reopened", "Vulnerability re-detected by scanner", "system")
+			}
+		}
+	}
+
+	for _, target := range scannedTargets {
+		queryActive := `
+			SELECT fa.id, fa.finding_id, f.title
+			FROM finding_assignments fa
+			JOIN findings f ON fa.finding_id = f.id
+			WHERE f.target = ? AND fa.status NOT IN ('Remediated', 'Verified', 'SLA Exception')
+		`
+		if s.dbType == "postgres" {
+			queryActive = `
+				SELECT fa.id, fa.finding_id, f.title
+				FROM finding_assignments fa
+				JOIN findings f ON fa.finding_id = f.id
+				WHERE f.target = $1 AND fa.status NOT IN ('Remediated', 'Verified', 'SLA Exception')
+			`
+		}
+		rows, err := s.db.Query(queryActive, target)
+		if err != nil {
+			continue
+		}
+
+		type actAss struct {
+			id    int64
+			title string
+		}
+		var activeAssignments []actAss
+		for rows.Next() {
+			var aa actAss
+			var fid int64
+			if err := rows.Scan(&aa.id, &fid, &aa.title); err == nil {
+				activeAssignments = append(activeAssignments, aa)
+			}
+		}
+		rows.Close()
+
+		for _, aa := range activeAssignments {
+			key := fmt.Sprintf("%s:%s", target, aa.title)
+			if !detectedMap[key] {
+				_ = s.AutoRemediateFinding(aa.id, "Vulnerability no longer detected by scanner", "system")
+			}
+		}
+	}
+
+	return nil
+}
+
+// AutoRemediateFinding transitions a finding assignment to "Remediated", executing intermediate transition states if needed.
+func (s *Storage) AutoRemediateFinding(id int64, comment string, resolvedBy string) error {
+	var oldStatus string
+	var querySelect string
+	if s.dbType == "postgres" {
+		querySelect = "SELECT status FROM finding_assignments WHERE id = $1"
+	} else {
+		querySelect = "SELECT status FROM finding_assignments WHERE id = ?"
+	}
+	err := s.db.QueryRow(querySelect, id).Scan(&oldStatus)
+	if err != nil {
+		return err
+	}
+
+	normalizedOld := normalizeCTEMState(oldStatus)
+	if normalizedOld != "Remediated" {
+		if !isValidTransition(normalizedOld, "Remediated") {
+			// Transition to Remediating first
+			if err := s.UpdateAssignmentStatusWithComment(id, "Remediating", "Auto-transitioning to Remediating prior to auto-remediation", resolvedBy); err != nil {
+				return err
+			}
+		}
+		// Transition to Remediated
+		return s.UpdateAssignmentStatusWithComment(id, "Remediated", comment, resolvedBy)
+	}
+	return nil
+}

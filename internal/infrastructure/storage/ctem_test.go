@@ -493,3 +493,108 @@ func TestAssetModelPersistence(t *testing.T) {
 		t.Errorf("Expected status 'inactive', got '%s'", retrieved.Status)
 	}
 }
+
+func TestAutoTransitionFindingStates(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "bbpts_autotran.db")
+	s, err := NewStorage("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer s.Close()
+
+	// 1. Setup asset with owner/team
+	target := "vuln.corp.com"
+	teamID, _ := s.AddTeam("Team")
+	ownerID, _ := s.AddOwner("Alice", "alice@corp.com")
+	_ = s.SetAssetOwner(target, &ownerID, &teamID, "Initial")
+
+	// 2. Save a finding via SaveReportFinding
+	fid, err := s.SaveReportFinding("SQLi", "SQL injection on parameter", "critical", target, "", 90, 80)
+	if err != nil {
+		t.Fatalf("SaveReportFinding failed: %v", err)
+	}
+
+	// 3. Run AutoTransitionFindingStates: should auto-assign
+	detected := []ScanFinding{
+		{Title: "SQLi", Target: target, Severity: "critical"},
+	}
+	err = s.AutoTransitionFindingStates(detected, []string{target})
+	if err != nil {
+		t.Fatalf("AutoTransitionFindingStates failed: %v", err)
+	}
+
+	// Verify auto-assignment exists with status Assigned
+	var status string
+	var assignmentID int64
+	err = s.db.QueryRow("SELECT id, status FROM finding_assignments WHERE finding_id = ?", fid).Scan(&assignmentID, &status)
+	if err != nil {
+		t.Fatalf("Failed to query finding assignment: %v", err)
+	}
+	if status != "Assigned" {
+		t.Errorf("Expected status Assigned, got %s", status)
+	}
+
+	// 4. Verify re-detection auto-reopens a Remediated or Verified finding
+	// Remediate it
+	err = s.UpdateAssignmentStatus(assignmentID, "remediating")
+	if err != nil {
+		t.Fatalf("remediating failed: %v", err)
+	}
+	err = s.UpdateAssignmentStatus(assignmentID, "Remediated")
+	if err != nil {
+		t.Fatalf("Remediated failed: %v", err)
+	}
+
+	// Re-run auto-transition: should auto-reopen
+	err = s.AutoTransitionFindingStates(detected, []string{target})
+	if err != nil {
+		t.Fatalf("AutoTransitionFindingStates failed: %v", err)
+	}
+
+	err = s.db.QueryRow("SELECT status FROM finding_assignments WHERE id = ?", assignmentID).Scan(&status)
+	if err != nil {
+		t.Fatalf("Failed to query status: %v", err)
+	}
+	if status != "Reopened" {
+		t.Errorf("Expected status Reopened, got %s", status)
+	}
+
+	// 5. Verify non-detection auto-remediates
+	err = s.UpdateAssignmentStatus(assignmentID, "Assigned") // reset to Assigned
+	if err != nil {
+		t.Fatalf("reset to Assigned failed: %v", err)
+	}
+
+	// Run with empty detected list: should auto-remediate
+	err = s.AutoTransitionFindingStates([]ScanFinding{}, []string{target})
+	if err != nil {
+		t.Fatalf("AutoTransitionFindingStates failed: %v", err)
+	}
+
+	err = s.db.QueryRow("SELECT status FROM finding_assignments WHERE id = ?", assignmentID).Scan(&status)
+	if err != nil {
+		t.Fatalf("Failed to query status: %v", err)
+	}
+	if status != "Remediated" {
+		t.Errorf("Expected status Remediated (due to non-detection), got %s", status)
+	}
+
+	// 6. Verify SLA Exception bypasses reopening
+	_ = s.UpdateAssignmentStatus(assignmentID, "Reopened")
+	_ = s.UpdateAssignmentStatus(assignmentID, "Assigned")
+	_ = s.UpdateAssignmentStatusWithComment(assignmentID, "SLA Exception", "Risk accepted", "Alice")
+	// Re-run with detected finding: should NOT reopen (stay in SLA Exception)
+	err = s.AutoTransitionFindingStates(detected, []string{target})
+	if err != nil {
+		t.Fatalf("AutoTransitionFindingStates failed: %v", err)
+	}
+
+	err = s.db.QueryRow("SELECT status FROM finding_assignments WHERE id = ?", assignmentID).Scan(&status)
+	if err != nil {
+		t.Fatalf("Failed to query status: %v", err)
+	}
+	if status != "SLA Exception" {
+		t.Errorf("Expected status to remain SLA Exception, got %s", status)
+	}
+}

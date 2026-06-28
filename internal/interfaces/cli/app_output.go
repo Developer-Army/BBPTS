@@ -410,6 +410,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		AITriageURL:       cfg.AITriageURL,
 		AITriageAPIKey:    cfg.APIKeys["gemini"],
 		DraftReport:       opts.DraftReport,
+		AutoTransition:    cfg.AutoTransition,
 	})
 	if err := gen.GenerateFullReport(ctx, insights, events, store); err != nil {
 		slog.Warn("failed to generate detailed report bundle", "dir", reportDir, "error", err)

@@ -127,6 +127,15 @@ func main() {
 	if opts.AITriageThreshold >= 0 {
 		cfg.AITriageThreshold = opts.AITriageThreshold
 	}
+	autoTransitionExplicitlySet := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "auto-transition" {
+			autoTransitionExplicitlySet = true
+		}
+	})
+	if autoTransitionExplicitlySet {
+		cfg.AutoTransition = opts.AutoTransition
+	}
 	if opts.AITriageProvider != "" {
 		cfg.AITriageProvider = opts.AITriageProvider
 	}
@@ -310,6 +319,7 @@ func parseFlags() app.Options {
 	flag.BoolVar(&opts.JSONOutput, "json", false, "Output results in JSON format to stdout")
 	flag.BoolVar(&opts.JSONOutput, "j", false, "Short for -json")
 	flag.BoolVar(&opts.AutoUpdate, "auto-update", false, "Auto-update Nuclei templates before scan")
+	flag.BoolVar(&opts.AutoTransition, "auto-transition", true, "Enable automatic CTEM/ASM state transitions for findings")
 	flag.BoolVar(&opts.AITriage, "ai-triage", false, "Enable AI-assisted noise triage and false-positive filtering")
 	flag.IntVar(&opts.AITriageThreshold, "ai-triage-threshold", -1, "Confidence threshold (0-100) below which findings are filtered")
 	flag.StringVar(&opts.AITriageProvider, "ai-triage-provider", "", "LLM provider for triage (gemini, ollama, local)")

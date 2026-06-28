@@ -47,6 +47,7 @@ type ReportConfig struct {
 	AITriageURL       string
 	AITriageAPIKey    string
 	DraftReport       bool
+	AutoTransition    bool
 }
 
 // Report represents a comprehensive vulnerability report
@@ -383,8 +384,21 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 	}
 
 	if store != nil {
+		var scanFindings []storage.ScanFinding
 		for _, f := range findings {
-			_ = store.SaveReportFinding(f.Title, f.Description, f.Severity, f.Target, f.ScreenshotPath, f.Score, f.ConfidenceScore)
+			_, _ = store.SaveReportFinding(f.Title, f.Description, f.Severity, f.Target, f.ScreenshotPath, f.Score, f.ConfidenceScore)
+			scanFindings = append(scanFindings, storage.ScanFinding{
+				Title:    f.Title,
+				Target:   f.Target,
+				Severity: f.Severity,
+			})
+		}
+		if rg.config.AutoTransition {
+			var scannedTargets []string
+			for _, in := range insights {
+				scannedTargets = append(scannedTargets, in.Host)
+			}
+			_ = store.AutoTransitionFindingStates(scanFindings, scannedTargets)
 		}
 	}
 

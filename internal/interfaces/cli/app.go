@@ -98,4 +98,5 @@ type Options struct {
 	AITriageProvider  string
 	AITriageModel     string
 	AITriageURL       string
+	AutoTransition    bool
 }

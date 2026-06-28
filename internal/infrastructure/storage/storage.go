@@ -730,32 +730,38 @@ func (s *Storage) GetAllFindings() ([]map[string]interface{}, error) {
 }
 
 // SaveReportFinding inserts or updates a finding from report generation.
-func (s *Storage) SaveReportFinding(title, description, severity, target, screenshotPath string, riskScore, confidence int) error {
-	var count int
-	queryCheck := "SELECT COUNT(*) FROM findings WHERE target = ? AND title = ?"
+func (s *Storage) SaveReportFinding(title, description, severity, target, screenshotPath string, riskScore, confidence int) (int64, error) {
+	var id int64
+	queryCheck := "SELECT id FROM findings WHERE target = ? AND title = ?"
 	if s.dbType == "postgres" {
-		queryCheck = "SELECT COUNT(*) FROM findings WHERE target = $1 AND title = $2"
+		queryCheck = "SELECT id FROM findings WHERE target = $1 AND title = $2"
 	}
-	err := s.db.QueryRow(queryCheck, target, title).Scan(&count)
-	if err != nil {
-		return err
+	err := s.db.QueryRow(queryCheck, target, title).Scan(&id)
+	if err != nil && err != sql.ErrNoRows {
+		return 0, err
 	}
 
-	if count > 0 {
-		queryUpdate := "UPDATE findings SET description = ?, severity = ?, screenshot_path = ?, risk_score = ?, confidence = ? WHERE target = ? AND title = ?"
+	if err == nil {
+		queryUpdate := "UPDATE findings SET description = ?, severity = ?, screenshot_path = ?, risk_score = ?, confidence = ? WHERE id = ?"
 		if s.dbType == "postgres" {
-			queryUpdate = "UPDATE findings SET description = $1, severity = $2, screenshot_path = $3, risk_score = $4, confidence = $5 WHERE target = $6 AND title = $7"
+			queryUpdate = "UPDATE findings SET description = $1, severity = $2, screenshot_path = $3, risk_score = $4, confidence = $5 WHERE id = $6"
 		}
-		_, err = s.db.Exec(queryUpdate, description, severity, screenshotPath, riskScore, confidence, target, title)
-		return err
+		_, err = s.db.Exec(queryUpdate, description, severity, screenshotPath, riskScore, confidence, id)
+		return id, err
 	}
 
 	queryInsert := "INSERT INTO findings (title, description, severity, target, screenshot_path, risk_score, confidence) VALUES (?, ?, ?, ?, ?, ?, ?)"
 	if s.dbType == "postgres" {
-		queryInsert = "INSERT INTO findings (title, description, severity, target, screenshot_path, risk_score, confidence) VALUES ($1, $2, $3, $4, $5, $6, $7)"
+		queryInsert = "INSERT INTO findings (title, description, severity, target, screenshot_path, risk_score, confidence) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"
+		err = s.db.QueryRow(queryInsert, title, description, severity, target, screenshotPath, riskScore, confidence).Scan(&id)
+		return id, err
 	}
-	_, err = s.db.Exec(queryInsert, title, description, severity, target, screenshotPath, riskScore, confidence)
-	return err
+	res, err := s.db.Exec(queryInsert, title, description, severity, target, screenshotPath, riskScore, confidence)
+	if err != nil {
+		return 0, err
+	}
+	id, err = res.LastInsertId()
+	return id, err
 }
 
 // GetAssetsByIDs loads multiple assets in chunked database queries.
