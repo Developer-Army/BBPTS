@@ -56,8 +56,17 @@ func PrepareCommand(ctx context.Context, name string, args ...string) commandHan
 		}
 	}
 
+	lowRes := recon.LowResourceFromCtx(ctx)
+
 	numCPUs := runtime.NumCPU()
-	safeCPUs := int(math.Round(float64(numCPUs) * 0.9))
+	cpuPercentage := 0.9
+	if lowRes {
+		cpuPercentage = 0.2
+	}
+	safeCPUs := int(math.Round(float64(numCPUs) * cpuPercentage))
+	if lowRes && safeCPUs > 2 {
+		safeCPUs = 2
+	}
 	if safeCPUs < 1 {
 		safeCPUs = 1
 	}

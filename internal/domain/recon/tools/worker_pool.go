@@ -46,6 +46,11 @@ func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx 
 	var allEvents []recon.Event
 
 	workersCount := p.workers
+	if recon.LowResourceFromCtx(ctx) {
+		if workersCount > 2 {
+			workersCount = 2
+		}
+	}
 	if workersCount > len(targets) {
 		workersCount = len(targets)
 	}

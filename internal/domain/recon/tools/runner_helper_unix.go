@@ -84,12 +84,23 @@ func PrepareCommand(ctx context.Context, name string, args ...string) commandHan
 		binaryPath = "/invalid/path/notfound/" + name
 	}
 
-	// Calculate safe CPU cores for sub-tools: 90% of total cores
+	lowRes := recon.LowResourceFromCtx(ctx)
+
+	// Calculate safe CPU cores for sub-tools: 90% of total cores, or 20% capped at 2 in low resource mode
 	numCPUs := runtime.NumCPU()
-	safeCPUs := int(math.Round(float64(numCPUs) * 0.9))
+	cpuPercentage := 0.9
+	if lowRes {
+		cpuPercentage = 0.2
+	}
+	safeCPUs := int(math.Round(float64(numCPUs) * cpuPercentage))
+	if lowRes && safeCPUs > 2 {
+		safeCPUs = 2
+	}
 	if safeCPUs < 1 {
 		safeCPUs = 1
 	}
+
+	nicePath, niceErr := exec.LookPath("nice")
 
 	if recon.ContainerModeFromCtx(ctx) {
 		var containerRuntime string
@@ -108,6 +119,9 @@ func PrepareCommand(ctx context.Context, name string, args ...string) commandHan
 			}
 
 			dockerArgs := []string{"run", "--rm", "-i"}
+			if lowRes {
+				dockerArgs = append(dockerArgs, "--cpus=1", "--memory=1g")
+			}
 
 			// Use gVisor runtime if available
 			if _, err := exec.LookPath("runsc"); err == nil {
@@ -150,7 +164,18 @@ func PrepareCommand(ctx context.Context, name string, args ...string) commandHan
 			dockerArgs = append(dockerArgs, args...)
 
 			slog.Debug("executing tool in container sandbox", "runtime", containerRuntime, "image", image, "tool", name)
-			cmd := exec.CommandContext(ctx, containerRuntime, dockerArgs...)
+			
+			var cmd *exec.Cmd
+			if niceErr == nil {
+				priority := "10"
+				if lowRes {
+					priority = "15"
+				}
+				niceArgs := append([]string{"-n", priority, containerRuntime}, dockerArgs...)
+				cmd = exec.CommandContext(ctx, nicePath, niceArgs...)
+			} else {
+				cmd = exec.CommandContext(ctx, containerRuntime, dockerArgs...)
+			}
 			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 			return cmd
 		} else {
@@ -158,7 +183,17 @@ func PrepareCommand(ctx context.Context, name string, args ...string) commandHan
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, binaryPath, args...)
+	var cmd *exec.Cmd
+	if niceErr == nil {
+		priority := "10"
+		if lowRes {
+			priority = "15"
+		}
+		niceArgs := append([]string{"-n", priority, binaryPath}, args...)
+		cmd = exec.CommandContext(ctx, nicePath, niceArgs...)
+	} else {
+		cmd = exec.CommandContext(ctx, binaryPath, args...)
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = append(os.Environ(),
 		"PATH="+systemPaths,
