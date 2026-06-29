@@ -281,7 +281,17 @@ func (s *Storage) initSchema() error {
 		last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		status TEXT DEFAULT 'active'
 	);
-	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
+
+	CREATE TABLE IF NOT EXISTS tool_coverage (
+		id INTEGER PRIMARY KEY %s,
+		endpoint TEXT NOT NULL,
+		tool_name TEXT NOT NULL,
+		tested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		finding_count INTEGER DEFAULT 0
+	);
+	CREATE INDEX IF NOT EXISTS idx_tool_coverage_endpoint ON tool_coverage(endpoint);
+	CREATE INDEX IF NOT EXISTS idx_tool_coverage_tool ON tool_coverage(tool_name);
+	`, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc, autoInc)
 
 	if s.dbType == "postgres" {
 		schema = strings.ReplaceAll(schema, "INTEGER PRIMARY KEY", "SERIAL PRIMARY KEY")
@@ -448,6 +458,74 @@ func (s *Storage) SaveEvent(ev recon.Event) error {
 
 	_, err = s.db.Exec(query, ev.Target, ev.Source, ev.Type, string(propsJSON), time.Now().UTC())
 	return err
+}
+
+// RecordToolCoverage records that a tool tested a specific endpoint.
+func (s *Storage) RecordToolCoverage(endpoint, toolName string, findingCount int) error {
+	query := "INSERT INTO tool_coverage (endpoint, tool_name, finding_count) VALUES (?, ?, ?)"
+	if s.dbType == "postgres" {
+		query = "INSERT INTO tool_coverage (endpoint, tool_name, finding_count) VALUES ($1, $2, $3)"
+	}
+	_, err := s.db.Exec(query, endpoint, toolName, findingCount)
+	return err
+}
+
+// GetCoverageReport returns the coverage report: endpoints and which tools tested them.
+func (s *Storage) GetCoverageReport() ([]map[string]interface{}, error) {
+	rows, err := s.db.Query(`
+		SELECT endpoint, 
+			   GROUP_CONCAT(tool_name) as tools_tested,
+			   COUNT(DISTINCT tool_name) as tool_count,
+			   SUM(finding_count) as total_findings
+		FROM tool_coverage 
+		GROUP BY endpoint 
+		ORDER BY tool_count DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		var endpoint, toolsTested string
+		var toolCount int
+		var totalFindings int
+		if err := rows.Scan(&endpoint, &toolsTested, &toolCount, &totalFindings); err != nil {
+			return nil, err
+		}
+		results = append(results, map[string]interface{}{
+			"endpoint":      endpoint,
+			"tools_tested":  toolsTested,
+			"tool_count":    toolCount,
+			"total_findings": totalFindings,
+		})
+	}
+	return results, nil
+}
+
+// GetUntestedEndpoints returns endpoints discovered but never actively probed.
+func (s *Storage) GetUntestedEndpoints() ([]string, error) {
+	rows, err := s.db.Query(`
+		SELECT DISTINCT target FROM events 
+		WHERE target NOT IN (SELECT DISTINCT endpoint FROM tool_coverage)
+		AND event_type = 'discovery'
+		ORDER BY target
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var endpoints []string
+	for rows.Next() {
+		var ep string
+		if err := rows.Scan(&ep); err != nil {
+			return nil, err
+		}
+		endpoints = append(endpoints, ep)
+	}
+	return endpoints, nil
 }
 
 // GetEventsByTarget retrieves all events for a specific target.
