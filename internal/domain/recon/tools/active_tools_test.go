@@ -46,6 +46,7 @@ func TestBypass403Tool(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Forwarded-For") == "127.0.0.1" {
 			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("Success"))
 			return
 		}
 		w.WriteHeader(http.StatusForbidden)

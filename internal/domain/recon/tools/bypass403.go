@@ -63,6 +63,7 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 		if err != nil {
 			return nil, nil
 		}
+		initialLen, initialHash := getResponseFingerprint(resp)
 		resp.Body.Close()
 
 		if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusUnauthorized {
@@ -107,6 +108,10 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			bLen, bHash := getResponseFingerprint(bypassResp)
 			// A valid bypass must differ from the wildcard 200 canary response.
 			if hasCanary200 && bLen == canaryLen && bHash == canaryHash {
+				return false
+			}
+			// A valid bypass must differ from the initial 403/401 response.
+			if bLen == initialLen && bHash == initialHash {
 				return false
 			}
 			return true

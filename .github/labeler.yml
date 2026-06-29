@@ -1,0 +1,32 @@
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - docs/**
+
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*_test.go'
+
+tool:
+  - changed-files:
+    - any-glob-to-any-file:
+      - internal/domain/recon/tools/**
+
+config:
+  - changed-files:
+    - any-glob-to-any-file:
+      - configs/**
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - .github/**
+
+core:
+  - changed-files:
+    - any-glob-to-any-file:
+      - internal/application/**
+      - internal/domain/recon/scan_context.go
+      - internal/domain/recon/rules.go

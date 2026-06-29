@@ -653,3 +653,58 @@ func TestAuthMiddlewareLoopbackBypass(t *testing.T) {
 		t.Errorf("Expected status 401 for unauthorized remote request, got %d", w2.Code)
 	}
 }
+
+func TestV2Endpoints(t *testing.T) {
+	api := NewAPI(nil, "", "")
+
+	// 1. GetScanStatusv2
+	{
+		req := httptest.NewRequest("GET", "/api/v2/scan/status", nil)
+		w := httptest.NewRecorder()
+		api.GetScanStatusv2(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for GetScanStatusv2, got %d", w.Code)
+		}
+	}
+
+	// 2. StartScanv2
+	{
+		req := httptest.NewRequest("POST", "/api/v2/scan/start", strings.NewReader(`{"target":"test.com","preset":"normal"}`))
+		w := httptest.NewRecorder()
+		api.StartScanv2(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for StartScanv2, got %d", w.Code)
+		}
+	}
+
+	// 3. GetPendingNotificationsv2
+	{
+		req := httptest.NewRequest("GET", "/api/v2/notifications/pending", nil)
+		w := httptest.NewRecorder()
+		api.GetPendingNotificationsv2(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for GetPendingNotificationsv2, got %d", w.Code)
+		}
+	}
+
+	// 4. AckNotificationv2
+	{
+		req := httptest.NewRequest("POST", "/api/v2/notifications/ack/1", nil)
+		w := httptest.NewRecorder()
+		api.AckNotificationv2(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for AckNotificationv2, got %d", w.Code)
+		}
+	}
+
+	// 5. RevokeDeviceTokenv2
+	{
+		req := httptest.NewRequest("DELETE", "/api/v2/auth/device/token123", nil)
+		w := httptest.NewRecorder()
+		api.RevokeDeviceTokenv2(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for RevokeDeviceTokenv2, got %d", w.Code)
+		}
+	}
+}
+

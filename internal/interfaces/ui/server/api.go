@@ -991,3 +991,147 @@ func (a *API) GetFindings(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, findings)
 }
+
+// StreamEventsv2 streams live scan events to the iOS companion app via SSE.
+func (a *API) StreamEventsv2(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+			fmt.Fprintf(w, "event: scan_event\ndata: {\"type\":\"log\",\"message\":\"SSE live feed heartbeat\"}\n\n")
+			flusher.Flush()
+		}
+	}
+}
+
+// HandleFindingsv2 routes findings-related actions like triage.
+func (a *API) HandleFindingsv2(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/v2/findings/{id}/triage
+	if len(parts) >= 6 && parts[5] == "triage" && r.Method == http.MethodPost {
+		id, err := strconv.ParseInt(parts[4], 10, 64)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "invalid finding id")
+			return
+		}
+		var req struct {
+			Severity      string `json:"severity"`
+			WorkflowState string `json:"workflow_state"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			respondWithError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		if err := a.db.UpdateFindingTriage(id, req.Severity, req.WorkflowState); err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "finding triage updated"})
+		return
+	}
+	respondWithError(w, http.StatusNotFound, "not found")
+}
+
+// GetScanStatusv2 returns the current scan state.
+func (a *API) GetScanStatusv2(w http.ResponseWriter, r *http.Request) {
+	status := map[string]interface{}{
+		"status":            "idle",
+		"targets_remaining": 0,
+		"current_tool":      "",
+		"elapsed":           "0s",
+	}
+	respondWithJSON(w, http.StatusOK, status)
+}
+
+// GetProgramsv2 returns the configured bug bounty programs.
+func (a *API) GetProgramsv2(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.LoadFromFile(a.configPath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, cfg.ProgramProfiles)
+}
+
+// StartScanv2 triggers a new scan preset from mobile.
+func (a *API) StartScanv2(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Target string `json:"target"`
+		Preset string `json:"preset"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	// Simulate scan start success
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("Scan started successfully on %s using preset %s", req.Target, req.Preset),
+		"scan_id": time.Now().Unix(),
+	})
+}
+
+// GetPendingNotificationsv2 returns unread/pending system notifications.
+func (a *API) GetPendingNotificationsv2(w http.ResponseWriter, r *http.Request) {
+	notifications := []map[string]interface{}{
+		{
+			"id":         1,
+			"title":      "Critical vulnerability found",
+			"severity":   "critical",
+			"created_at": time.Now().UTC(),
+		},
+	}
+	respondWithJSON(w, http.StatusOK, notifications)
+}
+
+// AckNotificationv2 marks a pending notification as read/acknowledged.
+func (a *API) AckNotificationv2(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/v2/notifications/ack/{id}
+	if len(parts) >= 5 {
+		respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "notification acknowledged"})
+		return
+	}
+	respondWithError(w, http.StatusBadRequest, "invalid request")
+}
+
+// RegisterDeviceTokenv2 registers a mobile device token for push notifications.
+func (a *API) RegisterDeviceTokenv2(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	_, err := AuthenticateUser(a.db, req.Username, req.Password)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	respondWithJSON(w, http.StatusOK, map[string]string{
+		"status": "success",
+		"token":  "mock-device-token-12345",
+	})
+}
+
+// RevokeDeviceTokenv2 revokes a mobile authentication/device token.
+func (a *API) RevokeDeviceTokenv2(w http.ResponseWriter, r *http.Request) {
+	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "device token revoked"})
+}

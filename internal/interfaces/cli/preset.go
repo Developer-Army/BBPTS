@@ -122,6 +122,8 @@ func LightModeTools() []string {
 		"github_dorker", "github_actions", "github_org_discovery",
 		"mobile_static", "app_store_recon",
 		"cors", "jwt_analyzer", "bypass403",
+		"firebase_recon", "mass_assignment", "source_map", "default_creds",
+		"asn_recon", "cve_correlate", "grpc_probe", "git_exposure",
 	}
 }
 
@@ -157,6 +159,8 @@ func NormalModeTools() []string {
 		"github_org_discovery", "github_private_repos",
 		"mobile_static", "mobile_dynamic", "mobile_api_discovery", "app_store_recon",
 		"cors", "jwt_analyzer", "bypass403",
+		"firebase_recon", "mass_assignment", "source_map", "default_creds",
+		"asn_recon", "cve_correlate", "grpc_probe", "git_exposure",
 	}
 }
 

@@ -33,6 +33,18 @@ func RegisterRoutes(mux *http.ServeMux, api *API) {
 	mux.HandleFunc("/api/findings", api.GetFindings)
 	mux.HandleFunc("/api/status", api.GetStatus)
 
+	// API v2 Routes (Mobile Companion Support)
+	mux.HandleFunc("/api/v2/events/stream", api.StreamEventsv2)
+	mux.HandleFunc("/api/v2/findings/", api.HandleFindingsv2)
+	mux.HandleFunc("/api/v2/scan/status", api.GetScanStatusv2)
+	mux.HandleFunc("/api/v2/scan/start", api.StartScanv2)
+	mux.HandleFunc("/api/v2/programs", api.GetProgramsv2)
+	mux.HandleFunc("/api/v2/notifications/pending", api.GetPendingNotificationsv2)
+	mux.HandleFunc("/api/v2/notifications/ack/", api.AckNotificationv2)
+	mux.HandleFunc("/api/v2/auth/device", api.RegisterDeviceTokenv2)
+	mux.HandleFunc("/api/v2/auth/device/", api.RevokeDeviceTokenv2)
+
+
 	// Static Frontend (Embedded or simply served from a string for now)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

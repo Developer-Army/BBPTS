@@ -80,6 +80,14 @@ var toolFactories = map[string]struct {
 	"github_vuln_scanning":  {factory: func() Tool { return &tools.GithubVulnScanningTool{} }, stage: 1},
 	"github_org_discovery":  {factory: func() Tool { return &tools.GithubOrgDiscoveryTool{} }, stage: 0},
 	"github_private_repos":  {factory: func() Tool { return &tools.GithubPrivateReposTool{} }, stage: 0},
+	"firebase_recon":       {factory: func() Tool { return &tools.FirebaseReconTool{} }, stage: 3},
+	"mass_assignment":      {factory: func() Tool { return &tools.MassAssignmentTool{} }, stage: 4},
+	"source_map":           {factory: func() Tool { return &tools.SourceMapTool{} }, stage: 3},
+	"default_creds":        {factory: func() Tool { return &tools.DefaultCredsTool{} }, stage: 4},
+	"asn_recon":            {factory: func() Tool { return &tools.ASNReconTool{} }, stage: 1},
+	"cve_correlate":        {factory: func() Tool { return &tools.CVECorrelateTool{} }, stage: 4},
+	"grpc_probe":           {factory: func() Tool { return &tools.GRPCProbeTool{} }, stage: 4},
+	"git_exposure":         {factory: func() Tool { return &tools.GitExposureTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
@@ -136,6 +144,16 @@ var toolAliases = map[string]string{
 	"private":            "github_private_repos",
 	"private_repos":      "github_private_repos",
 	"gh_private":         "github_private_repos",
+	"firebase":           "firebase_recon",
+	"firestore":          "firebase_recon",
+	"rtdb":               "firebase_recon",
+	"mass_assign":        "mass_assignment",
+	"massassign":         "mass_assignment",
+	"sourcemap":          "source_map",
+	"jsmap":              "source_map",
+	"default_passwords":  "default_creds",
+	"creds":              "default_creds",
+	"weak_creds":         "default_creds",
 }
 
 func normalizeToolName(name string) string {
