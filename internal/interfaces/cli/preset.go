@@ -125,6 +125,7 @@ func LightModeTools() []string {
 		"firebase_recon", "mass_assignment", "source_map", "default_creds",
 		"asn_recon", "cve_correlate", "grpc_probe", "git_exposure",
 		"web3_recon", "paste_leaks", "cert_monitor", "price_logic", "dep_audit",
+		"soap_probe", "mobile_recon", "cloud_exposure",
 	}
 }
 
@@ -163,6 +164,7 @@ func NormalModeTools() []string {
 		"firebase_recon", "mass_assignment", "source_map", "default_creds",
 		"asn_recon", "cve_correlate", "grpc_probe", "git_exposure",
 		"web3_recon", "paste_leaks", "cert_monitor", "price_logic", "dep_audit",
+		"soap_probe", "mobile_recon", "cloud_exposure",
 	}
 }
 
