@@ -101,6 +101,7 @@ var toolFactories = map[string]struct {
 	"blind_inject":         {factory: func() Tool { return &tools.BlindInjectTool{} }, stage: 4},
 	"business_logic":       {factory: func() Tool { return &tools.BusinessLogicTool{} }, stage: 4},
 	"wordlist_gen":         {factory: func() Tool { return &tools.WordlistGenTool{} }, stage: 1},
+	"second_order":         {factory: func() Tool { return &tools.SecondOrderTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
