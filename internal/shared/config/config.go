@@ -122,6 +122,13 @@ type Config struct {
 	AITriageModel     string `json:"ai_triage_model"`
 	AITriageURL       string `json:"ai_triage_url"`
 	AutoTransition    bool   `json:"auto_transition"`
+	AuthSessions      []AuthSessionConfig `json:"auth_sessions"`
+}
+
+// AuthSessionConfig defines an authentication state for the auth_matrix tool.
+type AuthSessionConfig struct {
+	Label   string            `json:"label"`
+	Headers map[string]string `json:"headers"`
 }
 
 // DatabaseConfig holds connection settings for Recon Memory.

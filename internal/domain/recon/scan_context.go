@@ -22,6 +22,13 @@ type ScanContext struct {
 	APIKeys          map[string]string
 	Headers          map[string]string
 	ExploitSQLI      bool
+	AuthSessions     []AuthSession
+}
+
+// AuthSession holds credentials for a single authentication state used by auth_matrix.
+type AuthSession struct {
+	Label   string            `json:"label"`
+	Headers map[string]string `json:"headers"`
 }
 
 type Tool interface {
@@ -88,6 +95,7 @@ const (
 	wafContextKey
 	forceHTTP1ContextKey
 	exploitSQLIContextKey
+	authSessionsContextKey
 )
 
 func WithAPIKeys(ctx context.Context, keys map[string]string) context.Context {
@@ -342,4 +350,15 @@ func ExploitSQLIFromCtx(ctx context.Context) bool {
 		return exploit
 	}
 	return false
+}
+
+func WithAuthSessions(ctx context.Context, sessions []AuthSession) context.Context {
+	return context.WithValue(ctx, authSessionsContextKey, sessions)
+}
+
+func AuthSessionsFromCtx(ctx context.Context) []AuthSession {
+	if sessions, ok := ctx.Value(authSessionsContextKey).([]AuthSession); ok {
+		return sessions
+	}
+	return nil
 }

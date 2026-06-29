@@ -96,6 +96,7 @@ var toolFactories = map[string]struct {
 	"soap_probe":           {factory: func() Tool { return &tools.SOAPProbeTool{} }, stage: 3},
 	"mobile_recon":         {factory: func() Tool { return &tools.MobileReconTool{} }, stage: 3},
 	"cloud_exposure":       {factory: func() Tool { return &tools.CloudExposureTool{} }, stage: 3},
+	"auth_matrix":          {factory: func() Tool { return &tools.AuthMatrixTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
