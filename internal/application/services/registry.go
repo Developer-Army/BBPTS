@@ -98,6 +98,7 @@ var toolFactories = map[string]struct {
 	"cloud_exposure":       {factory: func() Tool { return &tools.CloudExposureTool{} }, stage: 3},
 	"auth_matrix":          {factory: func() Tool { return &tools.AuthMatrixTool{} }, stage: 4},
 	"ratelimit_bypass":     {factory: func() Tool { return &tools.RateLimitBypassTool{} }, stage: 4},
+	"blind_inject":         {factory: func() Tool { return &tools.BlindInjectTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
