@@ -88,6 +88,11 @@ var toolFactories = map[string]struct {
 	"cve_correlate":        {factory: func() Tool { return &tools.CVECorrelateTool{} }, stage: 4},
 	"grpc_probe":           {factory: func() Tool { return &tools.GRPCProbeTool{} }, stage: 4},
 	"git_exposure":         {factory: func() Tool { return &tools.GitExposureTool{} }, stage: 4},
+	"web3_recon":           {factory: func() Tool { return &tools.Web3ReconTool{} }, stage: 3},
+	"paste_leaks":          {factory: func() Tool { return &tools.PasteLeaksTool{} }, stage: 0},
+	"cert_monitor":         {factory: func() Tool { return &tools.CertMonitorTool{} }, stage: 1},
+	"price_logic":          {factory: func() Tool { return &tools.PriceLogicTool{} }, stage: 4},
+	"dep_audit":            {factory: func() Tool { return &tools.DepAuditTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{

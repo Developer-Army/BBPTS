@@ -79,17 +79,17 @@
   },
   "tool_presets": {
     "passive": {
-      "tools": "github_dorker,email_enum,subfinder,crtsh,assetfinder,chaos,tlsx,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,cors,jwt_analyzer,bypass403,firebase_recon,mass_assignment,source_map,default_creds,asn_recon,cve_correlate,grpc_probe,git_exposure",
+      "tools": "github_dorker,email_enum,subfinder,crtsh,assetfinder,chaos,tlsx,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,cors,jwt_analyzer,bypass403,firebase_recon,mass_assignment,source_map,default_creds,asn_recon,cve_correlate,grpc_probe,git_exposure,web3_recon,paste_leaks,cert_monitor,price_logic,dep_audit",
       "timeout": "30m",
       "rate_limit": 50
     },
     "normal": {
-      "tools": "subfinder,crtsh,assetfinder,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,ffuf,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,cors,jwt_analyzer,bypass403,firebase_recon,mass_assignment,source_map,default_creds,asn_recon,cve_correlate,grpc_probe,git_exposure",
+      "tools": "subfinder,crtsh,assetfinder,dnsx,naabu,httpx,wafw00f,katana,gowitness,js_analyzer,nuclei,dalfox,ffuf,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,cors,jwt_analyzer,bypass403,firebase_recon,mass_assignment,source_map,default_creds,asn_recon,cve_correlate,grpc_probe,git_exposure,web3_recon,paste_leaks,cert_monitor,price_logic,dep_audit",
       "timeout": "2h",
       "rate_limit": 150
     },
     "full": {
-      "tools": "crtsh,subfinder,amass,assetfinder,chaos,puredns,dnsx,massdns,whois,naabu,httpx,shodan,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,uro,dalfox,nuclei,interactsh,secrets,trufflehog,browser,js_analyzer,gowitness,tlsx,github,cloud_buckets,takeover,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,ai_vuln,idor_assist,ssrf,crlf,email_header_injection,api_version_probe,jsonp,webdav,dns_zone_transfer,http2_downgrade,tls_misconfig,cors,jwt_analyzer,bypass403,firebase_recon,mass_assignment,source_map,default_creds,asn_recon,cve_correlate,grpc_probe,git_exposure",
+      "tools": "crtsh,subfinder,amass,assetfinder,chaos,puredns,dnsx,massdns,whois,naabu,httpx,shodan,katana,gau,hakrawler,ffuf,gobuster,feroxbuster,uro,dalfox,nuclei,interactsh,secrets,trufflehog,browser,js_analyzer,gowitness,tlsx,github,cloud_buckets,takeover,graphql,oauth,proto_pollution,websocket,smuggling,race,cache_poisoning,ai_vuln,idor_assist,ssrf,crlf,email_header_injection,api_version_probe,jsonp,webdav,dns_zone_transfer,http2_downgrade,tls_misconfig,cors,jwt_analyzer,bypass403,firebase_recon,mass_assignment,source_map,default_creds,asn_recon,cve_correlate,grpc_probe,git_exposure,web3_recon,paste_leaks,cert_monitor,price_logic,dep_audit",
       "timeout": "4h",
       "rate_limit": 200
     }
