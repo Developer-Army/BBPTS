@@ -102,6 +102,9 @@ var toolFactories = map[string]struct {
 	"business_logic":       {factory: func() Tool { return &tools.BusinessLogicTool{} }, stage: 4},
 	"wordlist_gen":         {factory: func() Tool { return &tools.WordlistGenTool{} }, stage: 1},
 	"second_order":         {factory: func() Tool { return &tools.SecondOrderTool{} }, stage: 4},
+	"redos":                {factory: func() Tool { return &tools.ReDoSTool{} }, stage: 4},
+	"supply_chain":         {factory: func() Tool { return &tools.SupplyChainTool{} }, stage: 4},
+	"tenant_isolate":       {factory: func() Tool { return &tools.TenantIsolateTool{} }, stage: 4},
 }
 
 var toolAliases = map[string]string{
@@ -170,6 +173,14 @@ var toolAliases = map[string]string{
 	"weak_creds":         "default_creds",
 	"wordlist":           "wordlist_gen",
 	"custom_wordlist":    "wordlist_gen",
+	"regex_dos":          "redos",
+	"redos":              "redos",
+	"supply":             "supply_chain",
+	"npm":                "supply_chain",
+	"typosquat":          "supply_chain",
+	"tenant":             "tenant_isolate",
+	"multi_tenant":       "tenant_isolate",
+	"isolation":          "tenant_isolate",
 }
 
 func normalizeToolName(name string) string {
