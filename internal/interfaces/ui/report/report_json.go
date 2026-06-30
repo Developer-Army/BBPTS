@@ -122,7 +122,7 @@ func (rg *ReportGenerator) generateSARIFReport(report *Report) error {
 				Tool: sarifTool{
 					Driver: sarifDriver{
 						Name:            "BBPTS",
-						SemanticVersion: "1.4.0",
+						SemanticVersion: "1.5.0",
 						Rules:           rules,
 					},
 				},

@@ -1,4 +1,4 @@
-# Development Guide - BBPTS v1.4.0
+# Development Guide - BBPTS v1.5.0
 
 This guide covers development setup, architecture, and contribution guidelines for BBPTS.
 
@@ -155,7 +155,7 @@ bbpts/
 - **Active / Fully Integrated**: Contains active input sanitization and IP validation/address resolution checks to prevent Server-Side Request Forgery (SSRF) in stealth client dialers, custom client integrations (Shodan, GitHub, Cloud Buckets, Takeover), and target validation.
 
 #### `internal/domain/workflows/`
-- **Experimental / Not Yet Fully Integrated**: Contains the core state machine rules and SLA breach compliance transition logic. While the module has 100% test coverage, it is *not* currently wired into the CLI scanner workflow pipeline for the v1.4.0 release. It is placed here for developer preview and future extension.
+- **Experimental / Not Yet Fully Integrated**: Contains the core state machine rules and SLA breach compliance transition logic. While the module has 100% test coverage, it is *not* currently wired into the CLI scanner workflow pipeline for the v1.5.0 release. It is placed here for developer preview and future extension.
 
 ### Coding Standards
 - **Go Standards**: Follow standard Go conventions.

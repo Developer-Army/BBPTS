@@ -4,6 +4,25 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] — 2026-06-30
+
+### Added
+- **Program Intelligence Engine**: Added program intelligence engine and hunting playbook generator.
+- **Advanced Testing Tools**: Added ReDoS, supply chain, and multi-tenant isolation testing tools.
+- **Coverage Heatmap**: Added endpoint coverage heatmap with DB schema and query methods.
+- **Second-Order Injection**: Added detector for stored XSS, SSTI, SQLi.
+- **Smart Wordlist Generator**: Added tool with tech/industry vocabulary.
+- **Business Logic Test Suite**: Added tests for amount, coupon, quantity manipulation.
+- **Blind Injection Hub**: Added tool for XSS, SSTI, CMDi, SSRF via OOB.
+- **Rate Limit Bypass**: Added detection tool for rate limiting bypasses.
+- **Auth Matrix Tool**: Added IDOR and broken access control detection.
+- **Specialized Scanners**: Added SOAP, mobile manifest, and cloud credentials scanners.
+
+### Changed
+- **Version**: Bumped to v1.5.0.
+
+---
+
 ## [1.4.0] — 2026-06-21
 
 ### Added

@@ -21,7 +21,7 @@ async function loadServerStatus() {
         port: window.location.port || '8080',
         host: window.location.hostname || '127.0.0.1',
         tls: window.location.protocol === 'https:',
-        version: 'v1.4.0',
+        version: 'v1.5.0',
         config_loaded: true,
         tools_available: '--'
     };

@@ -76,7 +76,7 @@ func (t *BlindInjectTool) buildPayloads(oobURL string) []blindPayload {
 		},
 		{
 			Class:   "blind_xss_attr",
-			Payload: fmt.Sprintf(`" onfocus=alert(1) autofocus="`, oobURL),
+			Payload: `" onfocus=alert(1) autofocus="`,
 		},
 		{
 			Class:   "blind_xss_event",

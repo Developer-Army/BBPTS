@@ -911,7 +911,7 @@ func (m Model) View() string {
 				}
 				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Engine Specifications"))
 				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "    Version:         v1.4.0 (Go 1.26.0)")
+				innerLines = append(innerLines, "    Version:         v1.5.0 (Go 1.26.0)")
 				innerLines = append(innerLines, "    Preset Profile:  medium (default)")
 				innerLines = append(innerLines, fmt.Sprintf("    API Keys:        %d / %d configured", configuredKeys, len(m.cfg.APIKeys)))
 				innerLines = append(innerLines, fmt.Sprintf("    CPU Alloc Limit: %d%% cap", m.cfg.ResourceLimits.MaxCPUPercent))
@@ -979,7 +979,7 @@ func (m Model) View() string {
 
 		// ── Bottom Status Bar ─────────────────────────────────────────────────
 		leftHints := StyleComment.Render("tab") + " switch mode  " + StyleComment.Render("esc") + " quit"
-		rightInfo := StyleCyan.Render("v1.4.0")
+		rightInfo := StyleCyan.Render("v1.5.0")
 		barInnerWidth := availWidth + 2
 		gap := barInnerWidth - lipgloss.Width(leftHints) - lipgloss.Width(rightInfo)
 		if gap < 1 {
