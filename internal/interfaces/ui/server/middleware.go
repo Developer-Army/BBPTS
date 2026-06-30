@@ -10,7 +10,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
-// hasPermission checks role-based access for a given path and method.
 func hasPermission(path string, method string, role string) bool {
 	if role == "admin" {
 		return true
@@ -47,15 +46,38 @@ func isLoopback(remoteAddr string) bool {
 
 func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Bypass auth for all local requests -- this is a local-only dashboard
+
 		if isLoopback(r.RemoteAddr) {
+
+			if r.Method != http.MethodGet && r.Method != http.MethodOptions {
+				origin := r.Header.Get("Origin")
+				if origin != "" {
+					u, err := url.Parse(origin)
+					if err != nil || (u.Hostname() != "localhost" && u.Hostname() != "127.0.0.1" && u.Hostname() != "::1") {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = w.Write([]byte(`{"error": "forbidden: CSRF protection triggered"}`))
+						return
+					}
+				}
+				referer := r.Header.Get("Referer")
+				if referer != "" {
+					u, err := url.Parse(referer)
+					if err != nil || (u.Hostname() != "localhost" && u.Hostname() != "127.0.0.1" && u.Hostname() != "::1") {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = w.Write([]byte(`{"error": "forbidden: CSRF protection triggered"}`))
+						return
+					}
+				}
+			}
+
 			ctx := context.WithValue(r.Context(), UsernameKey, "local")
 			ctx = context.WithValue(ctx, RoleKey, "admin")
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		// Bypass for static assets, frontend, auth endpoints, fleet sync, and setup
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" ||
 			strings.HasPrefix(r.URL.Path, "/static/") ||
 			r.URL.Path == "/api/auth" || r.URL.Path == "/api/logout" ||
@@ -87,6 +109,15 @@ func authMiddleware(db *storage.DB, next http.Handler) http.Handler {
 
 		username, role, err := ValidateSession(db, receivedToken)
 		if err != nil {
+
+			http.SetCookie(w, &http.Cookie{
+				Name:     "bbpts_session",
+				Value:    "",
+				Path:     "/",
+				MaxAge:   -1,
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			})
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"error": "unauthorized: invalid or expired session"}`))

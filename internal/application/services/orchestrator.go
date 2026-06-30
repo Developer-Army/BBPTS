@@ -24,54 +24,55 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
-// Notifier defines an interface for sending alerts.
 type Notifier interface {
 	SendAlert(ctx context.Context, finding utils.Finding) error
 }
 
-// ProgressReporter defines an interface for reporting pipeline progress.
 type ProgressReporter interface {
 	ReportStage(stage int, tools int, targets int, complete bool)
 	ReportStageTools(stage int, tools []string)
 }
 
-// Config holds runtime parameters for the recon orchestrator.
 type Config struct {
-	ToolNames          []string
-	Threads            int
-	Verbose            bool
-	RateLimit          int
-	Proxies            []string
-	ProxyURL           string
-	ProxyInsecure      bool
-	APIKeys            map[string]string
-	WordlistsDir       string
-	TmpResultsDir      string
-	Reporter           ProgressReporter
-	Notifier           Notifier
-	Fleet              FleetConfig
-	EventBus           queue.EventBus
-	Timeout            time.Duration
-	CacheEnabled       bool
-	CacheDBPath        string
-	ToolRateLimits     map[string]int
-	AutoUpdate         bool
-	ContainerMode      bool
-	DockerImages       map[string]string
-	MockMode           bool
-	InsecureSkipVerify bool
-	DryRun             bool
-	ExploitSQLI        bool
-	ForceHTTP1         bool
-	AssetStore         string
-	Checkpoint         *utils.Checkpoint
-	QuotaGuard         *quota.QuotaGuard
+	ToolNames             []string
+	Threads               int
+	Verbose               bool
+	RateLimit             int
+	Proxies               []string
+	ProxyURL              string
+	ProxyInsecure         bool
+	APIKeys               map[string]string
+	WordlistsDir          string
+	TmpResultsDir         string
+	Reporter              ProgressReporter
+	Notifier              Notifier
+	Fleet                 FleetConfig
+	EventBus              queue.EventBus
+	Timeout               time.Duration
+	CacheEnabled          bool
+	CacheDBPath           string
+	ToolRateLimits        map[string]int
+	AutoUpdate            bool
+	ContainerMode         bool
+	DockerImages          map[string]string
+	InsecureSkipVerify    bool
+	DryRun                bool
+	ExploitSQLI           bool
+	ForceHTTP1            bool
+	AssetStore            string
+	Checkpoint            *utils.Checkpoint
+	QuotaGuard            *quota.QuotaGuard
 	FPConfidenceThreshold int
 	FPKeepSuppressed      bool
 	FPAudit               bool
+	NucleiTargetCap       int
+	LoginURL              string
+	LoginUser             string
+	LoginPass             string
+	LoginFormUser         string
+	LoginFormPass         string
 }
 
-// FleetConfig holds Axiom distributed fleet configuration.
 type FleetConfig struct {
 	Enabled     bool
 	WorkerMesh  bool
@@ -81,7 +82,6 @@ type FleetConfig struct {
 	ProxyURL    string
 }
 
-// Orchestrator manages the staged execution of reconnaissance tools.
 type Orchestrator struct {
 	config          Config
 	tools           []Tool
@@ -94,6 +94,7 @@ type Orchestrator struct {
 	scopeGuard      *normalize.ScopeGuard
 	assetStoreMu    sync.Mutex
 	storage         *orchestratorStorage
+	manifest        *scanManifest
 }
 
 type eventReporter interface {
@@ -108,7 +109,6 @@ type failureReporter interface {
 	ReportFailure(tool, detail string)
 }
 
-// NewOrchestrator creates a new staged pipeline orchestrator with rate limiting.
 func NewOrchestrator(config Config) *Orchestrator {
 	tools := []Tool{}
 	for _, name := range config.ToolNames {
@@ -154,7 +154,7 @@ func NewOrchestrator(config Config) *Orchestrator {
 		circuitBreakers: network.NewCircuitBreakerRegistry(
 			network.DefaultCircuitBreakerConfig(),
 		),
-		storage:     &orchestratorStorage{},
+		storage: &orchestratorStorage{},
 	}
 
 	if config.ProxyURL != "" {
@@ -182,7 +182,6 @@ func NewOrchestrator(config Config) *Orchestrator {
 	return o
 }
 
-// Close releases resources held by the orchestrator.
 func (o *Orchestrator) Close() {
 	if o.limiter != nil {
 		o.limiter.Stop()
@@ -192,7 +191,6 @@ func (o *Orchestrator) Close() {
 	}
 }
 
-// Run executes the full staged recon pipeline, cascading discovered targets forward.
 func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Event, error) {
 	if len(o.tools) == 0 {
 		return nil, errors.New("no recon tools configured")
@@ -204,6 +202,14 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		telemetry.InternalTracer.EndSpan(spanID, map[string]interface{}{
 			"targets_count": len(initialTargets),
 		})
+	}()
+
+	manifest := o.writeManifestStart(initialTargets)
+	o.manifest = manifest
+	defer func() {
+		if o.manifest != nil {
+			o.writeManifestComplete(o.manifest)
+		}
 	}()
 
 	ctx = recon.WithAPIKeys(ctx, o.config.APIKeys)
@@ -220,6 +226,24 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	ctx = recon.WithForceHTTP1(ctx, o.config.ForceHTTP1)
 	if o.config.QuotaGuard != nil {
 		ctx = recon.WithQuotaGuard(ctx, o.config.QuotaGuard)
+	}
+
+	if o.config.LoginURL != "" {
+		if session := o.performLogin(o.config.LoginURL, o.config.LoginUser, o.config.LoginPass, o.config.LoginFormUser, o.config.LoginFormPass); session != nil {
+			existing := recon.AuthSessionsFromCtx(ctx)
+			sessions := append(existing, *session)
+			ctx = recon.WithAuthSessions(ctx, sessions)
+		}
+	}
+
+	if o.config.Reporter != nil {
+		if r, ok := o.config.Reporter.(interface {
+			ReportToolProgress(tool string, done, total int)
+		}); ok {
+			ctx = tools.WithProgressCallback(ctx, func(toolName string, done, total int) {
+				r.ReportToolProgress(toolName, done, total)
+			})
+		}
 	}
 
 	if err := o.ensureTmpResultsDir(); err != nil {
@@ -249,7 +273,6 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	scopeGuard := normalize.NewScopeGuard(initialTargets)
 	o.scopeGuard = scopeGuard
 
-	// Resume from checkpoint if stage-level checkpoints exist
 	if o.config.Checkpoint != nil && len(o.config.Checkpoint.CompletedStages) > 0 {
 		if len(o.config.Checkpoint.CurrentTargets) > 0 {
 			currentTargets = o.config.Checkpoint.CurrentTargets
@@ -291,7 +314,6 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			continue
 		}
 
-		// Check if stage is already completed
 		isCompleted := false
 		if o.config.Checkpoint != nil {
 			o.config.Checkpoint.Mu.Lock()
@@ -335,7 +357,6 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			allErrs = append(allErrs, errs...)
 		}
 
-		// Wire interactsh OOB URL into context for downstream tools (nuclei, dalfox)
 		for _, ev := range events {
 			if ev.Type == "oob_session" && ev.Source == "interactsh" && ev.Target != "" {
 				ctx = recon.WithInteractshOOBURL(ctx, ev.Target)
@@ -349,6 +370,26 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 					ctx = recon.WithWAFContext(ctx, waf)
 					slog.Info("WAF context injected into downstream active tools", "waf", waf)
 					break
+				}
+			}
+		}
+
+		for _, ev := range events {
+			if ev.Type == "service" && strings.Contains(strings.ToLower(ev.Properties["title"]), "graphql") {
+
+				hasGraphQL := false
+				for _, t := range o.tools {
+					if t.Name() == "graphql" {
+						hasGraphQL = true
+						break
+					}
+				}
+				if !hasGraphQL {
+					if tool, ok := GetToolByName("graphql"); ok {
+						o.tools = append(o.tools, tool)
+						stages[3] = append(stages[3], tool)
+						slog.Info("Smart Chaining: dynamically queued GraphQL scanner based on HTTPX title matching")
+					}
 				}
 			}
 		}
@@ -446,7 +487,6 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			}
 		}
 
-		// Save checkpoint at the end of each stage
 		if o.config.Checkpoint != nil {
 			o.config.Checkpoint.Mu.Lock()
 			alreadyAdded := false
@@ -475,15 +515,11 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 		}
 	}
 
-	if o.config.MockMode {
-		allEvents = injectMockComplianceEvents(initialTargets, o.config.TmpResultsDir, allEvents)
-	}
-
 	allEvents = CorroborateEvents(allEvents)
 	kept, suppressed := o.runScoringPass(allEvents)
 	o.notify(kept)
 	o.storage.SaveEvents(kept)
-	_ = suppressed // keep variable bound
+	_ = suppressed
 
 	if len(allErrs) > 0 {
 		return kept, errors.Join(allErrs...)
@@ -507,7 +543,7 @@ func (o *Orchestrator) runScoringPass(events []Event) (kept []Event, suppressed 
 			ev.Properties = make(map[string]string)
 		}
 		ev.Properties["confidence_score"] = strconv.Itoa(score)
-		
+
 		suppressedFlag := score < threshold
 		ev.Properties["suppressed"] = strconv.FormatBool(suppressedFlag)
 
@@ -559,7 +595,6 @@ func (o *Orchestrator) runScoringPass(events []Event) (kept []Event, suppressed 
 	return kept, suppressed
 }
 
-// Bus returns the internal event bus.
 func (o *Orchestrator) Bus() queue.EventBus {
 	return o.bus
 }
@@ -574,7 +609,6 @@ func (o *Orchestrator) ensureTmpResultsDir() error {
 func (o *Orchestrator) shouldSkipTool(name string, targets []string, events []Event) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 
-	// 1. Skip TLS tools if no port 443/8443 or HTTPS target was found
 	if name == "tlsx" {
 		hasTLS := false
 		for _, t := range targets {
@@ -592,7 +626,6 @@ func (o *Orchestrator) shouldSkipTool(name string, targets []string, events []Ev
 		return !hasTLS
 	}
 
-	// 2. Skip dalfox if no query parameters crawled
 	if name == "dalfox" {
 		hasQueryParams := false
 		for _, t := range targets {
@@ -604,7 +637,6 @@ func (o *Orchestrator) shouldSkipTool(name string, targets []string, events []Ev
 		return !hasQueryParams
 	}
 
-	// 3. Skip gobuster / ffuf / feroxbuster if no directories/web URLs resolved
 	if name == "gobuster" || name == "ffuf" || name == "feroxbuster" {
 		hasWeb := false
 		for _, t := range targets {
@@ -735,5 +767,58 @@ func (o *Orchestrator) BuildScanContext(ctx context.Context) *recon.ScanContext 
 		APIKeys:          o.config.APIKeys,
 		Headers:          recon.HeadersFromCtx(ctx),
 		ExploitSQLI:      o.config.ExploitSQLI,
+		AuthSessions:     recon.AuthSessionsFromCtx(ctx),
 	}
+}
+
+type scanManifest struct {
+	StartTime    time.Time         `json:"start_time"`
+	EndTime      time.Time         `json:"end_time,omitempty"`
+	Targets      []string          `json:"targets"`
+	Tools        []string          `json:"tools"`
+	ToolStatuses map[string]string `json:"tool_statuses,omitempty"`
+	Status       string            `json:"status"`
+}
+
+func (o *Orchestrator) writeManifestStart(targets []string) *scanManifest {
+	if strings.TrimSpace(o.config.TmpResultsDir) == "" {
+		return nil
+	}
+	_ = os.MkdirAll(o.config.TmpResultsDir, 0700)
+
+	toolNames := make([]string, 0, len(o.tools))
+	for _, t := range o.tools {
+		toolNames = append(toolNames, t.Name())
+	}
+
+	m := &scanManifest{
+		StartTime:    time.Now().UTC(),
+		Targets:      targets,
+		Tools:        toolNames,
+		ToolStatuses: make(map[string]string),
+		Status:       "running",
+	}
+
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return m
+	}
+	path := filepath.Join(o.config.TmpResultsDir, "manifest.json")
+	_ = os.WriteFile(path, data, 0600)
+	return m
+}
+
+func (o *Orchestrator) writeManifestComplete(m *scanManifest) {
+	if m == nil || strings.TrimSpace(o.config.TmpResultsDir) == "" {
+		return
+	}
+	m.EndTime = time.Now().UTC()
+	m.Status = "completed"
+
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return
+	}
+	path := filepath.Join(o.config.TmpResultsDir, "manifest.json")
+	_ = os.WriteFile(path, data, 0600)
 }

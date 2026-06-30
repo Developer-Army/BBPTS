@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-// FindingFingerprint is a unique hash of a finding for deduplication.
 type FindingFingerprint struct {
 	Hash      string    `json:"hash"`
 	Source    string    `json:"source"` // Tool name (subfinder, naabu, etc.)
@@ -23,7 +22,6 @@ type FindingFingerprint struct {
 	Count     int       `json:"count"` // How many times we've seen this
 }
 
-// BaselineStore persists baseline findings for differential scanning.
 type BaselineStore struct {
 	baseDir       string
 	sessionID     string
@@ -33,9 +31,8 @@ type BaselineStore struct {
 	autoSaveEvery time.Duration
 }
 
-// NewBaselineStore creates a new baseline store for a scanning session.
 func NewBaselineStore(baseDir string, sessionID string) (*BaselineStore, error) {
-	// Create baseline directory if it doesn't exist
+
 	baselineDir := filepath.Join(baseDir, ".baseline")
 	if err := os.MkdirAll(baselineDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create baseline dir: %w", err)
@@ -48,18 +45,15 @@ func NewBaselineStore(baseDir string, sessionID string) (*BaselineStore, error) 
 		autoSaveEvery: 1 * time.Minute,
 	}
 
-	// Load existing baseline if available
 	if err := bs.loadBaseline(); err != nil {
 		slog.Warn("Failed to load baseline (fresh scan)", "session", sessionID, "error", err)
 	}
 
-	// Start auto-save goroutine
 	go bs.autoSaveLoop()
 
 	return bs, nil
 }
 
-// loadBaseline loads existing baseline from disk.
 func (bs *BaselineStore) loadBaseline() error {
 	baselineFile := filepath.Join(bs.baseDir, "baseline.json")
 	if _, err := os.Stat(baselineFile); os.IsNotExist(err) {
@@ -84,8 +78,6 @@ func (bs *BaselineStore) loadBaseline() error {
 	return nil
 }
 
-// AddFinding adds a new finding to the current session.
-// Returns true if finding is NEW (not in baseline), false if it's in baseline.
 func (bs *BaselineStore) AddFinding(source, ftype, target string) (bool, *FindingFingerprint, error) {
 	hash := bs.hashFinding(source, ftype, target)
 
@@ -93,13 +85,12 @@ func (bs *BaselineStore) AddFinding(source, ftype, target string) (bool, *Findin
 	defer bs.mu.Unlock()
 
 	if existing, ok := bs.findings[hash]; ok {
-		// Finding exists in baseline
+
 		existing.LastSeen = time.Now()
 		existing.Count++
 		return false, existing, nil
 	}
 
-	// NEW finding not in baseline
 	fp := &FindingFingerprint{
 		Hash:      hash,
 		Source:    source,
@@ -115,14 +106,12 @@ func (bs *BaselineStore) AddFinding(source, ftype, target string) (bool, *Findin
 	return true, fp, nil
 }
 
-// hashFinding creates a deterministic hash of a finding.
 func (bs *BaselineStore) hashFinding(source, ftype, target string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(fmt.Sprintf("%s:%s:%s", source, ftype, target)))
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// GetDiff returns findings that are new since baseline load.
 func (bs *BaselineStore) GetDiff() []*FindingFingerprint {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
@@ -131,7 +120,7 @@ func (bs *BaselineStore) GetDiff() []*FindingFingerprint {
 	now := time.Now()
 
 	for _, fp := range bs.findings {
-		// Findings added in this session (within last hour) are considered "new"
+
 		if fp.FirstSeen.After(now.Add(-1 * time.Hour)) {
 			newFindings = append(newFindings, fp)
 		}
@@ -140,7 +129,6 @@ func (bs *BaselineStore) GetDiff() []*FindingFingerprint {
 	return newFindings
 }
 
-// GetNewByType returns new findings grouped by type.
 func (bs *BaselineStore) GetNewByType() map[string]int {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
@@ -157,7 +145,6 @@ func (bs *BaselineStore) GetNewByType() map[string]int {
 	return result
 }
 
-// SaveBaseline persists current findings as the new baseline.
 func (bs *BaselineStore) SaveBaseline() error {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
@@ -176,7 +163,6 @@ func (bs *BaselineStore) SaveBaseline() error {
 	return nil
 }
 
-// autoSaveLoop periodically saves the baseline to disk.
 func (bs *BaselineStore) autoSaveLoop() {
 	ticker := time.NewTicker(bs.autoSaveEvery)
 	defer ticker.Stop()
@@ -188,7 +174,6 @@ func (bs *BaselineStore) autoSaveLoop() {
 	}
 }
 
-// SaveSessionDiff saves new findings to a session-specific diff file.
 func (bs *BaselineStore) SaveSessionDiff() error {
 	newFindings := bs.GetDiff()
 	if len(newFindings) == 0 {
@@ -210,7 +195,6 @@ func (bs *BaselineStore) SaveSessionDiff() error {
 	return nil
 }
 
-// GetStats returns baseline statistics.
 func (bs *BaselineStore) GetStats() map[string]interface{} {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
@@ -231,7 +215,6 @@ func (bs *BaselineStore) GetStats() map[string]interface{} {
 	}
 }
 
-// Close closes the baseline store and saves final state.
 func (bs *BaselineStore) Close() error {
 	return bs.SaveBaseline()
 }

@@ -1,18 +1,18 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
 )
 
-// SQLMapTool wraps sqlmap for automated SQL injection testing.
 type SQLMapTool struct {
 	// Level sets the risk level (1-5, default: 1)
 	Level int
@@ -22,7 +22,6 @@ type SQLMapTool struct {
 	Batch bool
 }
 
-// sqlmapOutput represents a single SQLMap JSON result line.
 type sqlmapOutput struct {
 	Target    string `json:"target"`
 	Place     string `json:"place"`
@@ -38,8 +37,6 @@ func (t *SQLMapTool) Name() string {
 	return "sqlmap"
 }
 
-// Run executes SQLMap against the given targets with configured filters.
-// Targets should be URLs with query parameters (output of katana/gau/uro).
 func (t *SQLMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
 	if len(targets) == 0 {
 		return nil, nil
@@ -71,7 +68,6 @@ func (t *SQLMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 	})
 }
 
-// testTarget runs SQLMap against a single target URL.
 func (t *SQLMapTool) testTarget(ctx context.Context, target string) []recon.Event {
 	var events []recon.Event
 
@@ -89,6 +85,12 @@ func (t *SQLMapTool) testTarget(ctx context.Context, target string) []recon.Even
 		risk = 3
 	}
 
+	tmpDir := recon.GetTmpResultsDir(ctx)
+	if tmpDir == "" {
+		tmpDir = filepath.Join("results", "tmp")
+	}
+	sqlmapOutDir := filepath.Join(tmpDir, "sqlmap")
+
 	args := []string{
 		"--url=" + target,
 		"--batch",
@@ -98,11 +100,10 @@ func (t *SQLMapTool) testTarget(ctx context.Context, target string) []recon.Even
 		"--timeout=10",
 		"--retries=1",
 		"--threads=1",
-		"--output-dir=/tmp/sqlmap",
+		"--output-dir=" + sqlmapOutDir,
 		"--json-output",
 	}
 
-	// Use a shorter timeout for SQLMap to avoid hanging
 	shortCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -117,13 +118,15 @@ func (t *SQLMapTool) testTarget(ctx context.Context, target string) []recon.Even
 		if line == "" {
 			continue
 		}
+		if !strings.HasPrefix(line, "{") || !strings.HasSuffix(line, "}") {
+			continue
+		}
 
 		var out sqlmapOutput
 		if err := json.Unmarshal([]byte(line), &out); err != nil {
 			continue
 		}
 
-		// Only report confirmed SQL injection findings
 		if out.Type == "sql_injection" || out.Title != "" {
 			severity := "high"
 			if strings.Contains(strings.ToLower(out.Title), "time-based") {

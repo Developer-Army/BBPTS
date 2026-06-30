@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -16,15 +16,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// AIVulnTool detects AI-powered features (chatbots, code assistants, content generators)
-// and tests for prompt injection vulnerabilities.
 type AIVulnTool struct{}
 
 func (a *AIVulnTool) Name() string {
 	return "ai_vuln"
 }
 
-// AI endpoint indicators — URL path patterns and response body keywords.
 var aiPathPatterns = []string{
 	"/chat", "/api/chat", "/v1/chat",
 	"/api/completions", "/v1/completions",
@@ -44,7 +41,6 @@ var aiBodyKeywords = []string{
 	"text-generation", "prompt", "completion",
 }
 
-// Prompt injection payloads ordered by sophistication.
 var promptInjectionPayloads = []struct {
 	name    string
 	payload string
@@ -75,7 +71,6 @@ var promptInjectionPayloads = []struct {
 	},
 }
 
-// Indicators of successful prompt injection in response.
 var injectionLeakKeywords = []string{
 	"system prompt", "system message", "instructions:",
 	"you are a", "your role is", "api key", "api_key",
@@ -108,10 +103,11 @@ func (a *AIVulnTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
-	client, _ := network.NewStealthClient(profile, proxy)
-	if client != nil {
-		client.SetCustomHeaders(scanCtx.Headers)
+	client, err := network.NewStealthClient(profile, proxy)
+	if err != nil || client == nil {
+		return nil, fmt.Errorf("failed to create stealth client: %w", err)
 	}
+	client.SetCustomHeaders(scanCtx.Headers)
 
 	rateLimit := ToolRateLimitFromCtx(ctx, a.Name())
 	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
@@ -121,11 +117,9 @@ func (a *AIVulnTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 	})
 }
 
-// analyzeTarget detects AI endpoints on a target and tests for prompt injection.
 func (a *AIVulnTool) analyzeTarget(ctx context.Context, client *network.StealthClient, baseURL string) []recon.Event {
 	var events []recon.Event
 
-	// Phase 1: Detect AI endpoints
 	aiEndpoints := a.detectAIEndpoints(ctx, client, baseURL)
 	for _, ep := range aiEndpoints {
 		events = append(events, recon.NewEventWithSeverity(ep, a.Name(), "discovery", map[string]string{
@@ -135,7 +129,6 @@ func (a *AIVulnTool) analyzeTarget(ctx context.Context, client *network.StealthC
 		}, "info"))
 	}
 
-	// Phase 2: Check main page for AI indicators
 	mainPageAI := a.checkPageForAIIndicators(ctx, client, baseURL)
 	if mainPageAI {
 		events = append(events, recon.NewEvent(baseURL, a.Name(), "discovery", map[string]string{
@@ -144,7 +137,6 @@ func (a *AIVulnTool) analyzeTarget(ctx context.Context, client *network.StealthC
 		}))
 	}
 
-	// Phase 3: Test prompt injection on discovered AI endpoints
 	for _, ep := range aiEndpoints {
 		injectionEvents := a.testPromptInjection(ctx, client, ep)
 		events = append(events, injectionEvents...)
@@ -153,13 +145,12 @@ func (a *AIVulnTool) analyzeTarget(ctx context.Context, client *network.StealthC
 	return events
 }
 
-// detectAIEndpoints probes common AI endpoint paths.
 func (a *AIVulnTool) detectAIEndpoints(ctx context.Context, client *network.StealthClient, baseURL string) []string {
 	var found []string
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	sem := make(chan struct{}, 5) // Limit concurrent probes
+	sem := make(chan struct{}, 5)
 
 	for _, path := range aiPathPatterns {
 		path := path
@@ -185,13 +176,11 @@ func (a *AIVulnTool) detectAIEndpoints(ctx context.Context, client *network.Stea
 			}
 			defer resp.Body.Close()
 
-			// AI endpoints typically return 200, 401, 403 (auth-gated) but not 404
 			if resp.StatusCode != http.StatusNotFound && resp.StatusCode < 500 {
 				body, _ := io.ReadAll(io.LimitReader(resp.Body, 50*1024))
 				bodyStr := strings.ToLower(string(body))
 				contentType := strings.ToLower(resp.Header.Get("Content-Type"))
 
-				// Confirm it looks like an API endpoint
 				if strings.Contains(contentType, "json") ||
 					strings.Contains(bodyStr, "model") ||
 					strings.Contains(bodyStr, "completion") ||
@@ -210,7 +199,6 @@ func (a *AIVulnTool) detectAIEndpoints(ctx context.Context, client *network.Stea
 	return found
 }
 
-// checkPageForAIIndicators scans the main page HTML/JS for AI feature keywords.
 func (a *AIVulnTool) checkPageForAIIndicators(ctx context.Context, client *network.StealthClient, targetURL string) bool {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
@@ -234,7 +222,7 @@ func (a *AIVulnTool) checkPageForAIIndicators(ctx context.Context, client *netwo
 	for _, keyword := range aiBodyKeywords {
 		if strings.Contains(bodyLower, keyword) {
 			matchCount++
-			if matchCount >= 2 { // Require at least 2 indicators to reduce false positives
+			if matchCount >= 2 {
 				return true
 			}
 		}
@@ -242,11 +230,9 @@ func (a *AIVulnTool) checkPageForAIIndicators(ctx context.Context, client *netwo
 	return false
 }
 
-// testPromptInjection sends injection payloads to an AI endpoint and checks for leakage.
 func (a *AIVulnTool) testPromptInjection(ctx context.Context, client *network.StealthClient, endpoint string) []recon.Event {
 	var events []recon.Event
 
-	// Get baseline response length
 	baselineLen := a.getBaselineResponseLength(ctx, client, endpoint)
 
 	for _, pi := range promptInjectionPayloads {
@@ -256,7 +242,6 @@ func (a *AIVulnTool) testPromptInjection(ctx context.Context, client *network.St
 		default:
 		}
 
-		// Try multiple content formats: JSON chat, form data, plain text
 		responses := a.sendInjectionPayload(ctx, client, endpoint, pi.payload)
 
 		for _, respBody := range responses {
@@ -266,7 +251,6 @@ func (a *AIVulnTool) testPromptInjection(ctx context.Context, client *network.St
 
 			respLower := strings.ToLower(respBody)
 
-			// Check for indicators of successful injection
 			leakScore := 0
 			var leakedKeywords []string
 			for _, keyword := range injectionLeakKeywords {
@@ -276,7 +260,6 @@ func (a *AIVulnTool) testPromptInjection(ctx context.Context, client *network.St
 				}
 			}
 
-			// Check for significant response length increase (possible context leak)
 			lengthRatio := 0.0
 			if baselineLen > 0 {
 				lengthRatio = float64(len(respBody)) / float64(baselineLen)
@@ -295,7 +278,7 @@ func (a *AIVulnTool) testPromptInjection(ctx context.Context, client *network.St
 					"response_preview": truncateStr(respBody, 500),
 					"description":      fmt.Sprintf("Prompt injection via '%s' payload leaked sensitive content (%s) from AI endpoint", pi.name, strings.Join(leakedKeywords, ", ")),
 				}, severity))
-				break // One confirmed injection per endpoint is sufficient
+				break
 			}
 		}
 	}
@@ -303,7 +286,6 @@ func (a *AIVulnTool) testPromptInjection(ctx context.Context, client *network.St
 	return events
 }
 
-// getBaselineResponseLength sends a benign request to establish normal response size.
 func (a *AIVulnTool) getBaselineResponseLength(ctx context.Context, client *network.StealthClient, endpoint string) int {
 	payload := `{"messages":[{"role":"user","content":"Hello, how are you?"}],"model":"default"}`
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBufferString(payload))
@@ -322,47 +304,39 @@ func (a *AIVulnTool) getBaselineResponseLength(ctx context.Context, client *netw
 	return len(body)
 }
 
-// sendInjectionPayload tries the payload in multiple request formats.
 func (a *AIVulnTool) sendInjectionPayload(ctx context.Context, client *network.StealthClient, endpoint, payload string) []string {
 	var responses []string
 
-	// Format 1: OpenAI-compatible JSON
 	jsonPayload := fmt.Sprintf(`{"messages":[{"role":"user","content":%q}],"model":"default"}`, payload)
 	if resp := a.postPayload(ctx, client, endpoint, "application/json", jsonPayload); resp != "" {
 		responses = append(responses, resp)
 	}
 
-	// Format 2: Simple JSON message
 	simpleJSON := fmt.Sprintf(`{"message":%q}`, payload)
 	if resp := a.postPayload(ctx, client, endpoint, "application/json", simpleJSON); resp != "" {
 		responses = append(responses, resp)
 	}
 
-	// Format 3: JSON prompt field
 	promptJSON := fmt.Sprintf(`{"prompt":%q}`, payload)
 	if resp := a.postPayload(ctx, client, endpoint, "application/json", promptJSON); resp != "" {
 		responses = append(responses, resp)
 	}
 
-	// Format 4: JSON query field
 	queryJSON := fmt.Sprintf(`{"query":%q}`, payload)
 	if resp := a.postPayload(ctx, client, endpoint, "application/json", queryJSON); resp != "" {
 		responses = append(responses, resp)
 	}
 
-	// Format 5: JSON input field
 	inputJSON := fmt.Sprintf(`{"input":%q}`, payload)
 	if resp := a.postPayload(ctx, client, endpoint, "application/json", inputJSON); resp != "" {
 		responses = append(responses, resp)
 	}
 
-	// Format 6: JSON text field
 	textJSON := fmt.Sprintf(`{"text":%q}`, payload)
 	if resp := a.postPayload(ctx, client, endpoint, "application/json", textJSON); resp != "" {
 		responses = append(responses, resp)
 	}
 
-	// Format 7: Form-encoded
 	formPayload := "message=" + strings.ReplaceAll(strings.ReplaceAll(payload, " ", "+"), "\n", "%0A")
 	if resp := a.postPayload(ctx, client, endpoint, "application/x-www-form-urlencoded", formPayload); resp != "" {
 		responses = append(responses, resp)
@@ -379,7 +353,6 @@ func (a *AIVulnTool) postPayload(ctx context.Context, client *network.StealthCli
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Accept", "application/json")
 
-	// Use a shorter timeout for injection tests to avoid hanging
 	shortCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	req = req.WithContext(shortCtx)
@@ -404,7 +377,5 @@ func truncateStr(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "...(truncated)"
 }
-
-
 
 var _ recon.Tool = (*AIVulnTool)(nil)

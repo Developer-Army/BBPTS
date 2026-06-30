@@ -12,7 +12,6 @@ func TestRegexExtractRoutes(t *testing.T) {
 		t.Error("expected at least one route")
 	}
 
-	// Check that routes have expected structure
 	for _, route := range routes {
 		if route.Path == "" {
 			t.Error("route path should not be empty")
@@ -27,7 +26,6 @@ func TestRegexExtractRoutes_FiltersNoise(t *testing.T) {
 	js := `const js = '/path/to/file.js'; const valid = '/api/users';`
 	routes := regexExtractRoutes(js)
 
-	// Should filter out .js paths
 	for _, route := range routes {
 		if contains(route.Path, ".js") {
 			t.Errorf("should filter out .js paths, got: %s", route.Path)
@@ -53,7 +51,6 @@ func TestDiffBundles(t *testing.T) {
 		t.Error("NewHash should not be empty")
 	}
 
-	// Should detect added routes
 	if len(diff.Added) == 0 {
 		t.Error("should detect added routes")
 	}
@@ -102,13 +99,11 @@ func TestComputeRouteSignature(t *testing.T) {
 		t.Error("signature should not be empty")
 	}
 
-	// Same route should produce same signature
 	sig2 := computeRouteSignature(route)
 	if sig != sig2 {
 		t.Error("same route should produce same signature")
 	}
 
-	// Different route should produce different signature
 	route2 := SemanticRoute{
 		Path:       "/api/posts",
 		Method:     "GET",
@@ -169,13 +164,11 @@ func TestHashBundle(t *testing.T) {
 		t.Error("hash should not be empty")
 	}
 
-	// Same content should produce same hash
 	hash2 := hashBundle(js)
 	if hash != hash2 {
 		t.Error("same content should produce same hash")
 	}
 
-	// Different content should produce different hash
 	js2 := `const api = '/api/posts';`
 	hash3 := hashBundle(js2)
 	if hash == hash3 {
@@ -233,7 +226,6 @@ func TestJSBundleDiff_HighValueChanges(t *testing.T) {
 		t.Error("should detect high-value changes")
 	}
 
-	// Should include /admin and /api routes
 	foundAdmin := false
 	foundAPI := false
 	for _, r := range highValue {
@@ -290,7 +282,6 @@ func TestExtractAllRoutes(t *testing.T) {
 		t.Error("should extract at least one route")
 	}
 
-	// Check for duplicates
 	seen := make(map[string]bool)
 	for _, r := range routes {
 		if seen[r.Signature] {
@@ -303,7 +294,6 @@ func TestExtractAllRoutes(t *testing.T) {
 func TestExtractRoutesFromNode(t *testing.T) {
 	var routes []SemanticRoute
 
-	// Test with nil node
 	extractRoutesFromNode(nil, &routes)
 
 	if len(routes) != 0 {

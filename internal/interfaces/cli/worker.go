@@ -15,7 +15,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
-// Job defines a distributed work item for a recon tool.
 type Job struct {
 	ID        string   `json:"id"`
 	ToolName  string   `json:"tool_name"`
@@ -24,7 +23,6 @@ type Job struct {
 	SessionID string   `json:"session_id"`
 }
 
-// RunWorker starts the distributed worker node.
 func RunWorker(ctx context.Context, opts Options, cfg *config.Config) {
 	runWorkerNode(ctx, opts, cfg)
 }
@@ -74,7 +72,6 @@ func runWorkerNode(ctx context.Context, opts Options, cfg *config.Config) {
 
 	executor := workers.NewExecutor(node)
 
-	// Register Real Distributed Handlers
 	registerRealHandlers(ctx, executor, cfg)
 
 	slog.Info("Worker waiting for tasks... (Press Ctrl+C to exit)", "id", workerID)
@@ -112,12 +109,11 @@ func ProcessJob(ctx context.Context, ev queue.Event, eventBus queue.EventBus, cf
 		return
 	}
 
-	// Prepare context with API keys and Wordlists
 	jobCtx := recon.WithAPIKeys(ctx, cfg.APIKeys)
 	jobCtx = recon.WithWordlistsDir(jobCtx, cfg.WordlistsDir)
 
 	scanCtx := &recon.ScanContext{
-		APIKeys:      cfg.APIKeys,
+		APIKeys: cfg.APIKeys,
 	}
 
 	events, err := tool.Run(jobCtx, scanCtx, job.Targets, job.Threads)
@@ -128,7 +124,6 @@ func ProcessJob(ctx context.Context, ev queue.Event, eventBus queue.EventBus, cf
 
 	slog.Info("Job completed successfully", "job_id", job.ID, "tool", job.ToolName, "events_found", len(events))
 
-	// Publish discovered events back to the bus
 	for _, resultEv := range events {
 		eventBus.Publish(queue.Event{
 			Target:     resultEv.Target,
@@ -138,7 +133,6 @@ func ProcessJob(ctx context.Context, ev queue.Event, eventBus queue.EventBus, cf
 		})
 	}
 
-	// Publish job completion event
 	eventBus.Publish(queue.Event{
 		Target: "orchestrator",
 		Source: "worker",

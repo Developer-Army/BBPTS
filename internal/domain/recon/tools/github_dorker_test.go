@@ -11,7 +11,6 @@ func TestDorkQueries(t *testing.T) {
 		t.Fatal("expected dork queries, got none")
 	}
 
-	// Verify all queries contain the domain
 	for _, q := range queries {
 		if q.Query == "" {
 			t.Error("empty dork query")
@@ -24,7 +23,6 @@ func TestDorkQueries(t *testing.T) {
 		}
 	}
 
-	// Verify minimum query count (we expect ~30)
 	if len(queries) < 25 {
 		t.Errorf("expected at least 25 dork queries, got %d", len(queries))
 	}
@@ -72,7 +70,7 @@ func TestInternalEndpointPatterns(t *testing.T) {
 		{"http://dev.mysite.com/config", 1},
 		{"https://test.example.com/debug", 1},
 		{"http://localhost:8080/health", 1},
-		{"https://www.example.com/about", 0}, // not internal
+		{"https://www.example.com/about", 0},
 	}
 
 	for _, tc := range tests {
@@ -150,7 +148,6 @@ func TestCopyProps(t *testing.T) {
 	src := map[string]string{"a": "1", "b": "2"}
 	dst := copyProps(src)
 
-	// Modify source — should not affect copy
 	src["a"] = "changed"
 	if dst["a"] != "1" {
 		t.Error("copyProps did not create independent copy")

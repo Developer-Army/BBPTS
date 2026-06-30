@@ -17,7 +17,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 )
 
-// Result holds the fingerprint data for a single host.
 type Result struct {
 	Host        string `json:"host"`
 	JARMHash    string `json:"jarm_hash"`
@@ -27,13 +26,11 @@ type Result struct {
 	TLSSubject  string `json:"tls_subject,omitempty"`
 }
 
-// Fingerprinter performs JARM and favicon fingerprinting against a list of hosts.
 type Fingerprinter struct {
 	httpClient *http.Client
 	timeout    time.Duration
 }
 
-// New creates a Fingerprinter with sensible defaults.
 func New() *Fingerprinter {
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -71,7 +68,6 @@ func New() *Fingerprinter {
 	}
 }
 
-// FingerprintAll fingerprints a list of targets concurrently, respecting context cancellation.
 func (f *Fingerprinter) FingerprintAll(ctx context.Context, targets []string, concurrency int) []Result {
 	if concurrency <= 0 {
 		concurrency = 10
@@ -106,17 +102,14 @@ func (f *Fingerprinter) FingerprintAll(ctx context.Context, targets []string, co
 	return results
 }
 
-// Fingerprint generates JARM and favicon hashes for a single target.
 func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 	result := Result{Host: target}
 
-	// Normalise to https:// if no scheme present
 	probeURL := target
 	if !strings.Contains(probeURL, "://") {
 		probeURL = "https://" + probeURL
 	}
 
-	// --- TLS Fingerprint ---
 	host := strings.TrimPrefix(strings.TrimPrefix(probeURL, "https://"), "http://")
 	host = strings.Split(host, "/")[0]
 	tlsHost := host
@@ -138,7 +131,7 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 			skipVerify = b
 		}
 	}
-	// --- TLS Cert Info ---
+
 	conn, err := tls.DialWithDialer(
 		&net.Dialer{Timeout: f.timeout},
 		"tcp",
@@ -157,7 +150,6 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 		}
 	}
 
-	// --- Favicon Hash ---
 	faviconURL := probeURL
 	if !strings.HasSuffix(faviconURL, "/") {
 		faviconURL += "/"
@@ -175,10 +167,8 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 	return result
 }
 
-// jarmHash generates a simplified JARM-inspired hash by performing multiple
-// TLS probes with different cipher/extension configurations.
 func (f *Fingerprinter) jarmHash(ctx context.Context, pinnedAddr string, host string) string {
-	// Probe with different TLS versions to generate a distinguishing signature
+
 	versions := []uint16{
 		tls.VersionTLS13,
 		tls.VersionTLS12,
@@ -220,8 +210,6 @@ loop:
 	return hex.EncodeToString(raw)
 }
 
-// faviconHash fetches a favicon and returns a hex-encoded FNV-64a hash of its content.
-// This hash is used to cluster hosts running identical server stacks.
 func (f *Fingerprinter) faviconHash(ctx context.Context, faviconURL string) string {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, faviconURL, nil)
 	if err != nil {
@@ -248,8 +236,6 @@ func (f *Fingerprinter) faviconHash(ctx context.Context, faviconURL string) stri
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// ClusterByJARM groups results by their JARM hash.
-// Clusters with more than one member indicate infrastructure-linked hosts.
 func ClusterByJARM(results []Result) map[string][]Result {
 	clusters := make(map[string][]Result)
 	for _, r := range results {
@@ -261,7 +247,6 @@ func ClusterByJARM(results []Result) map[string][]Result {
 	return clusters
 }
 
-// ClusterByFavicon groups results by favicon hash.
 func ClusterByFavicon(results []Result) map[string][]Result {
 	clusters := make(map[string][]Result)
 	for _, r := range results {

@@ -6,39 +6,33 @@ import (
 	"time"
 )
 
-// PlaybookGenerator creates structured hunting playbooks based on scan results.
 type PlaybookGenerator struct{}
 
-// Playbook represents a structured manual hunting guide.
 type Playbook struct {
-	Target       string            `json:"target"`
-	GeneratedAt  time.Time         `json:"generated_at"`
-	TechStack    []string          `json:"tech_stack"`
-	Sessions     []PlaybookSession `json:"sessions"`
-	Summary      string            `json:"summary"`
+	Target      string            `json:"target"`
+	GeneratedAt time.Time         `json:"generated_at"`
+	TechStack   []string          `json:"tech_stack"`
+	Sessions    []PlaybookSession `json:"sessions"`
+	Summary     string            `json:"summary"`
 }
 
-// PlaybookSession is a focused testing session.
 type PlaybookSession struct {
-	Title       string           `json:"title"`
-	Duration    string           `json:"duration"`
-	Steps       []PlaybookStep   `json:"steps"`
+	Title    string         `json:"title"`
+	Duration string         `json:"duration"`
+	Steps    []PlaybookStep `json:"steps"`
 }
 
-// PlaybookStep is a single manual testing action.
 type PlaybookStep struct {
-	Action        string `json:"action"`
-	Tool          string `json:"tool,omitempty"`
-	Expected      string `json:"expected"`
-	Priority      string `json:"priority"` // high, medium, low
+	Action   string `json:"action"`
+	Tool     string `json:"tool,omitempty"`
+	Expected string `json:"expected"`
+	Priority string `json:"priority"` // high, medium, low
 }
 
-// NewPlaybookGenerator creates a new playbook generator.
 func NewPlaybookGenerator() *PlaybookGenerator {
 	return &PlaybookGenerator{}
 }
 
-// Generate creates a hunting playbook based on discovered endpoints and tech stack.
 func (pg *PlaybookGenerator) Generate(target string, techStack []string, endpoints []string, findings []string) *Playbook {
 	p := &Playbook{
 		Target:      target,
@@ -56,7 +50,7 @@ func (pg *PlaybookGenerator) Generate(target string, techStack []string, endpoin
 	return p
 }
 
-func (pg *PlaybookGenerator) authSession(target string, techStack []string, findings []string) PlaybookSession {
+func (pg *PlaybookGenerator) authSession(target string, techStack []string, _ []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Authentication Testing",
 		Duration: "30 min",
@@ -98,7 +92,7 @@ func (pg *PlaybookGenerator) authSession(target string, techStack []string, find
 	return session
 }
 
-func (pg *PlaybookGenerator) idorSession(target string, endpoints []string) PlaybookSession {
+func (pg *PlaybookGenerator) idorSession(_ string, endpoints []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "IDOR / Access Control Testing",
 		Duration: "45 min",
@@ -110,7 +104,6 @@ func (pg *PlaybookGenerator) idorSession(target string, endpoints []string) Play
 		Priority: "high",
 	})
 
-	// Find endpoints with IDs
 	for _, ep := range endpoints {
 		if containsID(ep) {
 			session.Steps = append(session.Steps, PlaybookStep{
@@ -137,7 +130,7 @@ func (pg *PlaybookGenerator) idorSession(target string, endpoints []string) Play
 	return session
 }
 
-func (pg *PlaybookGenerator) injectionSession(target string, techStack []string) PlaybookSession {
+func (pg *PlaybookGenerator) injectionSession(_ string, techStack []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Injection Testing",
 		Duration: "30 min",
@@ -184,7 +177,7 @@ func (pg *PlaybookGenerator) injectionSession(target string, techStack []string)
 	return session
 }
 
-func (pg *PlaybookGenerator) businessLogicSession(target string, endpoints []string) PlaybookSession {
+func (pg *PlaybookGenerator) businessLogicSession(_ string, _ []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Business Logic Testing",
 		Duration: "20 min",
@@ -219,7 +212,7 @@ func (pg *PlaybookGenerator) businessLogicSession(target string, endpoints []str
 	return session
 }
 
-func (pg *PlaybookGenerator) misconfigSession(target string, techStack []string) PlaybookSession {
+func (pg *PlaybookGenerator) misconfigSession(_ string, techStack []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Configuration & Exposure Testing",
 		Duration: "15 min",

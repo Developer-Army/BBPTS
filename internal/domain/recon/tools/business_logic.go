@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -59,13 +59,10 @@ func (t *BusinessLogicTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 		client := NewSafeHTTPClient(10 * time.Second)
 		var events []recon.Event
 
-		// Price/amount manipulation tests
 		events = append(events, t.testAmountManipulation(ctx, client, target, scanCtx.Headers)...)
 
-		// Coupon/discount abuse tests
 		events = append(events, t.testCouponAbuse(ctx, client, target, scanCtx.Headers)...)
 
-		// Quantity overflow tests
 		events = append(events, t.testQuantityOverflow(ctx, client, target, scanCtx.Headers)...)
 
 		return events, nil
@@ -98,12 +95,12 @@ func (t *BusinessLogicTool) testAmountManipulation(ctx context.Context, client *
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) && status == 200 {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":    "Business Logic Flaw - Amount Manipulation",
-					"severity":     "high",
-					"test":         test.name,
-					"payload":      test.payload,
-					"status":       fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Business logic test '%s' returned success on %s", test.name, target),
+					"vuln_name":   "Business Logic Flaw - Amount Manipulation",
+					"severity":    "high",
+					"test":        test.name,
+					"payload":     test.payload,
+					"status":      fmt.Sprintf("%d", status),
+					"description": fmt.Sprintf("Business logic test '%s' returned success on %s", test.name, target),
 				}, "high"))
 				slog.Warn("Business logic flaw detected", "target", target, "test", test.name)
 				break
@@ -136,12 +133,12 @@ func (t *BusinessLogicTool) testCouponAbuse(ctx context.Context, client *http.Cl
 		for _, indicator := range validIndicators {
 			if strings.Contains(bodyStr, indicator) && status == 200 {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":    "Business Logic Flaw - Coupon Abuse",
-					"severity":     "medium",
-					"test":         "coupon_enumeration",
-					"coupon":       coupon,
-					"status":       fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Coupon '%s' appears to be valid on %s", coupon, target),
+					"vuln_name":   "Business Logic Flaw - Coupon Abuse",
+					"severity":    "medium",
+					"test":        "coupon_enumeration",
+					"coupon":      coupon,
+					"status":      fmt.Sprintf("%d", status),
+					"description": fmt.Sprintf("Coupon '%s' appears to be valid on %s", coupon, target),
 				}, "medium"))
 				slog.Warn("Coupon abuse potential", "target", target, "coupon", coupon)
 				break
@@ -176,12 +173,12 @@ func (t *BusinessLogicTool) testQuantityOverflow(ctx context.Context, client *ht
 		for _, indicator := range successIndicators {
 			if strings.Contains(bodyStr, indicator) && status == 200 {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":    "Business Logic Flaw - Quantity Manipulation",
-					"severity":     "high",
-					"test":         test.name,
-					"payload":      test.payload,
-					"status":       fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Business logic test '%s' returned success on %s", test.name, target),
+					"vuln_name":   "Business Logic Flaw - Quantity Manipulation",
+					"severity":    "high",
+					"test":        test.name,
+					"payload":     test.payload,
+					"status":      fmt.Sprintf("%d", status),
+					"description": fmt.Sprintf("Business logic test '%s' returned success on %s", test.name, target),
 				}, "high"))
 				slog.Warn("Business logic flaw detected", "target", target, "test", test.name)
 				break

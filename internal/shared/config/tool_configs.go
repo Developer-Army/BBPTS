@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// WriteSubfinderProviderConfig generates subfinder's provider-config.yaml from
-// BBPTS API keys and returns the path. Only non-empty keys are written.
 func WriteSubfinderProviderConfig(apiKeys map[string]string) (string, error) {
 	if len(apiKeys) == 0 {
 		return "", nil
@@ -102,6 +100,9 @@ func WriteSubfinderProviderConfig(apiKeys map[string]string) (string, error) {
 	}
 
 	tmpDir := os.TempDir()
+	if _, err := os.Stat("results/tmp"); err == nil {
+		tmpDir = "results/tmp"
+	}
 	configPath := filepath.Join(tmpDir, "bbpts-subfinder-provider-config.yaml")
 	if err := os.WriteFile(configPath, []byte(sb.String()), 0600); err != nil {
 		return "", fmt.Errorf("write subfinder provider config: %w", err)
@@ -109,9 +110,6 @@ func WriteSubfinderProviderConfig(apiKeys map[string]string) (string, error) {
 	return configPath, nil
 }
 
-// WriteAmassDatasourcesConfig generates amass's datasources.yaml from BBPTS
-// API keys and returns the path. Only sources with at least one non-empty key
-// are included.
 func WriteAmassDatasourcesConfig(apiKeys map[string]string) (string, error) {
 	if len(apiKeys) == 0 {
 		return "", nil
@@ -152,7 +150,7 @@ func WriteAmassDatasourcesConfig(apiKeys map[string]string) (string, error) {
 	for _, ds := range sources {
 		val := apiKeys[ds.key]
 		if val == "" {
-			// Check if any extra keys are present
+
 			if ds.extra != nil {
 				hasExtra := false
 				for _, ek := range ds.extra {
@@ -198,6 +196,9 @@ func WriteAmassDatasourcesConfig(apiKeys map[string]string) (string, error) {
 	}
 
 	tmpDir := os.TempDir()
+	if _, err := os.Stat("results/tmp"); err == nil {
+		tmpDir = "results/tmp"
+	}
 	configPath := filepath.Join(tmpDir, "bbpts-amass-datasources.yaml")
 	if err := os.WriteFile(configPath, []byte(sb.String()), 0600); err != nil {
 		return "", fmt.Errorf("write amass datasources config: %w", err)

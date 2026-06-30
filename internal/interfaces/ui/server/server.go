@@ -12,7 +12,6 @@ import (
 //go:embed static/*
 var staticFS embed.FS
 
-// Config holds the web server configuration.
 type Config struct {
 	Port        int
 	TLSEnabled  bool
@@ -20,7 +19,6 @@ type Config struct {
 	TLSKeyFile  string
 }
 
-// LogBroadcasterWriter multiplexes logs to original writer and dashboard clients.
 type LogBroadcasterWriter struct {
 	Original io.Writer
 }
@@ -64,7 +62,6 @@ func BroadcastLog(msg string) {
 //go:embed frontend/*
 var frontendFS embed.FS
 
-// DashboardHTML is the embedded frontend for the BBPTS elite dashboard.
 var DashboardHTML string
 
 func init() {

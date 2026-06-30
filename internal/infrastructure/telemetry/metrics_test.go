@@ -42,17 +42,14 @@ func TestNewMetricsCollectorDefaultInterval(t *testing.T) {
 func TestMetricsCollectorStart(t *testing.T) {
 	mc := NewMetricsCollector(10 * time.Millisecond)
 
-	// Should not panic
 	mc.Start()
 
-	// Stop it
 	mc.Stop()
 }
 
 func TestMetricsCollectorStop(t *testing.T) {
 	mc := NewMetricsCollector(10 * time.Millisecond)
 
-	// Should not panic
 	mc.Stop()
 }
 
@@ -63,7 +60,6 @@ func TestMetricsCollectorStartStop(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 	mc.Stop()
 
-	// Should complete without hanging
 }
 
 func TestMetricsCollectorStopChan(t *testing.T) {
@@ -73,37 +69,35 @@ func TestMetricsCollectorStopChan(t *testing.T) {
 	case <-mc.stopChan:
 		t.Error("stopChan should not be closed initially")
 	default:
-		// Expected
+
 	}
 
 	mc.Stop()
 
 	select {
 	case <-mc.stopChan:
-		// Expected - channel should be closed
+
 	case <-time.After(100 * time.Millisecond):
 		t.Error("stopChan should be closed after Stop()")
 	}
 }
 
 func TestStartMetricsServer(t *testing.T) {
-	// This starts a goroutine, so we can't easily test it
-	// Just verify it doesn't panic
+
 	StartMetricsServer(":9090")
 
-	// Give it a moment to start
 	time.Sleep(10 * time.Millisecond)
 }
 
 func TestStartMetricsServerDifferentPort(t *testing.T) {
-	// Test with different port
+
 	StartMetricsServer(":9091")
 
 	time.Sleep(10 * time.Millisecond)
 }
 
 func TestStartMetricsServerDefaultAddr(t *testing.T) {
-	// Test with default address format
+
 	StartMetricsServer(":0")
 
 	time.Sleep(10 * time.Millisecond)
@@ -136,8 +130,6 @@ func TestMetricsCollectorNilStopChan(t *testing.T) {
 		stopChan: nil,
 	}
 
-	// Should handle nil stopChan gracefully (though it shouldn't happen in practice)
-	// This is more of a defensive test
 	if mc.interval != 10*time.Millisecond {
 		t.Errorf("Expected interval 10ms, got %v", mc.interval)
 	}
@@ -149,23 +141,18 @@ func TestMetricsCollectorNilStopChan(t *testing.T) {
 func TestCollectSystemMetrics(t *testing.T) {
 	mc := NewMetricsCollector(10 * time.Millisecond)
 
-	// This method is called internally by the ticker
-	// We can call it directly to test it doesn't panic
 	mc.collectSystemMetrics()
 }
 
 func TestMetricsCollectorConcurrentStartStop(t *testing.T) {
 	mc := NewMetricsCollector(10 * time.Millisecond)
 
-	// Start multiple times
 	mc.Start()
 	mc.Start()
 
-	// Stop multiple times
 	mc.Stop()
 	mc.Stop()
 
-	// Should not panic
 }
 
 func TestMetricsCollectorLongInterval(t *testing.T) {
@@ -209,7 +196,6 @@ func TestMetricsCollectorNegativeInterval(t *testing.T) {
 		t.Errorf("Expected interval -1s, got %v", mc.interval)
 	}
 
-	// Should handle negative interval gracefully
 	mc.Start()
 	mc.Stop()
 }

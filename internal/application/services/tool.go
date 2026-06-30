@@ -31,7 +31,6 @@ func ParseOutputLines(output []byte) []string {
 	return recon.ParseOutputLines(output)
 }
 
-
 func RunCommandLines(ctx context.Context, name string, args ...string) ([]string, error) {
 	return tools.RunCommandStream(ctx, name, args...)
 }
@@ -40,8 +39,6 @@ func RunCommandWithInputLines(ctx context.Context, stdin []byte, name string, ar
 	return tools.RunCommandStreamWithInput(ctx, stdin, name, args...)
 }
 
-// NewEventsFromLines converts a list of targets (one per line) into a slice of
-// Event records with the specified source and shared metadata.
 func NewEventsFromLines(lines []string, source string, metadata map[string]string) []Event {
 	return NewEventsFromLinesFunc(lines, source, func(line string) map[string]string {
 		if len(metadata) == 0 {
@@ -55,17 +52,13 @@ func NewEventsFromLines(lines []string, source string, metadata map[string]strin
 	})
 }
 
-// NewEventsFromLinesFunc converts a list of targets into a slice of Event records,
-// using a generator function to produce properties for each line.
 func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(string) map[string]string) []Event {
 	if metadataFunc == nil {
 		metadataFunc = func(string) map[string]string { return nil }
 	}
 
-	// Pre-allocate with initial capacity to reduce allocations
 	events := make([]Event, 0, len(lines))
 
-	// Ensure we don't process duplicate events internally
 	seen := make(map[string]struct{}, len(lines))
 
 	for _, line := range lines {
@@ -74,7 +67,6 @@ func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(str
 			continue
 		}
 
-		// Skip ASCII art / banners (heuristic: high density of box-drawing or art characters)
 		if !strings.Contains(line, "://") {
 			if strings.Count(line, "/")+strings.Count(line, "_")+strings.Count(line, "\\")+strings.Count(line, "|") > 5 {
 				continue
@@ -92,9 +84,6 @@ func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(str
 	return events
 }
 
-
-
-// NewSafeHTTPClient returns an http.Client with built-in SSRF protection.
 func NewSafeHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout: timeout,
@@ -135,9 +124,7 @@ func NewSafeHTTPClient(timeout time.Duration) *http.Client {
 	}
 }
 
-// NewSafeRateLimitedClient returns a client wrapper that has both SSRF protection and Adaptive Backoff.
 func NewSafeRateLimitedClient(timeout time.Duration, baseDelayMs, maxDelayMs int) *network.RateLimiter {
 	client := NewSafeHTTPClient(timeout)
 	return network.NewRateLimiter(client, baseDelayMs, maxDelayMs)
 }
-

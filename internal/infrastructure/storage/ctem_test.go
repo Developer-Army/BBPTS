@@ -18,7 +18,6 @@ func TestCTEMBasic(t *testing.T) {
 	}
 	defer s.Close()
 
-	// 1. Teams
 	teamID, err := s.AddTeam("SecOps")
 	if err != nil {
 		t.Fatalf("AddTeam failed: %v", err)
@@ -28,7 +27,6 @@ func TestCTEMBasic(t *testing.T) {
 		t.Fatalf("GetTeam failed: %v", err)
 	}
 
-	// 2. Owners
 	ownerID, err := s.AddOwner("Alice", "alice@corp.com")
 	if err != nil {
 		t.Fatalf("AddOwner failed: %v", err)
@@ -38,7 +36,6 @@ func TestCTEMBasic(t *testing.T) {
 		t.Fatalf("GetOwner failed: %v", err)
 	}
 
-	// 3. Asset Ownership (SCD Type 2)
 	assetID := "api.corp.com"
 	err = s.SetAssetOwner(assetID, &ownerID, &teamID, "Initial assignment")
 	if err != nil {
@@ -53,7 +50,6 @@ func TestCTEMBasic(t *testing.T) {
 		t.Errorf("Unexpected active ownership properties")
 	}
 
-	// Set new owner
 	owner2ID, _ := s.AddOwner("Bob", "bob@corp.com")
 	err = s.SetAssetOwner(assetID, &owner2ID, &teamID, "Ownership transfer to Bob")
 	if err != nil {
@@ -64,7 +60,7 @@ func TestCTEMBasic(t *testing.T) {
 	if err != nil || len(owners) != 2 {
 		t.Fatalf("Expected 2 ownership records, got %d", len(owners))
 	}
-	// Verify historical ordering (newest first because of ORDER BY start_time DESC)
+
 	if *owners[0].OwnerID != owner2ID || owners[0].EndTime != nil {
 		t.Errorf("Expected Bob as active owner")
 	}
@@ -78,7 +74,6 @@ func TestCTEMBasic(t *testing.T) {
 		t.Errorf("Expected Alice ownership change reason, got: %s", owners[1].ChangeReason)
 	}
 
-	// 4. SLA Policies & Escalation Rules
 	policyID, err := s.AddSLAPolicy("Critical Findings Policy", "critical", 2)
 	if err != nil {
 		t.Fatalf("AddSLAPolicy failed: %v", err)
@@ -106,8 +101,6 @@ func TestCTEMBasic(t *testing.T) {
 		t.Fatalf("GetEscalationRulesForSeverity failed: %v", err)
 	}
 
-	// 5. Findings & Assignments
-	// Insert dummy finding in db
 	findingQuery := `
 		INSERT INTO findings (title, description, severity, target, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -123,13 +116,11 @@ func TestCTEMBasic(t *testing.T) {
 		t.Fatalf("AssignFinding failed: %v", err)
 	}
 
-	// Update finding assignment status and verify overdue query
 	err = s.UpdateAssignmentStatus(assignmentID, "remediating")
 	if err != nil {
 		t.Fatalf("UpdateAssignmentStatus failed: %v", err)
 	}
 
-	// Override due_at to make it overdue for testing
 	_, err = s.db.Exec("UPDATE finding_assignments SET due_at = ? WHERE id = ?", time.Now().UTC().Add(-24*time.Hour), assignmentID)
 	if err != nil {
 		t.Fatalf("Failed to force assignment overdue: %v", err)
@@ -143,7 +134,6 @@ func TestCTEMBasic(t *testing.T) {
 		t.Errorf("Unexpected overdue assignment properties: got status %s, expected Remediating", overdue[0].Status)
 	}
 
-	// Verify audit trail status history
 	history, err := s.GetFindingStatusHistory(findingID)
 	if err != nil {
 		t.Fatalf("GetFindingStatusHistory failed: %v", err)
@@ -158,8 +148,6 @@ func TestCTEMBasic(t *testing.T) {
 		t.Errorf("Second transition mismatch: %s -> %s", history[1].OldStatus, history[1].NewStatus)
 	}
 
-	// 6. Graph Mirroring verification
-	// Check that target node is linked to Bob (owner2ID) and team
 	assetNodeID := GenerateNodeID("target", assetID, "")
 	edges, err := s.GetGraphPaths(assetNodeID, 3)
 	if err != nil {
@@ -193,16 +181,12 @@ func TestSLAMatching(t *testing.T) {
 	}
 	defer s.Close()
 
-	// Add a generic policy: duration 14 days
 	_, _ = s.AddSLAPolicyExt("Generic Critical Policy", "critical", 14, "", "", "", "")
 
-	// Add a more specific policy matching asset_class = "Payment System": duration 2 days
 	_, _ = s.AddSLAPolicyExt("Critical Payment Policy", "critical", 2, "Payment System", "", "", "")
 
-	// Add another specific policy matching business_unit = "Finance": duration 5 days
 	_, _ = s.AddSLAPolicyExt("Finance Critical Policy", "critical", 5, "", "Finance", "", "")
 
-	// Match payment system policy
 	policy1, err := s.GetMatchingSLAPolicy("critical", "Payment System", "Marketing", "production", "main")
 	if err != nil || policy1 == nil {
 		t.Fatalf("GetMatchingSLAPolicy failed: %v", err)
@@ -211,7 +195,6 @@ func TestSLAMatching(t *testing.T) {
 		t.Errorf("Expected duration 2 for Payment System, got %d", policy1.DurationDays)
 	}
 
-	// Match finance policy
 	policy2, err := s.GetMatchingSLAPolicy("critical", "API Endpoint", "Finance", "production", "main")
 	if err != nil || policy2 == nil {
 		t.Fatalf("GetMatchingSLAPolicy failed: %v", err)
@@ -220,7 +203,6 @@ func TestSLAMatching(t *testing.T) {
 		t.Errorf("Expected duration 5 for Finance, got %d", policy2.DurationDays)
 	}
 
-	// Match generic policy
 	policy3, err := s.GetMatchingSLAPolicy("critical", "API Endpoint", "Marketing", "production", "main")
 	if err != nil || policy3 == nil {
 		t.Fatalf("GetMatchingSLAPolicy failed: %v", err)
@@ -239,7 +221,6 @@ func TestCTEMStateTransitions(t *testing.T) {
 	}
 	defer s.Close()
 
-	// Add dummy finding
 	res, err := s.db.Exec(`
 		INSERT INTO findings (title, description, severity, target, metadata, created_at)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -257,38 +238,31 @@ func TestCTEMStateTransitions(t *testing.T) {
 		t.Fatalf("AssignFinding failed: %v", err)
 	}
 
-	// Initial status is Assigned.
-	// Try invalid transition: Assigned -> Verified
 	err = s.UpdateAssignmentStatus(assignmentID, "Verified")
 	if err == nil {
 		t.Errorf("Expected error for invalid transition Assigned -> Verified, got nil")
 	}
 
-	// Try valid transition: Assigned -> Acknowledged (remediating)
 	err = s.UpdateAssignmentStatus(assignmentID, "remediating")
 	if err != nil {
 		t.Errorf("Unexpected error for valid transition Assigned -> Acknowledged: %v", err)
 	}
 
-	// Try valid transition: Acknowledged -> Remediated
 	err = s.UpdateAssignmentStatus(assignmentID, "Remediated")
 	if err != nil {
 		t.Errorf("Unexpected error for valid transition Acknowledged -> Remediated: %v", err)
 	}
 
-	// Try valid transition: Remediated -> Verified
 	err = s.UpdateAssignmentStatus(assignmentID, "Verified")
 	if err != nil {
 		t.Errorf("Unexpected error for valid transition Remediated -> Verified: %v", err)
 	}
 
-	// Try invalid transition: Verified -> Acknowledged
 	err = s.UpdateAssignmentStatus(assignmentID, "Acknowledged")
 	if err == nil {
 		t.Errorf("Expected error for invalid transition Verified -> Acknowledged, got nil")
 	}
 
-	// Try valid transition: Verified -> Reopened
 	err = s.UpdateAssignmentStatus(assignmentID, "Reopened")
 	if err != nil {
 		t.Errorf("Unexpected error for valid transition Verified -> Reopened: %v", err)
@@ -313,7 +287,6 @@ func TestVerifyFindingFixAndApproveRiskException(t *testing.T) {
 		t.Fatalf("AssignFinding failed: %v", err)
 	}
 
-	// 1. Test VerifyFindingFix from Assigned (should auto-remediate first then verify)
 	err = s.VerifyFindingFix(assignmentID, "Verified resolved by scanning", "verifier@acme.com")
 	if err != nil {
 		t.Fatalf("VerifyFindingFix failed: %v", err)
@@ -324,24 +297,20 @@ func TestVerifyFindingFixAndApproveRiskException(t *testing.T) {
 		t.Fatalf("GetFindingStatusHistory failed: %v", err)
 	}
 
-	// Should have Discovered -> Assigned, Assigned -> Remediating, Remediating -> Remediated, Remediated -> Verified
 	if len(history) != 4 {
 		t.Errorf("Expected 4 history items, got %d", len(history))
 	}
 
-	// 2. Reopen it
 	err = s.UpdateAssignmentStatus(assignmentID, "Reopened")
 	if err != nil {
 		t.Fatalf("Reopen failed: %v", err)
 	}
 
-	// 3. Test ApproveRiskException
 	err = s.ApproveRiskException(assignmentID, "SLA Exception approved due to legacy system constraint", "approver@acme.com")
 	if err != nil {
 		t.Fatalf("ApproveRiskException failed: %v", err)
 	}
 
-	// Verify the status is SLA Exception
 	_, err = s.GetTeamOverdueFindings()
 	if err != nil {
 		t.Fatalf("GetTeamOverdueFindings failed: %v", err)
@@ -364,7 +333,6 @@ func TestFindingAndEvidenceModelPersistence(t *testing.T) {
 	}
 	defer s.Close()
 
-	// 1. Save evidence
 	evID := "ev-123"
 	assetID := "asset-xyz"
 	err = s.SaveEvidence(evID, assetID, "nuclei", 0.95, []byte(`{"vuln":"xss"}`), "hash123")
@@ -372,7 +340,6 @@ func TestFindingAndEvidenceModelPersistence(t *testing.T) {
 		t.Fatalf("Failed to save evidence: %v", err)
 	}
 
-	// 2. Retrieve and verify evidence model
 	ev, err := s.GetEvidenceModel(evID)
 	if err != nil {
 		t.Fatalf("Failed to get evidence model: %v", err)
@@ -384,7 +351,6 @@ func TestFindingAndEvidenceModelPersistence(t *testing.T) {
 		t.Errorf("Unexpected evidence values: %+v", ev)
 	}
 
-	// 3. Save finding model
 	finding := findings.Finding{
 		AssetID:       assetID,
 		RiskScore:     88,
@@ -400,7 +366,6 @@ func TestFindingAndEvidenceModelPersistence(t *testing.T) {
 		t.Errorf("Expected positive finding ID, got %d", fid)
 	}
 
-	// 4. Retrieve and verify finding model
 	retrieved, err := s.GetFindingModel(fid)
 	if err != nil {
 		t.Fatalf("Failed to get finding model: %v", err)
@@ -412,7 +377,6 @@ func TestFindingAndEvidenceModelPersistence(t *testing.T) {
 		t.Errorf("Unexpected finding values: %+v", retrieved)
 	}
 
-	// 5. Update finding model
 	retrieved.RiskScore = 95
 	retrieved.WorkflowState = "Triaged"
 	_, err = s.SaveFindingModel(*retrieved)
@@ -420,7 +384,6 @@ func TestFindingAndEvidenceModelPersistence(t *testing.T) {
 		t.Fatalf("Failed to update finding model: %v", err)
 	}
 
-	// 6. Verify update
 	updated, err := s.GetFindingModel(fid)
 	if err != nil {
 		t.Fatalf("Failed to get finding model after update: %v", err)
@@ -469,7 +432,6 @@ func TestAssetModelPersistence(t *testing.T) {
 		t.Errorf("Retrieved asset properties do not match: %+v", retrieved)
 	}
 
-	// Test GetAllAssets
 	all, err := s.GetAllAssets()
 	if err != nil {
 		t.Fatalf("GetAllAssets failed: %v", err)
@@ -478,7 +440,6 @@ func TestAssetModelPersistence(t *testing.T) {
 		t.Errorf("Unexpected GetAllAssets result: %+v", all)
 	}
 
-	// Update asset
 	asset.Status = "inactive"
 	err = s.SaveAsset(asset)
 	if err != nil {
@@ -503,19 +464,16 @@ func TestAutoTransitionFindingStates(t *testing.T) {
 	}
 	defer s.Close()
 
-	// 1. Setup asset with owner/team
 	target := "vuln.corp.com"
 	teamID, _ := s.AddTeam("Team")
 	ownerID, _ := s.AddOwner("Alice", "alice@corp.com")
 	_ = s.SetAssetOwner(target, &ownerID, &teamID, "Initial")
 
-	// 2. Save a finding via SaveReportFinding
 	fid, err := s.SaveReportFinding("SQLi", "SQL injection on parameter", "critical", target, "", 90, 80)
 	if err != nil {
 		t.Fatalf("SaveReportFinding failed: %v", err)
 	}
 
-	// 3. Run AutoTransitionFindingStates: should auto-assign
 	detected := []ScanFinding{
 		{Title: "SQLi", Target: target, Severity: "critical"},
 	}
@@ -535,8 +493,6 @@ func TestAutoTransitionFindingStates(t *testing.T) {
 		t.Errorf("Expected status Assigned, got %s", status)
 	}
 
-	// 4. Verify re-detection auto-reopens a Remediated or Verified finding
-	// Remediate it
 	err = s.UpdateAssignmentStatus(assignmentID, "remediating")
 	if err != nil {
 		t.Fatalf("remediating failed: %v", err)
@@ -546,7 +502,6 @@ func TestAutoTransitionFindingStates(t *testing.T) {
 		t.Fatalf("Remediated failed: %v", err)
 	}
 
-	// Re-run auto-transition: should auto-reopen
 	err = s.AutoTransitionFindingStates(detected, []string{target})
 	if err != nil {
 		t.Fatalf("AutoTransitionFindingStates failed: %v", err)
@@ -560,13 +515,11 @@ func TestAutoTransitionFindingStates(t *testing.T) {
 		t.Errorf("Expected status Reopened, got %s", status)
 	}
 
-	// 5. Verify non-detection auto-remediates
-	err = s.UpdateAssignmentStatus(assignmentID, "Assigned") // reset to Assigned
+	err = s.UpdateAssignmentStatus(assignmentID, "Assigned")
 	if err != nil {
 		t.Fatalf("reset to Assigned failed: %v", err)
 	}
 
-	// Run with empty detected list: should auto-remediate
 	err = s.AutoTransitionFindingStates([]ScanFinding{}, []string{target})
 	if err != nil {
 		t.Fatalf("AutoTransitionFindingStates failed: %v", err)
@@ -580,11 +533,10 @@ func TestAutoTransitionFindingStates(t *testing.T) {
 		t.Errorf("Expected status Remediated (due to non-detection), got %s", status)
 	}
 
-	// 6. Verify SLA Exception bypasses reopening
 	_ = s.UpdateAssignmentStatus(assignmentID, "Reopened")
 	_ = s.UpdateAssignmentStatus(assignmentID, "Assigned")
 	_ = s.UpdateAssignmentStatusWithComment(assignmentID, "SLA Exception", "Risk accepted", "Alice")
-	// Re-run with detected finding: should NOT reopen (stay in SLA Exception)
+
 	err = s.AutoTransitionFindingStates(detected, []string{target})
 	if err != nil {
 		t.Fatalf("AutoTransitionFindingStates failed: %v", err)

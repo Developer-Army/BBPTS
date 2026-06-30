@@ -21,7 +21,6 @@ var lookupIP = func(ctx context.Context, host string) ([]net.IP, error) {
 	return resolver.LookupIP(ctx, "ip", host)
 }
 
-// Sanitizer provides input validation and sanitization for security.
 type Sanitizer struct {
 	// Allowed patterns for different input types
 	fleetNamePattern *regexp.Regexp
@@ -30,32 +29,28 @@ type Sanitizer struct {
 	urlPattern       *regexp.Regexp
 }
 
-// NewSanitizer creates a new sanitizer with security patterns.
 func NewSanitizer() *Sanitizer {
 	return &Sanitizer{
-		// Fleet names: alphanumeric, hyphens, underscores only, max 64 chars
+
 		fleetNamePattern: regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`),
-		// Tool names: lowercase alphanumeric, hyphens only (standard tool naming)
+
 		toolNamePattern: regexp.MustCompile(`^[a-z0-9-]{1,32}$`),
-		// File paths: prevent directory traversal
+
 		filePathPattern: regexp.MustCompile(`^[a-zA-Z0-9_./-]{1,256}$`),
-		// Basic URL pattern for validation
+
 		urlPattern: regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*://[^\s/$.?#].[^\s]*$`),
 	}
 }
 
-// ValidateFleetName validates a fleet name for security.
 func (s *Sanitizer) ValidateFleetName(name string) error {
 	if name == "" {
 		return fmt.Errorf("fleet name cannot be empty")
 	}
 
-	// Check for shell metacharacters
 	if containsShellMetacharacters(name) {
 		return fmt.Errorf("fleet name contains invalid characters: %s", name)
 	}
 
-	// Check against allowed pattern
 	if !s.fleetNamePattern.MatchString(name) {
 		return fmt.Errorf("fleet name must be alphanumeric with hyphens/underscores only, max 64 chars: %s", name)
 	}
@@ -63,18 +58,15 @@ func (s *Sanitizer) ValidateFleetName(name string) error {
 	return nil
 }
 
-// ValidateToolName validates a tool name for security.
 func (s *Sanitizer) ValidateToolName(name string) error {
 	if name == "" {
 		return fmt.Errorf("tool name cannot be empty")
 	}
 
-	// Check for shell metacharacters
 	if containsShellMetacharacters(name) {
 		return fmt.Errorf("tool name contains invalid characters: %s", name)
 	}
 
-	// Check against allowed pattern
 	if !s.toolNamePattern.MatchString(name) {
 		return fmt.Errorf("tool name must be lowercase alphanumeric with hyphens only, max 32 chars: %s", name)
 	}
@@ -82,23 +74,19 @@ func (s *Sanitizer) ValidateToolName(name string) error {
 	return nil
 }
 
-// ValidateFilePath validates a file path to prevent directory traversal.
 func (s *Sanitizer) ValidateFilePath(path string) error {
 	if path == "" {
 		return fmt.Errorf("file path cannot be empty")
 	}
 
-	// Check for directory traversal attempts
 	if strings.Contains(path, "..") {
 		return fmt.Errorf("file path contains directory traversal: %s", path)
 	}
 
-	// Check for shell metacharacters
 	if containsShellMetacharacters(path) {
 		return fmt.Errorf("file path contains invalid characters: %s", path)
 	}
 
-	// Check against allowed pattern
 	if !s.filePathPattern.MatchString(path) {
 		return fmt.Errorf("file path contains invalid characters: %s", path)
 	}
@@ -106,12 +94,11 @@ func (s *Sanitizer) ValidateFilePath(path string) error {
 	return nil
 }
 
-// privatePrefixes contains blacklisted internal network segments.
 var privatePrefixes []netip.Prefix
 
 func init() {
 	cidrs := []string{
-		// IPv4 Private/Local
+
 		"10.0.0.0/8",
 		"172.16.0.0/12",
 		"192.168.0.0/16",
@@ -126,7 +113,7 @@ func init() {
 		"203.0.113.0/24",
 		"224.0.0.0/4",
 		"240.0.0.0/4",
-		// IPv6 Private/Local
+
 		"::1/128",
 		"::/128",
 		"fe80::/10",
@@ -141,9 +128,8 @@ func init() {
 	}
 }
 
-// IsPrivateAddr checks if a netip.Addr belongs to private/internal range.
 func IsPrivateAddr(addr netip.Addr) bool {
-	if os.Getenv("BBPTS_ALLOW_PRIVATE_IPS") == "true" {
+	if os.Getenv("BBPTS_ALLOW_PRIVATE_IPS") == "true" || os.Getenv("BBPTS_ALLOW_LOCAL") == "true" {
 		return false
 	}
 	if !addr.IsValid() {
@@ -160,9 +146,8 @@ func IsPrivateAddr(addr netip.Addr) bool {
 	return false
 }
 
-// IsPrivateIP checks if an IP belongs to private/internal range.
 func IsPrivateIP(ip net.IP) bool {
-	if os.Getenv("BBPTS_ALLOW_PRIVATE_IPS") == "true" {
+	if os.Getenv("BBPTS_ALLOW_PRIVATE_IPS") == "true" || os.Getenv("BBPTS_ALLOW_LOCAL") == "true" {
 		return false
 	}
 	if ip == nil {
@@ -175,7 +160,6 @@ func IsPrivateIP(ip net.IP) bool {
 	return IsPrivateAddr(addr)
 }
 
-// ParseMixedNotationIP parses decimal, hex, or octal IPv4 notations.
 func ParseMixedNotationIP(host string) (net.IP, bool) {
 	host = strings.TrimSpace(host)
 	if host == "" {
@@ -257,8 +241,6 @@ func ParseMixedNotationIP(host string) (net.IP, bool) {
 	return nil, false
 }
 
-// ValidateResolvedIPEx pre-resolves a host and checks all its IPs for SSRF protection.
-// If strict is true, it fails closed on DNS/resolution failures.
 func (s *Sanitizer) ValidateResolvedIPEx(host string, strict bool) error {
 	host = strings.TrimSpace(host)
 	if host == "" {
@@ -327,28 +309,23 @@ func (s *Sanitizer) ValidateResolvedIPEx(host string, strict bool) error {
 	return nil
 }
 
-// ValidateResolvedIP pre-resolves a host and checks all its IPs for SSRF protection.
 func (s *Sanitizer) ValidateResolvedIP(host string) error {
 	return s.ValidateResolvedIPEx(host, true)
 }
 
-// ValidateResolvedIPStrict pre-resolves a host strictly and fails closed on resolution errors.
 func (s *Sanitizer) ValidateResolvedIPStrict(host string) error {
 	return s.ValidateResolvedIPEx(host, true)
 }
 
-// ValidateURL validates a URL for security.
 func (s *Sanitizer) ValidateURL(urlStr string) error {
 	if urlStr == "" {
 		return fmt.Errorf("URL cannot be empty")
 	}
 
-	// Check for shell metacharacters
 	if containsShellMetacharactersForURL(urlStr) {
 		return fmt.Errorf("URL contains invalid characters: %s", urlStr)
 	}
 
-	// Basic URL validation
 	if !s.urlPattern.MatchString(urlStr) {
 		return fmt.Errorf("invalid URL format: %s", urlStr)
 	}
@@ -367,18 +344,15 @@ func (s *Sanitizer) ValidateURL(urlStr string) error {
 	return nil
 }
 
-// ValidateURLStrict validates a URL strictly for active fetches.
 func (s *Sanitizer) ValidateURLStrict(urlStr string) error {
 	if urlStr == "" {
 		return fmt.Errorf("URL cannot be empty")
 	}
 
-	// Check for shell metacharacters
 	if containsShellMetacharactersForURL(urlStr) {
 		return fmt.Errorf("URL contains invalid characters: %s", urlStr)
 	}
 
-	// Basic URL validation
 	if !s.urlPattern.MatchString(urlStr) {
 		return fmt.Errorf("invalid URL format: %s", urlStr)
 	}
@@ -397,12 +371,11 @@ func (s *Sanitizer) ValidateURLStrict(urlStr string) error {
 	return nil
 }
 
-// SanitizeShellArg sanitizes a shell argument to prevent injection.
 func (s *Sanitizer) SanitizeShellArg(arg string) string {
-	// Remove shell metacharacters
+
 	result := strings.Map(func(r rune) rune {
 		if isShellMetacharacter(r) {
-			return -1 // Remove the character
+			return -1
 		}
 		return r
 	}, arg)
@@ -410,7 +383,6 @@ func (s *Sanitizer) SanitizeShellArg(arg string) string {
 	return strings.TrimSpace(result)
 }
 
-// ValidateInteger validates an integer value within a range.
 func (s *Sanitizer) ValidateInteger(value int, min, max int) error {
 	if value < min {
 		return fmt.Errorf("value %d is below minimum %d", value, min)
@@ -421,7 +393,6 @@ func (s *Sanitizer) ValidateInteger(value int, min, max int) error {
 	return nil
 }
 
-// containsShellMetacharacters checks if a string contains shell metacharacters.
 func containsShellMetacharacters(s string) bool {
 	for _, r := range s {
 		if isShellMetacharacter(r) {
@@ -431,7 +402,6 @@ func containsShellMetacharacters(s string) bool {
 	return false
 }
 
-// containsShellMetacharactersForURL checks if a URL contains dangerous shell characters.
 func containsShellMetacharactersForURL(s string) bool {
 	dangerous := ";|`$()<>\"' \t\n\r"
 	for _, r := range s {
@@ -442,13 +412,11 @@ func containsShellMetacharactersForURL(s string) bool {
 	return false
 }
 
-// isShellMetacharacter checks if a rune is a shell metacharacter.
 func isShellMetacharacter(r rune) bool {
 	shellMetacharacters := ";|&`$()<>{}[]\\\"' \t\n\r*?!"
 	return strings.ContainsRune(shellMetacharacters, r)
 }
 
-// isInternalURL checks if a URL points to an internal address (SSRF protection).
 func isInternalURL(urlStr string) bool {
 	lowerURL := strings.ToLower(urlStr)
 	if strings.HasPrefix(lowerURL, "file://") {
@@ -490,24 +458,20 @@ func isInternalURL(urlStr string) bool {
 	return false
 }
 
-// ValidateCommandArgs validates command arguments for security.
 func (s *Sanitizer) ValidateCommandArgs(args []string) error {
 	for i, arg := range args {
 		if arg == "" {
-			continue // Empty args are typically OK
+			continue
 		}
 
-		// Check for shell metacharacters
 		if containsShellMetacharacters(arg) {
 			return fmt.Errorf("argument %d contains shell metacharacters: %s", i, arg)
 		}
 
-		// Check for command chaining attempts
 		if strings.Contains(arg, "&&") || strings.Contains(arg, "||") || strings.Contains(arg, ";") {
 			return fmt.Errorf("argument %d contains command chaining: %s", i, arg)
 		}
 
-		// Check for variable substitution attempts
 		if strings.Contains(arg, "$(") || strings.Contains(arg, "`") {
 			return fmt.Errorf("argument %d contains command substitution: %s", i, arg)
 		}
@@ -516,13 +480,11 @@ func (s *Sanitizer) ValidateCommandArgs(args []string) error {
 	return nil
 }
 
-// SafeString converts a string to a safe representation for logging.
 func (s *Sanitizer) SafeString(str string, maxLength int) string {
 	if len(str) > maxLength {
 		str = strings.TrimSpace(str[:maxLength]) + "..."
 	}
 
-	// Remove control characters
 	result := strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) && r != '\n' && r != '\t' {
 			return -1
@@ -533,7 +495,6 @@ func (s *Sanitizer) SafeString(str string, maxLength int) string {
 	return result
 }
 
-// ResolveAndValidateAddr resolves hostname, validates for SSRF, and returns pinned IP-based address and original host name.
 func ResolveAndValidateAddr(ctx context.Context, addr string) (string, string, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -584,12 +545,12 @@ func ResolveAndValidateAddr(ctx context.Context, addr string) (string, string, e
 }
 
 var secretRegexes = []*regexp.Regexp{
-	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                                                                    // AWS Key
-	regexp.MustCompile(`AIza[0-9A-Za-z-_]{35}`),                                                               // Google API Key
-	regexp.MustCompile(`xox[baprs]-[0-9a-zA-Z]{10,48}`),                                                       // Slack Token
-	regexp.MustCompile(`gh[pso]_[a-zA-Z0-9]{36}`),                                                             // GitHub Token
-	regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24}`),                                                             // Stripe Key
-	regexp.MustCompile(`(?i)(http|https)://(discord\.com/api/webhooks/|hooks\.slack\.com/services/)[^\s"']+`), // Webhooks
+	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),
+	regexp.MustCompile(`AIza[0-9A-Za-z-_]{35}`),
+	regexp.MustCompile(`xox[baprs]-[0-9a-zA-Z]{10,48}`),
+	regexp.MustCompile(`gh[pso]_[a-zA-Z0-9]{36}`),
+	regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24}`),
+	regexp.MustCompile(`(?i)(http|https)://(discord\.com/api/webhooks/|hooks\.slack\.com/services/)[^\s"']+`),
 }
 
 var (
@@ -597,15 +558,14 @@ var (
 	customSecrets   []string
 )
 
-// RegisterSecretToRedact registers a specific sensitive value to be masked.
 func RegisterSecretToRedact(secret string) {
 	s := strings.TrimSpace(secret)
 	if len(s) < 6 || s == "●●●●●●●●" {
-		return // Avoid registering short/common keys or already redacted values
+		return
 	}
 	customSecretsMu.Lock()
 	defer customSecretsMu.Unlock()
-	// Prevent duplicate entries
+
 	for _, existing := range customSecrets {
 		if existing == s {
 			return
@@ -614,7 +574,6 @@ func RegisterSecretToRedact(secret string) {
 	customSecrets = append(customSecrets, s)
 }
 
-// RedactSecrets scans a string and masks any detected secrets.
 func RedactSecrets(text string) string {
 	for _, re := range secretRegexes {
 		text = re.ReplaceAllString(text, "●●●●●●●●")

@@ -12,7 +12,6 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// Instrumenter handles stealth browser automation to extract high-value dynamic recon signals.
 type Instrumenter struct {
 	pw              *playwright.Playwright
 	browser         playwright.Browser
@@ -27,7 +26,6 @@ type Instrumenter struct {
 	lastRestartTime time.Time
 }
 
-// InstrumenterConfig defines configuration for browser instrumentation with resource limits.
 type InstrumenterConfig struct {
 	MaxMemoryMB     int           // Maximum memory per browser instance in MB (0 = unlimited)
 	MaxPageLoads    int           // Maximum page loads before browser restart (for crash recovery)
@@ -35,7 +33,6 @@ type InstrumenterConfig struct {
 	HealthCheckFreq time.Duration // Frequency of health checks
 }
 
-// NewInstrumenter initializes Playwright with stealth bypass capabilities and resource limits.
 func NewInstrumenter(idPool *IdentityPool, config InstrumenterConfig) (*Instrumenter, error) {
 	err := playwright.Install()
 	if err != nil {
@@ -47,14 +44,12 @@ func NewInstrumenter(idPool *IdentityPool, config InstrumenterConfig) (*Instrume
 		return nil, fmt.Errorf("could not start playwright: %w", err)
 	}
 
-	// Build launch arguments with resource limits
 	args := []string{
 		"--disable-blink-features=AutomationControlled",
 		"--disable-web-security",
 		"--disable-features=IsolateOrigins,site-per-process",
 	}
 
-	// Add memory limit if configured
 	if config.MaxMemoryMB > 0 {
 		args = append(args, fmt.Sprintf("--max-old-space-size=%d", config.MaxMemoryMB))
 	}
@@ -79,7 +74,6 @@ func NewInstrumenter(idPool *IdentityPool, config InstrumenterConfig) (*Instrume
 		lastRestartTime: time.Now(),
 	}
 
-	// Set defaults if not provided
 	if config.HealthCheckFreq == 0 {
 		config.HealthCheckFreq = 30 * time.Second
 	}
@@ -90,7 +84,6 @@ func NewInstrumenter(idPool *IdentityPool, config InstrumenterConfig) (*Instrume
 		config.RestartInterval = 1 * time.Hour
 	}
 
-	// Start health monitoring
 	inst.healthCheck = time.NewTicker(config.HealthCheckFreq)
 	go inst.healthMonitor()
 
@@ -99,7 +92,6 @@ func NewInstrumenter(idPool *IdentityPool, config InstrumenterConfig) (*Instrume
 	return inst, nil
 }
 
-// ReconData holds intelligence gathered from a single page load.
 type ReconData struct {
 	URL          string
 	DOMMutations []string
@@ -109,7 +101,6 @@ type ReconData struct {
 	StorageKeys  []string
 }
 
-// ExtractSurface visits a target and extracts dynamic attack surface intelligence.
 func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID string) (*ReconData, error) {
 	i.mu.Lock()
 	if i.isClosed {
@@ -118,7 +109,6 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 	}
 	i.mu.Unlock()
 
-	// Check if browser needs restart
 	if i.shouldRestartBrowser() {
 		slog.Info("Restarting browser due to resource limits", "page_loads", i.pageLoadCount)
 		if err := i.restartBrowser(); err != nil {
@@ -156,7 +146,6 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 	}
 	defer bCtx.Close()
 
-	// Apply stealth evasions
 	err = bCtx.AddInitScript(playwright.Script{
 		Content: playwright.String(`
 			Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
@@ -178,7 +167,6 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 		URL: targetURL,
 	}
 
-	// Capture XHR and Websocket connections
 	page.On("request", func(request playwright.Request) {
 		switch reqType := request.ResourceType(); reqType {
 		case "xhr", "fetch", "websocket":
@@ -192,9 +180,8 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 		data.ConsoleLogs = append(data.ConsoleLogs, msg.Text())
 	})
 
-	// Navigate with timeout
 	navOpts := playwright.PageGotoOptions{
-		Timeout:   playwright.Float(30000), // 30s
+		Timeout:   playwright.Float(30000),
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
 	}
 
@@ -204,22 +191,20 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 		return nil, fmt.Errorf("navigation failed: %w", err)
 	}
 
-	// Increment page load count
 	i.pageLoadCount++
 
-	// Check if we hit a WAF/Captcha based on status or content
 	if resp != nil && (resp.Status() == 403 || resp.Status() == 429) {
 		i.idPool.ReportChallenge(sessionID)
 		slog.Warn("WAF/Challenge detected", "url", targetURL, "status", resp.Status())
 	} else if resp != nil {
-		// Attempt to extract local storage keys to understand auth mechanisms
+
 		storageKeys, err := page.Evaluate(`Object.keys(localStorage)`)
 		if err == nil {
 			if keys, ok := storageKeys.([]interface{}); ok {
 				for _, k := range keys {
 					if str, ok := k.(string); ok {
 						data.StorageKeys = append(data.StorageKeys, str)
-						// Basic token heuristic check
+
 						if strings.Contains(strings.ToLower(str), "token") || strings.Contains(strings.ToLower(str), "auth") {
 							slog.Info("Auth token found in local storage", "url", targetURL, "key", str)
 						}
@@ -232,14 +217,12 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 	return data, nil
 }
 
-// shouldRestartBrowser determines if the browser should be restarted based on resource limits.
 func (i *Instrumenter) shouldRestartBrowser() bool {
-	// Check page load limit
+
 	if i.config.MaxPageLoads > 0 && i.pageLoadCount >= i.config.MaxPageLoads {
 		return true
 	}
 
-	// Check memory limit
 	if i.config.MaxMemoryMB > 0 {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
@@ -249,12 +232,10 @@ func (i *Instrumenter) shouldRestartBrowser() bool {
 		}
 	}
 
-	// Check uptime
 	if i.config.RestartInterval > 0 && time.Since(i.lastRestartTime) > i.config.RestartInterval {
 		return true
 	}
 
-	// Check crash count
 	if i.crashCount > 3 {
 		return true
 	}
@@ -262,17 +243,14 @@ func (i *Instrumenter) shouldRestartBrowser() bool {
 	return false
 }
 
-// restartBrowser safely restarts the browser instance.
 func (i *Instrumenter) restartBrowser() error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
-	// Close old browser
 	if err := i.browser.Close(); err != nil {
 		slog.Warn("Error closing browser during restart", "error", err)
 	}
 
-	// Launch new browser
 	args := []string{
 		"--disable-blink-features=AutomationControlled",
 		"--disable-web-security",
@@ -300,7 +278,6 @@ func (i *Instrumenter) restartBrowser() error {
 	return nil
 }
 
-// healthMonitor periodically checks browser health and performs maintenance.
 func (i *Instrumenter) healthMonitor() {
 	for {
 		select {
@@ -318,7 +295,6 @@ func (i *Instrumenter) healthMonitor() {
 
 			slog.Debug("Browser health check", "page_loads", i.pageLoadCount, "memory_mb", memoryMB, "crashes", i.crashCount)
 
-			// Check if restart is needed
 			if i.shouldRestartBrowser() {
 				slog.Info("Health check triggering browser restart", "page_loads", i.pageLoadCount, "memory_mb", memoryMB)
 				go func() {
@@ -332,12 +308,11 @@ func (i *Instrumenter) healthMonitor() {
 			}
 
 		case <-i.restartChan:
-			// Manual restart trigger
+
 		}
 	}
 }
 
-// GetStats returns statistics about the browser instrumenter.
 func (i *Instrumenter) GetStats() map[string]interface{} {
 	i.mu.Lock()
 	defer i.mu.Unlock()
@@ -356,7 +331,6 @@ func (i *Instrumenter) GetStats() map[string]interface{} {
 	}
 }
 
-// Close cleans up Playwright resources.
 func (i *Instrumenter) Close() {
 	i.mu.Lock()
 	defer i.mu.Unlock()

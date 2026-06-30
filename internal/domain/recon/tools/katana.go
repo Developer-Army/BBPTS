@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 )
 
@@ -18,7 +18,7 @@ func (t *KatanaTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 		return nil, nil
 	}
 
-	args := []string{"-silent", "-list", "-", "-c", fmt.Sprintf("%d", threads)}
+	args := []string{"-silent", "-list", "-", "-c", fmt.Sprintf("%d", threads), "-jc", "-kf", "all"}
 
 	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 	if rateLimit > 0 {
@@ -27,7 +27,7 @@ func (t *KatanaTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 
 	headers := scanCtx.Headers
 	for k, v := range headers {
-		args = append(args, "-header", fmt.Sprintf("%s: %s", k, v))
+		args = append(args, "-headers", fmt.Sprintf("%s: %s", k, v))
 	}
 
 	input := strings.Join(targets, "\n")

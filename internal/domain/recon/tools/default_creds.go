@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net"
 	"net/http"
@@ -63,14 +63,14 @@ func (t *DefaultCredsTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 				return nil, nil
 			}
 		} else {
-			// Host:Port format
+
 			h, pStr, err := net.SplitHostPort(target)
 			if err == nil {
 				host = h
 				port, _ = strconv.Atoi(pStr)
 			} else {
 				host = target
-				// Default port based on some simple checks or default to 80
+
 				port = 80
 			}
 		}
@@ -82,39 +82,37 @@ func (t *DefaultCredsTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 
 		var events []recon.Event
 
-		// Test mapping based on port
 		switch port {
-		case 8080: // Jenkins
+		case 8080:
 			t.checkJenkins(ctx, client, scheme, host, port, &events)
-		case 5601: // Kibana
+		case 5601:
 			t.checkKibana(ctx, client, scheme, host, port, &events)
-		case 9200: // Elasticsearch
+		case 9200:
 			t.checkElasticsearch(ctx, client, scheme, host, port, &events)
-		case 6379: // Redis
+		case 6379:
 			t.checkRedis(ctx, host, port, &events)
-		case 27017: // MongoDB
+		case 27017:
 			t.checkMongoDB(ctx, host, port, &events)
-		case 8001: // Kubernetes Dashboard / API
+		case 8001:
 			t.checkKubeDashboard(ctx, client, scheme, host, port, &events)
-		case 10250: // Kubelet API
+		case 10250:
 			t.checkKubelet(ctx, client, scheme, host, port, &events)
-		case 8888: // Jupyter Notebook
+		case 8888:
 			t.checkJupyter(ctx, client, scheme, host, port, &events)
-		case 2375: // Docker API
+		case 2375:
 			t.checkDockerAPI(ctx, client, scheme, host, port, &events)
-		case 3000: // Grafana
+		case 3000:
 			t.checkGrafana(ctx, client, scheme, host, port, &events)
-		case 50070, 9870: // Hadoop NameNode
+		case 50070, 9870:
 			t.checkHadoop(ctx, client, scheme, host, port, &events)
-		case 8500: // Consul
+		case 8500:
 			t.checkConsul(ctx, client, scheme, host, port, &events)
-		case 9090: // Prometheus
+		case 9090:
 			t.checkPrometheus(ctx, client, scheme, host, port, &events)
-		case 8983: // Apache Solr
+		case 8983:
 			t.checkSolr(ctx, client, scheme, host, port, &events)
 		}
 
-		// Also check phpMyAdmin path if target is an HTTP target
 		if isHTTP {
 			t.checkPhpMyAdmin(ctx, client, target, &events)
 		}
@@ -139,7 +137,6 @@ func (t *DefaultCredsTool) checkJenkins(ctx context.Context, client *http.Client
 		}
 	}
 
-	// Try default credentials: admin:admin
 	loginURL := fmt.Sprintf("%s://%s:%d/j_acegi_security_check", scheme, host, port)
 	data := "j_username=admin&j_password=admin&submit=Sign+in"
 	req, _ = http.NewRequestWithContext(ctx, "POST", loginURL, strings.NewReader(data))
@@ -242,23 +239,21 @@ func (t *DefaultCredsTool) checkMongoDB(ctx context.Context, host string, port i
 	}
 	defer conn.Close()
 
-	// Simple MongoDB wire protocol handshake payload
-	// OP_QUERY command to admin.$cmd checking "whatsmyuri"
 	mongoPayload := []byte{
-		0x3b, 0x00, 0x00, 0x00, // Message length (59 bytes)
-		0x01, 0x00, 0x00, 0x00, // Request ID
-		0x00, 0x00, 0x00, 0x00, // Response To
-		0xd4, 0x07, 0x00, 0x00, // OP_QUERY opcode (2004)
-		0x00, 0x00, 0x00, 0x00, // Query flags
-		0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x24, 0x63, 0x6d, 0x64, 0x00, // Collection name "admin.$cmd"
-		0x00, 0x00, 0x00, 0x00, // Number to skip
-		0xff, 0xff, 0xff, 0xff, // Number to return (-1)
-		// Document BSON: {whatsmyuri: 1}
-		0x15, 0x00, 0x00, 0x00, // Document length (21 bytes)
-		0x10, // Element type: Int32
-		0x77, 0x68, 0x61, 0x74, 0x73, 0x6d, 0x79, 0x75, 0x72, 0x69, 0x00, // Key name: whatsmyuri
-		0x01, 0x00, 0x00, 0x00, // Value: 1
-		0x00, // Document end
+		0x3b, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0xd4, 0x07, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x61, 0x64, 0x6d, 0x69, 0x6e, 0x2e, 0x24, 0x63, 0x6d, 0x64, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0xff, 0xff, 0xff, 0xff,
+
+		0x15, 0x00, 0x00, 0x00,
+		0x10,
+		0x77, 0x68, 0x61, 0x74, 0x73, 0x6d, 0x79, 0x75, 0x72, 0x69, 0x00,
+		0x01, 0x00, 0x00, 0x00,
+		0x00,
 	}
 
 	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
@@ -270,9 +265,7 @@ func (t *DefaultCredsTool) checkMongoDB(ctx context.Context, host string, port i
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
 	if err == nil && n > 16 {
-		// MongoDB responds with OP_REPLY (opcode 1)
-		// Check if response signature contains OP_REPLY opcode (1000 in little endian or bytes)
-		// Usually if we get a response payload containing "youAreNotInAShard" or "ok" or successfully parsing BSON
+
 		*events = append(*events, recon.NewEventWithSeverity(fmt.Sprintf("%s:%d", host, port), t.Name(), "vulnerability", map[string]string{
 			"vuln_name":   "Unauthenticated MongoDB Database Access",
 			"severity":    "critical",
@@ -464,7 +457,6 @@ func (t *DefaultCredsTool) checkPhpMyAdmin(ctx context.Context, client *http.Cli
 			targetURL += p[1:]
 		}
 
-		// Try logging in with default root credentials (root:root, root:empty)
 		loginURL := targetURL + "index.php"
 		postData := "pma_username=root&pma_password=root&server=1"
 		req, _ := http.NewRequestWithContext(ctx, "POST", loginURL, strings.NewReader(postData))

@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"crypto/tls"
-	"net"
-	"net/http"
-	"net/netip"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
+	"net"
+	"net/http"
+	"net/netip"
 )
 
 var (
@@ -82,12 +82,10 @@ func RecoverToolRateLimit(toolName string, baseLimit int) {
 	}
 }
 
-// RunCommandStream runs an external command and reads stdout stream line-by-line, returning unique lines.
 func RunCommandStream(ctx context.Context, name string, args ...string) ([]string, error) {
 	return RunCommandStreamWithInput(ctx, nil, name, args...)
 }
 
-// RunCommandStreamWithInput runs an external command with stdin provided, and reads stdout stream line-by-line, returning unique lines.
 func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, args ...string) ([]string, error) {
 	if recon.DryRunFromCtx(ctx) {
 		fmt.Printf("[Dry-Run] Would execute: %s %s\n", name, strings.Join(args, " "))
@@ -117,7 +115,13 @@ func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 				if t == "" {
 					continue
 				}
-				mockLines = append(mockLines, fmt.Sprintf(`{"url":"https://%s","statuscode":200,"title":"Mock Title","server":"nginx"}`, t))
+				cleanHost := t
+				if strings.HasPrefix(strings.ToLower(cleanHost), "http://") {
+					cleanHost = cleanHost[7:]
+				} else if strings.HasPrefix(strings.ToLower(cleanHost), "https://") {
+					cleanHost = cleanHost[8:]
+				}
+				mockLines = append(mockLines, fmt.Sprintf(`{"url":"https://%s","statuscode":200,"title":"Mock Title","server":"nginx"}`, cleanHost))
 			}
 		case "katana", "gau", "hakrawler":
 			var inputTargets []string
@@ -186,6 +190,18 @@ func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 	unique := make([]string, 0)
 	seen := map[string]struct{}{}
 
+	monitorCtx, cancelMonitor := context.WithCancel(context.Background())
+	defer cancelMonitor()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			stdout.Close()
+			TerminateCommand(cmd)
+		case <-monitorCtx.Done():
+		}
+	}()
+
 	scanner := bufio.NewScanner(stdout)
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
@@ -198,7 +214,8 @@ func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 		if line == "" {
 			continue
 		}
-		if !blockDetected && ab.IsBlockDetected(line) {
+		isFuzzer := name == "ffuf" || name == "gobuster" || name == "feroxbuster" || name == "katana" || name == "nuclei"
+		if !isFuzzer && !blockDetected && ab.IsBlockDetected(line) {
 			blockDetected = true
 		}
 		if _, ok := seen[line]; ok {
@@ -258,7 +275,6 @@ func ToolRateLimitFromCtx(ctx context.Context, toolName string) int {
 	return GetDynamicRateLimit(toolName, limit)
 }
 
-// NewSafeHTTPClient returns an http.Client with built-in SSRF protection.
 func NewSafeHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout: timeout,
@@ -299,7 +315,6 @@ func NewSafeHTTPClient(timeout time.Duration) *http.Client {
 	}
 }
 
-// NewSafeRateLimitedClient returns a client wrapper that has both SSRF protection and Adaptive Backoff.
 func NewSafeRateLimitedClient(timeout time.Duration, baseDelayMs, maxDelayMs int) *network.RateLimiter {
 	client := NewSafeHTTPClient(timeout)
 	return network.NewRateLimiter(client, baseDelayMs, maxDelayMs)

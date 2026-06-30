@@ -33,7 +33,6 @@ func (rg *ReportGenerator) exportForBurp(report *Report) error {
 	return os.WriteFile(outputPath, data, 0644)
 }
 
-// exportForCaido exports findings for Caido import
 func (rg *ReportGenerator) exportForCaido(report *Report) error {
 	outputPath := filepath.Join(rg.config.OutputPath, "caido-import.json")
 	type caidoFinding struct {
@@ -72,7 +71,6 @@ func (rg *ReportGenerator) exportForCaido(report *Report) error {
 	return os.WriteFile(outputPath, data, 0644)
 }
 
-// exportForZAP exports findings for ZAP import
 func (rg *ReportGenerator) exportForZAP(report *Report) error {
 	outputPath := filepath.Join(rg.config.OutputPath, "zap-import.xml")
 	type zapAlertItem struct {

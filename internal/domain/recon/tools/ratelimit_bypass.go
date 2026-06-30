@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -44,6 +44,8 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 	}
 	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
 
+	oobURL := scanCtx.InteractshOOBURL
+
 	return pool.Process(ctx, targets, func(ctx context.Context, target string) ([]recon.Event, error) {
 		target = strings.TrimSpace(target)
 		if target == "" {
@@ -55,13 +57,11 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 
 		client := NewSafeHTTPClient(10 * time.Second)
 
-		// Step 1: Send initial request to establish baseline
 		baselineStatus, baselineBody := t.doRequest(ctx, client, target, nil, scanCtx.Headers)
 		if baselineStatus == 0 {
 			return nil, nil
 		}
 
-		// If not rate limited, nothing to bypass
 		if baselineStatus != 429 && !isRateLimitedBody(baselineBody) {
 			return nil, nil
 		}
@@ -69,11 +69,13 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 		slog.Info("Rate limit detected, testing bypasses", "target", target, "status", baselineStatus)
 		var events []recon.Event
 
-		// Step 2: Test IP header injection bypasses
 		for _, header := range bypassHeaders {
 			for _, ip := range []string{"127.0.0.1", "8.8.8.8", "1.1.1.1", "192.168.1.1", "10.0.0.1"} {
 				testHeaders := copyHeaders(scanCtx.Headers)
 				testHeaders[header] = ip
+				if oobURL != "" {
+					testHeaders["Referer"] = oobURL
+				}
 
 				status, body := t.doRequest(ctx, client, target, nil, testHeaders)
 				if status == 0 {
@@ -82,14 +84,14 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 
 				if status != 429 && !isRateLimitedBody(body) {
 					events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-						"vuln_name":    "Rate Limit Bypass via Header Injection",
-						"severity":     "high",
-						"bypass_type":  "header_injection",
-						"header":       header,
-						"value":        ip,
-						"baseline":     fmt.Sprintf("%d", baselineStatus),
+						"vuln_name":     "Rate Limit Bypass via Header Injection",
+						"severity":      "high",
+						"bypass_type":   "header_injection",
+						"header":        header,
+						"value":         ip,
+						"baseline":      fmt.Sprintf("%d", baselineStatus),
 						"bypass_status": fmt.Sprintf("%d", status),
-						"description":  fmt.Sprintf("Rate limit bypassed by setting %s: %s (baseline: %d, bypass: %d)", header, ip, baselineStatus, status),
+						"description":   fmt.Sprintf("Rate limit bypassed by setting %s: %s (baseline: %d, bypass: %d)", header, ip, baselineStatus, status),
 					}, "high"))
 					slog.Warn("Rate limit bypass found", "target", target, "header", header, "value", ip, "status", status)
 					return events, nil
@@ -97,7 +99,6 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 			}
 		}
 
-		// Step 3: Test URL parameter rotation
 		urlVariants := []string{
 			target + "?v=1",
 			target + "?v=2",
@@ -111,38 +112,36 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 			}
 			if status != 429 && !isRateLimitedBody(body) {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":    "Rate Limit Bypass via URL Parameter",
-					"severity":     "high",
-					"bypass_type":  "url_parameter",
-					"variant":      variant,
-					"baseline":     fmt.Sprintf("%d", baselineStatus),
+					"vuln_name":     "Rate Limit Bypass via URL Parameter",
+					"severity":      "high",
+					"bypass_type":   "url_parameter",
+					"variant":       variant,
+					"baseline":      fmt.Sprintf("%d", baselineStatus),
 					"bypass_status": fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Rate limit bypassed by adding query parameter: %s", variant),
+					"description":   fmt.Sprintf("Rate limit bypassed by adding query parameter: %s", variant),
 				}, "high"))
 				slog.Warn("Rate limit bypass via URL param", "target", target, "variant", variant)
 				return events, nil
 			}
 		}
 
-		// Step 4: Test case variation
 		if strings.HasSuffix(target, "/") {
 			variant := strings.TrimSuffix(target, "/")
 			status, body := t.doRequest(ctx, client, variant, nil, scanCtx.Headers)
 			if status != 429 && !isRateLimitedBody(body) && status != 0 {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":    "Rate Limit Bypass via Case Variation",
-					"severity":     "high",
-					"bypass_type":  "case_variation",
-					"variant":      variant,
-					"baseline":     fmt.Sprintf("%d", baselineStatus),
+					"vuln_name":     "Rate Limit Bypass via Case Variation",
+					"severity":      "high",
+					"bypass_type":   "case_variation",
+					"variant":       variant,
+					"baseline":      fmt.Sprintf("%d", baselineStatus),
 					"bypass_status": fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Rate limit bypassed by removing trailing slash"),
+					"description":   "Rate limit bypassed by removing trailing slash",
 				}, "high"))
 				return events, nil
 			}
 		}
 
-		// Step 5: Test HTTP method switching
 		methods := []string{"POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"}
 		for _, method := range methods {
 			status, body := t.doMethodRequest(ctx, client, target, method, nil, scanCtx.Headers)
@@ -151,20 +150,19 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 			}
 			if status != 429 && !isRateLimitedBody(body) {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":    "Rate Limit Bypass via Method Switch",
-					"severity":     "high",
-					"bypass_type":  "method_switch",
-					"method":       method,
-					"baseline":     fmt.Sprintf("%d", baselineStatus),
+					"vuln_name":     "Rate Limit Bypass via Method Switch",
+					"severity":      "high",
+					"bypass_type":   "method_switch",
+					"method":        method,
+					"baseline":      fmt.Sprintf("%d", baselineStatus),
 					"bypass_status": fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Rate limit bypassed by switching HTTP method to %s", method),
+					"description":   fmt.Sprintf("Rate limit bypassed by switching HTTP method to %s", method),
 				}, "high"))
 				slog.Warn("Rate limit bypass via method switch", "target", target, "method", method)
 				return events, nil
 			}
 		}
 
-		// Step 6: Test null byte in path
 		nullVariants := []string{
 			strings.TrimSuffix(target, "/") + "%00",
 			strings.TrimSuffix(target, "/") + "%00.json",
@@ -177,13 +175,13 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 			}
 			if status != 429 && !isRateLimitedBody(body) {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":    "Rate Limit Bypass via Null Byte",
-					"severity":     "high",
-					"bypass_type":  "null_byte",
-					"variant":      variant,
-					"baseline":     fmt.Sprintf("%d", baselineStatus),
+					"vuln_name":     "Rate Limit Bypass via Null Byte",
+					"severity":      "high",
+					"bypass_type":   "null_byte",
+					"variant":       variant,
+					"baseline":      fmt.Sprintf("%d", baselineStatus),
 					"bypass_status": fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Rate limit bypassed by appending null byte to path"),
+					"description":   "Rate limit bypassed by appending null byte to path",
 				}, "high"))
 				return events, nil
 			}

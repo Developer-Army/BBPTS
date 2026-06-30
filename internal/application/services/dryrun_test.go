@@ -27,7 +27,6 @@ func TestDryRunContext(t *testing.T) {
 func TestRunCommandDryRun(t *testing.T) {
 	ctx := recon.WithDryRun(context.Background(), true)
 
-	// Since subfinder is in allowedBinaries, it should hit the mock logic in RunCommandStreamWithInput
 	lines, err := tools.RunCommandStreamWithInput(ctx, nil, "subfinder", "-silent")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -64,7 +63,6 @@ func TestAssetStoreStreaming(t *testing.T) {
 
 	orchestrator := NewOrchestrator(cfg)
 
-	// Report an event and verify it gets appended to the store
 	ev := Event{
 		Target:     "https://api.acme-corp.io",
 		Source:     "subfinder",

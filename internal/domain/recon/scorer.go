@@ -7,7 +7,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/risk"
 )
 
-// RiskVector represents a multi-factor risk model based on 7 factors.
 type RiskVector struct {
 	EvidenceQuality    int `json:"evidence_quality"`
 	Exploitability     int `json:"exploitability"`
@@ -23,7 +22,6 @@ type RiskVector struct {
 	PathRisk      int `json:"path_risk"`
 }
 
-// IntelligenceScore contains the evaluation of a node.
 type IntelligenceScore struct {
 	Score         int
 	Severity      string
@@ -39,7 +37,6 @@ type IntelligenceScore struct {
 	Risk RiskVector
 }
 
-// Scorer evaluates nodes and assigns intelligence priority scores.
 type Scorer struct {
 	SourceConfidence float64 // 0.0 to 1.0 (default 1.0)
 	Reproducibility  float64 // 0.0 to 1.0 (default 1.0)
@@ -56,12 +53,10 @@ func NewScorer() *Scorer {
 	}
 }
 
-// ScoreEndpoint evaluates the target risk score.
 func (s *Scorer) ScoreEndpoint(url string, isAuthRequired bool, responseBody string) *IntelligenceScore {
 	return s.ScoreEndpointAdvanced(url, isAuthRequired, responseBody, false, false, 0, 0)
 }
 
-// ScoreEndpointAdvanced evaluates the risk using 7-factor evidence-based model.
 func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, responseBody string, hasOwner bool, hasAttackPath bool, evidenceCount int, exploitability int) *IntelligenceScore {
 	result := &IntelligenceScore{
 		Score:         0,
@@ -71,7 +66,6 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 	lowerURL := strings.ToLower(url)
 	lowerBody := strings.ToLower(responseBody)
 
-	// Determine Hostname exposure context
 	host := url
 	if idx := strings.Index(host, "://"); idx != -1 {
 		host = host[idx+3:]
@@ -81,7 +75,6 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 	}
 	lowerHost := strings.ToLower(host)
 
-	// 1. Evidence Quality (0-100)
 	evidenceQuality := 10
 	if evidenceCount > 0 {
 		evidenceQuality = 50 + (evidenceCount * 10)
@@ -91,7 +84,6 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 		result.Justification = append(result.Justification, fmt.Sprintf("Evidence count: %d", evidenceCount))
 	}
 
-	// Scan responseBody or indicators for verified vulnerability proof
 	if len(lowerBody) > 0 {
 		if strings.Contains(lowerBody, "db_password") || strings.Contains(lowerBody, "aws_secret_access_key") || strings.Contains(lowerBody, "api_key") || strings.Contains(lowerBody, "private key") {
 			evidenceQuality = 100
@@ -105,19 +97,17 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 		}
 	}
 
-	// 2. Exploitability (0-100)
 	expScore := exploitability
 	if expScore <= 0 {
 		if isAuthRequired {
-			expScore = 30 // Authenticated surface is harder to exploit
+			expScore = 30
 			result.Justification = append(result.Justification, "Authenticated surface (decreases exploitability)")
 		} else {
-			expScore = 70 // Unauthenticated is easier to exploit
+			expScore = 70
 			result.Justification = append(result.Justification, "Unauthenticated surface (increases exploitability)")
 		}
 	}
 
-	// 3. Exposure (0-100)
 	exposure := 100
 	labels := strings.Split(lowerHost, ".")
 	isInternal := false
@@ -134,8 +124,7 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 		result.Justification = append(result.Justification, "Exposure score high (public facing domain)")
 	}
 
-	// 4. Ownership (0-100)
-	ownershipScore := 100 // Default to unmanaged risk
+	ownershipScore := 100
 	if hasOwner {
 		ownershipScore = 30
 		result.Justification = append(result.Justification, "Asset owner is identified (mitigates risk)")
@@ -143,24 +132,20 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 		result.Justification = append(result.Justification, "Asset owner is unknown (unmanaged risk)")
 	}
 
-	// 5. Business Impact (0-100)
 	businessImpact := 50
 	if strings.Contains(lowerURL, "api") {
 		businessImpact = 70
 	}
 	businessImpact = int(float64(businessImpact) * s.BlastRadius)
 
-	// 6. Freshness (0-100)
 	freshness := 100
 
-	// 7. Attack Path Distance (0-100)
 	attackPathDistance := 20
 	if hasAttackPath {
 		attackPathDistance = 100
 		result.Justification = append(result.Justification, "Asset has active attack path to crown jewels")
 	}
 
-	// Combine using the new 7-factor EvidenceRiskFactors
 	factors := risk.EvidenceRiskFactors{
 		EvidenceQuality:    evidenceQuality,
 		Exploitability:     expScore,
@@ -174,7 +159,6 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 	weightedScore := risk.CalculateEvidenceRisk(factors)
 	result.Score = weightedScore
 
-	// Apply environment adjustments
 	switch s.AssetEnvironment {
 	case "staging":
 		result.Score = int(float64(result.Score) * 0.75)
@@ -191,7 +175,6 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 		result.Score = 0
 	}
 
-	// Populate Risk Vector details for output compatibility
 	confidence := int(float64(evidenceQuality) * s.SourceConfidence * s.Reproducibility)
 	result.Risk = RiskVector{
 		EvidenceQuality:    evidenceQuality,
@@ -202,23 +185,19 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 		Freshness:          freshness,
 		AttackPathDistance: attackPathDistance,
 
-		// Legacy compatibility
 		Attackability: expScore,
 		Confidence:    confidence,
 		PathRisk:      attackPathDistance,
 	}
 
-	// Map to legacy fields for backward compatibility
 	result.ExposureScore = exposure
 	result.AttackabilityScore = expScore
 	result.BusinessImpactScore = businessImpact
 	result.FreshnessScore = freshness
 	result.PathScore = attackPathDistance
 
-	// Confidence calculation
 	result.ConfidenceScore = confidence
 
-	// Calculate severity tier
 	if result.Score >= 80 {
 		result.Severity = "CRITICAL"
 	} else if result.Score >= 50 {
@@ -232,7 +211,6 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 	return result
 }
 
-// AdjustScoreWithHistory boosts confidence and recomputes the score based on historical findings.
 func (s *Scorer) AdjustScoreWithHistory(score *IntelligenceScore, historyCount int) {
 	if historyCount > 0 {
 		score.ConfidenceScore += historyCount * 5

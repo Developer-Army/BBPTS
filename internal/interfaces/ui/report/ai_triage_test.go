@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 	"github.com/Developer-Army/BBPTS/internal/domain/analysis/analyze"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
 func TestCleanJSON(t *testing.T) {
@@ -93,7 +93,7 @@ func TestTriageFindingWithLLMLocal(t *testing.T) {
 }
 
 func TestTriageFindingWithLLMFallback(t *testing.T) {
-	// Mock target server
+
 	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Custom-Header", "test-val")
 		w.WriteHeader(http.StatusOK)
@@ -101,7 +101,6 @@ func TestTriageFindingWithLLMFallback(t *testing.T) {
 	}))
 	defer targetServer.Close()
 
-	// Mock LLM server
 	llmServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"choices": []map[string]any{
@@ -122,8 +121,8 @@ func TestTriageFindingWithLLMFallback(t *testing.T) {
 		Title:       "Arbitrary finding",
 		Description: "Checking target",
 		Target:      targetServer.URL,
-		Request:     "", // Empty request triggers fallback
-		Response:    "", // Empty response triggers fallback
+		Request:     "",
+		Response:    "",
 	}
 
 	result, err := TriageFindingWithLLM(context.Background(), finding, "local", "llama3", llmServer.URL, "test-key")
@@ -142,7 +141,6 @@ func TestTriageFindingWithLLMFallback(t *testing.T) {
 func TestDraftReportWithLLM(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Mock LLM server
 	llmServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"choices": []map[string]any{

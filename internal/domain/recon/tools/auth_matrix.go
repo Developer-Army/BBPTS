@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -109,7 +109,6 @@ func (t *AuthMatrixTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 
 		var events []recon.Event
 
-		// Compare each pair of sessions
 		for i := 0; i < len(results); i++ {
 			for j := i + 1; j < len(results); j++ {
 				a, b := results[i], results[j]
@@ -119,74 +118,69 @@ func (t *AuthMatrixTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 
 				sim := bodySimilarity(a.body, b.body)
 
-				// Unauthenticated vs Authenticated: broken auth
 				if (a.session.Label == "none" || b.session.Label == "none") && a.statusCode == 200 && b.statusCode == 200 && sim > 0.9 {
 					authLabel := a.session.Label
 					if authLabel == "none" {
 						authLabel = b.session.Label
 					}
 					events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-						"vuln_name":    "Broken Authentication",
-						"severity":     "high",
-						"comparison":   fmt.Sprintf("none vs %s", authLabel),
-						"status_a":     fmt.Sprintf("%d", a.statusCode),
-						"status_b":     fmt.Sprintf("%d", b.statusCode),
-						"similarity":   fmt.Sprintf("%.2f", sim),
-						"description":  fmt.Sprintf("Unauthenticated request returns same data as %s session (similarity: %.2f)", authLabel, sim),
+						"vuln_name":   "Broken Authentication",
+						"severity":    "high",
+						"comparison":  fmt.Sprintf("none vs %s", authLabel),
+						"status_a":    fmt.Sprintf("%d", a.statusCode),
+						"status_b":    fmt.Sprintf("%d", b.statusCode),
+						"similarity":  fmt.Sprintf("%.2f", sim),
+						"description": fmt.Sprintf("Unauthenticated request returns same data as %s session (similarity: %.2f)", authLabel, sim),
 					}, "high"))
 					slog.Warn("Broken auth detected", "target", target, "similarity", sim)
 					continue
 				}
 
-				// Cross-user comparison: IDOR
 				if a.session.Label != b.session.Label && a.statusCode == 200 && b.statusCode == 200 && sim > 0.85 {
 					events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-						"vuln_name":    "IDOR / BOLA",
-						"severity":     "critical",
-						"comparison":   fmt.Sprintf("%s vs %s", a.session.Label, b.session.Label),
-						"status_a":     fmt.Sprintf("%d", a.statusCode),
-						"status_b":     fmt.Sprintf("%d", b.statusCode),
-						"similarity":   fmt.Sprintf("%.2f", sim),
-						"has_pii":      fmt.Sprintf("%v", a.hasPII || b.hasPII),
-						"description":  fmt.Sprintf("Cross-account data access: %s can read %s resource (similarity: %.2f)", a.session.Label, b.session.Label, sim),
+						"vuln_name":   "IDOR / BOLA",
+						"severity":    "critical",
+						"comparison":  fmt.Sprintf("%s vs %s", a.session.Label, b.session.Label),
+						"status_a":    fmt.Sprintf("%d", a.statusCode),
+						"status_b":    fmt.Sprintf("%d", b.statusCode),
+						"similarity":  fmt.Sprintf("%.2f", sim),
+						"has_pii":     fmt.Sprintf("%v", a.hasPII || b.hasPII),
+						"description": fmt.Sprintf("Cross-account data access: %s can read %s resource (similarity: %.2f)", a.session.Label, b.session.Label, sim),
 					}, "critical"))
 					slog.Warn("IDOR detected", "target", target, "a", a.session.Label, "b", b.session.Label, "similarity", sim)
 					continue
 				}
 
-				// User vs Admin: privilege escalation
 				if (isAdmin(a.session.Label) != isAdmin(b.session.Label)) && a.statusCode == 200 && b.statusCode == 200 {
 					if sim > 0.7 {
 						events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-							"vuln_name":    "Privilege Escalation",
-							"severity":     "critical",
-							"comparison":   fmt.Sprintf("%s vs %s", a.session.Label, b.session.Label),
-							"status_a":     fmt.Sprintf("%d", a.statusCode),
-							"status_b":     fmt.Sprintf("%d", b.statusCode),
-							"similarity":   fmt.Sprintf("%.2f", sim),
-							"description":  fmt.Sprintf("Non-admin %s gets same data as admin %s (similarity: %.2f)", nonAdminLabel(a.session.Label, b.session.Label), adminLabel(a.session.Label, b.session.Label), sim),
+							"vuln_name":   "Privilege Escalation",
+							"severity":    "critical",
+							"comparison":  fmt.Sprintf("%s vs %s", a.session.Label, b.session.Label),
+							"status_a":    fmt.Sprintf("%d", a.statusCode),
+							"status_b":    fmt.Sprintf("%d", b.statusCode),
+							"similarity":  fmt.Sprintf("%.2f", sim),
+							"description": fmt.Sprintf("Non-admin %s gets same data as admin %s (similarity: %.2f)", nonAdminLabel(a.session.Label, b.session.Label), adminLabel(a.session.Label, b.session.Label), sim),
 						}, "critical"))
 						slog.Warn("Privilege escalation detected", "target", target, "similarity", sim)
 					}
 				}
 
-				// User vs User with different IDs: IDOR with numeric IDs
 				if a.session.Label != b.session.Label && !isAdmin(a.session.Label) && !isAdmin(b.session.Label) {
 					if a.statusCode == 200 && b.statusCode == 200 && sim > 0.8 && a.hasPII {
 						events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-							"vuln_name":    "IDOR with PII exposure",
-							"severity":     "critical",
-							"comparison":   fmt.Sprintf("%s vs %s", a.session.Label, b.session.Label),
-							"similarity":   fmt.Sprintf("%.2f", sim),
-							"has_pii":      "true",
-							"description":  fmt.Sprintf("Cross-account access with PII in response: %s reads %s data", a.session.Label, b.session.Label),
+							"vuln_name":   "IDOR with PII exposure",
+							"severity":    "critical",
+							"comparison":  fmt.Sprintf("%s vs %s", a.session.Label, b.session.Label),
+							"similarity":  fmt.Sprintf("%.2f", sim),
+							"has_pii":     "true",
+							"description": fmt.Sprintf("Cross-account access with PII in response: %s reads %s data", a.session.Label, b.session.Label),
 						}, "critical"))
 					}
 				}
 			}
 		}
 
-		// Baseline: unauthenticated request
 		if len(results) > 0 {
 			var baseline *sessionResult
 			for _, r := range results {
@@ -226,7 +220,6 @@ func bodySimilarity(a, b []byte) float64 {
 		return 1.0
 	}
 
-	// Token-level Jaccard similarity
 	aTokens := tokenize(a)
 	bTokens := tokenize(b)
 	if len(aTokens) == 0 || len(bTokens) == 0 {

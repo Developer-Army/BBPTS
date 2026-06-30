@@ -8,8 +8,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// Dynamic heuristic dictionaries. These are intentionally simple so they can
-// evolve into config-driven rules later without changing the analyzer contract.
 var SensitivePatterns = map[string]int{
 	".env":         50,
 	"/.git":        50,
@@ -114,14 +112,12 @@ func applyPropertyHeuristics(ev recon.Event, insight *Insight) {
 		addReason(insight, "Server identifying as dynamic stack: "+ev.Properties["server"])
 	}
 
-	// Wildcard SSL detection
 	if subject, ok := ev.Properties["ssl_subject"]; ok && strings.Contains(subject, "*.") {
 		addTag(insight, "wildcard-ssl")
 		addReason(insight, "Wildcard SSL certificate subject: "+subject)
 		insight.Score += 2
 	}
 
-	// Mock response / parking page check
 	if title != "" && isMockResponse(title) {
 		addTag(insight, "mock-response")
 		addReason(insight, "Parked page / mock response false positive title: "+ev.Properties["title"])

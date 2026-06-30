@@ -11,7 +11,6 @@ import (
 	"time"
 )
 
-// Asset represents a discovered asset from reconnaissance.
 type Asset struct {
 	Type      string                 `json:"type"`               // subdomain, url, port, etc.
 	Value     string                 `json:"value"`              // the actual asset value
@@ -21,7 +20,6 @@ type Asset struct {
 	Checksum  string                 `json:"checksum"`           // content hash for comparison
 }
 
-// ScanResult represents the complete result of a reconnaissance scan.
 type ScanResult struct {
 	SessionID  string                 `json:"session_id"`
 	Target     string                 `json:"target"`
@@ -30,14 +28,12 @@ type ScanResult struct {
 	ScanConfig map[string]interface{} `json:"scan_config,omitempty"`
 }
 
-// DiffChange represents a single change between two scans.
 type DiffChange struct {
 	Type     string `json:"type"` // added, removed, changed
 	Asset    Asset  `json:"asset"`
 	Previous *Asset `json:"previous,omitempty"` // for changed assets
 }
 
-// DiffReport represents the comparison between two scan results.
 type DiffReport struct {
 	SessionID  string       `json:"session_id"`
 	PreviousID string       `json:"previous_id"`
@@ -47,7 +43,6 @@ type DiffReport struct {
 	Summary    DiffSummary  `json:"summary"`
 }
 
-// DiffSummary provides a high-level summary of changes.
 type DiffSummary struct {
 	TotalAssets     int `json:"total_assets"`
 	NewAssets       int `json:"new_assets"`
@@ -56,13 +51,11 @@ type DiffSummary struct {
 	UnchangedAssets int `json:"unchanged_assets"`
 }
 
-// DiffEngine manages differential reconnaissance by comparing scan results.
 type DiffEngine struct {
 	storage Storage
 	mu      sync.RWMutex
 }
 
-// Storage defines the interface for storing and retrieving scan results.
 type Storage interface {
 	Store(result *ScanResult) error
 	Get(sessionID string) (*ScanResult, error)
@@ -71,19 +64,16 @@ type Storage interface {
 	Delete(sessionID string) error
 }
 
-// NewDiffEngine creates a new differential reconnaissance engine.
 func NewDiffEngine(storage Storage) *DiffEngine {
 	return &DiffEngine{
 		storage: storage,
 	}
 }
 
-// StoreResult stores a scan result for later comparison.
 func (de *DiffEngine) StoreResult(result *ScanResult) error {
 	de.mu.Lock()
 	defer de.mu.Unlock()
 
-	// Compute checksums for all assets
 	for i := range result.Assets {
 		result.Assets[i].Checksum = computeAssetChecksum(result.Assets[i])
 	}
@@ -91,12 +81,10 @@ func (de *DiffEngine) StoreResult(result *ScanResult) error {
 	return de.storage.Store(result)
 }
 
-// CompareWithLatest compares a scan result with the latest previous scan for the same target.
 func (de *DiffEngine) CompareWithLatest(result *ScanResult) (*DiffReport, error) {
 	de.mu.RLock()
 	defer de.mu.RUnlock()
 
-	// Get the latest previous scan
 	previous, err := de.storage.GetLatest(result.Target)
 	if err != nil {
 		slog.Warn("Failed to get previous scan for diff", "target", result.Target, "error", err)
@@ -106,9 +94,8 @@ func (de *DiffEngine) CompareWithLatest(result *ScanResult) (*DiffReport, error)
 	return de.Compare(result, previous)
 }
 
-// Compare compares two scan results and returns a diff report.
 func (de *DiffEngine) Compare(current, previous *ScanResult) (*DiffReport, error) {
-	// Compute checksums if not already done
+
 	for i := range current.Assets {
 		if current.Assets[i].Checksum == "" {
 			current.Assets[i].Checksum = computeAssetChecksum(current.Assets[i])
@@ -120,7 +107,6 @@ func (de *DiffEngine) Compare(current, previous *ScanResult) (*DiffReport, error
 		}
 	}
 
-	// Create asset maps for efficient lookup
 	previousMap := make(map[string]Asset)
 	for _, asset := range previous.Assets {
 		key := assetKey(asset)
@@ -136,10 +122,9 @@ func (de *DiffEngine) Compare(current, previous *ScanResult) (*DiffReport, error
 	var changes []DiffChange
 	summary := DiffSummary{}
 
-	// Find new and changed assets
 	for key, currentAsset := range currentMap {
 		if previousAsset, exists := previousMap[key]; exists {
-			// Asset exists in both - check if changed
+
 			if currentAsset.Checksum != previousAsset.Checksum {
 				changes = append(changes, DiffChange{
 					Type:     "changed",
@@ -151,7 +136,7 @@ func (de *DiffEngine) Compare(current, previous *ScanResult) (*DiffReport, error
 				summary.UnchangedAssets++
 			}
 		} else {
-			// New asset
+
 			changes = append(changes, DiffChange{
 				Type:  "added",
 				Asset: currentAsset,
@@ -160,7 +145,6 @@ func (de *DiffEngine) Compare(current, previous *ScanResult) (*DiffReport, error
 		}
 	}
 
-	// Find removed assets
 	for key, previousAsset := range previousMap {
 		if _, exists := currentMap[key]; !exists {
 			changes = append(changes, DiffChange{
@@ -193,7 +177,6 @@ func (de *DiffEngine) Compare(current, previous *ScanResult) (*DiffReport, error
 	return report, nil
 }
 
-// GetHistory retrieves the scan history for a target.
 func (de *DiffEngine) GetHistory(target string, limit int) ([]*ScanResult, error) {
 	de.mu.RLock()
 	defer de.mu.RUnlock()
@@ -201,19 +184,16 @@ func (de *DiffEngine) GetHistory(target string, limit int) ([]*ScanResult, error
 	return de.storage.List(target, limit)
 }
 
-// assetKey creates a unique key for an asset based on type and value.
 func assetKey(asset Asset) string {
 	return fmt.Sprintf("%s:%s", asset.Type, asset.Value)
 }
 
-// computeAssetChecksum computes a checksum for an asset for comparison.
 func computeAssetChecksum(asset Asset) string {
-	// Create a normalized representation
+
 	data := fmt.Sprintf("%s:%s", asset.Type, asset.Value)
 
-	// Include metadata if present
 	if len(asset.Metadata) > 0 {
-		// Sort metadata keys for consistent hashing
+
 		keys := make([]string, 0, len(asset.Metadata))
 		for k := range asset.Metadata {
 			keys = append(keys, k)
@@ -226,10 +206,9 @@ func computeAssetChecksum(asset Asset) string {
 	}
 
 	hash := sha256.Sum256([]byte(data))
-	return fmt.Sprintf("%x", hash[:16]) // Use first 16 bytes for shorter checksum
+	return fmt.Sprintf("%x", hash[:16])
 }
 
-// FilterChanges filters diff changes by type and asset type.
 func (dr *DiffReport) FilterChanges(changeType, assetType string) []DiffChange {
 	var filtered []DiffChange
 
@@ -246,7 +225,6 @@ func (dr *DiffReport) FilterChanges(changeType, assetType string) []DiffChange {
 	return filtered
 }
 
-// ToMarkdown converts the diff report to a markdown summary.
 func (dr *DiffReport) ToMarkdown() string {
 	var sb strings.Builder
 
@@ -263,13 +241,11 @@ func (dr *DiffReport) ToMarkdown() string {
 	sb.WriteString(fmt.Sprintf("- **Changed Assets:** %d\n", dr.Summary.ChangedAssets))
 	sb.WriteString(fmt.Sprintf("- **Unchanged Assets:** %d\n\n", dr.Summary.UnchangedAssets))
 
-	// Group changes by type
 	byType := make(map[string][]DiffChange)
 	for _, change := range dr.Changes {
 		byType[change.Type] = append(byType[change.Type], change)
 	}
 
-	// Output changes by category
 	for _, changeType := range []string{"added", "removed", "changed"} {
 		changes := byType[changeType]
 		if len(changes) == 0 {
@@ -295,7 +271,6 @@ func (dr *DiffReport) ToMarkdown() string {
 	return sb.String()
 }
 
-// ToJSON converts the diff report to JSON.
 func (dr *DiffReport) ToJSON() (string, error) {
 	data, err := json.MarshalIndent(dr, "", "  ")
 	if err != nil {
@@ -304,14 +279,12 @@ func (dr *DiffReport) ToJSON() (string, error) {
 	return string(data), nil
 }
 
-// InMemoryStorage provides an in-memory implementation of Storage for testing.
 type InMemoryStorage struct {
 	results  map[string]*ScanResult
 	byTarget map[string][]string
 	mu       sync.RWMutex
 }
 
-// NewInMemoryStorage creates a new in-memory storage.
 func NewInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{
 		results:  make(map[string]*ScanResult),
@@ -319,20 +292,17 @@ func NewInMemoryStorage() *InMemoryStorage {
 	}
 }
 
-// Store stores a scan result.
 func (ims *InMemoryStorage) Store(result *ScanResult) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
 
 	ims.results[result.SessionID] = result
 
-	// Update target index
 	ims.byTarget[result.Target] = append(ims.byTarget[result.Target], result.SessionID)
 
 	return nil
 }
 
-// Get retrieves a scan result by session ID.
 func (ims *InMemoryStorage) Get(sessionID string) (*ScanResult, error) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
@@ -345,7 +315,6 @@ func (ims *InMemoryStorage) Get(sessionID string) (*ScanResult, error) {
 	return result, nil
 }
 
-// GetLatest retrieves the latest scan result for a target.
 func (ims *InMemoryStorage) GetLatest(target string) (*ScanResult, error) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
@@ -374,7 +343,6 @@ func (ims *InMemoryStorage) GetLatest(target string) (*ScanResult, error) {
 	return latest, nil
 }
 
-// List retrieves scan results for a target, limited by count.
 func (ims *InMemoryStorage) List(target string, limit int) ([]*ScanResult, error) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
@@ -391,12 +359,10 @@ func (ims *InMemoryStorage) List(target string, limit int) ([]*ScanResult, error
 		}
 	}
 
-	// Sort by timestamp descending
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Timestamp.After(results[j].Timestamp)
 	})
 
-	// Apply limit
 	if limit > 0 && len(results) > limit {
 		results = results[:limit]
 	}
@@ -404,7 +370,6 @@ func (ims *InMemoryStorage) List(target string, limit int) ([]*ScanResult, error
 	return results, nil
 }
 
-// Delete deletes a scan result.
 func (ims *InMemoryStorage) Delete(sessionID string) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
@@ -414,7 +379,6 @@ func (ims *InMemoryStorage) Delete(sessionID string) error {
 		return fmt.Errorf("scan result not found: %s", sessionID)
 	}
 
-	// Remove from target index
 	target := result.Target
 	var newSessionIDs []string
 	for _, sid := range ims.byTarget[target] {
@@ -424,7 +388,6 @@ func (ims *InMemoryStorage) Delete(sessionID string) error {
 	}
 	ims.byTarget[target] = newSessionIDs
 
-	// Remove from results
 	delete(ims.results, sessionID)
 
 	return nil

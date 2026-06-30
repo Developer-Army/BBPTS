@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -27,10 +27,9 @@ var (
 	firebaseDatabaseRegex   = regexp.MustCompile(`(?i)databaseURL["']?\s*:\s*["'](https?://[a-zA-Z0-9\-\.]+firebaseio\.com)["']`)
 	firebaseStorageURLRegex = regexp.MustCompile(`(?i)firebasestorage\.googleapis\.com/v0/b/([a-zA-Z0-9\-\.]{4,60})`)
 
-	// AWS Amplify / Cognito / AppSync regexes
-	amplifyUserPoolRegex    = regexp.MustCompile(`(?i)aws_user_pools_id["']?\s*:\s*["']([a-zA-Z0-9\-_]{4,40})["']`)
-	amplifyGraphQLRegex     = regexp.MustCompile(`(?i)aws_appsync_graphqlEndpoint["']?\s*:\s*["'](https?://[a-zA-Z0-9\-\.]+\.appsync\-api\.[a-zA-Z0-9\-]+\.amazonaws\.com/graphql)["']`)
-	amplifyS3BucketRegex    = regexp.MustCompile(`(?i)aws_user_files_s3_bucket["']?\s*:\s*["']([a-zA-Z0-9\-\.]{3,60})["']`)
+	amplifyUserPoolRegex = regexp.MustCompile(`(?i)aws_user_pools_id["']?\s*:\s*["']([a-zA-Z0-9\-_]{4,40})["']`)
+	amplifyGraphQLRegex  = regexp.MustCompile(`(?i)aws_appsync_graphqlEndpoint["']?\s*:\s*["'](https?://[a-zA-Z0-9\-\.]+\.appsync\-api\.[a-zA-Z0-9\-]+\.amazonaws\.com/graphql)["']`)
+	amplifyS3BucketRegex = regexp.MustCompile(`(?i)aws_user_files_s3_bucket["']?\s*:\s*["']([a-zA-Z0-9\-\.]{3,60})["']`)
 )
 
 func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
@@ -59,7 +58,6 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			return http.ErrUseLastResponse
 		}
 
-		// 1. Fetch homepage / endpoint target to analyze JS or config references
 		req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 		if err != nil {
 			return nil, nil
@@ -72,7 +70,7 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 		if err != nil {
 			return nil, nil
 		}
-		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024)) // limit to 512KB
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
 		resp.Body.Close()
 
 		bodyStr := string(bodyBytes)
@@ -80,17 +78,14 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 		var events []recon.Event
 		var mu sync.Mutex
 
-		// Detect Firebase structures
 		projectIDs := make(map[string]bool)
 		storageBuckets := make(map[string]bool)
 		rtdbURLs := make(map[string]bool)
 
-		// Amplify structures
 		cognitoPools := make(map[string]bool)
 		graphqlEndpoints := make(map[string]bool)
 		amplifyS3Buckets := make(map[string]bool)
 
-		// Run regexes
 		if m := firebaseProjectRegex.FindStringSubmatch(bodyStr); len(m) > 1 {
 			projectIDs[m[1]] = true
 		}
@@ -115,7 +110,6 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			amplifyS3Buckets[m[1]] = true
 		}
 
-		// Also extract any potential Firebase Hostings if hostname matches
 		parsed, err := url.Parse(target)
 		if err == nil {
 			host := parsed.Hostname()
@@ -127,7 +121,6 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			}
 		}
 
-		// Try testing extracted RTDB URLs
 		for rtdb := range rtdbURLs {
 			jsonURL := rtdb
 			if !strings.HasSuffix(jsonURL, "/") {
@@ -157,9 +150,8 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			}
 		}
 
-		// Check project IDs for RTDB directly
 		for pid := range projectIDs {
-			// standard firebaseio URL: https://<project-id>.firebaseio.com/.json
+
 			rtdbURL := fmt.Sprintf("https://%s.firebaseio.com/.json", pid)
 			tReq, err := http.NewRequestWithContext(ctx, "GET", rtdbURL, nil)
 			if err != nil {
@@ -182,7 +174,6 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 				}
 			}
 
-			// Also probe Firestore via REST API
 			firestoreURL := fmt.Sprintf("https://firestore.googleapis.com/v1/projects/%s/databases/(default)/documents", pid)
 			fReq, err := http.NewRequestWithContext(ctx, "GET", firestoreURL, nil)
 			if err == nil {
@@ -204,7 +195,6 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 				}
 			}
 
-			// Check Hosting configuration exposure
 			hostingURL := fmt.Sprintf("https://%s.web.app/__/firebase/init.json", pid)
 			hReq, err := http.NewRequestWithContext(ctx, "GET", hostingURL, nil)
 			if err == nil {
@@ -226,7 +216,6 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			}
 		}
 
-		// Try testing extracted Storage Buckets
 		for bucket := range storageBuckets {
 			storageURL := fmt.Sprintf("https://firebasestorage.googleapis.com/v0/b/%s.appspot.com/o", bucket)
 			tReq, err := http.NewRequestWithContext(ctx, "GET", storageURL, nil)
@@ -251,9 +240,8 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			}
 		}
 
-		// Amplify/AppSync checks
 		for gql := range graphqlEndpoints {
-			// AppSync GraphQL endpoints probe for unauthenticated access or schema discovery
+
 			qReq, err := http.NewRequestWithContext(ctx, "POST", gql, strings.NewReader(`{"query":"query { __schema { queryType { name } } }"}`))
 			if err == nil {
 				qReq.Header.Set("Content-Type", "application/json")
@@ -276,7 +264,6 @@ func (t *FirebaseReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			}
 		}
 
-		// Emit discovered configuration items
 		for pool := range cognitoPools {
 			mu.Lock()
 			events = append(events, recon.NewEvent(target, t.Name(), "discovery", map[string]string{

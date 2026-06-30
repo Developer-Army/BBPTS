@@ -17,7 +17,6 @@ func notifierConfigFrom(cfg config.NotifyConfig) utils.Config {
 	}
 }
 
-// Options holds all runtime parameters for the BBPTS engine.
 type Options struct {
 	InputPath         string
 	Tools             string
@@ -99,4 +98,9 @@ type Options struct {
 	AITriageModel     string
 	AITriageURL       string
 	AutoTransition    bool
+	LoginURL          string
+	LoginUser         string
+	LoginPass         string
+	LoginFormUser     string
+	LoginFormPass     string
 }

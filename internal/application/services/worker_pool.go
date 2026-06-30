@@ -14,15 +14,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// WorkerPool manages rate-limited concurrent target processing.
 type WorkerPool struct {
 	workers int
 	limiter *rate.Limiter
 }
 
-// NewWorkerPool creates a new rate-limited worker pool.
-// workers: concurrency level.
-// r: limit of operations per second (0 = unlimited).
 func NewWorkerPool(workers int, r rate.Limit) *WorkerPool {
 	var lim *rate.Limiter
 	if r > 0 {
@@ -34,10 +30,6 @@ func NewWorkerPool(workers int, r rate.Limit) *WorkerPool {
 	}
 }
 
-// Process executes fn on each target concurrently up to the worker limit.
-// If any function returns an error, the errgroup context is cancelled and execution halts.
-// However, target-specific failures shouldn't abort the entire pipeline run, so fn should
-// handle transient errors internally and only return errors for critical cancellations.
 func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx context.Context, target string) ([]Event, error)) ([]Event, error) {
 	if len(targets) == 0 {
 		return nil, nil
@@ -45,7 +37,6 @@ func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx 
 
 	g, ctx := errgroup.WithContext(ctx)
 
-	// Prioritize high-value targets first using Scorer
 	scorer := recon.NewScorer()
 	type scoredTarget struct {
 		target string
@@ -106,7 +97,7 @@ func (p *WorkerPool) Process(ctx context.Context, targets []string, fn func(ctx 
 		scoreRes := scorer.ScoreEndpointAdvanced(t, isAuthRequired, "", hasOwner, hasAttackPath, evidenceCount, exploitability)
 		scored[i] = scoredTarget{target: t, score: scoreRes.Score}
 	}
-	// Sort by score descending (high score first)
+
 	sort.Slice(scored, func(i, j int) bool {
 		return scored[i].score > scored[j].score
 	})

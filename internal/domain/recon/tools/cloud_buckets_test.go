@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bytes"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"testing"
@@ -16,10 +16,10 @@ func (f mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestCloudBucketsTool(t *testing.T) {
-	// Set up mock HTTP client to return simulated S3/GCS/Azure responses
+
 	cloudBucketsClient = &http.Client{
 		Transport: mockRoundTripper(func(req *http.Request) (*http.Response, error) {
-			// If it's a request to target-assets.s3.amazonaws.com
+
 			if req.URL.Host == "target-assets.s3.amazonaws.com" {
 				return &http.Response{
 					StatusCode: http.StatusOK,
@@ -27,7 +27,7 @@ func TestCloudBucketsTool(t *testing.T) {
 					Header:     make(http.Header),
 				}, nil
 			}
-			// If it's a GCS bucket that exists and is public
+
 			if req.URL.Host == "storage.googleapis.com" && req.URL.Path == "/target" {
 				return &http.Response{
 					StatusCode: http.StatusOK,
@@ -35,7 +35,7 @@ func TestCloudBucketsTool(t *testing.T) {
 					Header:     make(http.Header),
 				}, nil
 			}
-			// If it's AWS access denied
+
 			if req.URL.Host == "target-private.s3.amazonaws.com" {
 				return &http.Response{
 					StatusCode: http.StatusForbidden,
@@ -44,7 +44,6 @@ func TestCloudBucketsTool(t *testing.T) {
 				}, nil
 			}
 
-			// Default: not found
 			return &http.Response{
 				StatusCode: http.StatusNotFound,
 				Body:       io.NopCloser(bytes.NewBufferString("Not Found")),
@@ -86,8 +85,6 @@ func TestCloudBucketsTool(t *testing.T) {
 		}
 	}
 
-	// target-assets should be matched and found open (returns 200 list)
-	// target should be found open (returns 200 list)
 	if !foundS3Public {
 		t.Error("Expected to find public S3 bucket 'target-assets'")
 	}

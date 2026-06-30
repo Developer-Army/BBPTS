@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,8 +20,6 @@ func TestArjunTool(t *testing.T) {
 		t.Errorf("expected tool name arjun, got %s", tool.Name())
 	}
 
-	// We can't easily execute the arjun binary in go test sandbox reliably, 
-	// but we can test the Run behavior with empty inputs.
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, nil, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

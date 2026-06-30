@@ -18,7 +18,6 @@ func TestGetTechTagsForTargets(t *testing.T) {
 
 	ctx := storage.WithStorage(context.Background(), store)
 
-	// Save a mock event representing an httpx result with technology stack
 	target := "https://example.com"
 	ev := recon.Event{
 		Target: target,

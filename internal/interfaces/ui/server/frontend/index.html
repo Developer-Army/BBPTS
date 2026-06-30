@@ -54,7 +54,7 @@
                     <h2 class="text-3xl font-extrabold tracking-tight text-white">Dashboard</h2>
                     <p class="text-slate-400 text-xs font-mono mt-1">// Pipeline operational. Monitoring attack surface telemetry.</p>
                 </div>
-                <button onclick="startNewScan()" id="btn-start-scan" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-cyan-950/20 font-mono">START SCAN</button>
+                <button onclick="openScanModal()" id="btn-start-scan" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-lg shadow-cyan-950/20 font-mono">NEW SCAN</button>
             </header>
 
             <main class="p-8 pt-6">
@@ -72,7 +72,7 @@
                             <div class="flex flex-wrap gap-3 text-[10px] font-mono">
                                 <div class="bg-slate-900/80 rounded-lg px-3 py-2 border border-slate-800">
                                     <span class="text-slate-500">CLI SCAN:</span>
-                                    <span class="text-cyan-400 ml-1" id="cli-scan-cmd">bbpts -t &lt;target&gt;</span>
+                                    <span class="text-cyan-400 ml-1" id="cli-scan-cmd">bbpts -i &lt;target&gt;</span>
                                 </div>
                                 <div class="bg-slate-900/80 rounded-lg px-3 py-2 border border-slate-800">
                                     <span class="text-slate-500">WEB DASHBOARD:</span>
@@ -292,6 +292,70 @@
                     </div>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <!-- Active Scan Overlay Modal -->
+    <div id="scan-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass w-full max-w-lg p-8 rounded-2xl border border-slate-800 shadow-2xl relative overflow-hidden">
+            <div class="absolute -right-16 -top-16 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl"></div>
+            <div class="absolute -left-16 -bottom-16 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl"></div>
+
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 class="text-lg font-bold text-white font-mono">// Launch Recon Task</h3>
+                    <p class="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Specify parameters for the orchestrator</p>
+                </div>
+                <button onclick="closeScanModal()" class="text-slate-500 hover:text-slate-300 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form id="active-scan-form" onsubmit="event.preventDefault(); triggerActiveScan();" class="space-y-5">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Target Domain / IP</label>
+                    <input type="text" id="scan-target" placeholder="example.com" required class="w-full bg-[#0b1329] border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Scan Preset Profile</label>
+                    <select id="scan-preset" class="w-full bg-[#0b1329] border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none">
+                        <option value="default">Default Preset (Light Surface)</option>
+                        <option value="full">Full Preset (Maximum Coverage)</option>
+                        <option value="light">Light Preset (Stealth & Speed)</option>
+                    </select>
+                </div>
+                <div class="flex gap-4 mt-6">
+                    <button type="submit" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-lg font-bold text-xs transition shadow-lg shadow-cyan-950/20 font-mono">LAUNCH PIPELINE</button>
+                    <button type="button" onclick="closeScanModal()" class="px-5 bg-slate-900 hover:bg-slate-800 text-slate-400 rounded-lg font-bold text-xs transition border border-slate-800 font-mono">CANCEL</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Remote Login Overlay -->
+    <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass w-full max-w-md p-8 rounded-2xl border border-slate-800 shadow-2xl relative overflow-hidden">
+            <!-- Glow effect -->
+            <div class="absolute -right-16 -top-16 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl"></div>
+            <div class="absolute -left-16 -bottom-16 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl"></div>
+
+            <div class="mb-6 text-center">
+                <h1 class="text-3xl font-black tracking-tight text-white mb-1"><span class="text-cyan-400">BB</span>PTS</h1>
+                <p class="text-[10px] text-cyan-500/80 font-mono uppercase tracking-widest">// Authenticated Session Required</p>
+            </div>
+
+            <form id="login-form" onsubmit="event.preventDefault(); submitLogin();" class="space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Username</label>
+                    <input type="text" id="login-username" required class="w-full bg-[#0b1329] border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 font-mono">Password</label>
+                    <input type="password" id="login-password" required class="w-full bg-[#0b1329] border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none">
+                </div>
+                <div id="login-error" class="text-rose-400 text-xs font-mono hidden mt-2"></div>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-3 rounded-lg font-bold text-xs transition shadow-lg shadow-cyan-950/20 font-mono mt-4">AUTHENTICATE</button>
+            </form>
         </div>
     </div>
 

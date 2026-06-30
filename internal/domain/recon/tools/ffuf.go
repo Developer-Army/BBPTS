@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +28,6 @@ func (t *FFUFTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 		wordlistsDir = filepath.Join(home, ".bbpts", "wordlists")
 	}
 
-	// Use directory wordlist for content discovery
 	wordlist := recon.GetWordlistPath(ctx, "directory")
 	if wordlist == "" {
 		if scanCtx.LowResource {
@@ -37,10 +36,10 @@ func (t *FFUFTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 				wordlist = filepath.Join(wordlistsDir, "raft-small-files.txt")
 			}
 		} else {
-			// Fallback to raft-small-files.txt
+
 			wordlist = filepath.Join(wordlistsDir, "raft-small-files.txt")
 			if _, err := os.Stat(wordlist); os.IsNotExist(err) {
-				// Fallback to common.txt if raft-small is missing
+
 				wordlist = filepath.Join(wordlistsDir, "seclists_common.txt")
 			}
 		}
@@ -84,7 +83,6 @@ func (t *FFUFTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 				return
 			}
 
-			// Ensure URL ends with FUZZ if not already present
 			fuzzURL := url
 			if !strings.Contains(fuzzURL, "FUZZ") {
 				if !strings.HasSuffix(fuzzURL, "/") {
@@ -109,23 +107,30 @@ func (t *FFUFTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 				args = append(args, "-H", fmt.Sprintf("%s: %s", k, v))
 			}
 
-			// Optimization: Use RunCommandStream to process results line by line
 			timeoutDuration := 60 * time.Second
 			if scanCtx.LowResource {
 				timeoutDuration = 15 * time.Second
 			}
 			targetCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
-			defer cancel()
 
 			lines, err := RunCommandStream(targetCtx, "ffuf", args...)
+			cancel()
 			if err != nil {
 				return
 			}
 
 			var targetEvents []recon.Event
 			for _, line := range lines {
-				foundPath := strings.TrimSpace(line)
-				if foundPath == "" {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				fields := strings.Fields(line)
+				if len(fields) == 0 {
+					continue
+				}
+				foundPath := fields[0]
+				if strings.HasPrefix(foundPath, "[") {
 					continue
 				}
 				fullURL := strings.TrimSuffix(url, "/") + "/" + foundPath

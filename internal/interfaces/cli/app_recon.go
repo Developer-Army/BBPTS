@@ -23,7 +23,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// reconResult bundles the outputs of the recon pipeline phase.
 type reconResult struct {
 	events         []recon.Event
 	matches        []recon.Match
@@ -32,7 +31,6 @@ type reconResult struct {
 	normalized     []string
 }
 
-// runReconPipeline contains all recon pipeline logic extracted from executeRun.
 func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Bridge, normalized []string, validationEvents []recon.Event, reconThreads int) reconResult {
 	result := reconResult{normalized: normalized}
 
@@ -49,7 +47,6 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 
 	toolNames := strings.Split(opts.Tools, ",")
 
-	// Exclude httpx from the pipeline if it already ran in target validation
 	if len(validationEvents) > 0 {
 		var filteredTools []string
 		for _, t := range toolNames {
@@ -60,7 +57,6 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 		toolNames = filteredTools
 	}
 
-	// Apply tool exclusions
 	if opts.ExcludeTools != "" {
 		toolNames = FilterExcludedTools(toolNames, opts.ExcludeTools)
 		if len(toolNames) == 0 {
@@ -121,7 +117,7 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 			}
 			normalized = cp.TargetsPending
 		} else {
-			// Clear any previous checkpoint state by resetting to fresh
+
 			cp.TargetsPending = normalized
 			cp.TargetsComplete = nil
 			cp.CompletedStages = nil
@@ -142,6 +138,7 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 		WordlistsDir:       cfg.WordlistsDir,
 		TmpResultsDir:      resolveTmpResultsDir(opts, cfg),
 		Reporter:           bridge,
+		NucleiTargetCap:    cfg.NucleiTargetCap,
 		Notifier:           utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify))),
 		EventBus:           eventBus,
 		Timeout:            scanTimeout(opts.Timeout, len(toolNames)),
@@ -149,7 +146,6 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 		CacheDBPath:        resolveDBSource(cfg),
 		ContainerMode:      cfg.ContainerMode,
 		DockerImages:       cfg.DockerImages,
-		MockMode:           cfg.MockMode,
 		InsecureSkipVerify: cfg.InsecureSkipVerify,
 		DryRun:             opts.DryRun,
 		ExploitSQLI:        opts.ExploitSQLI,
@@ -172,6 +168,11 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 		}(),
 		FPKeepSuppressed: opts.IncludeFP || cfg.FPKeepSuppressed,
 		FPAudit:          opts.FPAudit,
+		LoginURL:         opts.LoginURL,
+		LoginUser:        opts.LoginUser,
+		LoginPass:        opts.LoginPass,
+		LoginFormUser:    opts.LoginFormUser,
+		LoginFormPass:    opts.LoginFormPass,
 	}
 	if err := writeSeedDomainsToTmp(reconConfig.TmpResultsDir, normalized); err != nil {
 		slog.Warn("failed to persist seed domains", "error", err, "dir", reconConfig.TmpResultsDir)
@@ -180,7 +181,6 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 	orchestrator := services.NewOrchestrator(reconConfig)
 	defer orchestrator.Close()
 
-	// Spin up Storage and subscriber for asynchronous event streaming
 	result.store = initStorage(runCtx, cfg, orchestrator)
 
 	if bridge != nil {
@@ -210,7 +210,6 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 		bridge.ReportToolStatus("engine", "done", "recon pipeline complete")
 	}
 
-	// --- Persistence & Rules ---
 	ruleSet, _ := recon.LoadFromFile(opts.RulesPath)
 	if ruleSet == nil {
 		ruleSet = recon.DefaultRules()
@@ -225,7 +224,6 @@ func runReconPipeline(ctx context.Context, opts Options, cfg *config.Config, bri
 	return result
 }
 
-// filterPassiveTools removes active-scanning tools from the pipeline.
 func filterPassiveTools(toolNames []string) []string {
 	activeBlacklist := map[string]bool{
 		"naabu":       true,
@@ -248,7 +246,6 @@ func filterPassiveTools(toolNames []string) []string {
 	return passiveTools
 }
 
-// initEventBus creates the event bus from configuration.
 func initEventBus(cfg *config.Config) queue.EventBus {
 	busType := cfg.EventBus.Type
 	if busType == "" {
@@ -289,7 +286,6 @@ func resolveDBSource(cfg *config.Config) string {
 	return dbSource
 }
 
-// initStorage creates and wires the Storage instance + CTEM escalator.
 func initStorage(ctx context.Context, cfg *config.Config, orchestrator *services.Orchestrator) *storage.Storage {
 	dbType := cfg.Database.Type
 	if dbType == "" {
@@ -317,7 +313,6 @@ func initStorage(ctx context.Context, cfg *config.Config, orchestrator *services
 		queue.EventOwnerAssigned,
 	})
 
-	// Start background CTEM Escalator
 	escalator := services.NewEscalator(store, 1*time.Hour)
 	escalator.Start(ctx)
 
@@ -325,8 +320,7 @@ func initStorage(ctx context.Context, cfg *config.Config, orchestrator *services
 	return store
 }
 
-// executeReconScan runs the scan with batch/lowresource/normal modes.
-func executeReconScan(ctx context.Context, opts Options, orchestrator *services.Orchestrator, normalized []string, validationEvents []recon.Event, cp *utils.Checkpoint, reconThreads int) []recon.Event {
+func executeReconScan(ctx context.Context, opts Options, orchestrator *services.Orchestrator, normalized []string, validationEvents []recon.Event, cp *utils.Checkpoint, _ int) []recon.Event {
 	var events []recon.Event
 
 	if opts.LowResource && len(normalized) > 50 {
@@ -402,7 +396,6 @@ func executeReconScan(ctx context.Context, opts Options, orchestrator *services.
 	return events
 }
 
-// handleDiffReporting computes diff and writes diff markdown if scope is set.
 func handleDiffReporting(opts Options, cfg *config.Config, normalized []string, events []recon.Event, result *reconResult) {
 	diff, _ := handlePersistence(opts, cfg, normalized, events)
 	if diff != nil && opts.Scope != "" {
@@ -428,7 +421,7 @@ func handleDiffReporting(opts Options, cfg *config.Config, normalized []string, 
 	if diff != nil && opts.DiffOnly {
 		result.events = diff.NewEvents
 		result.normalized = diff.NewTargets
-		// Re-evaluate recon on the diff
+
 		ruleSet, _ := recon.LoadFromFile(opts.RulesPath)
 		if ruleSet == nil {
 			ruleSet = recon.DefaultRules()

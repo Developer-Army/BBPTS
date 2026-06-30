@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -14,45 +14,40 @@ import (
 	"time"
 )
 
-// EmailEnumTool performs passive email enumeration via the Hunter.io API.
-// Infers internal username patterns and cross-references developer GitHub accounts.
-// Runs at Stage 0 — zero traffic to target, API-only queries.
 type EmailEnumTool struct{}
 
 func (t *EmailEnumTool) Name() string {
 	return "email_enum"
 }
 
-// --- Hunter.io API types ---
-
 type hunterDomainSearchResponse struct {
-	Data   hunterData   `json:"data"`
-	Meta   hunterMeta   `json:"meta"`
-	Errors []hunterErr  `json:"errors"`
+	Data   hunterData  `json:"data"`
+	Meta   hunterMeta  `json:"meta"`
+	Errors []hunterErr `json:"errors"`
 }
 
 type hunterData struct {
-	Domain       string         `json:"domain"`
-	Disposable   bool           `json:"disposable"`
-	Webmail      bool           `json:"webmail"`
-	AcceptAll    bool           `json:"accept_all"`
-	Pattern      string         `json:"pattern"`
-	Organization string         `json:"organization"`
-	Emails       []hunterEmail  `json:"emails"`
+	Domain       string        `json:"domain"`
+	Disposable   bool          `json:"disposable"`
+	Webmail      bool          `json:"webmail"`
+	AcceptAll    bool          `json:"accept_all"`
+	Pattern      string        `json:"pattern"`
+	Organization string        `json:"organization"`
+	Emails       []hunterEmail `json:"emails"`
 }
 
 type hunterEmail struct {
-	Value      string   `json:"value"`
-	Type       string   `json:"type"`
-	Confidence int      `json:"confidence"`
-	FirstName  string   `json:"first_name"`
-	LastName   string   `json:"last_name"`
-	Position   string   `json:"position"`
-	Seniority  string   `json:"seniority"`
-	Department string   `json:"department"`
-	LinkedIn   string   `json:"linkedin"`
-	Twitter    string   `json:"twitter"`
-	PhoneNbr   string   `json:"phone_number"`
+	Value      string         `json:"value"`
+	Type       string         `json:"type"`
+	Confidence int            `json:"confidence"`
+	FirstName  string         `json:"first_name"`
+	LastName   string         `json:"last_name"`
+	Position   string         `json:"position"`
+	Seniority  string         `json:"seniority"`
+	Department string         `json:"department"`
+	LinkedIn   string         `json:"linkedin"`
+	Twitter    string         `json:"twitter"`
+	PhoneNbr   string         `json:"phone_number"`
 	Sources    []hunterSource `json:"sources"`
 }
 
@@ -65,9 +60,9 @@ type hunterSource struct {
 }
 
 type hunterMeta struct {
-	Results int    `json:"results"`
-	Limit   int    `json:"limit"`
-	Offset  int    `json:"offset"`
+	Results int `json:"results"`
+	Limit   int `json:"limit"`
+	Offset  int `json:"offset"`
 	Params  struct {
 		Domain  string `json:"domain"`
 		Company string `json:"company"`
@@ -81,21 +76,17 @@ type hunterErr struct {
 	Details string `json:"details"`
 }
 
-// --- GitHub user search types ---
-
 type githubUserSearchResponse struct {
 	Items []githubUserItem `json:"items"`
 }
 
 type githubUserItem struct {
-	Login     string `json:"login"`
-	HTMLURL   string `json:"html_url"`
-	AvatarURL string `json:"avatar_url"`
-	Type      string `json:"type"`
-	PublicRepos int  `json:"public_repos"`
+	Login       string `json:"login"`
+	HTMLURL     string `json:"html_url"`
+	AvatarURL   string `json:"avatar_url"`
+	Type        string `json:"type"`
+	PublicRepos int    `json:"public_repos"`
 }
-
-// --- Username pattern types ---
 
 type usernamePattern struct {
 	Format     string  // e.g., "first.last", "flast"
@@ -104,17 +95,14 @@ type usernamePattern struct {
 	Total      int
 }
 
-// namePair holds a first/last/email triple for pattern inference.
 type namePair struct {
 	first, last, email string
 }
 
-// --- Rate limiting for Hunter.io ---
-
 var (
-	hunterMu        sync.Mutex
-	hunterLastCall  time.Time
-	hunterDelay     = 1200 * time.Millisecond // ~50 req/min for paid, safe for free tier
+	hunterMu       sync.Mutex
+	hunterLastCall time.Time
+	hunterDelay    = 1200 * time.Millisecond
 )
 
 func limitHunterAPI() {
@@ -127,18 +115,16 @@ func limitHunterAPI() {
 	hunterLastCall = time.Now()
 }
 
-// patternGenerators defines functions to generate expected email local-parts
-// from a (first, last) name pair for each pattern format.
 var patternGenerators = map[string]func(first, last string) string{
-	"first.last":  func(f, l string) string { return f + "." + l },
-	"flast":       func(f, l string) string { return string(f[0]) + l },
-	"firstl":      func(f, l string) string { return f + string(l[0]) },
-	"first_last":  func(f, l string) string { return f + "_" + l },
-	"first":       func(f, _ string) string { return f },
-	"last.first":  func(f, l string) string { return l + "." + f },
-	"lastf":       func(f, l string) string { return l + string(f[0]) },
-	"lfirst":      func(f, l string) string { return string(l[0]) + f },
-	"first-last":  func(f, l string) string { return f + "-" + l },
+	"first.last": func(f, l string) string { return f + "." + l },
+	"flast":      func(f, l string) string { return string(f[0]) + l },
+	"firstl":     func(f, l string) string { return f + string(l[0]) },
+	"first_last": func(f, l string) string { return f + "_" + l },
+	"first":      func(f, _ string) string { return f },
+	"last.first": func(f, l string) string { return l + "." + f },
+	"lastf":      func(f, l string) string { return l + string(f[0]) },
+	"lfirst":     func(f, l string) string { return string(l[0]) + f },
+	"first-last": func(f, l string) string { return f + "-" + l },
 }
 
 func (t *EmailEnumTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
@@ -197,7 +183,6 @@ func (t *EmailEnumTool) processDomain(
 	var events []recon.Event
 	client := NewSafeHTTPClient(20 * time.Second)
 
-	// 1. Query Hunter.io domain search
 	hunterResp, err := t.queryHunter(ctx, client, scanCtx, hunterKey, domain)
 	if err != nil {
 		slog.Debug("email_enum hunter.io query failed", "domain", domain, "error", err)
@@ -271,7 +256,6 @@ func (t *EmailEnumTool) processDomain(
 
 		events = append(events, recon.NewEvent(domain, t.Name(), "email_found", props))
 
-		// Collect name pairs for pattern inference
 		if email.FirstName != "" && email.LastName != "" {
 			namePairs = append(namePairs, namePair{
 				first: strings.ToLower(email.FirstName),
@@ -281,7 +265,6 @@ func (t *EmailEnumTool) processDomain(
 		}
 	}
 
-	// 3. Infer username patterns
 	patterns := inferUsernamePatterns(namePairs, domain)
 	for _, pat := range patterns {
 		key := dedupeKey{target: domain, eventType: "email_pattern", value: pat.Format}
@@ -299,7 +282,7 @@ func (t *EmailEnumTool) processDomain(
 			"confidence":   fmt.Sprintf("%.0f%%", pat.Confidence*100),
 			"sample_count": fmt.Sprintf("%d/%d", pat.Matches, pat.Total),
 		}
-		// Include Hunter.io's reported pattern if available
+
 		if hunterResp.Data.Pattern != "" {
 			props["hunter_pattern"] = hunterResp.Data.Pattern
 		}
@@ -307,7 +290,6 @@ func (t *EmailEnumTool) processDomain(
 		events = append(events, recon.NewEvent(domain, t.Name(), "email_pattern", props))
 	}
 
-	// 4. GitHub cross-reference for developer emails
 	if githubKey != "" {
 		githubEvents := t.crossRefGitHub(ctx, client, scanCtx, githubKey, domain, hunterResp.Data.Emails, seen, mu)
 		events = append(events, githubEvents...)
@@ -316,7 +298,6 @@ func (t *EmailEnumTool) processDomain(
 	return events
 }
 
-// queryHunter calls the Hunter.io domain-search API.
 func (t *EmailEnumTool) queryHunter(ctx context.Context, client *http.Client, scanCtx *recon.ScanContext, apiKey, domain string) (*hunterDomainSearchResponse, error) {
 	apiURL := fmt.Sprintf(
 		"https://api.hunter.io/v2/domain-search?domain=%s&api_key=%s&limit=100",
@@ -386,7 +367,6 @@ func (t *EmailEnumTool) queryHunter(ctx context.Context, client *http.Client, sc
 	return &result, nil
 }
 
-// inferUsernamePatterns analyzes (first, last, email) triples to detect patterns.
 func inferUsernamePatterns(pairs []namePair, domain string) []usernamePattern {
 	if len(pairs) < 2 {
 		return nil
@@ -450,7 +430,6 @@ func inferUsernamePatterns(pairs []namePair, domain string) []usernamePattern {
 	return patterns
 }
 
-// crossRefGitHub searches GitHub for developer accounts matching discovered emails.
 func (t *EmailEnumTool) crossRefGitHub(
 	ctx context.Context,
 	client *http.Client,
@@ -467,7 +446,7 @@ func (t *EmailEnumTool) crossRefGitHub(
 	for _, email := range emails {
 		dept := strings.ToLower(email.Department)
 		pos := strings.ToLower(email.Position)
-		isDev := dept == "" || // Unknown dept — include
+		isDev := dept == "" ||
 			strings.Contains(dept, "engineering") ||
 			strings.Contains(dept, "it") ||
 			strings.Contains(dept, "technology") ||
@@ -485,7 +464,6 @@ func (t *EmailEnumTool) crossRefGitHub(
 		}
 	}
 
-	// Cap at 10 lookups to stay within GitHub rate limits
 	if len(devEmails) > 10 {
 		devEmails = devEmails[:10]
 	}
@@ -514,10 +492,10 @@ func (t *EmailEnumTool) crossRefGitHub(
 			mu.Unlock()
 
 			props := map[string]string{
-				"source":      "email_enum",
-				"email":       email.Value,
-				"github_user": user.Login,
-				"github_url":  user.HTMLURL,
+				"source":       "email_enum",
+				"email":        email.Value,
+				"github_user":  user.Login,
+				"github_url":   user.HTMLURL,
 				"public_repos": fmt.Sprintf("%d", user.PublicRepos),
 			}
 			if email.FirstName != "" || email.LastName != "" {
@@ -534,7 +512,6 @@ func (t *EmailEnumTool) crossRefGitHub(
 	return events
 }
 
-// searchGitHubUser queries the GitHub Users search API for an email address.
 func searchGitHubUser(ctx context.Context, client *http.Client, scanCtx *recon.ScanContext, apiKey, email string) ([]githubUserItem, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/search/users?q=%s+in:email&per_page=5", email)
 

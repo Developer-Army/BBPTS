@@ -23,7 +23,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 )
 
-// JSFinding represents a single finding from JavaScript analysis.
 type JSFinding struct {
 	SourceURL string `json:"source_url"`
 	Type      string `json:"type"` // "endpoint", "secret", "entropy"
@@ -33,12 +32,10 @@ type JSFinding struct {
 	Line      int    `json:"line,omitempty"`
 }
 
-// HTTPClient defines the interface required for fetching JS resources.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// JSAnalyzer fetches and analyzes JavaScript files for hidden endpoints and secrets.
 type JSAnalyzer struct {
 	httpClient    HTTPClient
 	maxFileSize   int64
@@ -46,14 +43,12 @@ type JSAnalyzer struct {
 	mu            sync.RWMutex
 }
 
-// SetHTTPClient updates the HTTP client used for fetching JS files.
 func (a *JSAnalyzer) SetHTTPClient(client HTTPClient) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.httpClient = client
 }
 
-// NewJSAnalyzer creates a JSAnalyzer with sensible defaults.
 func NewJSAnalyzer() *JSAnalyzer {
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -87,46 +82,35 @@ func NewJSAnalyzer() *JSAnalyzer {
 			Transport: transport,
 			Timeout:   15 * time.Second,
 		},
-		maxFileSize:   5 * 1024 * 1024, // 5MB max
+		maxFileSize:   5 * 1024 * 1024,
 		semanticCache: make(map[string][]SemanticRoute),
 	}
 }
 
-
-// Endpoint extraction patterns — these find API routes, paths, and URLs
-// embedded in JavaScript source code.
 var endpointPatterns = []*regexp.Regexp{
-	// Absolute paths to API endpoints
+
 	regexp.MustCompile(`['"](/api/[a-zA-Z0-9_/\-{}:.]+)['"]`),
 	regexp.MustCompile(`['"](/v[0-9]+/[a-zA-Z0-9_/\-{}:.]+)['"]`),
 	regexp.MustCompile(`['"](/graphql[a-zA-Z0-9_/\-{}:.]*?)['"]`),
 
-	// Relative endpoints
 	regexp.MustCompile(`['"]([a-zA-Z0-9_\-]{2,}/[a-zA-Z0-9_/\-{}:.]{2,})['"]`),
 
-	// Full URLs in code
 	regexp.MustCompile(`['"]https?://[a-zA-Z0-9.\-]+(?::[0-9]+)?/[a-zA-Z0-9_/\-{}:.?&=]+['"]`),
 
-	// Fetch/XHR patterns
 	regexp.MustCompile(`(?:fetch|axios|XMLHttpRequest|\.get|\.post|\.put|\.delete|\.patch)\s*\(\s*['"]([^'"]+)['"]`),
 
-	// Template literal URLs
 	regexp.MustCompile("`" + `(https?://[^` + "`" + `]+)` + "`"),
 
-	// window.location / document.location assignments
 	regexp.MustCompile(`(?:window|document)\.location\s*=\s*['"]([^'"]+)['"]`),
 
-	// React Router / Vue Router paths
 	regexp.MustCompile(`path\s*:\s*['"]([/][a-zA-Z0-9_/\-{}:.]+)['"]`),
 }
 
-// AnalyzeAll processes multiple JS URLs concurrently.
 func (a *JSAnalyzer) AnalyzeAll(ctx context.Context, urls []string, concurrency int) []JSFinding {
 	if concurrency <= 0 {
 		concurrency = 10
 	}
 
-	// Filter to only JS URLs
 	jsURLs := filterJSURLs(urls)
 	if len(jsURLs) == 0 {
 		return nil
@@ -166,7 +150,6 @@ func (a *JSAnalyzer) AnalyzeAll(ctx context.Context, urls []string, concurrency 
 		allFindings = append(allFindings, batch...)
 	}
 
-	// Sort by severity
 	severityOrder := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
 	sort.Slice(allFindings, func(i, j int) bool {
 		return severityOrder[allFindings[i].Severity] < severityOrder[allFindings[j].Severity]
@@ -180,7 +163,6 @@ func (a *JSAnalyzer) AnalyzeAll(ctx context.Context, urls []string, concurrency 
 	return allFindings
 }
 
-// AnalyzeURL fetches a single JS file and extracts endpoints and secrets.
 func (a *JSAnalyzer) AnalyzeURL(ctx context.Context, jsURL string) []JSFinding {
 	body, err := a.fetchJS(ctx, jsURL)
 	if err != nil {
@@ -190,14 +172,11 @@ func (a *JSAnalyzer) AnalyzeURL(ctx context.Context, jsURL string) []JSFinding {
 	return a.AnalyzeContent(jsURL, body)
 }
 
-// AnalyzeContent extracts endpoints and secrets from a JavaScript source string.
 func (a *JSAnalyzer) AnalyzeContent(jsURL string, body string) []JSFinding {
 	var findings []JSFinding
 
-	// 1. Compute content hash for dedup/diff
 	contentHash := computeContentHash(body)
 
-	// 2. Regex-based endpoint extraction (fast, high recall)
 	endpoints := extractEndpoints(body)
 	for _, ep := range endpoints {
 		findings = append(findings, JSFinding{
@@ -209,21 +188,19 @@ func (a *JSAnalyzer) AnalyzeContent(jsURL string, body string) []JSFinding {
 		})
 	}
 
-	// 3. AST-based semantic endpoint extraction (higher precision, detects dynamic routes)
 	a.mu.RLock()
 	cachedRoutes, ok := a.semanticCache[contentHash]
 	a.mu.RUnlock()
 
 	if !ok {
-		// Parse AST and extract semantic routes
+
 		routes := a.analyzeASTSemantic(body)
 		cachedRoutes = routes
-		// Cache for later reuse
+
 		a.mu.Lock()
 		a.semanticCache[contentHash] = routes
 		if len(a.semanticCache) > 1000 {
-			// LRU-style prune: keep most recent 1000 hashes
-			// (in production use a proper LRU cache)
+
 			for k := range a.semanticCache {
 				delete(a.semanticCache, k)
 				break
@@ -242,15 +219,12 @@ func (a *JSAnalyzer) AnalyzeContent(jsURL string, body string) []JSFinding {
 		})
 	}
 
-	// 4. Scan for known secret patterns
 	secrets := scanSecrets(body, jsURL)
 	findings = append(findings, secrets...)
 
-	// 5. Entropy analysis for unknown secrets
 	entropyFindings := scanEntropy(body, jsURL)
 	findings = append(findings, entropyFindings...)
 
-	// 6. Detect framework-specific patterns (React Router, Vue Router, Angular)
 	frameworkFindings := a.detectFrameworkPatterns(body, jsURL)
 	findings = append(findings, frameworkFindings...)
 
@@ -268,7 +242,6 @@ func (a *JSAnalyzer) AnalyzeContent(jsURL string, body string) []JSFinding {
 	return findings
 }
 
-// fetchJS downloads JavaScript content with size limits.
 func (a *JSAnalyzer) fetchJS(ctx context.Context, url string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -294,7 +267,6 @@ func (a *JSAnalyzer) fetchJS(ctx context.Context, url string) (string, error) {
 	return string(body), nil
 }
 
-// extractEndpoints finds API endpoints and paths in JavaScript source.
 func extractEndpoints(jsBody string) []string {
 	seen := make(map[string]struct{})
 	var endpoints []string
@@ -308,7 +280,6 @@ func extractEndpoints(jsBody string) []string {
 			ep := strings.Trim(match[1], `'"`)
 			ep = strings.TrimSpace(ep)
 
-			// Filter out noise
 			if isNoiseEndpoint(ep) {
 				continue
 			}
@@ -324,26 +295,22 @@ func extractEndpoints(jsBody string) []string {
 	return endpoints
 }
 
-// computeContentHash returns SHA256 of JS body for dedup/cache key.
 func computeContentHash(body string) string {
 	h := sha256.New()
 	h.Write([]byte(body))
-	return fmt.Sprintf("%x", h.Sum(nil)[:16]) // 128-bit hash
+	return fmt.Sprintf("%x", h.Sum(nil)[:16])
 }
 
-// analyzeASTSemantic parses JavaScript AST to extract structured routes and API calls.
 func (a *JSAnalyzer) analyzeASTSemantic(body string) []SemanticRoute {
 	var routes []SemanticRoute
 
-	// Parse with goja/parser (supports modern JS syntax)
 	program, err := parser.ParseFile(nil, "bundle.js", body, 0, parser.WithDisableSourceMaps)
 	if err != nil {
-		// Fallback to simpler regex if AST fails (minified/obfuscated)
+
 		slog.Debug("AST parse failed, skipping semantic analysis", "error", err)
 		return routes
 	}
 
-	// Walk AST
 	walkJSAST(program, func(n ast.Node) {
 		a.extractRoutesFromNode(n, &routes, "bundle.js")
 	})
@@ -351,7 +318,6 @@ func (a *JSAnalyzer) analyzeASTSemantic(body string) []SemanticRoute {
 	return routes
 }
 
-// extractRoutesFromNode visits a single AST node looking for route-defining patterns.
 func (a *JSAnalyzer) extractRoutesFromNode(node ast.Node, routes *[]SemanticRoute, file string) {
 	switch n := node.(type) {
 	case *ast.CallExpression:
@@ -366,7 +332,7 @@ func (a *JSAnalyzer) extractRoutesFromNode(node ast.Node, routes *[]SemanticRout
 		a.extractVariableAssignments(n, routes, file)
 
 	case *ast.NewExpression:
-		// Detect: new Router(), new ApiClient(), etc.
+
 		if _, ok := n.Callee.(*ast.Identifier); ok {
 			if len(n.ArgumentList) > 0 {
 				if objLit, ok := n.ArgumentList[0].(*ast.ObjectLiteral); ok {
@@ -393,7 +359,7 @@ func (a *JSAnalyzer) extractFetchCalls(call *ast.CallExpression, routes *[]Seman
 	if ident, ok := call.Callee.(*ast.Identifier); ok {
 		method := "GET"
 		if ident.Name == "fetch" && len(call.ArgumentList) >= 1 {
-			// Check for method option in second arg
+
 			if len(call.ArgumentList) >= 2 {
 				if options, ok := call.ArgumentList[1].(*ast.ObjectLiteral); ok {
 					for _, prop := range options.Value {
@@ -419,7 +385,7 @@ func (a *JSAnalyzer) extractFetchCalls(call *ast.CallExpression, routes *[]Seman
 }
 
 func (a *JSAnalyzer) extractRouterDefinitions(call *ast.CallExpression, routes *[]SemanticRoute, file string) {
-	// Detect: router.get('/path', ...), router.post('/path', ...)
+
 	if member, ok := call.Callee.(*ast.DotExpression); ok {
 		method := strings.ToUpper(member.Identifier.Name.String())
 		if method == "GET" || method == "POST" || method == "PUT" || method == "DELETE" || method == "PATCH" {
@@ -437,10 +403,10 @@ func (a *JSAnalyzer) extractRouterDefinitions(call *ast.CallExpression, routes *
 }
 
 func (a *JSAnalyzer) extractGraphQLOperations(call *ast.CallExpression, routes *[]SemanticRoute, file string) {
-	// Detect: client.query({ query: gql`...` }) or fetch('/graphql', ...)
+
 	if ident, ok := call.Callee.(*ast.Identifier); ok {
 		if ident.Name == "gql" || ident.Name == "graphql" {
-			// Tag as GraphQL operation
+
 			*routes = append(*routes, SemanticRoute{
 				Path:       "/graphql",
 				Method:     "POST",
@@ -493,10 +459,10 @@ func (a *JSAnalyzer) extractRouteObjectFromConfig(objLit *ast.ObjectLiteral, rou
 }
 
 func (a *JSAnalyzer) extractVariableAssignments(assign *ast.AssignExpression, routes *[]SemanticRoute, file string) {
-	// Detect: const apiUrl = '/api/v1/users';
+
 	if right, ok := assign.Right.(*ast.StringLiteral); ok {
 		val := stringLiteralValue(right)
-		// Check if the assigned value looks like an endpoint
+
 		if strings.HasPrefix(val, "/") && (strings.Contains(val, "/api") || strings.Contains(val, "/v") || strings.Contains(val, "graphql")) {
 			*routes = append(*routes, SemanticRoute{
 				Path:       val,
@@ -539,7 +505,6 @@ func (a *JSAnalyzer) detectFrameworkPatterns(body string, jsURL string) []JSFind
 		}
 	}
 
-	// Detect lazy-loaded routes (code-splitting patterns)
 	if strings.Contains(bodyLower, "import()") || strings.Contains(bodyLower, "require.ensure") {
 		findings = append(findings, JSFinding{
 			SourceURL: jsURL,
@@ -550,7 +515,6 @@ func (a *JSAnalyzer) detectFrameworkPatterns(body string, jsURL string) []JSFind
 		})
 	}
 
-	// Detect source map URL (reveals original structure)
 	if strings.Contains(bodyLower, "//# sourceMappingURL=") || strings.Contains(bodyLower, "sourceMappingURL=") {
 		findings = append(findings, JSFinding{
 			SourceURL: jsURL,
@@ -564,7 +528,6 @@ func (a *JSAnalyzer) detectFrameworkPatterns(body string, jsURL string) []JSFind
 	return findings
 }
 
-// routeSeverity estimates attack surface value of a route.
 func routeSeverity(route SemanticRoute) string {
 	if route.IsGraphQL {
 		return "high"
@@ -578,12 +541,11 @@ func routeSeverity(route SemanticRoute) string {
 	return "low"
 }
 
-// scanSecrets checks JS body against all known secret patterns.
 func scanSecrets(jsBody string, sourceURL string) []JSFinding {
 	var findings []JSFinding
 
 	for _, sp := range SecretPatterns {
-		matches := sp.Pattern.FindAllString(jsBody, 5) // Cap at 5 per pattern
+		matches := sp.Pattern.FindAllString(jsBody, 5)
 		for _, match := range matches {
 			findings = append(findings, JSFinding{
 				SourceURL: sourceURL,
@@ -598,14 +560,11 @@ func scanSecrets(jsBody string, sourceURL string) []JSFinding {
 	return findings
 }
 
-// scanEntropy performs Shannon entropy analysis to find high-entropy strings
-// that could be undiscovered secrets (API keys, tokens, etc).
 func scanEntropy(jsBody string, sourceURL string) []JSFinding {
 	var findings []JSFinding
 
-	// Extract string literals and check entropy
 	stringPattern := regexp.MustCompile(`['"]([A-Za-z0-9+/=_\-]{20,})['"]`)
-	matches := stringPattern.FindAllStringSubmatch(jsBody, 100) // Cap scan
+	matches := stringPattern.FindAllStringSubmatch(jsBody, 100)
 
 	for _, match := range matches {
 		if len(match) < 2 {
@@ -613,13 +572,12 @@ func scanEntropy(jsBody string, sourceURL string) []JSFinding {
 		}
 		value := match[1]
 
-		// Skip common false positives
 		if isCommonFalsePositive(value) {
 			continue
 		}
 
 		entropy := shannonEntropy(value)
-		// High-entropy threshold (typical for base64-encoded keys)
+
 		if entropy > 4.5 && len(value) >= 24 {
 			findings = append(findings, JSFinding{
 				SourceURL: sourceURL,
@@ -634,8 +592,6 @@ func scanEntropy(jsBody string, sourceURL string) []JSFinding {
 	return findings
 }
 
-// shannonEntropy calculates the Shannon entropy of a string.
-// Higher entropy = more randomness = more likely to be a secret.
 func shannonEntropy(s string) float64 {
 	if len(s) == 0 {
 		return 0
@@ -658,7 +614,6 @@ func shannonEntropy(s string) float64 {
 	return entropy
 }
 
-// filterJSURLs returns only URLs that look like JavaScript files.
 func filterJSURLs(urls []string) []string {
 	var jsURLs []string
 	for _, u := range urls {
@@ -676,13 +631,11 @@ func filterJSURLs(urls []string) []string {
 	return jsURLs
 }
 
-// isNoiseEndpoint filters out common false positives in endpoint extraction.
 func isNoiseEndpoint(ep string) bool {
 	if len(ep) < 3 || len(ep) > 200 {
 		return true
 	}
 
-	// Filter static asset paths and MIME types
 	noisePatterns := []string{
 		".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
 		".css", ".woff", ".woff2", ".ttf", ".eot",
@@ -703,10 +656,9 @@ func isNoiseEndpoint(ep string) bool {
 	return false
 }
 
-// isCommonFalsePositive filters entropy false positives.
 func isCommonFalsePositive(s string) bool {
 	lower := strings.ToLower(s)
-	// Common base64-encoded content that isn't a secret
+
 	falsePositives := []string{
 		"abcdefghijklmnopqrstuvwxyz",
 		"qwertyuiopasdfghjklzxcvbnm",
@@ -717,7 +669,7 @@ func isCommonFalsePositive(s string) bool {
 			return true
 		}
 	}
-	// Skip if it's all the same character repeated
+
 	if len(s) > 0 {
 		allSame := true
 		first := s[0]

@@ -232,13 +232,11 @@ func TestMemoryGraph_FindPivots_DuplicateEdges(t *testing.T) {
 	graph.AddNode(node1)
 	graph.AddNode(node2)
 
-	// Add same edge twice
 	graph.AddEdge("node1", "node2", "RESOLVES_TO", 10)
 	graph.AddEdge("node1", "node2", "RESOLVES_TO", 10)
 
 	pivots := graph.FindPivots("node1")
 
-	// Should return unique nodes, not duplicate edges
 	if len(pivots) != 1 {
 		t.Errorf("expected 1 unique pivot, got %d", len(pivots))
 	}
@@ -247,7 +245,6 @@ func TestMemoryGraph_FindPivots_DuplicateEdges(t *testing.T) {
 func TestMemoryGraph_MultipleEdges(t *testing.T) {
 	graph := NewMemoryGraph()
 
-	// Create a chain: node1 -> node2 -> node3
 	node1 := &GraphNode{ID: "node1", Type: "Domain", Properties: map[string]string{"Value": "acme-corp.io"}}
 	node2 := &GraphNode{ID: "node2", Type: "Subdomain", Properties: map[string]string{"Value": "api.acme-corp.io"}}
 	node3 := &GraphNode{ID: "node3", Type: "JS_File", Properties: map[string]string{"Value": "app.js"}}
@@ -259,7 +256,6 @@ func TestMemoryGraph_MultipleEdges(t *testing.T) {
 	graph.AddEdge("node1", "node2", "RESOLVES_TO", 10)
 	graph.AddEdge("node2", "node3", "LOADS", 5)
 
-	// Find pivots from node1 should only find node2 (1-degree)
 	pivots := graph.FindPivots("node1")
 	if len(pivots) != 1 {
 		t.Errorf("expected 1 pivot (1-degree search), got %d", len(pivots))
@@ -336,20 +332,16 @@ func TestMemoryGraph_TimeDecay(t *testing.T) {
 	graph.AddEdgeAdvanced("node1", "node2", "RESOLVES_TO", 10, 1.0, "system")
 	graph.edges[0].LastSeen = now.Add(-72 * time.Hour)
 
-	// Apply decay with half life of 24 hours (1 day)
 	graph.ApplyTimeDecay(now, 1.0)
 
-	// node1 should decay by 2 days (4x reduction)
 	if node1.Confidence >= 0.3 {
 		t.Errorf("expected node1 confidence to decay, got %f", node1.Confidence)
 	}
 
-	// node2 should decay by 1 day (2x reduction)
 	if node2.Confidence >= 0.6 || node2.Confidence <= 0.4 {
 		t.Errorf("expected node2 confidence to be around 0.5, got %f", node2.Confidence)
 	}
 
-	// edge should decay by 3 days (8x reduction)
 	if graph.edges[0].Confidence >= 0.15 {
 		t.Errorf("expected edge confidence to decay heavily, got %f", graph.edges[0].Confidence)
 	}
@@ -370,7 +362,7 @@ func TestMemoryGraph_BlastRadiusPropagation(t *testing.T) {
 	graph.AddEdge("subdomain1", "subdomain2", "loads", 10)
 
 	totalBlast := graph.PropagateBlastRadius("target")
-	// Expected: 50.0 + 10.0 * 0.5 + 20.0 * 0.25 = 60.0
+
 	expected := 60.0
 	if totalBlast != expected {
 		t.Errorf("expected blast radius %f, got %f", expected, totalBlast)
@@ -390,8 +382,6 @@ func TestMemoryGraph_PathCostAndCheapestPath(t *testing.T) {
 	graph.AddNode(node3)
 	graph.AddNode(node4)
 
-	// Path 1: A -> B -> D (Harder path: weight 80, 50)
-	// Path 2: A -> C -> D (Cheaper path: weight 10, 20)
 	graph.AddEdgeAdvanced("A", "B", "connects", 80, 1.0, "system")
 	graph.AddEdgeAdvanced("B", "D", "connects", 50, 1.0, "system")
 	graph.AddEdgeAdvanced("A", "C", "connects", 10, 1.0, "system")

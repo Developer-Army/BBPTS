@@ -1,10 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -145,14 +146,18 @@ func (t *MobileAPIDiscoveryTool) scanURL(ctx context.Context, scanCtx *recon.Sca
 				if len(m) > 1 && !seen[m[1]] {
 					seen[m[1]] = true
 					events = append(events, recon.NewEvent(appURL, t.Name(), "secret_exposed", map[string]string{
-						"header":     m[1],
-						"source":     "url_content",
-						"severity":   "medium",
-						"scan_type":  "mobile_api_discovery",
+						"header":    m[1],
+						"source":    "url_content",
+						"severity":  "medium",
+						"scan_type": "mobile_api_discovery",
 					}))
 				}
 			}
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Error("mobile_api_discovery: scanner error during url scan", "error", err)
 	}
 
 	return events
@@ -225,6 +230,10 @@ func (t *MobileAPIDiscoveryTool) scanBinary(path string) []recon.Event {
 				}
 			}
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Error("mobile_api_discovery: scanner error during binary scan", "error", err)
 	}
 
 	return events

@@ -19,7 +19,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// AxiomConfig holds the Axiom fleet configuration.
 type AxiomConfig struct {
 	// Enabled switches from local execution to Axiom fleet mode.
 	Enabled bool `json:"enabled"`
@@ -34,7 +33,6 @@ type AxiomConfig struct {
 	DeleteAfter bool `json:"delete_after"`
 }
 
-// DefaultAxiomConfig returns sensible defaults for fleet mode.
 func DefaultAxiomConfig() AxiomConfig {
 	return AxiomConfig{
 		Enabled:     false,
@@ -44,21 +42,18 @@ func DefaultAxiomConfig() AxiomConfig {
 	}
 }
 
-// AxiomRunner wraps tool execution using `axiom-scan`.
 type AxiomRunner struct {
 	cfg       AxiomConfig
 	tempDir   string
 	sanitizer *security.Sanitizer
 }
 
-// New creates a new AxiomRunner.
 func New(cfg AxiomConfig) (*AxiomRunner, error) {
-	// Verify axiom is installed
+
 	if _, err := exec.LookPath("axiom-scan"); err != nil {
 		return nil, fmt.Errorf("axiom-scan not found in PATH: install from https://github.com/pry0cc/axiom")
 	}
 
-	// Validate configuration
 	sanitizer := security.NewSanitizer()
 	if cfg.Enabled {
 		if err := sanitizer.ValidateFleetName(cfg.FleetName); err != nil {
@@ -77,7 +72,6 @@ func New(cfg AxiomConfig) (*AxiomRunner, error) {
 	return &AxiomRunner{cfg: cfg, tempDir: tmp, sanitizer: sanitizer}, nil
 }
 
-// Close cleans up temporary files and optionally destroys the fleet.
 func (r *AxiomRunner) Close() {
 	os.RemoveAll(r.tempDir)
 	if r.cfg.DeleteAfter && r.cfg.Enabled {
@@ -91,7 +85,6 @@ func (r *AxiomRunner) Close() {
 	}
 }
 
-// ProvisionFleet ensures the Axiom fleet is running.
 func (r *AxiomRunner) ProvisionFleet(ctx context.Context) error {
 	slog.Info("provisioning axiom fleet",
 		"fleet", r.cfg.FleetName,
@@ -108,24 +101,19 @@ func (r *AxiomRunner) ProvisionFleet(ctx context.Context) error {
 	return nil
 }
 
-// RunTool distributes a tool execution across the Axiom fleet.
-// It writes targets to a temp file and uses axiom-scan to distribute the work.
 func (r *AxiomRunner) RunTool(ctx context.Context, toolName string, targets []string, extraArgs []string) ([]string, error) {
-	// Validate tool name
+
 	if err := r.sanitizer.ValidateToolName(toolName); err != nil {
 		return nil, fmt.Errorf("invalid tool name: %w", err)
 	}
 
-	// Validate extra arguments
 	if err := r.sanitizer.ValidateCommandArgs(extraArgs); err != nil {
 		return nil, fmt.Errorf("invalid command arguments: %w", err)
 	}
 
-	// Write targets to temp file (axiom-scan requires a file input)
 	inputFile := filepath.Join(r.tempDir, fmt.Sprintf("%s-input-%d.txt", toolName, time.Now().UnixNano()))
 	outputFile := filepath.Join(r.tempDir, fmt.Sprintf("%s-output-%d.txt", toolName, time.Now().UnixNano()))
 
-	// Validate file paths
 	if err := r.sanitizer.ValidateFilePath(inputFile); err != nil {
 		return nil, fmt.Errorf("invalid input file path: %w", err)
 	}
@@ -139,12 +127,10 @@ func (r *AxiomRunner) RunTool(ctx context.Context, toolName string, targets []st
 	defer os.Remove(inputFile)
 	defer os.Remove(outputFile)
 
-	// Construct axiom-scan command
-	// Format: axiom-scan <input> -m <module> [args] -o <output>
 	module := toolName
-	// Map BBPTS tool names to Axiom module names if they differ
+
 	mapping := map[string]string{
-		"puredns": "dnsx", // or whatever module axiom uses for dns
+		"puredns": "dnsx",
 		"gau":     "gauplus",
 	}
 	if m, ok := mapping[toolName]; ok {
@@ -169,22 +155,20 @@ func (r *AxiomRunner) RunTool(ctx context.Context, toolName string, targets []st
 		return nil, fmt.Errorf("axiom-scan failed for %s: %w\nOutput: %s", toolName, err, string(out))
 	}
 
-	// Read output file using streaming to prevent OOM
 	file, err := os.Open(outputFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []string{}, nil // No results is OK
+			return []string{}, nil
 		}
 		return nil, fmt.Errorf("failed to open axiom output: %w", err)
 	}
 	defer file.Close()
 
-	// Deduplicate results while streaming
 	seen := make(map[string]struct{})
 	var results []string
 
 	scanner := bufio.NewScanner(file)
-	// Buffer up to 1MB per line if necessary (prevents scanner token too long errors)
+
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
 
@@ -212,19 +196,16 @@ func (r *AxiomRunner) RunTool(ctx context.Context, toolName string, targets []st
 	return results, nil
 }
 
-// StatusReport holds information about the current fleet state.
 type StatusReport struct {
 	Instances []InstanceStatus `json:"instances"`
 }
 
-// InstanceStatus holds per-instance state.
 type InstanceStatus struct {
 	Name   string `json:"name"`
 	Status string `json:"status"`
 	IP     string `json:"ip"`
 }
 
-// Status returns the current status of all fleet instances.
 func (r *AxiomRunner) Status(ctx context.Context) (*StatusReport, error) {
 	cmd := tools.PrepareCommand(ctx, "axiom-ls", "--json")
 	out, err := cmd.Output()
@@ -234,41 +215,36 @@ func (r *AxiomRunner) Status(ctx context.Context) (*StatusReport, error) {
 
 	var report StatusReport
 	if err := json.Unmarshal(out, &report.Instances); err != nil {
-		// axiom-ls output format may vary — return raw count
+
 		slog.Warn("could not parse axiom-ls JSON output", "error", err)
 		return &StatusReport{}, nil
 	}
 	return &report, nil
 }
 
-// ImportAndMergeDatabase merges target state, scans, targets, events, and insights
-// from an incoming SQLite database into the master SQLite database.
 func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
-	// Open connection to master database
+
 	masterDB, err := sql.Open("sqlite", masterDBPath)
 	if err != nil {
 		return fmt.Errorf("failed to open master database: %w", err)
 	}
 	defer masterDB.Close()
 
-	// Open connection to incoming database
 	incomingDB, err := sql.Open("sqlite", incomingDBPath)
 	if err != nil {
 		return fmt.Errorf("failed to open incoming database: %w", err)
 	}
 	defer incomingDB.Close()
 
-	// Start a transaction on master database to ensure atomicity
 	tx, err := masterDB.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction on master database: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// 1. Query all scans from incoming database
 	scanRows, err := incomingDB.Query("SELECT id, scope, start_time, end_time, status FROM scans")
 	if err != nil {
-		// Scans table might not exist if schema is empty
+
 		return fmt.Errorf("failed to query scans from incoming database: %w", err)
 	}
 	defer scanRows.Close()
@@ -290,7 +266,6 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 	}
 	scanRows.Close()
 
-	// Map old scan ID -> new scan ID in master
 	scanIDMap := make(map[int64]int64)
 
 	for _, s := range scans {
@@ -298,14 +273,13 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 		var existingID int64
 		err := tx.QueryRow("SELECT id FROM scans WHERE scope = ? AND start_time = ?", s.scope, s.startTime).Scan(&existingID)
 		if err == nil {
-			// Scan already exists in master
+
 			scanIDMap[s.id] = existingID
 			continue
 		} else if err != sql.ErrNoRows {
 			return fmt.Errorf("failed to check existing scan in master: %w", err)
 		}
 
-		// Insert scan into master
 		res, err := tx.Exec("INSERT INTO scans (scope, start_time, end_time, status) VALUES (?, ?, ?, ?)",
 			s.scope, s.startTime, s.endTime, s.status)
 		if err != nil {
@@ -318,7 +292,6 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 		scanIDMap[s.id] = newID
 	}
 
-	// 2. Query and merge targets
 	targetRows, err := incomingDB.Query("SELECT scan_id, host, is_new FROM targets")
 	if err == nil {
 		defer targetRows.Close()
@@ -331,9 +304,9 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 			}
 			newScanID, ok := scanIDMap[scanID]
 			if !ok {
-				continue // Scan not found, skip
+				continue
 			}
-			// Insert if not exists in master for this scan
+
 			_, err = tx.Exec("INSERT OR IGNORE INTO targets (scan_id, host, is_new) VALUES (?, ?, ?)",
 				newScanID, host, isNew)
 			if err != nil {
@@ -342,7 +315,6 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 		}
 	}
 
-	// 3. Query and merge events
 	eventRows, err := incomingDB.Query("SELECT scan_id, target, source, type, properties FROM events")
 	if err == nil {
 		defer eventRows.Close()
@@ -356,7 +328,7 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 			if !ok {
 				continue
 			}
-			// Insert or ignore if duplicate target+source+type for this scan
+
 			_, err = tx.Exec("INSERT OR IGNORE INTO events (scan_id, target, source, type, properties) VALUES (?, ?, ?, ?, ?)",
 				newScanID, target, source, eventType, properties)
 			if err != nil {
@@ -365,7 +337,6 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 		}
 	}
 
-	// 4. Query and merge insights
 	insightRows, err := incomingDB.Query("SELECT scan_id, host, priority, score, tags FROM insights")
 	if err == nil {
 		defer insightRows.Close()
@@ -382,7 +353,7 @@ func ImportAndMergeDatabase(masterDBPath, incomingDBPath string) error {
 			if !ok {
 				continue
 			}
-			// Insert or replace insight
+
 			_, err = tx.Exec("INSERT OR REPLACE INTO insights (scan_id, host, priority, score, tags) VALUES (?, ?, ?, ?, ?)",
 				newScanID, host, priority, score, tags)
 			if err != nil {

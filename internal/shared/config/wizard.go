@@ -10,12 +10,10 @@ import (
 	"strings"
 )
 
-// RunWizard starts the interactive configuration wizard and writes the output to path.
 func RunWizard(path string) error {
 	reader := bufio.NewReader(os.Stdin)
 	cfg := DefaultConfig()
 
-	// Ensure API keys map is fully initialized
 	if cfg.APIKeys == nil {
 		cfg.APIKeys = make(map[string]string)
 	}
@@ -26,7 +24,6 @@ func RunWizard(path string) error {
 	fmt.Println("Press Enter to keep default values [in brackets]")
 	fmt.Println()
 
-	// 1. Concurrency Threads
 	fmt.Printf("Default Concurrency Threads [%d]: ", cfg.Threads)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
@@ -36,7 +33,6 @@ func RunWizard(path string) error {
 		}
 	}
 
-	// 2. Rate Limit
 	fmt.Printf("Global Rate Limit (req/sec) [%d]: ", cfg.RateLimit)
 	input, _ = reader.ReadString('\n')
 	input = strings.TrimSpace(input)
@@ -46,7 +42,6 @@ func RunWizard(path string) error {
 		}
 	}
 
-	// 3. API Keys
 	apiKeys := []string{"shodan", "securitytrails", "github", "chaos", "virustotal", "passivetotal", "binaryedge"}
 	fmt.Println("\n--- API Keys (Optional) ---")
 	for _, provider := range apiKeys {
@@ -59,7 +54,6 @@ func RunWizard(path string) error {
 		}
 	}
 
-	// 4. Webhooks
 	fmt.Println("\n--- Notification Webhooks (Optional) ---")
 
 	fmt.Printf("Telegram Bot Token [%s]: ", cfg.Notify.TelegramBotToken)
@@ -90,7 +84,6 @@ func RunWizard(path string) error {
 		cfg.Notify.SlackWebhook = input
 	}
 
-	// 5. Submit Platform
 	fmt.Println("\n--- Bug Bounty Platform Integration ---")
 	fmt.Printf("Submit Platform (e.g. hackerone, bugcrowd) [%s]: ", cfg.Submit.Platform)
 	input, _ = reader.ReadString('\n')
@@ -99,7 +92,6 @@ func RunWizard(path string) error {
 		cfg.Submit.Platform = input
 	}
 
-	// 6. Fleet
 	fmt.Println("\n--- Distributed Fleet (Axiom) ---")
 	fmt.Printf("Enable Fleet (true/false) [%t]: ", cfg.Fleet.Enabled)
 	input, _ = reader.ReadString('\n')
@@ -124,7 +116,6 @@ func RunWizard(path string) error {
 		}
 	}
 
-	// Write out to file
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)

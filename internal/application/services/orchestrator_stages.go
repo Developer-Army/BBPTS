@@ -81,6 +81,11 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 			remainingTools = append(remainingTools, tool)
 		}
 	}
+	if len(interactshEvents) > 0 {
+		if err := o.appendStageEventsToTmp("interactsh", interactshEvents); err != nil {
+			slog.Warn("failed to persist interactsh events", "error", err)
+		}
+	}
 	tools = remainingTools
 
 	for _, tool := range tools {
@@ -114,7 +119,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 
 			var events []Event
 			var err error
-			toolTargets := prepareTargetsForTool(tool.Name(), targets)
+			toolTargets := prepareTargetsForTool(tool.Name(), targets, o.config.NucleiTargetCap)
 
 			toolSpanName := fmt.Sprintf("Tool.%s", tool.Name())
 			toolCtx, toolSpanID := telemetry.InternalTracer.StartSpan(ctx, toolSpanName, spanID)
@@ -174,6 +179,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 			}
 
 			if err != nil {
+				slog.Error("Tool execution failed", "tool", tool.Name(), "error", err)
 				o.reportFailure(tool.Name(), err.Error())
 				results <- toolResult{tool: tool.Name(), err: fmt.Errorf("%s: %w", tool.Name(), err)}
 				return
@@ -183,6 +189,9 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 			o.reportToolStatus(tool.Name(), "done", fmt.Sprintf("%d findings", len(events)))
 			for _, ev := range events {
 				o.reportEvent(ev)
+			}
+			if err := o.appendStageEventsToTmp(tool.Name(), events); err != nil {
+				slog.Warn("failed to persist tool events incrementally", "tool", tool.Name(), "error", err)
 			}
 			results <- toolResult{tool: tool.Name(), events: events}
 		}()
@@ -198,20 +207,32 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 	for result := range results {
 		if result.err != nil {
 			errs = append(errs, result.err)
+			if o.manifest != nil {
+				o.manifest.ToolStatuses[result.tool] = "failed: " + result.err.Error()
+			}
+			failEvent := Event{
+				Target: strings.Join(targets, ","),
+				Source: result.tool,
+				Type:   "error",
+				Properties: map[string]string{
+					"error": result.err.Error(),
+				},
+			}
+			if err := o.appendStageEventsToTmp(result.tool, []Event{failEvent}); err != nil {
+				slog.Warn("failed to persist tool failure event", "tool", result.tool, "error", err)
+			}
 			continue
 		}
-		if err := o.appendStageEventsToTmp(result.tool, result.events); err != nil {
-			errs = append(errs, err)
+		if o.manifest != nil {
+			o.manifest.ToolStatuses[result.tool] = fmt.Sprintf("ok: %d events", len(result.events))
 		}
 		events = append(events, result.events...)
 	}
 	return events, errs
 }
 
-// runInteractshFirst executes interactsh synchronously before other tools
-// so its OOB URL can be wired to nuclei/dalfox via context.
 func (o *Orchestrator) runInteractshFirst(ctx context.Context, tool Tool, targets []string, threads int, parentSpanID string) []Event {
-	toolTargets := prepareTargetsForTool(tool.Name(), targets)
+	toolTargets := prepareTargetsForTool(tool.Name(), targets, o.config.NucleiTargetCap)
 	if len(toolTargets) == 0 {
 		toolTargets = targets
 	}
@@ -229,7 +250,7 @@ func (o *Orchestrator) runInteractshFirst(ctx context.Context, tool Tool, target
 	})
 
 	if err != nil {
-		slog.Warn("interactsh first-run failed", "error", err)
+		slog.Error("interactsh first-run failed", "error", err)
 		return nil
 	}
 
@@ -249,30 +270,45 @@ func (o *Orchestrator) appendStageEventsToTmp(tool string, events []Event) error
 		return fmt.Errorf("failed to create tmp results dir %s: %w", o.config.TmpResultsDir, err)
 	}
 
+	deduped := deduplicateEvents(events)
+
 	safeTool := sanitizeFilePart(tool)
 	ts := time.Now().UTC().Format(time.RFC3339Nano)
 
 	for _, base := range tmpArtifactBases(tool) {
 		jsonPath := filepath.Join(o.config.TmpResultsDir, fmt.Sprintf("%s.jsonl", base))
 		csvPath := filepath.Join(o.config.TmpResultsDir, fmt.Sprintf("%s.csv", base))
-		if err := appendEventsJSONL(jsonPath, safeTool, ts, events); err != nil {
+		if err := appendEventsJSONL(jsonPath, safeTool, ts, deduped); err != nil {
 			return err
 		}
-		if err := appendEventsCSV(csvPath, safeTool, ts, events); err != nil {
+		if err := appendEventsCSV(csvPath, safeTool, ts, deduped); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func deduplicateEvents(events []Event) []Event {
+	seen := make(map[string]struct{}, len(events))
+	out := make([]Event, 0, len(events))
+	for _, ev := range events {
+		vulnName := ""
+		if ev.Properties != nil {
+			vulnName = ev.Properties["vuln_name"]
+		}
+		key := ev.Source + "|" + ev.Target + "|" + ev.Type + "|" + vulnName
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, ev)
+	}
+	return out
+}
+
 func tmpArtifactBases(tool string) []string {
 	canonical := sanitizeFilePart(tool)
-	bases := []string{canonical}
-
-	if normalizeToolName(tool) == "crtsh" {
-		bases = append(bases, "crt.sh")
-	}
-	return bases
+	return []string{canonical}
 }
 
 func sanitizeFilePart(name string) string {
@@ -329,7 +365,14 @@ func appendEventsJSONL(path, tool, timestamp string, events []Event) error {
 	return bw.Flush()
 }
 
+var csvMu sync.Map
+
 func appendEventsCSV(path, tool, timestamp string, events []Event) error {
+	muI, _ := csvMu.LoadOrStore(path, &sync.Mutex{})
+	mu := muI.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
 	writeHeader := false
 	if info, err := os.Stat(path); err != nil {
 		if !os.IsNotExist(err) {
@@ -411,7 +454,7 @@ func extractLiveWebTargets(events []Event) []string {
 	return targets
 }
 
-func prepareTargetsForTool(toolName string, targets []string) []string {
+func prepareTargetsForTool(toolName string, targets []string, nucleiTargetCap int) []string {
 	name := normalizeToolName(toolName)
 	if name == "uro" {
 		urls := make([]string, 0, len(targets))
@@ -559,11 +602,33 @@ func prepareTargetsForTool(toolName string, targets []string) []string {
 		sort.SliceStable(nucleiTargets, func(i, j int) bool {
 			return priorityScore(nucleiTargets[i]) > priorityScore(nucleiTargets[j])
 		})
-		if len(nucleiTargets) > 200 {
-			slog.Warn("nuclei targets exceeded cap; truncating to 200 priority targets", "original_count", len(nucleiTargets))
-			nucleiTargets = nucleiTargets[:200]
+		if nucleiTargetCap <= 0 {
+			nucleiTargetCap = 200
+		}
+		if len(nucleiTargets) > nucleiTargetCap {
+			slog.Warn("nuclei targets exceeded cap; truncating to priority targets", "original_count", len(nucleiTargets), "cap", nucleiTargetCap)
+			nucleiTargets = nucleiTargets[:nucleiTargetCap]
 		}
 		return nucleiTargets
+	}
+
+	if name == "open_redirect" || name == "ratelimit_bypass" || name == "idor_assist" {
+		var urlTargets []string
+		seen := make(map[string]struct{})
+		for _, target := range targets {
+			if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+				continue
+			}
+			if _, ok := seen[target]; ok {
+				continue
+			}
+			seen[target] = struct{}{}
+			urlTargets = append(urlTargets, target)
+		}
+		if len(urlTargets) > 100 {
+			urlTargets = urlTargets[:100]
+		}
+		return urlTargets
 	}
 
 	return targets

@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// ZAPAlertSeverity represents OWASP ZAP alert severity levels
 type ZAPAlertSeverity string
 
 const (
@@ -18,7 +17,6 @@ const (
 	ZAPSeverityInfo   ZAPAlertSeverity = "Informational"
 )
 
-// ZAPAlert represents a single alert in ZAP format
 type ZAPAlert struct {
 	PluginID   int           `xml:"pluginid,attr"`
 	Alert      string        `xml:"alert"`
@@ -33,7 +31,6 @@ type ZAPAlert struct {
 	SourceID   string        `xml:"sourceid"`
 }
 
-// ZAPInstance represents an instance of a vulnerability in ZAP
 type ZAPInstance struct {
 	URI      string `xml:"uri"`
 	Method   string `xml:"method"`
@@ -42,14 +39,12 @@ type ZAPInstance struct {
 	Evidence string `xml:"evidence"`
 }
 
-// ZAPScan represents the complete ZAP scan report
 type ZAPScan struct {
 	XMLName xml.Name   `xml:"OWASPZAPReport"`
 	Version string     `xml:"version,attr"`
 	Alerts  []ZAPAlert `xml:"site>alerts>alertitem"`
 }
 
-// CaidoFinding represents a finding in Caido's JSON export format
 type CaidoFinding struct {
 	ID          string   `json:"id"`
 	Title       string   `json:"title"`
@@ -64,14 +59,12 @@ type CaidoFinding struct {
 	Timestamp   string   `json:"timestamp"`
 }
 
-// CaidoReport represents the complete Caido export
 type CaidoReport struct {
 	Version  string                 `json:"version"`
 	Findings []CaidoFinding         `json:"findings"`
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
-// BurpExtendedIssue represents an enhanced Burp Suite issue with extra metadata
 type BurpExtendedIssue struct {
 	ID            string `xml:"id,attr"`
 	Name          string `xml:"name"`
@@ -88,14 +81,12 @@ type BurpExtendedIssue struct {
 	DiscoveryDate string `xml:"discoveryDate"`
 }
 
-// ExportToZAP generates an OWASP ZAP-compatible XML report
 func ExportToZAP(filename string, findings map[string]interface{}) error {
 	zapScan := ZAPScan{
 		Version: "2.14.0",
 		Alerts:  []ZAPAlert{},
 	}
 
-	// Convert findings to ZAP alerts
 	if data, ok := findings["alerts"].([]interface{}); ok {
 		for _, item := range data {
 			if m, ok := item.(map[string]interface{}); ok {
@@ -118,7 +109,6 @@ func ExportToZAP(filename string, findings map[string]interface{}) error {
 	return os.WriteFile(filename, append(xmlHeader, data...), 0644)
 }
 
-// ExportToCaidoJSON generates a Caido-compatible JSON report
 func ExportToCaidoJSON(filename string, findings []CaidoFinding) error {
 	report := CaidoReport{
 		Version:  "1.0",
@@ -137,7 +127,6 @@ func ExportToCaidoJSON(filename string, findings []CaidoFinding) error {
 	return os.WriteFile(filename, data, 0644)
 }
 
-// ExportToBurpExtended generates an enhanced Burp Suite XML with additional metadata
 func ExportToBurpExtended(filename string, issues []BurpExtendedIssue) error {
 	type IssueList struct {
 		XMLName xml.Name            `xml:"issues"`
@@ -155,7 +144,6 @@ func ExportToBurpExtended(filename string, issues []BurpExtendedIssue) error {
 	return os.WriteFile(filename, append(xmlHeader, data...), 0644)
 }
 
-// currentTimestamp returns the current ISO 8601 timestamp.
 func currentTimestamp() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }

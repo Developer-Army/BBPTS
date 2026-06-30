@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -52,11 +52,10 @@ func (t *CloudExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 
 		var events []recon.Event
 
-		// Test 1: Check exposed cloud IAM config / credentials files
 		cloudFiles := []string{
 			"/.aws/credentials",
 			"/.gcloud/active_config",
-			"/credentials.json", // common service account filename
+			"/credentials.json",
 		}
 
 		for _, cfPath := range cloudFiles {
@@ -98,10 +97,8 @@ func (t *CloudExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			}
 		}
 
-		// Test 2: Check SaaS instances exposure (e.g. Jira / Trello / Zendesk subdomain checks)
-		// Usually target domains may have SaaS endpoints hosted on target-name.atlassian.net
 		host := parsed.Hostname()
-		// Only perform external SaaS platform domain checks if host is a proper registered FQDN (not local or IP)
+
 		if !strings.Contains(host, "127.0.0.1") && !strings.Contains(host, "localhost") && strings.Contains(host, ".") {
 			domainParts := strings.Split(host, ".")
 			if len(domainParts) > 1 {
@@ -126,7 +123,6 @@ func (t *CloudExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 						sResp.Body.Close()
 						bodyStr := string(bodyBytes)
 
-						// If 200 OK and contains data indicating public access without authentication
 						if sResp.StatusCode == 200 && !strings.Contains(bodyStr, "login") && !strings.Contains(bodyStr, "unauthorized") {
 							events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 								"vuln_name":   fmt.Sprintf("Exposed Public %s Instance", check.name),

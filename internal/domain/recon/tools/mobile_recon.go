@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -21,8 +21,8 @@ func (t *MobileReconTool) Name() string {
 }
 
 var (
-	deepLinkPattern = regexp.MustCompile(`(?i)(?:scheme|host|android:scheme|android:host)\s*[:=]\s*["']?([a-zA-Z0-9_\-\.]{3,})["']?`)
-	apiKeyPattern   = regexp.MustCompile(`(?i)(?:api_key|client_secret|aws_key|firebase_key)\s*[:=]\s*["']?([a-zA-Z0-9_\-\.]{15,})["']?`)
+	deepLinkPattern  = regexp.MustCompile(`(?i)(?:scheme|host|android:scheme|android:host)\s*[:=]\s*["']?([a-zA-Z0-9_\-\.]{3,})["']?`)
+	apiKeyPattern    = regexp.MustCompile(`(?i)(?:api_key|client_secret|aws_key|firebase_key)\s*[:=]\s*["']?([a-zA-Z0-9_\-\.]{15,})["']?`)
 	apiKeyXmlPattern = regexp.MustCompile(`(?i)(?:api_key|client_secret|aws_key|firebase_key|secret|token|password|key)"\s+android:value="([a-zA-Z0-9_\-\.]{15,})"`)
 )
 
@@ -59,7 +59,6 @@ func (t *MobileReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 
 		var events []recon.Event
 
-		// Test 1: Check public mobile app config files or exposed manifests
 		manifestPaths := []string{
 			"/AndroidManifest.xml",
 			"/static/AndroidManifest.xml",
@@ -84,7 +83,7 @@ func (t *MobileReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				bodyStr := string(bodyBytes)
 
 				if resp.StatusCode == 200 {
-					// Scan for deep links
+
 					if links := deepLinkPattern.FindAllStringSubmatch(bodyStr, -1); len(links) > 0 {
 						var parsedLinks []string
 						for _, match := range links {

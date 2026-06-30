@@ -48,7 +48,6 @@ func TestInMemoryStorage_Store(t *testing.T) {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	// Verify it was stored
 	stored, err := ims.Get("session1")
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
@@ -70,7 +69,6 @@ func TestInMemoryStorage_Get(t *testing.T) {
 
 	_ = ims.Store(result)
 
-	// Test getting existing result
 	stored, err := ims.Get("session1")
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
@@ -80,7 +78,6 @@ func TestInMemoryStorage_Get(t *testing.T) {
 		t.Errorf("expected session ID 'session1', got '%s'", stored.SessionID)
 	}
 
-	// Test getting non-existent result
 	_, err = ims.Get("nonexistent")
 	if err == nil {
 		t.Error("expected error for non-existent session ID")
@@ -90,7 +87,6 @@ func TestInMemoryStorage_Get(t *testing.T) {
 func TestInMemoryStorage_GetLatest(t *testing.T) {
 	ims := NewInMemoryStorage()
 
-	// Store multiple scans for the same target
 	result1 := &ScanResult{
 		SessionID: "session1",
 		Target:    "acme-corp.io",
@@ -113,7 +109,6 @@ func TestInMemoryStorage_GetLatest(t *testing.T) {
 	_ = ims.Store(result2)
 	_ = ims.Store(result3)
 
-	// Get latest
 	latest, err := ims.GetLatest("acme-corp.io")
 	if err != nil {
 		t.Fatalf("GetLatest failed: %v", err)
@@ -123,7 +118,6 @@ func TestInMemoryStorage_GetLatest(t *testing.T) {
 		t.Errorf("expected latest session ID 'session3', got '%s'", latest.SessionID)
 	}
 
-	// Test non-existent target
 	_, err = ims.GetLatest("nonexistent.com")
 	if err == nil {
 		t.Error("expected error for non-existent target")
@@ -133,7 +127,6 @@ func TestInMemoryStorage_GetLatest(t *testing.T) {
 func TestInMemoryStorage_List(t *testing.T) {
 	ims := NewInMemoryStorage()
 
-	// Store multiple scans
 	result1 := &ScanResult{
 		SessionID: "session1",
 		Target:    "acme-corp.io",
@@ -156,7 +149,6 @@ func TestInMemoryStorage_List(t *testing.T) {
 	_ = ims.Store(result2)
 	_ = ims.Store(result3)
 
-	// List all
 	results, err := ims.List("acme-corp.io", 0)
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
@@ -166,7 +158,6 @@ func TestInMemoryStorage_List(t *testing.T) {
 		t.Errorf("expected 3 results, got %d", len(results))
 	}
 
-	// List with limit
 	results, err = ims.List("acme-corp.io", 2)
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
@@ -176,7 +167,6 @@ func TestInMemoryStorage_List(t *testing.T) {
 		t.Errorf("expected 2 results with limit, got %d", len(results))
 	}
 
-	// Test non-existent target
 	results, err = ims.List("nonexistent.com", 0)
 	if err != nil {
 		t.Fatalf("List failed for non-existent target: %v", err)
@@ -198,19 +188,16 @@ func TestInMemoryStorage_Delete(t *testing.T) {
 
 	_ = ims.Store(result)
 
-	// Delete
 	err := ims.Delete("session1")
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 
-	// Verify it was deleted
 	_, err = ims.Get("session1")
 	if err == nil {
 		t.Error("expected error after deletion")
 	}
 
-	// Test deleting non-existent
 	err = ims.Delete("nonexistent")
 	if err == nil {
 		t.Error("expected error for deleting non-existent session")
@@ -235,7 +222,6 @@ func TestDiffEngine_StoreResult(t *testing.T) {
 		t.Fatalf("StoreResult failed: %v", err)
 	}
 
-	// Verify checksums were computed
 	stored, _ := storage.Get("session1")
 	if stored.Assets[0].Checksum == "" {
 		t.Error("checksum should be computed")
@@ -261,9 +247,8 @@ func TestDiffEngine_Compare(t *testing.T) {
 		Target:    "acme-corp.io",
 		Timestamp: time.Now(),
 		Assets: []Asset{
-			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder"}, // unchanged
-			{Type: "subdomain", Value: "new.acme-corp.io", Source: "subfinder"}, // new
-			// www.acme-corp.io removed
+			{Type: "subdomain", Value: "api.acme-corp.io", Source: "subfinder"},
+			{Type: "subdomain", Value: "new.acme-corp.io", Source: "subfinder"},
 		},
 	}
 
@@ -284,7 +269,6 @@ func TestDiffEngine_Compare(t *testing.T) {
 		t.Errorf("expected previous ID 'session1', got '%s'", report.PreviousID)
 	}
 
-	// Should have 1 new and 1 removed
 	if report.Summary.NewAssets != 1 {
 		t.Errorf("expected 1 new asset, got %d", report.Summary.NewAssets)
 	}
@@ -306,7 +290,6 @@ func TestDiffEngine_CompareWithLatest(t *testing.T) {
 	storage := NewInMemoryStorage()
 	de := NewDiffEngine(storage)
 
-	// Store previous scan
 	previous := &ScanResult{
 		SessionID: "session1",
 		Target:    "acme-corp.io",
@@ -318,7 +301,6 @@ func TestDiffEngine_CompareWithLatest(t *testing.T) {
 
 	_ = de.StoreResult(previous)
 
-	// Compare with latest
 	current := &ScanResult{
 		SessionID: "session2",
 		Target:    "acme-corp.io",
@@ -337,7 +319,6 @@ func TestDiffEngine_CompareWithLatest(t *testing.T) {
 		t.Fatal("report should not be nil")
 	}
 
-	// Test with no previous scan
 	current2 := &ScanResult{
 		SessionID: "session3",
 		Target:    "nonexistent.com",
@@ -355,7 +336,6 @@ func TestDiffEngine_GetHistory(t *testing.T) {
 	storage := NewInMemoryStorage()
 	de := NewDiffEngine(storage)
 
-	// Store multiple scans
 	result1 := &ScanResult{
 		SessionID: "session1",
 		Target:    "acme-corp.io",
@@ -371,7 +351,6 @@ func TestDiffEngine_GetHistory(t *testing.T) {
 	_ = de.StoreResult(result1)
 	_ = de.StoreResult(result2)
 
-	// Get history
 	history, err := de.GetHistory("acme-corp.io", 0)
 	if err != nil {
 		t.Fatalf("GetHistory failed: %v", err)
@@ -381,7 +360,6 @@ func TestDiffEngine_GetHistory(t *testing.T) {
 		t.Errorf("expected 2 results, got %d", len(history))
 	}
 
-	// Get history with limit
 	history, err = de.GetHistory("acme-corp.io", 1)
 	if err != nil {
 		t.Fatalf("GetHistory with limit failed: %v", err)
@@ -424,7 +402,6 @@ func TestComputeAssetChecksum(t *testing.T) {
 		t.Error("checksum should not be empty")
 	}
 
-	// Different assets should have different checksums
 	asset2 := Asset{
 		Type:   "subdomain",
 		Value:  "www.acme-corp.io",
@@ -452,7 +429,6 @@ func TestComputeAssetChecksum_WithMetadata(t *testing.T) {
 		t.Error("checksum should not be empty")
 	}
 
-	// Asset with different metadata should have different checksum
 	asset2 := Asset{
 		Type:   "subdomain",
 		Value:  "api.acme-corp.io",
@@ -477,19 +453,16 @@ func TestDiffReport_FilterChanges(t *testing.T) {
 		},
 	}
 
-	// Filter by type
 	added := report.FilterChanges("added", "")
 	if len(added) != 1 {
 		t.Errorf("expected 1 added change, got %d", len(added))
 	}
 
-	// Filter by asset type
 	subdomains := report.FilterChanges("", "subdomain")
 	if len(subdomains) != 2 {
 		t.Errorf("expected 2 subdomain changes, got %d", len(subdomains))
 	}
 
-	// Filter by both
 	addedSubdomains := report.FilterChanges("added", "subdomain")
 	if len(addedSubdomains) != 1 {
 		t.Errorf("expected 1 added subdomain change, got %d", len(addedSubdomains))
@@ -522,7 +495,6 @@ func TestDiffReport_ToMarkdown(t *testing.T) {
 		t.Error("ToMarkdown should not return empty string")
 	}
 
-	// Verify markdown contains expected sections
 	expectedSections := []string{"Differential Reconnaissance Report", "Summary", "Added Assets", "Removed Assets", "Changed Assets"}
 	for _, section := range expectedSections {
 		if !contains(markdown, section) {
@@ -552,7 +524,6 @@ func TestDiffReport_ToJSON(t *testing.T) {
 		t.Error("ToJSON should not return empty string")
 	}
 
-	// Verify it contains expected fields
 	if !contains(json, "session_id") {
 		t.Error("JSON should contain session_id")
 	}

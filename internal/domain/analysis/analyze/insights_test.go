@@ -37,11 +37,12 @@ func TestDeriveInsights(t *testing.T) {
 	var exampleInsight *Insight
 
 	for _, i := range insights {
-		// need a copy since i is value
+
 		copy := i
-		if i.Host == "admin.acme-corp.io" {
+		switch i.Host {
+		case "admin.acme-corp.io":
 			adminInsight = &copy
-		} else if i.Host == "acme-corp.io" {
+		case "acme-corp.io":
 			exampleInsight = &copy
 		}
 	}
@@ -53,7 +54,6 @@ func TestDeriveInsights(t *testing.T) {
 		t.Fatalf("missing acme-corp.io insight")
 	}
 
-	// Verify tags
 	foundAuth := false
 	for _, tag := range adminInsight.Tags {
 		if tag == "auth" {
@@ -90,7 +90,7 @@ func TestAnalyzers(t *testing.T) {
 				{Target: "https://acme-corp.io/.env", Source: "gobuster"},
 			},
 			wantTags: []string{"sensitive"},
-			minScore: 35, // 10 base + 25 sensitive
+			minScore: 35,
 		},
 		{
 			name:    "High Value Subdomain",
@@ -99,7 +99,7 @@ func TestAnalyzers(t *testing.T) {
 				{Target: "dev.acme-corp.io", Source: "subfinder"},
 			},
 			wantTags: []string{"high-value-scope", "discovery"},
-			minScore: 35, // 10 base + 20 high-value + 5 discovery
+			minScore: 35,
 		},
 		{
 			name:    "LFI Candidate",
@@ -108,7 +108,7 @@ func TestAnalyzers(t *testing.T) {
 				{Target: "https://acme-corp.io/view?file=test.txt", Source: "katana"},
 			},
 			wantTags: []string{"parameterized", "lfi-candidate"},
-			minScore: 33, // 10 base + 8 param + 15 lfi
+			minScore: 33,
 		},
 		{
 			name:    "SQLi Candidate Category Filter",
@@ -244,7 +244,7 @@ func TestSuggestedTests_AreExpandedAndSpecific(t *testing.T) {
 
 func TestRiskDecay(t *testing.T) {
 	targets := []string{"acme.com"}
-	// An event with a timestamp from 45 days ago
+
 	oldTime := time.Now().Add(-45 * 24 * time.Hour)
 	events := []recon.Event{
 		{
@@ -257,28 +257,24 @@ func TestRiskDecay(t *testing.T) {
 		},
 	}
 
-	// 1. Compute without decay (current time is oldTime)
 	freshInsights := deriveInsightsWithTime(targets, events, oldTime)
 	if len(freshInsights) == 0 {
 		t.Fatal("expected insights")
 	}
 	freshScore := freshInsights[0].Score
 
-	// 2. Compute with decay (current time is now)
 	decayedInsights := deriveInsightsWithTime(targets, events, time.Now())
 	if len(decayedInsights) == 0 {
 		t.Fatal("expected insights")
 	}
 	decayedScore := decayedInsights[0].Score
 
-	// Age is 45 days: 45 / 30 = 1.5. Decay = 1.5 * 20 = 30 points.
 	expectedDecay := 30
 	actualDecay := freshScore - decayedScore
 	if actualDecay != expectedDecay {
 		t.Errorf("expected score decay of %d, got %d (fresh: %d, decayed: %d)", expectedDecay, actualDecay, freshScore, decayedScore)
 	}
 
-	// Verify reason was appended
 	foundDecayReason := false
 	for _, r := range decayedInsights[0].Reasons {
 		if strings.Contains(r, "Risk decayed by") {

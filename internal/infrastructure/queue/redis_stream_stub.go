@@ -7,14 +7,12 @@ import (
 	"errors"
 )
 
-// ErrRedisUnavailable is returned when the Redis backend is not compiled.
 var ErrRedisUnavailable = errors.New("redis backend not compiled; rebuild with: go build -tags redis")
 
 func NewRedisStreamBus(_ string) (EventBus, error) {
 	return nil, ErrRedisUnavailable
 }
 
-// RedisStreamManager stub to make sure it compiles if used
 type RedisStreamManager struct{}
 
 func NewRedisStreamManager(_ string) (*RedisStreamManager, error) {

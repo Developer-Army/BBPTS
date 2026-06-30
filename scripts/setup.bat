@@ -9,10 +9,8 @@ echo BBPTS Setup Script for Windows
 echo =================================================
 echo.
 
-:: Default setup mode
 set "MODE=user"
 
-:: Parse command line arguments
 :parse_args
 if "%~1"=="" goto done_args
 if "%~1"=="--user" (
@@ -44,7 +42,6 @@ shift
 goto parse_args
 :done_args
 
-:: Prompt interactively if not running with automated args
 if "%MODE%"=="user" (
     if "%~1"=="" (
         echo Select Setup Profile:
@@ -195,19 +192,19 @@ set WORDLISTS_DIR=%PROJECT_ROOT%\wordlists
 if not exist "%WORDLISTS_DIR%" mkdir "%WORDLISTS_DIR%"
 
 echo Downloading DNS wordlist (5k entries)...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/dns-Jhaddix.txt' -OutFile '%WORDLISTS_DIR%\dns-5k.txt'" 2>nul
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/b63c78f2e8b0c6b5e31543fb6a31dd89873e88bf/Discovery/DNS/dns-Jhaddix.txt' -OutFile '%WORDLISTS_DIR%\dns-5k.txt'" 2>nul
 
 echo Downloading directory wordlist (small)...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-small-files.txt' -OutFile '%WORDLISTS_DIR%\raft-small-files.txt'" 2>nul
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/b63c78f2e8b0c6b5e31543fb6a31dd89873e88bf/Discovery/Web-Content/raft-small-files.txt' -OutFile '%WORDLISTS_DIR%\raft-small-files.txt'" 2>nul
 
 echo Downloading subdomain wordlist...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/subdomains-top1million-5000.txt' -OutFile '%WORDLISTS_DIR%\subdomains-top1million-5000.txt'" 2>nul
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/b63c78f2e8b0c6b5e31543fb6a31dd89873e88bf/Discovery/DNS/subdomains-top1million-5000.txt' -OutFile '%WORDLISTS_DIR%\subdomains-top1million-5000.txt'" 2>nul
 
 echo Downloading API endpoints wordlist...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/api/api-endpoints.txt' -OutFile '%WORDLISTS_DIR%\api-endpoints.txt'" 2>nul
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/b63c78f2e8b0c6b5e31543fb6a31dd89873e88bf/Discovery/Web-Content/api/api-endpoints.txt' -OutFile '%WORDLISTS_DIR%\api-endpoints.txt'" 2>nul
 
 echo Downloading common web content wordlist...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt' -OutFile '%WORDLISTS_DIR%\seclists_common.txt'" 2>nul
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/danielmiessler/SecLists/b63c78f2e8b0c6b5e31543fb6a31dd89873e88bf/Discovery/Web-Content/common.txt' -OutFile '%WORDLISTS_DIR%\seclists_common.txt'" 2>nul
 
 echo.
 echo Building BBPTS executable...

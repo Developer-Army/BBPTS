@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +11,25 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// generateHTMLReport exports report as HTML
+func escapeHTMLStr(s string) string {
+	return html.EscapeString(s)
+}
+
+func trimHTTPResponse(s string, maxBytes int) string {
+	if len(s) <= maxBytes {
+		return s
+	}
+	return s[:maxBytes] + fmt.Sprintf("\n\n... [truncated %d bytes]", len(s)-maxBytes)
+}
+
+func highlightStatusLine(escaped string) string {
+	newline := strings.Index(escaped, "\n")
+	if newline < 0 {
+		return `<span class="http-status-line">` + escaped + `</span>`
+	}
+	return `<span class="http-status-line">` + escaped[:newline] + `</span>` + escaped[newline:]
+}
+
 func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 	outputPath := filepath.Join(rg.config.OutputPath, "report.html")
 
@@ -22,10 +41,32 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 		ID    string `json:"id"`
 		Label string `json:"label"`
 		Group string `json:"group"`
+		Title string `json:"title,omitempty"`
 	}
 	type GraphEdge struct {
 		From string `json:"from"`
 		To   string `json:"to"`
+	}
+
+	cleanLabel := func(s string) string {
+		if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+			parts := strings.Split(s, "/")
+			if len(parts) >= 3 {
+				host := parts[2]
+				path := strings.Join(parts[3:], "/")
+				if path == "" {
+					return host
+				}
+				if len(path) > 20 {
+					return "..." + path[len(path)-17:]
+				}
+				return "/" + path
+			}
+		}
+		if len(s) > 20 {
+			return s[:17] + "..."
+		}
+		return s
 	}
 
 	graphNodes := make(map[string]GraphNode)
@@ -40,7 +81,12 @@ func (rg *ReportGenerator) generateHTMLReport(report *Report) error {
 			} else if i == len(p.Path)-1 {
 				group = "vulnerability"
 			}
-			graphNodes[nodeVal] = GraphNode{ID: nodeVal, Label: nodeVal, Group: group}
+			graphNodes[nodeVal] = GraphNode{
+				ID:    nodeVal,
+				Label: cleanLabel(nodeVal),
+				Title: nodeVal,
+				Group: group,
+			}
 			if i > 0 {
 				prev := p.Path[i-1]
 				key := prev + "->" + nodeVal
@@ -366,6 +412,71 @@ body.light-theme .suppressed-finding {
   background: #f1f5f9 !important;
   border-color: #cbd5e1 !important;
 }
+/* HTTP Request/Response evidence blocks */
+.http-block {
+  background: #07111d;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  font-size: 0.76rem;
+  overflow-x: auto;
+  white-space: pre;
+  color: #e2e8f0;
+  max-height: 380px;
+  overflow-y: auto;
+  margin-top: 6px;
+  line-height: 1.55;
+  position: relative;
+}
+.http-status-line { color: #38bdf8; font-weight: 700; }
+.http-block-wrap { position: relative; }
+.http-copy-btn {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--muted); padding: 3px 10px; border-radius: 5px;
+  font-size: 0.7rem; font-weight: 600; cursor: pointer; transition: 0.15s;
+  font-family: inherit;
+}
+.http-copy-btn:hover { background: var(--border); color: var(--text); }
+/* Tooltip styles */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 240px;
+  background-color: var(--surface2);
+  color: var(--text);
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 10;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -120px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 0.8rem;
+  font-weight: normal;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+/* Beginner mode rules */
+.beginner-only {
+  display: none !important;
+}
+body.beginner-mode .beginner-only {
+  display: block !important;
+}
 </style>
 </head>
 <body>
@@ -377,6 +488,7 @@ body.light-theme .suppressed-finding {
     <p>Generated ` + report.GeneratedAt.Format("2006-01-02 15:04 UTC") + ` &nbsp;·&nbsp; ` + fmt.Sprintf("%d targets", report.TargetCount) + `</p>
   </div>
   <div style="display:flex;align-items:center;gap:12px;">
+    <button onclick="toggleBeginnerMode()" class="btn" style="border-radius:20px; background:rgba(59,130,246,0.15); color:#93c5fd; border:1px solid rgba(59,130,246,0.35);">💡 Beginner Mode: Off</button>
     <button onclick="toggleTheme()" class="btn" style="border-radius:20px;">🌗 Theme</button>
     <span class="risk-badge ` + riskBadgeClass + `">Overall Risk: ` + report.Executive.OverallRisk + `</span>
   </div>
@@ -450,6 +562,40 @@ body.light-theme .suppressed-finding {
     <div class="gstep"><div class="gstep-num">2</div><h3>Understand the Score</h3><p>Each finding has a Risk Score (0&ndash;100). Higher = more attack surface signals. Start with anything above 70.</p></div>
     <div class="gstep"><div class="gstep-num">3</div><h3>Expand a Finding</h3><p>Click any card below to expand it. You&rsquo;ll see exactly <em>why</em> it scored high and what to test.</p></div>
     <div class="gstep"><div class="gstep-num">4</div><h3>Work the Checklist</h3><p>Each finding has checkboxes. Tick off tests as you go. Critical/High first. Look for parameterized URLs &mdash; main attack surface.</p></div>
+  </div>
+  
+  <div class="beginner-only" style="margin-top:20px; border-top:1px dashed var(--border); padding-top:16px;">
+    <h3 style="font-size:0.95rem; font-weight:800; color:var(--accent); margin-bottom:12px; display:flex; align-items:center; gap:6px;">📖 Security Concepts Glossary & Proxy Setup Guide</h3>
+    <div style="font-size:0.8rem; line-height:1.5; color:var(--muted); margin-bottom:16px;">
+      <strong>Setting up FoxyProxy:</strong> Click your browser's extension store, download FoxyProxy, and create a new proxy entry with <code>IP: 127.0.0.1</code> and <code>Port: 8080</code>. Switch the proxy on when testing endpoints to log requests in Burp or Caido.
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px;">
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <strong style="color:var(--text); font-size:0.82rem;">SQLi (SQL Injection)</strong>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:4px;">Injecting custom database query commands into inputs. Used to bypass authorization or steal backend tables.</p>
+      </div>
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <strong style="color:var(--text); font-size:0.82rem;">SSRF (Server-Side Request Forgery)</strong>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:4px;">Abusing a backend web application server to trigger requests towards internal, non-public systems or external sites.</p>
+      </div>
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <strong style="color:var(--text); font-size:0.82rem;">CORS (Cross-Origin Resource Sharing)</strong>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:4px;">A browser security control. Permissive wildcard origins allow third-party sites to steal sensitive data from endpoints.</p>
+      </div>
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <strong style="color:var(--text); font-size:0.82rem;">GraphQL Introspection</strong>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:4px;">An internal query option. When enabled in production, it lets attackers automatically query and map the whole API architecture.</p>
+      </div>
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <strong style="color:var(--text); font-size:0.82rem;">IDOR / BOLA</strong>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:4px;">Insecure Direct Object Reference. Accessing other users' files or records by guessing or altering numerical IDs or UUIDs.</p>
+      </div>
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px;">
+        <strong style="color:var(--text); font-size:0.82rem;">CSP (Content Security Policy)</strong>
+        <p style="font-size:0.75rem; color:var(--muted); margin-top:4px;">An extra layer of security that tells browser clients which scripting resources are safe to execute, preventing XSS.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 ` + targetsHTML + chainsHTML + pathsHTML + `
@@ -479,6 +625,19 @@ document.querySelectorAll('.finding-head').forEach(function(h){
   });
 });
 
+// Copy HTTP block content to clipboard
+function copyHTTPBlock(btn) {
+  var wrap = btn.closest('.fsection').querySelector('pre');
+  if (!wrap) return;
+  var text = wrap.textContent || wrap.innerText;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+    });
+  }
+}
+
 // Expand / Collapse all
 function expandAll() {
   document.querySelectorAll('.finding-body').forEach(b => b.classList.add('open'));
@@ -499,6 +658,33 @@ allTags.forEach(tag => {
   opt.textContent = tag;
   tagFilterSelect.appendChild(opt);
 });
+
+// Beginner mode management
+function toggleBeginnerMode() {
+  const active = document.body.classList.toggle('beginner-mode');
+  const btn = document.querySelector('button[onclick="toggleBeginnerMode()"]');
+  if (btn) {
+    if (active) {
+      btn.textContent = '💡 Beginner Mode: On';
+      btn.style.background = 'var(--primary)';
+      btn.style.color = '#fff';
+    } else {
+      btn.textContent = '💡 Beginner Mode: Off';
+      btn.style.background = 'rgba(59,130,246,0.15)';
+      btn.style.color = '#93c5fd';
+    }
+  }
+  localStorage.setItem('beginner-mode', active ? 'on' : 'off');
+}
+if (localStorage.getItem('beginner-mode') === 'on') {
+  document.body.classList.add('beginner-mode');
+  const btn = document.querySelector('button[onclick="toggleBeginnerMode()"]');
+  if (btn) {
+    btn.textContent = '💡 Beginner Mode: On';
+    btn.style.background = 'var(--primary)';
+    btn.style.color = '#fff';
+  }
+}
 
 // Theme management
 function toggleTheme() {
@@ -603,7 +789,6 @@ if (netContainer && graphNodes && graphNodes.length > 0) {
 	return os.WriteFile(outputPath, []byte(html), 0644)
 }
 
-// generateRecommendationsHTML formatting helper
 func (rg *ReportGenerator) generateRecommendationsHTML(recs []string) string {
 	var sb strings.Builder
 	for _, rec := range recs {
@@ -612,7 +797,6 @@ func (rg *ReportGenerator) generateRecommendationsHTML(recs []string) string {
 	return sb.String()
 }
 
-// generateFindingsHTML renders individual finding cards.
 func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) string {
 	if len(findings) == 0 {
 		return `<div class="empty-state">No findings above the minimum score threshold.</div>`
@@ -624,7 +808,7 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 			sev = "info"
 		}
 		color := severityColor(sev)
-		targetURL := makeURL(f.Target)
+		targetURL := getBaseURL(&f)
 		cbPrefix := fmt.Sprintf("f%d", idx)
 
 		extraClass := ""
@@ -633,7 +817,7 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		}
 		sb.WriteString(fmt.Sprintf(`<div class="finding sev-%s%s">`, sev, extraClass))
 		sb.WriteString(`<div class="finding-head">`)
-		sb.WriteString(fmt.Sprintf(`<div class="finding-host"><a href="%s" target="_blank" rel="noopener">%s</a></div>`, targetURL, f.Target))
+		sb.WriteString(fmt.Sprintf(`<div class="finding-host"><a href="%s" target="_blank" rel="noopener">%s</a><div style="font-size:0.8rem;color:var(--muted);margin-top:2px;font-weight:600;">%s</div></div>`, targetURL, f.Target, escapeHTMLStr(f.Title)))
 		sb.WriteString(`<div class="fmeta">`)
 		if f.Suppressed {
 			sb.WriteString(`<span class="sev-badge" style="background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3)">⚠ FP Risk: high</span>`)
@@ -648,12 +832,55 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 
 		if f.ExposureScore > 0 || f.AttackabilityScore > 0 || f.BusinessImpactScore > 0 || f.ConfidenceScore > 0 || f.PathScore > 0 {
 			sb.WriteString(`<div class="fsection"><div class="fsection-label">Risk Vectors Breakdown</div><div class="risk-breakdown" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:8px;margin-bottom:12px;">`)
-			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Exposure</span><strong>%d/100</strong></div>`, f.ExposureScore))
-			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Attackability</span><strong>%d/100</strong></div>`, f.AttackabilityScore))
-			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Business Impact</span><strong>%d/100</strong></div>`, f.BusinessImpactScore))
-			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Confidence</span><strong>%d/100</strong></div>`, f.ConfidenceScore))
-			sb.WriteString(fmt.Sprintf(`<div style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Path Score</span><strong>%d/100</strong></div>`, f.PathScore))
+			sb.WriteString(fmt.Sprintf(`<div class="tooltip" style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Exposure</span><strong>%d/100</strong><span class="tooltiptext"><strong>Exposure (Internet Visibility):</strong> How visible/accessible the target is to the public internet.</span></div>`, f.ExposureScore))
+			sb.WriteString(fmt.Sprintf(`<div class="tooltip" style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Attackability</span><strong>%d/100</strong><span class="tooltiptext"><strong>Attackability (Exploitation Ease):</strong> How easy or automated the path to exploit the endpoint is.</span></div>`, f.AttackabilityScore))
+			sb.WriteString(fmt.Sprintf(`<div class="tooltip" style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Business Impact</span><strong>%d/100</strong><span class="tooltiptext"><strong>Business Impact (Data Risk):</strong> Potential damage to business operations or data confidentiality if compromised.</span></div>`, f.BusinessImpactScore))
+			sb.WriteString(fmt.Sprintf(`<div class="tooltip" style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Confidence</span><strong>%d/100</strong><span class="tooltiptext"><strong>Confidence (Signal Accuracy):</strong> Level of verification and signal strength from detection tools.</span></div>`, f.ConfidenceScore))
+			sb.WriteString(fmt.Sprintf(`<div class="tooltip" style="background:var(--surface2);padding:8px 12px;border-radius:6px;font-size:0.8rem;"><span style="color:var(--muted);display:block;">Path Score</span><strong>%d/100</strong><span class="tooltiptext"><strong>Path Score (Attack Depth):</strong> Number of interconnected steps/hops required to reach the target.</span></div>`, f.PathScore))
 			sb.WriteString(`</div></div>`)
+		}
+
+		beginnerExplanation := ""
+		hasTag := func(t string) bool {
+			for _, tag := range f.Tags {
+				if strings.EqualFold(tag, t) {
+					return true
+				}
+			}
+			return false
+		}
+		containsReason := func(r string) bool {
+			return strings.Contains(strings.ToLower(f.Description), strings.ToLower(r))
+		}
+
+		if hasTag("git-leak") || containsReason("git repository") {
+			beginnerExplanation = "An exposed Git repository means your website's private source code history was left accessible. Attackers can download your code to find passwords or database details."
+		} else if hasTag("secrets") || containsReason("exposed environment file") || containsReason(".env") {
+			beginnerExplanation = "A secrets leak means API keys, passwords, or credentials are left in public view. Attackers scan for these to access your cloud accounts or databases."
+		} else if hasTag("takeover") || containsReason("takeover") {
+			beginnerExplanation = "Subdomain takeover happens when a domain points to a deleted SaaS resource (like a deleted AWS S3 bucket). Anyone can register that resource to control your domain name."
+		} else if hasTag("cors-risk") || containsReason("cors") {
+			beginnerExplanation = "CORS determines which external websites can read from your APIs. A permissive configuration allows malicious external sites to read private user info."
+		} else if containsReason("graphql") || containsReason("introspection") {
+			beginnerExplanation = "GraphQL Introspection lets anyone download your database schema structure. It's like leaving the blueprints of your house's lock systems on the front door."
+		} else if containsReason("directory listing") || hasTag("info-leak") {
+			beginnerExplanation = "Directory listing allows anyone to browse files on your server using a web browser. It exposes sensitive backend folders, logs, or backups."
+		} else if hasTag("phpmyadmin") {
+			beginnerExplanation = "Exposed database panels (like phpMyAdmin) allow attackers to try brute-forcing database logins to steal or wipe out all your data."
+		} else if hasTag("monitoring") || containsReason("grafana") || containsReason("prometheus") {
+			beginnerExplanation = "Exposing Grafana or Prometheus panels reveals operational statistics and metrics. Attackers use this data to map your backend networks."
+		} else if containsReason("bypass") || hasTag("manual-bypass") {
+			beginnerExplanation = "Access bypass means pages that should require logging in might be bypassable using custom settings. This can allow unauthorized access to admin zones."
+		} else if hasTag("ssrf-candidate") || containsReason("ssrf") {
+			beginnerExplanation = "SSRF allows an attacker to make the backend server send requests on their behalf. Attackers use this to reach internal, private servers from the outside."
+		} else if hasTag("sqli-candidate") || containsReason("sqli") {
+			beginnerExplanation = "SQL Injection lets attackers insert malicious commands directly into database queries. They can use this to bypass login screens or steal the whole database."
+		} else {
+			beginnerExplanation = "This target is flagged for manual testing because automated tools detected security patterns. Use the proxy and checklists below to investigate."
+		}
+
+		if beginnerExplanation != "" {
+			sb.WriteString(fmt.Sprintf(`<div class="fsection beginner-only" style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:8px;padding:12px 16px;margin-bottom:12px;"><div class="fsection-label" style="color:var(--accent);display:flex;align-items:center;gap:6px;font-size:0.75rem;">💡 Beginner-Friendly Explanation</div><div style="font-size:0.86rem;line-height:1.55;color:#e2e8f0;">%s</div></div>`, escapeHTMLStr(beginnerExplanation)))
 		}
 
 		reasons := filterEmpty(strings.Split(f.Description, "; "))
@@ -714,22 +941,66 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 			sb.WriteString(fmt.Sprintf(`<div class="fsection"><div class="fsection-label">Page Screenshot</div><div class="screenshot-container" style="margin-top:8px;"><a href="%s" target="_blank"><img src="%s" alt="Screenshot" style="max-width:240px;border:1px solid var(--border);border-radius:6px;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,0.1);transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'"></a></div></div>`, f.ScreenshotPath, f.ScreenshotPath))
 		}
 
+		if f.Request != "" {
+			escaped := escapeHTMLStr(trimHTTPResponse(f.Request, 16384))
+			sb.WriteString(`<div class="fsection"><div class="fsection-label" style="display:flex;align-items:center;justify-content:space-between;">`)
+			sb.WriteString(`HTTP Request <button class="http-copy-btn" onclick="copyHTTPBlock(this)">Copy</button></div>`)
+			sb.WriteString(`<div class="http-block-wrap"><pre class="http-block"><code>`)
+			sb.WriteString(escaped)
+			sb.WriteString(`</code></pre></div></div>`)
+		}
+
+		if f.Response != "" {
+			trimmed := trimHTTPResponse(f.Response, 16384)
+			highlighted := highlightStatusLine(escapeHTMLStr(trimmed))
+			sb.WriteString(`<div class="fsection"><div class="fsection-label" style="display:flex;align-items:center;justify-content:space-between;">`)
+			sb.WriteString(`HTTP Response <button class="http-copy-btn" onclick="copyHTTPBlock(this)">Copy</button></div>`)
+			sb.WriteString(`<div class="http-block-wrap"><pre class="http-block"><code>`)
+			sb.WriteString(highlighted)
+			sb.WriteString(`</code></pre></div></div>`)
+		}
+
+		if f.Impact != "" {
+			sb.WriteString(fmt.Sprintf(`<div class="fsection"><div class="fsection-label">Security Impact</div><div style="font-size:0.88rem;color:#cbd5e1;line-height:1.6;">%s</div></div>`, escapeHTMLStr(f.Impact)))
+		}
+
 		if f.Remediation != "" {
-			sb.WriteString(`<div class="fsection"><div class="fsection-label">Testing Checklist</div><ul class="checklist">`)
-			if strings.HasPrefix(f.Remediation, "Suggested security tests: ") {
+			parts := strings.Split(f.Remediation, "Suggested security tests: ")
+			if len(parts) > 1 {
+				if strings.TrimSpace(parts[0]) != "" {
+					sb.WriteString(fmt.Sprintf(`<div class="fsection"><div class="fsection-label">Remediation Guidance</div><pre style="background:#02040a;border:1px solid var(--border);border-radius:6px;padding:12px;font-family:monospace;font-size:0.8rem;color:#34d399;white-space:pre-wrap;line-height:1.5;">%s</pre></div>`, escapeHTMLStr(strings.TrimSpace(parts[0]))))
+				}
+				sb.WriteString(`<div class="fsection"><div class="fsection-label">Recommended Testing Checklist</div><ul class="checklist">`)
+				for i, test := range strings.Split(parts[1], "\x00") {
+					test = strings.TrimSpace(test)
+					if test != "" {
+						cbID := fmt.Sprintf("%s-cb%d", cbPrefix, i)
+						sb.WriteString(fmt.Sprintf(`<li><label for="%s"><input type="checkbox" id="%s"><span>%s</span></label></li>`, cbID, cbID, escapeHTMLStr(test)))
+					}
+				}
+				sb.WriteString(`</ul></div>`)
+			} else if strings.HasPrefix(f.Remediation, "Suggested security tests: ") {
 				tests := strings.TrimPrefix(f.Remediation, "Suggested security tests: ")
+				sb.WriteString(`<div class="fsection"><div class="fsection-label">Recommended Testing Checklist</div><ul class="checklist">`)
 				for i, test := range strings.Split(tests, "\x00") {
 					test = strings.TrimSpace(test)
-					if test == "" {
-						continue
+					if test != "" {
+						cbID := fmt.Sprintf("%s-cb%d", cbPrefix, i)
+						sb.WriteString(fmt.Sprintf(`<li><label for="%s"><input type="checkbox" id="%s"><span>%s</span></label></li>`, cbID, cbID, escapeHTMLStr(test)))
 					}
-					cbID := fmt.Sprintf("%s-cb%d", cbPrefix, i)
-					sb.WriteString(fmt.Sprintf(`<li><label for="%s"><input type="checkbox" id="%s"><span>%s</span></label></li>`, cbID, cbID, test))
 				}
+				sb.WriteString(`</ul></div>`)
 			} else {
-				sb.WriteString(fmt.Sprintf(`<li><label><input type="checkbox"><span>%s</span></label></li>`, f.Remediation))
+				sb.WriteString(fmt.Sprintf(`<div class="fsection"><div class="fsection-label">Remediation Guidance</div><pre style="background:#02040a;border:1px solid var(--border);border-radius:6px;padding:12px;font-family:monospace;font-size:0.8rem;color:#34d399;white-space:pre-wrap;line-height:1.5;">%s</pre></div>`, escapeHTMLStr(f.Remediation)))
 			}
-			sb.WriteString(`</ul></div>`)
+		}
+
+		if len(f.References) > 0 {
+			sb.WriteString(`<div class="fsection"><div class="fsection-label">Reference Links</div><div style="margin-top:4px;">`)
+			for _, ref := range f.References {
+				sb.WriteString(fmt.Sprintf(`<a href="%s" target="_blank" rel="noopener" style="margin-right:15px;font-size:0.8rem;color:var(--accent);">%s</a>`, ref, escapeHTMLStr(ref)))
+			}
+			sb.WriteString(`</div></div>`)
 		}
 
 		sb.WriteString(fmt.Sprintf(`<div class="next-action sev-%s">`, sev))
@@ -743,6 +1014,12 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 		}
 		sb.WriteString(`</div>`)
 
+		stepsHTML := ""
+		for _, step := range strings.Split(beginnerNextSteps(&f), "\n") {
+			stepsHTML += fmt.Sprintf("<li>%s</li>", formatStepHTML(step))
+		}
+		sb.WriteString(fmt.Sprintf(`<div class="fsection beginner-only" style="margin-top:12px; background:rgba(34,197,94,0.06); border:1px solid rgba(34,197,94,0.2); border-radius:8px; padding:12px 16px;"><div class="fsection-label" style="color:var(--low); font-size:0.75rem; display:flex; align-items:center; gap:6px;">🛠️ Step-by-Step testing guide</div><ol style="font-size:0.84rem; line-height:1.6; color:#e2e8f0; padding-left:20px; margin-top:6px;">%s</ol></div>`, stepsHTML))
+
 		if len(f.Sources) > 0 {
 			sb.WriteString(fmt.Sprintf(`<div class="sources-row">Tools: %s</div>`, strings.Join(f.Sources, ", ")))
 		}
@@ -752,7 +1029,36 @@ func (rg *ReportGenerator) generateFindingsHTML(findings []DetailedFinding) stri
 	return sb.String()
 }
 
-// generateAttackSurfaceGraph exports an interactive vis.js graph of the discovered assets
+func formatStepHTML(step string) string {
+	escaped := escapeHTMLStr(step)
+
+	for strings.Contains(escaped, "**") {
+		escaped = strings.Replace(escaped, "**", "<strong>", 1)
+		escaped = strings.Replace(escaped, "**", "</strong>", 1)
+	}
+
+	for strings.Contains(escaped, "`") {
+		escaped = strings.Replace(escaped, "`", "<code>", 1)
+		escaped = strings.Replace(escaped, "`", "</code>", 1)
+	}
+
+	for strings.Contains(escaped, "](") {
+		startIdx := strings.Index(escaped, "[")
+		midIdx := strings.Index(escaped, "](")
+		endIdx := strings.Index(escaped, ")")
+		if startIdx >= 0 && midIdx > startIdx && endIdx > midIdx {
+			text := escaped[startIdx+1 : midIdx]
+			url := escaped[midIdx+2 : endIdx]
+			url = strings.ReplaceAll(url, "&amp;", "&")
+			linkHTML := fmt.Sprintf(`<a href="%s" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline;">%s</a>`, url, text)
+			escaped = escaped[:startIdx] + linkHTML + escaped[endIdx+1:]
+		} else {
+			break
+		}
+	}
+	return escaped
+}
+
 func (rg *ReportGenerator) generateAttackSurfaceGraph(events []recon.Event) error {
 	outputPath := filepath.Join(rg.config.OutputPath, "attack_surface_graph.html")
 
@@ -770,7 +1076,6 @@ func (rg *ReportGenerator) generateAttackSurfaceGraph(events []recon.Event) erro
 	nodeMap := make(map[string]Node)
 	var edges []Edge
 
-	// Helper to extract base domain
 	getBaseDomain := func(urlStr string) string {
 		trimmed := strings.TrimPrefix(urlStr, "http://")
 		trimmed = strings.TrimPrefix(trimmed, "https://")
@@ -798,7 +1103,7 @@ func (rg *ReportGenerator) generateAttackSurfaceGraph(events []recon.Event) erro
 		}
 
 		if strings.HasPrefix(target, "http") {
-			// Extract host
+
 			trimmed := strings.TrimPrefix(target, "http://")
 			trimmed = strings.TrimPrefix(trimmed, "https://")
 			host := strings.Split(trimmed, "/")[0]
@@ -883,7 +1188,6 @@ func (rg *ReportGenerator) generateAttackSurfaceGraph(events []recon.Event) erro
 	return os.WriteFile(outputPath, []byte(htmlContent), 0644)
 }
 
-// hexToRGBComponents converts a #RRGGBB hex color to "R,G,B" for use in rgba().
 func hexToRGBComponents(hex string) string {
 	hex = strings.TrimPrefix(hex, "#")
 	if len(hex) != 6 {
@@ -902,7 +1206,6 @@ func hexToRGBComponents(hex string) string {
 	return fmt.Sprintf("%d,%d,%d", r, g, b)
 }
 
-// severityColor returns a CSS hex color for the given severity label.
 func severityColor(sev string) string {
 	switch strings.ToLower(sev) {
 	case "critical":

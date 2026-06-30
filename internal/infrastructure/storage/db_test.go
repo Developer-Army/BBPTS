@@ -208,12 +208,10 @@ func TestGetScanDiff(t *testing.T) {
 	db := mustOpen(t, dir)
 	defer db.Close()
 
-	// First scan
 	id1 := mustStartScan(t, ctx, db)
 	mustSaveTargets(t, ctx, db, id1, []string{"acme-corp.io", "api.acme-corp.io"})
 	mustFinishScan(t, ctx, db, id1)
 
-	// Second scan
 	id2 := mustStartScan(t, ctx, db)
 	mustSaveTargets(t, ctx, db, id2, []string{"acme-corp.io", "new.acme-corp.io"})
 	mustFinishScan(t, ctx, db, id2)
@@ -385,7 +383,7 @@ func TestConcurrentAccess(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		select {
 		case <-done:
-			// success
+
 		case <-time.After(30 * time.Second):
 			t.Fatal("Timeout waiting for goroutine")
 		}
@@ -399,8 +397,6 @@ func TestConcurrentAccess(t *testing.T) {
 		t.Errorf("Expected at least some scans, got %d", len(scans))
 	}
 }
-
-// helpers
 
 func mustOpen(t *testing.T, dir string) *DB {
 	t.Helper()
@@ -453,8 +449,6 @@ func TestHistoricalTrends(t *testing.T) {
 	db := mustOpen(t, dir)
 	defer db.Close()
 
-	// Create and save two scans
-	// Scan 1
 	id1 := mustStartScanScope(t, ctx, db, "program-x")
 	mustSaveTargets(t, ctx, db, id1, []string{"target1.com"})
 	mustSaveEvents(t, ctx, db, id1, []EventRecord{
@@ -469,7 +463,6 @@ func TestHistoricalTrends(t *testing.T) {
 	mustFinishScan(t, ctx, db, id1)
 	_, _ = db.db.Exec(`UPDATE scans SET start_time = '2026-06-12 10:00:00' WHERE id = ?`, id1)
 
-	// Scan 2
 	id2 := mustStartScanScope(t, ctx, db, "program-x")
 	mustSaveTargets(t, ctx, db, id2, []string{"target1.com", "target2.com"})
 	mustSaveEvents(t, ctx, db, id2, []EventRecord{
@@ -486,7 +479,6 @@ func TestHistoricalTrends(t *testing.T) {
 	mustFinishScan(t, ctx, db, id2)
 	_, _ = db.db.Exec(`UPDATE scans SET start_time = '2026-06-12 10:05:00' WHERE id = ?`, id2)
 
-	// 1. Test GetRiskHistory
 	riskHistory, err := db.GetRiskHistory(ctx, "target1.com", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get risk history: %v", err)
@@ -498,7 +490,6 @@ func TestHistoricalTrends(t *testing.T) {
 		t.Errorf("Unexpected scores in history: %v", riskHistory)
 	}
 
-	// 2. Test GetRiskTrend
 	riskTrend, err := db.GetRiskTrend(ctx, "program-x", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get risk trend: %v", err)
@@ -507,7 +498,6 @@ func TestHistoricalTrends(t *testing.T) {
 		t.Fatalf("Expected 2 risk trend entries, got %d", len(riskTrend))
 	}
 
-	// 3. Test GetTechTrend
 	techTrend, err := db.GetTechTrend(ctx, "program-x", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get tech trend: %v", err)
@@ -516,7 +506,6 @@ func TestHistoricalTrends(t *testing.T) {
 		t.Fatalf("Expected 2 tech trend entries, got %d", len(techTrend))
 	}
 
-	// 4. Test GetAssetHistory
 	assetHistory, err := db.GetAssetHistory(ctx, "target1.com", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get asset history: %v", err)
@@ -525,7 +514,6 @@ func TestHistoricalTrends(t *testing.T) {
 		t.Fatalf("Expected 2 asset history entries, got %d", len(assetHistory))
 	}
 
-	// 5. Test GetFindingHistory
 	findingHistory, err := db.GetFindingHistory(ctx, "target1.com", 0, 0)
 	if err != nil {
 		t.Fatalf("Failed to get finding history: %v", err)
@@ -534,8 +522,6 @@ func TestHistoricalTrends(t *testing.T) {
 		t.Fatalf("Expected 2 finding history entries, got %d", len(findingHistory))
 	}
 
-	// 6. Test GetOwnershipHistory
-	// First manually insert teams, owners and ownership mappings
 	_, err = db.db.Exec(`INSERT INTO teams (name) VALUES ('Team A')`)
 	if err != nil {
 		t.Fatalf("Failed to insert team: %v", err)
@@ -567,7 +553,6 @@ func TestPagination(t *testing.T) {
 	db := mustOpen(t, dir)
 	defer db.Close()
 
-	// 1. Pagination for GetScans
 	id1 := mustStartScanScope(t, ctx, db, "scope1")
 	mustFinishScan(t, ctx, db, id1)
 	id2 := mustStartScanScope(t, ctx, db, "scope2")
@@ -579,8 +564,7 @@ func TestPagination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get scans with pagination: %v", err)
 	}
-	// order is DESC (id3 first, then id2, then id1)
-	// limit 2, offset 1 should give: id2, id1
+
 	if len(scans) != 2 {
 		t.Fatalf("Expected 2 scans, got %d", len(scans))
 	}
@@ -588,18 +572,16 @@ func TestPagination(t *testing.T) {
 		t.Errorf("Unexpected page contents: scan 0 is ID %d, scan 1 is ID %d", scans[0].ID, scans[1].ID)
 	}
 
-	// 2. Pagination for GetTargets
 	mustSaveTargets(t, ctx, db, id1, []string{"t1", "t2", "t3", "t4"})
 	targets, err := db.GetTargets(ctx, id1, 2, 1)
 	if err != nil {
 		t.Fatalf("Failed to get targets with pagination: %v", err)
 	}
-	// limit 2, offset 1 should give: t2, t3
+
 	if len(targets) != 2 || targets[0] != "t2" || targets[1] != "t3" {
 		t.Errorf("Unexpected targets page contents: %v", targets)
 	}
 
-	// 3. Pagination for GetEvents
 	mustSaveEvents(t, ctx, db, id1, []EventRecord{
 		{Target: "t1", Source: "src1", Type: "type1"},
 		{Target: "t2", Source: "src2", Type: "type2"},
@@ -609,7 +591,7 @@ func TestPagination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get events with pagination: %v", err)
 	}
-	// limit 1, offset 1 should give: t2
+
 	if len(events) != 1 || events[0].Target != "t2" {
 		t.Errorf("Unexpected events page contents: %v", events)
 	}

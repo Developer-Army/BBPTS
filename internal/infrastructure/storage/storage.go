@@ -16,7 +16,7 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/findings"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
-	_ "modernc.org/sqlite" // Import Go-native SQLite driver
+	_ "modernc.org/sqlite"
 )
 
 type storageContextKeyType struct{}
@@ -34,7 +34,6 @@ func FromContext(ctx context.Context) *Storage {
 	return nil
 }
 
-// Storage manages the SQLite/Postgres database connection and queries.
 type Storage struct {
 	db     *sql.DB
 	dbType string
@@ -45,10 +44,8 @@ func (s *Storage) trackQuery(operation, table string, start time.Time) {
 	telemetry.DBQueryDuration.WithLabelValues(operation, table).Observe(duration)
 }
 
-// DB is an alias of Storage to unify database classes.
 type DB = Storage
 
-// NewStorage initializes a new database connection.
 func NewStorage(dbType, dbSource string) (*Storage, error) {
 	if dbType == "" || dbType == "sqlite3" {
 		dbType = "sqlite"
@@ -303,14 +300,12 @@ func (s *Storage) initSchema() error {
 		return err
 	}
 
-	// Dynamic column migrations for Phase 3
 	_, _ = s.db.Exec("ALTER TABLE asset_ownership ADD COLUMN change_reason TEXT")
 	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN asset_class TEXT")
 	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN business_unit TEXT")
 	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN environment TEXT")
 	_, _ = s.db.Exec("ALTER TABLE sla_policies ADD COLUMN program TEXT")
 
-	// Dynamic migrations for rich asset graph metadata
 	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN scope_id TEXT DEFAULT ''")
 	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN first_seen DATETIME DEFAULT CURRENT_TIMESTAMP")
 	_, _ = s.db.Exec("ALTER TABLE asset_nodes ADD COLUMN last_seen DATETIME DEFAULT CURRENT_TIMESTAMP")
@@ -320,7 +315,6 @@ func (s *Storage) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN observed_at DATETIME DEFAULT CURRENT_TIMESTAMP")
 	_, _ = s.db.Exec("ALTER TABLE asset_edges ADD COLUMN evidence_id TEXT DEFAULT ''")
 
-	// Dynamic migrations for findings domain mapping
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN asset_id TEXT DEFAULT ''")
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN risk_score INTEGER DEFAULT 0")
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN confidence INTEGER DEFAULT 0")
@@ -328,14 +322,12 @@ func (s *Storage) initSchema() error {
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN workflow_state TEXT DEFAULT 'Discovered'")
 	_, _ = s.db.Exec("ALTER TABLE findings ADD COLUMN screenshot_path TEXT DEFAULT ''")
 
-	// Add manager_id columns to owners and teams
 	_, _ = s.db.Exec("ALTER TABLE owners ADD COLUMN manager_id INTEGER")
 	_, _ = s.db.Exec("ALTER TABLE teams ADD COLUMN manager_id INTEGER")
 
 	return nil
 }
 
-// GetSetting retrieves a setting value by key.
 func (s *Storage) GetSetting(key string) (string, error) {
 	var val string
 	query := "SELECT value FROM settings WHERE key = ?"
@@ -349,7 +341,6 @@ func (s *Storage) GetSetting(key string) (string, error) {
 	return val, err
 }
 
-// SaveSetting saves a setting key-value pair.
 func (s *Storage) SaveSetting(key, val string) error {
 	query := `
 		INSERT INTO settings (key, value, updated_at)
@@ -371,7 +362,6 @@ func (s *Storage) SaveSetting(key, val string) error {
 	return err
 }
 
-// SaveEvidence stores findings evidence.
 func (s *Storage) SaveEvidence(id, assetID, source string, confidence float64, rawData []byte, hash string) error {
 	query := `
 		INSERT INTO evidence (id, asset_id, source, confidence, collected_at, raw_data, hash)
@@ -393,7 +383,6 @@ func (s *Storage) SaveEvidence(id, assetID, source string, confidence float64, r
 	return err
 }
 
-// GetEvidenceByAssetID retrieves evidence for an asset.
 func (s *Storage) GetEvidenceByAssetID(assetID string) ([]map[string]interface{}, error) {
 	query := "SELECT id, asset_id, source, confidence, collected_at, raw_data, hash FROM evidence WHERE asset_id = ?"
 	if s.dbType == "postgres" {
@@ -427,9 +416,8 @@ func (s *Storage) GetEvidenceByAssetID(assetID string) ([]map[string]interface{}
 	return result, nil
 }
 
-// SaveEvent stores a recon event in the database.
 func (s *Storage) SaveEvent(ev recon.Event) error {
-	// Hot/Cold Data Separation for massive response bodies
+
 	if body, ok := ev.Properties["response_body"]; ok && len(body) > 1024 {
 		hash := sha256.Sum256([]byte(body))
 		blobID := fmt.Sprintf("%x", hash[:16])
@@ -460,7 +448,6 @@ func (s *Storage) SaveEvent(ev recon.Event) error {
 	return err
 }
 
-// RecordToolCoverage records that a tool tested a specific endpoint.
 func (s *Storage) RecordToolCoverage(endpoint, toolName string, findingCount int) error {
 	query := "INSERT INTO tool_coverage (endpoint, tool_name, finding_count) VALUES (?, ?, ?)"
 	if s.dbType == "postgres" {
@@ -470,7 +457,6 @@ func (s *Storage) RecordToolCoverage(endpoint, toolName string, findingCount int
 	return err
 }
 
-// GetCoverageReport returns the coverage report: endpoints and which tools tested them.
 func (s *Storage) GetCoverageReport() ([]map[string]interface{}, error) {
 	rows, err := s.db.Query(`
 		SELECT endpoint, 
@@ -495,16 +481,15 @@ func (s *Storage) GetCoverageReport() ([]map[string]interface{}, error) {
 			return nil, err
 		}
 		results = append(results, map[string]interface{}{
-			"endpoint":      endpoint,
-			"tools_tested":  toolsTested,
-			"tool_count":    toolCount,
+			"endpoint":       endpoint,
+			"tools_tested":   toolsTested,
+			"tool_count":     toolCount,
 			"total_findings": totalFindings,
 		})
 	}
 	return results, nil
 }
 
-// GetUntestedEndpoints returns endpoints discovered but never actively probed.
 func (s *Storage) GetUntestedEndpoints() ([]string, error) {
 	rows, err := s.db.Query(`
 		SELECT DISTINCT target FROM events 
@@ -528,7 +513,6 @@ func (s *Storage) GetUntestedEndpoints() ([]string, error) {
 	return endpoints, nil
 }
 
-// GetEventsByTarget retrieves all events for a specific target.
 func (s *Storage) GetEventsByTarget(target string) ([]recon.Event, error) {
 	query := "SELECT target, source, event_type, properties FROM events WHERE target = ?"
 	if s.dbType == "postgres" {
@@ -558,7 +542,6 @@ func (s *Storage) GetEventsByTarget(target string) ([]recon.Event, error) {
 	return events, nil
 }
 
-// Close gracefully closes the database connection.
 func (s *Storage) Close() error {
 	if s.db != nil {
 		return s.db.Close()
@@ -566,12 +549,10 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-// GetDB returns the raw sql.DB connection.
 func (s *Storage) GetDB() *sql.DB {
 	return s.db
 }
 
-// SaveFindingModel stores or updates the domain Finding model.
 func (s *Storage) SaveFindingModel(f findings.Finding) (int64, error) {
 	evidenceJSON, err := json.Marshal(f.EvidenceIDs)
 	if err != nil {
@@ -623,7 +604,6 @@ func (s *Storage) SaveFindingModel(f findings.Finding) (int64, error) {
 	return res.LastInsertId()
 }
 
-// GetFindingModel retrieves the domain Finding model by ID.
 func (s *Storage) GetFindingModel(id int64) (*findings.Finding, error) {
 	query := `
 		SELECT id, asset_id, risk_score, confidence, evidence_ids, workflow_state
@@ -652,7 +632,6 @@ func (s *Storage) GetFindingModel(id int64) (*findings.Finding, error) {
 	return &f, nil
 }
 
-// GetEvidenceModel retrieves the domain Evidence model by ID.
 func (s *Storage) GetEvidenceModel(id string) (*findings.Evidence, error) {
 	query := `
 		SELECT id, asset_id, source, confidence, collected_at, raw_data, hash
@@ -677,7 +656,6 @@ func (s *Storage) GetEvidenceModel(id string) (*findings.Evidence, error) {
 	return &ev, nil
 }
 
-// SaveAsset inserts or updates an asset in the database.
 func (s *Storage) SaveAsset(a assets.Asset) error {
 	defer s.trackQuery("save", "assets", time.Now())
 	query := `
@@ -712,7 +690,6 @@ func (s *Storage) SaveAsset(a assets.Asset) error {
 	return err
 }
 
-// GetAsset retrieves an asset by its ID.
 func (s *Storage) GetAsset(id string) (*assets.Asset, error) {
 	defer s.trackQuery("get", "assets", time.Now())
 	query := `
@@ -738,7 +715,6 @@ func (s *Storage) GetAsset(id string) (*assets.Asset, error) {
 	return &a, nil
 }
 
-// GetAllAssets retrieves all assets.
 func (s *Storage) GetAllAssets() ([]assets.Asset, error) {
 	defer s.trackQuery("list", "assets", time.Now())
 	query := `
@@ -763,7 +739,6 @@ func (s *Storage) GetAllAssets() ([]assets.Asset, error) {
 	return list, nil
 }
 
-// UpdateFindingTriage updates a finding's severity and/or workflow state.
 func (s *Storage) UpdateFindingTriage(id int64, severity, workflowState string) error {
 	query := "UPDATE findings SET severity = ?, workflow_state = ? WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -773,7 +748,6 @@ func (s *Storage) UpdateFindingTriage(id int64, severity, workflowState string) 
 	return err
 }
 
-// GetAllFindings retrieves all consolidated findings.
 func (s *Storage) GetAllFindings() ([]map[string]interface{}, error) {
 	query := "SELECT id, title, description, severity, target, asset_id, risk_score, confidence, workflow_state, screenshot_path FROM findings ORDER BY id DESC"
 	rows, err := s.db.Query(query)
@@ -807,7 +781,6 @@ func (s *Storage) GetAllFindings() ([]map[string]interface{}, error) {
 	return list, nil
 }
 
-// SaveReportFinding inserts or updates a finding from report generation.
 func (s *Storage) SaveReportFinding(title, description, severity, target, screenshotPath string, riskScore, confidence int) (int64, error) {
 	var id int64
 	queryCheck := "SELECT id FROM findings WHERE target = ? AND title = ?"
@@ -842,13 +815,12 @@ func (s *Storage) SaveReportFinding(title, description, severity, target, screen
 	return id, err
 }
 
-// GetAssetsByIDs loads multiple assets in chunked database queries.
 func (s *Storage) GetAssetsByIDs(ctx context.Context, ids []string) (map[string]*assets.Asset, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	defer s.trackQuery("get_batch", "assets", time.Now())
-	
+
 	res := make(map[string]*assets.Asset)
 	chunkSize := 500
 	for i := 0; i < len(ids); i += chunkSize {
@@ -857,7 +829,7 @@ func (s *Storage) GetAssetsByIDs(ctx context.Context, ids []string) (map[string]
 			end = len(ids)
 		}
 		chunk := ids[i:end]
-		
+
 		placeholders := make([]string, len(chunk))
 		args := make([]interface{}, len(chunk))
 		for j, id := range chunk {
@@ -867,19 +839,19 @@ func (s *Storage) GetAssetsByIDs(ctx context.Context, ids []string) (map[string]
 			}
 			args[j] = id
 		}
-		
+
 		query := fmt.Sprintf(`
 			SELECT id, asset_type, name, criticality, environment, owner_id, confidence, first_seen, last_seen, status
 			FROM assets
 			WHERE id IN (%s)
 		`, strings.Join(placeholders, ","))
-		
+
 		rows, err := s.db.QueryContext(ctx, query, args...)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
-		
+
 		for rows.Next() {
 			var a assets.Asset
 			err := rows.Scan(&a.ID, &a.Type, &a.Name, &a.Criticality, &a.Environment, &a.OwnerID, &a.Confidence, &a.FirstSeen, &a.LastSeen, &a.Status)
@@ -892,13 +864,12 @@ func (s *Storage) GetAssetsByIDs(ctx context.Context, ids []string) (map[string]
 	return res, nil
 }
 
-// GetEvidenceCounts fetches evidence counts for multiple assets in chunked database queries.
 func (s *Storage) GetEvidenceCounts(ctx context.Context, assetIDs []string) (map[string]int, error) {
 	if len(assetIDs) == 0 {
 		return nil, nil
 	}
 	defer s.trackQuery("count_batch", "evidence", time.Now())
-	
+
 	res := make(map[string]int)
 	chunkSize := 500
 	for i := 0; i < len(assetIDs); i += chunkSize {
@@ -907,7 +878,7 @@ func (s *Storage) GetEvidenceCounts(ctx context.Context, assetIDs []string) (map
 			end = len(assetIDs)
 		}
 		chunk := assetIDs[i:end]
-		
+
 		placeholders := make([]string, len(chunk))
 		args := make([]interface{}, len(chunk))
 		for j, id := range chunk {
@@ -917,20 +888,20 @@ func (s *Storage) GetEvidenceCounts(ctx context.Context, assetIDs []string) (map
 			}
 			args[j] = id
 		}
-		
+
 		query := fmt.Sprintf(`
 			SELECT asset_id, COUNT(*)
 			FROM evidence
 			WHERE asset_id IN (%s)
 			GROUP BY asset_id
 		`, strings.Join(placeholders, ","))
-		
+
 		rows, err := s.db.QueryContext(ctx, query, args...)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
-		
+
 		for rows.Next() {
 			var assetID string
 			var count int
@@ -943,13 +914,12 @@ func (s *Storage) GetEvidenceCounts(ctx context.Context, assetIDs []string) (map
 	return res, nil
 }
 
-// GetAttackPathFlags queries attack path presence (asset_edges) for multiple targets in chunked database queries.
 func (s *Storage) GetAttackPathFlags(ctx context.Context, targets []string) (map[string]bool, error) {
 	if len(targets) == 0 {
 		return nil, nil
 	}
 	defer s.trackQuery("count_batch", "asset_edges", time.Now())
-	
+
 	allTargetIDs := make([]string, 0, len(targets)*2)
 	targetIDMap := make(map[string]string)
 	for _, t := range targets {
@@ -958,16 +928,16 @@ func (s *Storage) GetAttackPathFlags(ctx context.Context, targets []string) (map
 		targetIDMap[t] = t
 		targetIDMap[nodeID] = t
 	}
-	
+
 	res := make(map[string]bool)
 	chunkSize := 250
 	for i := 0; i < len(allTargetIDs); i += chunkSize * 2 {
-		end := i + chunkSize * 2
+		end := i + chunkSize*2
 		if end > len(allTargetIDs) {
 			end = len(allTargetIDs)
 		}
 		chunk := allTargetIDs[i:end]
-		
+
 		placeholders := make([]string, len(chunk))
 		args := make([]interface{}, len(chunk))
 		for j, id := range chunk {
@@ -977,20 +947,20 @@ func (s *Storage) GetAttackPathFlags(ctx context.Context, targets []string) (map
 			}
 			args[j] = id
 		}
-		
+
 		query := fmt.Sprintf(`
 			SELECT target_id, COUNT(*)
 			FROM asset_edges
 			WHERE target_id IN (%s)
 			GROUP BY target_id
 		`, strings.Join(placeholders, ","))
-		
+
 		rows, err := s.db.QueryContext(ctx, query, args...)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
-		
+
 		for rows.Next() {
 			var targetID string
 			var count int

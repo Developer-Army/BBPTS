@@ -1,11 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
-	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"io"
 	"log/slog"
 	"net/http"
@@ -48,7 +48,6 @@ func (t *CVECorrelateTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 		return nil, nil
 	}
 
-	// 1. Fetch / load CISA KEV list
 	kev, err := t.loadKEV(ctx)
 	if err != nil {
 		slog.Warn("cve_correlate: failed to load CISA KEV feed", "error", err)
@@ -72,7 +71,6 @@ func (t *CVECorrelateTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 			return nil, nil
 		}
 
-		// Fetch prior httpx/service events for this target
 		dbEvents, err := store.GetEventsByTarget(target)
 		if err != nil {
 			return nil, nil
@@ -85,7 +83,6 @@ func (t *CVECorrelateTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 				continue
 			}
 
-			// Extract server header & technologies
 			server := dbEv.Properties["server"]
 			techsStr := dbEv.Properties["technologies"]
 
@@ -108,7 +105,6 @@ func (t *CVECorrelateTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 					continue
 				}
 
-				// Correlate against CISA KEV
 				matches := correlateKEV(name, version, kev)
 				for _, match := range matches {
 					events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
@@ -132,10 +128,9 @@ func (t *CVECorrelateTool) loadKEV(ctx context.Context) (*cisaKEVFeed, error) {
 	kevCacheMu.Lock()
 	defer kevCacheMu.Unlock()
 
-	// Check cache age
 	if fi, err := os.Stat(localKevCache); err == nil {
 		if time.Since(fi.ModTime()) < 24*time.Hour {
-			// read from file
+
 			fBytes, err := os.ReadFile(localKevCache)
 			if err == nil {
 				var feed cisaKEVFeed
@@ -146,7 +141,6 @@ func (t *CVECorrelateTool) loadKEV(ctx context.Context) (*cisaKEVFeed, error) {
 		}
 	}
 
-	// Fetch from internet
 	client := NewSafeHTTPClient(15 * time.Second)
 	req, err := http.NewRequestWithContext(ctx, "GET", cisaKevURL, nil)
 	if err != nil {
@@ -173,7 +167,6 @@ func (t *CVECorrelateTool) loadKEV(ctx context.Context) (*cisaKEVFeed, error) {
 		return nil, err
 	}
 
-	// Write cache
 	_ = os.MkdirAll(filepath.Dir(localKevCache), 0700)
 	_ = os.WriteFile(localKevCache, bodyBytes, 0644)
 
@@ -187,10 +180,9 @@ func parseTechVersion(tech string) (string, string) {
 		return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 	}
 
-	// Try checking space separation
 	parts = strings.Fields(tech)
 	if len(parts) >= 2 {
-		// check if second part looks like a version number
+
 		v := parts[len(parts)-1]
 		if isVersionString(v) {
 			name := strings.Join(parts[:len(parts)-1], " ")
@@ -219,8 +211,7 @@ func correlateKEV(product, version string, feed *cisaKEVFeed) []cisaCVE {
 		vendor := strings.ToLower(v.VendorProject)
 
 		if strings.Contains(prod, product) || strings.Contains(product, prod) || strings.Contains(vendor, product) {
-			// Found matching product/vendor in CISA KEV
-			// Now verify if the version is vulnerable by reading shortDescription
+
 			desc := strings.ToLower(v.ShortDescription)
 			if versionMatchesDescription(version, desc) {
 				matches = append(matches, v)
@@ -232,25 +223,18 @@ func correlateKEV(product, version string, feed *cisaKEVFeed) []cisaCVE {
 }
 
 func versionMatchesDescription(version, desc string) bool {
-	// Simple heuristic version check inside natural language description
-	// If the description contains "before <v>", "prior to <v>", "vulnerabilities exist in <v>", etc.
-	// We check if version fits.
-	// For robust fallback: if the description mentions "version" and our version matches some digit bounds,
-	// or if we just match keywords.
+
 	versionClean := strings.ReplaceAll(version, ".", `\.`)
 	reStr := fmt.Sprintf(`\b%s\b`, versionClean)
 	if matched, _ := regexp.MatchString(reStr, desc); matched {
 		return true
 	}
 
-	// Heuristics: "before 1.20", "prior to 2.4"
-	// Parse version string into numbers
 	vParts := parseVersionParts(version)
 	if len(vParts) == 0 {
-		return true // fallback alert
+		return true
 	}
 
-	// Search "before <number>" or "prior to <number>"
 	reBefore := regexp.MustCompile(`(?:before|prior\s+to|versions\s+less\s+than)\s+([0-9]+(?:\.[0-9]+)*)`)
 	matches := reBefore.FindAllStringSubmatch(desc, -1)
 	for _, m := range matches {
@@ -262,7 +246,6 @@ func versionMatchesDescription(version, desc string) bool {
 		}
 	}
 
-	// Default to true if product matches and no specific ranges are found to avoid False Negatives on KEV
 	return !strings.Contains(desc, "before") && !strings.Contains(desc, "prior")
 }
 
@@ -275,7 +258,7 @@ func parseVersionParts(v string) []int {
 			continue
 		}
 		var val int
-		fmt.Sscanf(p, "%d", &val)
+		_, _ = fmt.Sscanf(p, "%d", &val)
 		res = append(res, val)
 	}
 	return res

@@ -122,7 +122,6 @@ func TestStealthClientProxyRotation(t *testing.T) {
 	}
 	defer client.Close()
 
-	// Make 4 requests
 	for i := 0; i < 4; i++ {
 		req, err := http.NewRequest("GET", "http://example.com/test", nil)
 		if err != nil {

@@ -12,7 +12,7 @@ assignees: ''
 - **Pipeline Stage**: [ ] 0 (Pre-recon) / [ ] 1 (Subdomain) / [ ] 2 (DNS/Port) / [ ] 3 (HTTP Probe) / [ ] 4 (Vuln Scan)
 
 ## Description
-<!-- What does this tool do and why is it valuable? -->
+
 
 ## Integration Details
 - **External Binary Required**: [ ] Yes / [ ] No (Go-native)
@@ -20,9 +20,9 @@ assignees: ''
 - **Configuration Options**: 
 
 ## Use Cases
-<!-- Describe specific bug bounty or security scenarios where this tool would help -->
+
 
 ## Comparable Tools
-<!-- List similar tools already in BBPTS or competitors -->
+
 
 ## Additional Context

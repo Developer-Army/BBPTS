@@ -112,7 +112,6 @@ func main() {
 	failed := 0
 	statsByDiff := make(map[string]*Stats)
 
-	// Pre-load report contents
 	reportContents := make(map[string]string)
 	reportDirs := make(map[string]string)
 	entries, err := os.ReadDir(reportsDir)
@@ -300,7 +299,6 @@ func main() {
 	}
 	fmt.Printf("%s└────────────────────────────────────────────────────────┘%s\n", Cyan, Reset)
 
-	// Write json results to tests/test_result.json
 	jsonReport := VerificationJSONReport{
 		Timestamp:      time.Now().UTC().Format(time.RFC3339),
 		TotalEvaluated: totalTests,

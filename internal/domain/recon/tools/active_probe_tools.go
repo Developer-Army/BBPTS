@@ -1,11 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net"
 	"net/http"
@@ -291,11 +291,11 @@ func (t *DNSZoneTransferTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 			joined := strings.ToLower(strings.Join(lines, "\n"))
 			if strings.Contains(joined, "\tsoa\t") || strings.Contains(joined, " soa ") {
 				events = append(events, recon.NewEventWithSeverity(domain, t.Name(), "vulnerability", map[string]string{
-					"vuln_name":   "DNS Zone Transfer Enabled",
-					"severity":    "high",
-					"nameserver":  ns.Host,
+					"vuln_name":    "DNS Zone Transfer Enabled",
+					"severity":     "high",
+					"nameserver":   ns.Host,
 					"record_count": fmt.Sprintf("%d", len(lines)),
-					"description": "Nameserver allowed AXFR zone transfer.",
+					"description":  "Nameserver allowed AXFR zone transfer.",
 				}, "high"))
 			}
 		}

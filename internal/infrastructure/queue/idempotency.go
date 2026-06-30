@@ -17,7 +17,6 @@ var (
 	ErrTaskNotFound         = errors.New("task result not found in replay store")
 )
 
-// TaskResult holds the output of a completed task for replay purposes.
 type TaskResult struct {
 	TaskID      string                   `json:"task_id"`
 	Status      string                   `json:"status"` // "success", "failed", "skipped"
@@ -28,13 +27,10 @@ type TaskResult struct {
 	WorkerID    string                   `json:"worker_id"`
 }
 
-// IdempotencyManager ensures tasks are executed exactly once and enables replay.
-// It uses NATS KeyValue for durable, distributed idempotency tracking.
 type IdempotencyManager struct {
 	kv nats.KeyValue
 }
 
-// NewIdempotencyManager creates a manager for task deduplication and replay.
 func NewIdempotencyManager(js nats.JetStreamContext, bucketName string) (*IdempotencyManager, error) {
 	kv, err := js.KeyValue(bucketName)
 	if err != nil {
@@ -42,7 +38,7 @@ func NewIdempotencyManager(js nats.JetStreamContext, bucketName string) (*Idempo
 			kv, err = js.CreateKeyValue(&nats.KeyValueConfig{
 				Bucket:      bucketName,
 				Description: "Task Idempotency and Replay Store for BBPTS",
-				TTL:         72 * time.Hour, // Keep results for 3 days for replay
+				TTL:         72 * time.Hour,
 				Storage:     nats.FileStorage,
 				Replicas:    1,
 			})
@@ -57,7 +53,6 @@ func NewIdempotencyManager(js nats.JetStreamContext, bucketName string) (*Idempo
 	return &IdempotencyManager{kv: kv}, nil
 }
 
-// Register marks a task as started (claims it). Returns error if already claimed.
 func (im *IdempotencyManager) Register(ctx context.Context, taskID, workerID string) error {
 	if im.kv == nil {
 		return errors.New("kv store is nil")
@@ -65,7 +60,6 @@ func (im *IdempotencyManager) Register(ctx context.Context, taskID, workerID str
 
 	key := fmt.Sprintf("task:%s:claimed", taskID)
 
-	// Try to create the key (fails if already exists)
 	_, err := im.kv.Create(key, []byte(workerID))
 	if err != nil {
 		if errors.Is(err, nats.ErrKeyExists) {
@@ -78,7 +72,6 @@ func (im *IdempotencyManager) Register(ctx context.Context, taskID, workerID str
 	return nil
 }
 
-// Complete records the task result for replay and idempotency.
 func (im *IdempotencyManager) Complete(taskID, workerID, status string, eventCount int, events []map[string]interface{}, taskErr error) error {
 	if im.kv == nil {
 		return errors.New("kv store is nil")
@@ -112,7 +105,6 @@ func (im *IdempotencyManager) Complete(taskID, workerID, status string, eventCou
 	return nil
 }
 
-// GetResult retrieves a previously completed task for replay.
 func (im *IdempotencyManager) GetResult(taskID string) (*TaskResult, error) {
 	if im.kv == nil {
 		return nil, errors.New("kv store is nil")
@@ -137,7 +129,6 @@ func (im *IdempotencyManager) GetResult(taskID string) (*TaskResult, error) {
 	return &result, nil
 }
 
-// HasBeenProcessed checks if a task has already been completed (idempotency check).
 func (im *IdempotencyManager) HasBeenProcessed(taskID string) (bool, error) {
 	if im.kv == nil {
 		return false, errors.New("kv store is nil")
@@ -156,12 +147,10 @@ func (im *IdempotencyManager) HasBeenProcessed(taskID string) (bool, error) {
 	return true, nil
 }
 
-// EventDeduper tracks which events have been published to prevent duplicates.
 type EventDeduper struct {
 	kv nats.KeyValue
 }
 
-// NewEventDeduper creates a deduplication tracker for events.
 func NewEventDeduper(js nats.JetStreamContext, bucketName string) (*EventDeduper, error) {
 	kv, err := js.KeyValue(bucketName)
 	if err != nil {
@@ -169,7 +158,7 @@ func NewEventDeduper(js nats.JetStreamContext, bucketName string) (*EventDeduper
 			kv, err = js.CreateKeyValue(&nats.KeyValueConfig{
 				Bucket:      bucketName,
 				Description: "Event Deduplication Store for BBPTS",
-				TTL:         72 * time.Hour, // Keep event hashes for 3 days
+				TTL:         72 * time.Hour,
 				Storage:     nats.FileStorage,
 				Replicas:    1,
 			})
@@ -184,7 +173,6 @@ func NewEventDeduper(js nats.JetStreamContext, bucketName string) (*EventDeduper
 	return &EventDeduper{kv: kv}, nil
 }
 
-// RecordEvent marks an event as published. Uses event hash (target+source+type) as key.
 func (ed *EventDeduper) RecordEvent(target, source, eventType string) error {
 	if ed.kv == nil {
 		return errors.New("kv store is nil")
@@ -195,7 +183,6 @@ func (ed *EventDeduper) RecordEvent(target, source, eventType string) error {
 	return err
 }
 
-// IsDuplicate checks if an event has already been published.
 func (ed *EventDeduper) IsDuplicate(target, source, eventType string) (bool, error) {
 	if ed.kv == nil {
 		return false, errors.New("kv store is nil")
@@ -212,12 +199,10 @@ func (ed *EventDeduper) IsDuplicate(target, source, eventType string) (bool, err
 	return true, nil
 }
 
-// SessionReplayLog tracks all events/tasks in a scan session for replay and audit.
 type SessionReplayLog struct {
 	kv nats.KeyValue
 }
 
-// NewSessionReplayLog creates a logger for session events.
 func NewSessionReplayLog(js nats.JetStreamContext, bucketName string) (*SessionReplayLog, error) {
 	kv, err := js.KeyValue(bucketName)
 	if err != nil {
@@ -225,7 +210,7 @@ func NewSessionReplayLog(js nats.JetStreamContext, bucketName string) (*SessionR
 			kv, err = js.CreateKeyValue(&nats.KeyValueConfig{
 				Bucket:      bucketName,
 				Description: "Session Replay Log for BBPTS scans",
-				TTL:         7 * 24 * time.Hour, // Keep session logs for a week
+				TTL:         7 * 24 * time.Hour,
 				Storage:     nats.FileStorage,
 				Replicas:    1,
 			})
@@ -240,7 +225,6 @@ func NewSessionReplayLog(js nats.JetStreamContext, bucketName string) (*SessionR
 	return &SessionReplayLog{kv: kv}, nil
 }
 
-// LogTaskInSession records a task execution in a session.
 func (srl *SessionReplayLog) LogTaskInSession(sessionID, taskID, status string, eventCount int) error {
 	if srl.kv == nil {
 		return errors.New("kv store is nil")
@@ -261,7 +245,6 @@ func (srl *SessionReplayLog) LogTaskInSession(sessionID, taskID, status string, 
 	return err
 }
 
-// GetSessionTasks retrieves all tasks executed in a session (useful for audit/replay).
 func (srl *SessionReplayLog) GetSessionTasks(sessionID string) ([]map[string]interface{}, error) {
 	if srl.kv == nil {
 		return nil, errors.New("kv store is nil")

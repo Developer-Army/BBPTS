@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"strings"
 	"sync"
@@ -14,8 +14,6 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// BrowserRecon utilizes Playwright to perform deep SPA crawling, dynamic DOM analysis,
-// and runtime JS endpoint extraction with session pooling and network interception.
 type BrowserRecon struct {
 	pool *browser.PooledBrowser
 	mu   sync.Mutex
@@ -25,7 +23,6 @@ func (b *BrowserRecon) Name() string {
 	return "browser_advanced"
 }
 
-// NewBrowserRecon creates a new advanced browser recon with pool.
 func NewBrowserRecon() (*BrowserRecon, error) {
 	cfg := browser.DefaultPoolConfig()
 	cfg.MaxBrowsers = 5
@@ -111,11 +108,10 @@ func (b *BrowserRecon) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 	return allEvents, nil
 }
 
-func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanContext, targetURL string) ([]recon.Event, error) {
-	// Determine domain for context reuse
+func (b *BrowserRecon) analyzePage(_ context.Context, scanCtx *recon.ScanContext, targetURL string) ([]recon.Event, error) {
+
 	domain := extractDomain(targetURL)
 
-	// Get context from pool
 	headers := scanCtx.Headers
 	ctxBrowser, err := b.pool.GetContext(domain, headers)
 	if err != nil {
@@ -132,7 +128,6 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 	var events []recon.Event
 	var mu sync.Mutex
 
-	// StoreJSResponse: capture response bodies for interesting JS files
 	page.OnResponse(func(resp playwright.Response) {
 		url := resp.URL()
 		if strings.HasSuffix(url, ".js") || strings.Contains(url, ".js?") {
@@ -150,12 +145,10 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 		}
 	})
 
-	// Intercept network requests (XHR/fetch/WS)
 	page.OnRequest(func(req playwright.Request) {
 		u := req.URL()
 		method := req.Method()
 
-		// Capture API calls
 		if req.ResourceType() == "fetch" || req.ResourceType() == "xhr" ||
 			strings.Contains(u, "/api/") || strings.Contains(u, "graphql") {
 			mu.Lock()
@@ -167,7 +160,6 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 			mu.Unlock()
 		}
 
-		// Detect WebSocket upgrade
 		if headerValue(req.Headers(), "upgrade") == "websocket" {
 			mu.Lock()
 			events = append(events, recon.NewEvent(u, b.Name(), "websocket_endpoint", map[string]string{
@@ -176,7 +168,6 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 			mu.Unlock()
 		}
 
-		// Track external scripts (CDNs)
 		if strings.HasSuffix(u, ".js") && (strings.Contains(u, "cdn") || strings.Contains(u, "cloudfront") || strings.Contains(u, "akamai")) {
 			mu.Lock()
 			events = append(events, recon.NewEvent(u, b.Name(), "external_js", map[string]string{
@@ -187,7 +178,6 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 		}
 	})
 
-	// Navigate with timeout and wait for network idle
 	_, err = page.Goto(targetURL, playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
 		Timeout:   playwright.Float(15000),
@@ -196,7 +186,6 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 		return nil, fmt.Errorf("navigation failed: %w", err)
 	}
 
-	// Extract links (a tags)
 	links, err := page.Locator("a[href]").All()
 	if err == nil {
 		for _, link := range links {
@@ -211,7 +200,6 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 		}
 	}
 
-	// SPA route detection: capture URL changes after navigation
 	page.On("framenavigated", func(args ...interface{}) {
 		if frame, ok := args[0].(playwright.Frame); ok {
 			url := frame.URL()
@@ -223,30 +211,25 @@ func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanConte
 		}
 	})
 
-	// Optional: capture screenshot on error (error detection can be enhanced later)
-	// Skipped for performance - enable selectively based on config
-
 	return events, nil
 }
 
-// extractDomain extracts registered domain from URL (e.g., "acme-corp.io" from "https://app.acme-corp.io/path").
 func extractDomain(urlStr string) string {
-	// Strip scheme
+
 	if strings.HasPrefix(urlStr, "http://") {
 		urlStr = strings.TrimPrefix(urlStr, "http://")
 	} else if strings.HasPrefix(urlStr, "https://") {
 		urlStr = strings.TrimPrefix(urlStr, "https://")
 	}
-	// Remove path/query
+
 	if idx := strings.Index(urlStr, "/"); idx >= 0 {
 		urlStr = urlStr[:idx]
 	}
-	// Remove port
+
 	if idx := strings.Index(urlStr, ":"); idx >= 0 {
 		urlStr = urlStr[:idx]
 	}
-	// For subdomain stripping to get eTLD+1, you'd need publicsuffix list.
-	// For pooling, we can use the full host (subdomain included) - more granular.
+
 	return strings.ToLower(urlStr)
 }
 

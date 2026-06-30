@@ -2,14 +2,12 @@ package config
 
 import "strings"
 
-// ToolPreset maps a short name to default tools and timing for repeatable workflows.
 type ToolPreset struct {
 	Tools     string `json:"tools"`
 	Timeout   string `json:"timeout"` // Go duration string, e.g. "90s"
 	RateLimit int    `json:"rate_limit"`
 }
 
-// ProgramProfile groups defaults and exclusions for a specific bounty program or scope.
 type ProgramProfile struct {
 	Tools         string   `json:"tools"`
 	RateLimit     int      `json:"rate_limit"`
@@ -18,7 +16,6 @@ type ProgramProfile struct {
 	ExcludeSuffix []string `json:"exclude_suffix"`
 }
 
-// FilterTargets removes hosts that match program exclusion lists (substring suffix or exact host).
 func FilterTargets(hosts []string, profile ProgramProfile) []string {
 	if len(profile.ExcludeHosts) == 0 && len(profile.ExcludeSuffix) == 0 {
 		return hosts

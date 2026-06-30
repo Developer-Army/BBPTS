@@ -1,22 +1,22 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"math/rand"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"sync"
 
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/network"
 )
 
-// GraphQLScanner represents a module that attempts to discover and introspect GraphQL endpoints.
 type GraphQLScanner struct {
 	client *network.StealthClient
 }
@@ -37,7 +37,6 @@ func (g *GraphQLScanner) Name() string {
 	return "graphql"
 }
 
-// commonGraphQLEndpoints lists typical paths where GraphQL APIs are hosted.
 var commonGraphQLEndpoints = []string{
 	"/graphql",
 	"/api/graphql",
@@ -48,7 +47,6 @@ var commonGraphQLEndpoints = []string{
 	"/graphql/console",
 }
 
-// introspectionQuery is the standard query to fetch the entire GraphQL schema.
 const introspectionQuery = `
 	query IntrospectionQuery {
 		__schema {
@@ -85,10 +83,9 @@ const introspectionQuery = `
 	}
 `
 
-// Bypass probes for when standard introspection is blocked.
 const (
-	suggestionProbe = `{"query":"{ __typename }"}`
-	aliasBypassQuery = `{"query":"query{__schema{queryType{name}}}"}` // Works with some WAFs that block __schema without alias
+	suggestionProbe  = `{"query":"{ __typename }"}`
+	aliasBypassQuery = `{"query":"query{__schema{queryType{name}}}"}`
 )
 
 type TypeInfo struct {
@@ -127,7 +124,6 @@ type IntrospectionData struct {
 	} `json:"__schema"`
 }
 
-// Run executes the GraphQL scanner across the provided targets.
 func (g *GraphQLScanner) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
 	if len(targets) == 0 {
 		return nil, nil
@@ -142,22 +138,21 @@ func (g *GraphQLScanner) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 	if len(proxies) > 0 {
 		proxy = proxies[rand.Intn(len(proxies))]
 	}
-	// Re-initialize client with correct proxy for this tool run.
+
 	profile := network.BrowserProfile{
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
 	var errClient error
 	g.client, errClient = network.NewStealthClient(profile, proxy)
-	if errClient != nil {
-		slog.Warn("Failed to recreate stealth client with proxy", "proxy", proxy, "error", errClient)
-	} else if g.client != nil {
-		g.client.SetCustomHeaders(scanCtx.Headers)
+	if errClient != nil || g.client == nil {
+		return nil, fmt.Errorf("failed to create stealth client: %w", errClient)
 	}
+	g.client.SetCustomHeaders(scanCtx.Headers)
 
 	for _, target := range targets {
 		if !strings.HasPrefix(target, "http") {
-			continue // GraphQL only runs over HTTP/S
+			continue
 		}
 
 		target = strings.TrimRight(target, "/")
@@ -176,7 +171,7 @@ func (g *GraphQLScanner) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 					return
 				}
 
-				found, schema, rawSchema, err := g.testEndpoint(ctx, testURL)
+				found, schema, rawSchema, probeReq, probeResp, err := g.testEndpoint(ctx, testURL)
 				if err != nil {
 					slog.Debug("GraphQL test failed", "url", testURL, "error", err)
 					return
@@ -190,18 +185,24 @@ func (g *GraphQLScanner) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 					if rawSchema != "" {
 						props["schema_preview"] = rawSchema
 					}
+					if probeReq != "" {
+						props["request"] = probeReq
+					}
+					if probeResp != "" {
+						props["response"] = probeResp
+					}
 					results <- recon.NewEvent(testURL, g.Name(), "graphql_endpoint", props)
 
-					// Perform security checks if schema successfully parsed
 					if schema != nil {
-						// 1. GraphQL Introspection Enabled Finding
+
 						results <- recon.NewEventWithSeverity(testURL, g.Name(), "vulnerability", map[string]string{
 							"vuln_name":   "GraphQL Introspection Enabled",
 							"severity":    "medium",
 							"description": fmt.Sprintf("GraphQL Introspection is enabled on production endpoint %s, revealing the full schema.", testURL),
+							"request":     probeReq,
+							"response":    probeResp,
 						}, "medium")
 
-						// 2. Batching Check
 						if ok, bErr := g.checkBatching(ctx, testURL); bErr == nil && ok {
 							results <- recon.NewEventWithSeverity(testURL, g.Name(), "vulnerability", map[string]string{
 								"vuln_name":   "GraphQL Query Batching Enabled",
@@ -210,7 +211,6 @@ func (g *GraphQLScanner) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 							}, "low")
 						}
 
-						// 3. Mutation Auth Bypass Check
 						if ok, q, mErr := g.checkMutationBypass(ctx, testURL, schema.Schema.MutationType.Name, schema.Schema.Types); mErr == nil && ok {
 							results <- recon.NewEventWithSeverity(testURL, g.Name(), "vulnerability", map[string]string{
 								"vuln_name":   "GraphQL Mutation Authorization Bypass",
@@ -220,7 +220,6 @@ func (g *GraphQLScanner) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 							}, "high")
 						}
 
-						// 4. IDOR Check
 						if ok, q, iErr := g.checkIDOR(ctx, testURL, schema.Schema.QueryType.Name, schema.Schema.Types); iErr == nil && ok {
 							results <- recon.NewEventWithSeverity(testURL, g.Name(), "vulnerability", map[string]string{
 								"vuln_name":   "GraphQL IDOR via Query Arguments",
@@ -249,8 +248,8 @@ func (g *GraphQLScanner) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 	return events, nil
 }
 
-func (g *GraphQLScanner) testEndpoint(ctx context.Context, url string) (bool, *IntrospectionData, string, error) {
-	// Try multiple introspection methods including bypass techniques
+func (g *GraphQLScanner) testEndpoint(ctx context.Context, url string) (bool, *IntrospectionData, string, string, string, error) {
+
 	probes := []struct {
 		name    string
 		method  string
@@ -263,58 +262,60 @@ func (g *GraphQLScanner) testEndpoint(ctx context.Context, url string) (bool, *I
 	}
 
 	for _, probe := range probes {
-		found, schema, rawSchema, err := g.sendProbe(ctx, url, probe.method, probe.payload)
+		found, schema, rawSchema, reqDump, respDump, err := g.sendProbe(ctx, url, probe.method, probe.payload)
 		if err != nil {
 			slog.Debug("GraphQL probe failed", "url", url, "probe", probe.name, "error", err)
 			continue
 		}
 		if found {
-			return found, schema, rawSchema, nil
+			return found, schema, rawSchema, reqDump, respDump, nil
 		}
 	}
 
-	return false, nil, "", nil
+	return false, nil, "", "", "", nil
 }
 
-func (g *GraphQLScanner) sendProbe(ctx context.Context, url, method, payload string) (bool, *IntrospectionData, string, error) {
+func (g *GraphQLScanner) sendProbe(ctx context.Context, url, method, payload string) (bool, *IntrospectionData, string, string, string, error) {
 	var req *http.Request
 	var err error
 
 	if method == http.MethodGet {
-		// GET-based introspection: ?query={__schema{types{name}}}
+
 		getQuery := `query{__schema{types{name}}}`
 		req, err = http.NewRequestWithContext(ctx, method, url+"?query="+getQuery, nil)
 	} else {
 		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewBufferString(payload))
 	}
 	if err != nil {
-		return false, nil, "", err
+		return false, nil, "", "", "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
+	reqDump, _ := httputil.DumpRequestOut(req, true)
+
 	resp, err := g.client.Do(req)
 	if err != nil {
-		return false, nil, "", err
+		return false, nil, "", "", "", err
 	}
 	defer resp.Body.Close()
 
+	respDumpBytes, _ := httputil.DumpResponse(resp, false)
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return false, nil, "", nil
+		return false, nil, "", string(reqDump), string(respDumpBytes), nil
 	}
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	if err != nil {
-		return false, nil, "", err
+		return false, nil, "", string(reqDump), string(respDumpBytes), err
 	}
 
-	// Stricter check: response must contain introspection-specific fields,
-	// not just generic "data" which could be any JSON API echoing back.
 	hasIntrospection := bytes.Contains(respBody, []byte(`"__schema"`)) ||
 		bytes.Contains(respBody, []byte(`"queryType"`)) ||
 		bytes.Contains(respBody, []byte(`"types"`))
 	if !hasIntrospection {
-		return false, nil, "", nil
+		return false, nil, "", string(reqDump), string(respDumpBytes), nil
 	}
 
 	var parsed struct {
@@ -329,7 +330,8 @@ func (g *GraphQLScanner) sendProbe(ctx context.Context, url, method, payload str
 	if len(preview) > 1000 {
 		preview = preview[:1000] + "...(truncated)"
 	}
-	return true, schemaParsed, preview, nil
+	fullResp := string(respDumpBytes) + string(respBody)
+	return true, schemaParsed, preview, string(reqDump), fullResp, nil
 }
 
 func (g *GraphQLScanner) checkBatching(ctx context.Context, endpoint string) (bool, error) {

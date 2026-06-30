@@ -84,12 +84,10 @@ func TestAssetOwnership_FirstClass(t *testing.T) {
 		AssetID: "subdomain:api.acme-corp.io",
 	}
 
-	// 1. Verify unmanaged risk flag
 	if !ao.IsUnmanagedRisk() {
 		t.Error("expected initial asset to be unmanaged risk")
 	}
 
-	// 2. Assign owner
 	chain := GenerateEscalationChain("alice@acme-corp.io", "API-Team", "bob@acme-corp.io", "director@acme-corp.io")
 	err := ao.AssignAssetOwner(1, 10, 0.95, chain, "admin-1", "derived from DNS records")
 	if err != nil {
@@ -112,7 +110,6 @@ func TestAssetOwnership_FirstClass(t *testing.T) {
 		t.Errorf("expected 1 audit log entry, got %d", len(ao.AuditTrail))
 	}
 
-	// 3. Test invalid confidence bounds
 	err = ao.AssignAssetOwner(1, 10, 1.5, chain, "admin-1", "invalid")
 	if err == nil {
 		t.Error("expected error for confidence > 1.0")

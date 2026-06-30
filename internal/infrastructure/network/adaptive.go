@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// AdaptiveBackoff implements intelligent backoff for 429, CAPTCHA, and WAF blocks.
 type AdaptiveBackoff struct {
 	mu                sync.RWMutex
 	baseDelayMs       int
@@ -31,7 +30,6 @@ type AdaptiveBackoff struct {
 	wafPatterns []string
 }
 
-// NewAdaptiveBackoff creates a backoff strategy starting with baseDelayMs.
 func NewAdaptiveBackoff(baseDelayMs int, maxDelayMs int) *AdaptiveBackoff {
 	ab := &AdaptiveBackoff{
 		baseDelayMs:    baseDelayMs,
@@ -60,7 +58,6 @@ func NewAdaptiveBackoff(baseDelayMs int, maxDelayMs int) *AdaptiveBackoff {
 	return ab
 }
 
-// ShouldBackoff determines if a request should be backed off based on response analysis.
 func (ab *AdaptiveBackoff) ShouldBackoff(resp *http.Response, body []byte) bool {
 	ab.mu.Lock()
 	defer ab.mu.Unlock()
@@ -77,7 +74,7 @@ func (ab *AdaptiveBackoff) ShouldBackoff(resp *http.Response, body []byte) bool 
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
-		// Check if it's a CAPTCHA or WAF block
+
 		if ab.isCaptchaOrWafBlock(resp, body) {
 			ab.isThrottled = true
 			ab.consecutiveErrors++
@@ -88,11 +85,9 @@ func (ab *AdaptiveBackoff) ShouldBackoff(resp *http.Response, body []byte) bool 
 	return false
 }
 
-// isCaptchaOrWafBlock detects CAPTCHA challenges or WAF blocks in response (called under lock).
 func (ab *AdaptiveBackoff) isCaptchaOrWafBlock(resp *http.Response, body []byte) bool {
 	bodyStr := strings.ToLower(string(body))
 
-	// Check CAPTCHA patterns
 	for _, pattern := range ab.captchaPatterns {
 		if strings.Contains(bodyStr, pattern) {
 			slog.Info("CAPTCHA challenge detected", "pattern", pattern)
@@ -100,7 +95,6 @@ func (ab *AdaptiveBackoff) isCaptchaOrWafBlock(resp *http.Response, body []byte)
 		}
 	}
 
-	// Check WAF patterns
 	for _, pattern := range ab.wafPatterns {
 		if strings.Contains(bodyStr, pattern) {
 			slog.Info("WAF block detected", "pattern", pattern)
@@ -108,7 +102,6 @@ func (ab *AdaptiveBackoff) isCaptchaOrWafBlock(resp *http.Response, body []byte)
 		}
 	}
 
-	// Check response headers for WAF signatures
 	if resp.Header.Get("Server") != "" {
 		server := strings.ToLower(resp.Header.Get("Server"))
 		if strings.Contains(server, "cloudflare") || strings.Contains(server, "akamai") {
@@ -119,20 +112,17 @@ func (ab *AdaptiveBackoff) isCaptchaOrWafBlock(resp *http.Response, body []byte)
 	return false
 }
 
-// CalculateDelay calculates the next backoff delay with exponential backoff + jitter.
 func (ab *AdaptiveBackoff) CalculateDelay() time.Duration {
 	ab.mu.Lock()
 	defer ab.mu.Unlock()
-	// Exponential backoff: delay = base * (2 ^ errors) + random jitter
+
 	exponentialComponent := int(math.Pow(2.0, float64(ab.consecutiveErrors)))
 	delayMs := ab.baseDelayMs * exponentialComponent
 
-	// Cap at max delay
 	if delayMs > ab.maxDelayMs {
 		delayMs = ab.maxDelayMs
 	}
 
-	// Add random jitter (up to 25% of delay)
 	jitter := rand.Intn(delayMs / 4)
 	totalDelayMs := delayMs + jitter
 
@@ -147,21 +137,20 @@ func (ab *AdaptiveBackoff) CalculateDelay() time.Duration {
 	return time.Duration(totalDelayMs) * time.Millisecond
 }
 
-// WaitAndRetry applies backoff delay and optionally switches proxy/browser.
 func (ab *AdaptiveBackoff) WaitAndRetry(ctx context.Context, cb func() error) error {
 	delay := ab.CalculateDelay()
 	slog.Info("Backing off request", "delayMs", delay.Milliseconds())
 
 	select {
 	case <-time.After(delay):
-		// Retry
+
 		if err := cb(); err != nil {
 			ab.mu.Lock()
 			ab.consecutiveErrors++
 			ab.mu.Unlock()
 			return fmt.Errorf("retry failed after backoff: %w", err)
 		}
-		ab.Reset() // Reset on success
+		ab.Reset()
 		return nil
 
 	case <-ctx.Done():
@@ -169,7 +158,6 @@ func (ab *AdaptiveBackoff) WaitAndRetry(ctx context.Context, cb func() error) er
 	}
 }
 
-// Reset resets the backoff state on successful request.
 func (ab *AdaptiveBackoff) Reset() {
 	ab.mu.Lock()
 	defer ab.mu.Unlock()
@@ -179,35 +167,30 @@ func (ab *AdaptiveBackoff) Reset() {
 	slog.Debug("Backoff state reset on successful request")
 }
 
-// IsThrottled returns true if currently throttled/rate-limited.
 func (ab *AdaptiveBackoff) IsThrottled() bool {
 	ab.mu.RLock()
 	defer ab.mu.RUnlock()
 	return ab.isThrottled
 }
 
-// GetCurrentDelay returns the current calculated delay.
 func (ab *AdaptiveBackoff) GetCurrentDelay() time.Duration {
 	ab.mu.RLock()
 	defer ab.mu.RUnlock()
 	return time.Duration(ab.currentDelayMs) * time.Millisecond
 }
 
-// AddCAPTCHAPattern adds a custom CAPTCHA detection pattern.
 func (ab *AdaptiveBackoff) AddCAPTCHAPattern(pattern string) {
 	ab.mu.Lock()
 	defer ab.mu.Unlock()
 	ab.captchaPatterns = append(ab.captchaPatterns, strings.ToLower(pattern))
 }
 
-// AddWAFPattern adds a custom WAF block detection pattern.
 func (ab *AdaptiveBackoff) AddWAFPattern(pattern string) {
 	ab.mu.Lock()
 	defer ab.mu.Unlock()
 	ab.wafPatterns = append(ab.wafPatterns, strings.ToLower(pattern))
 }
 
-// IsBlockDetected checks if the given text matches any CAPTCHA or WAF patterns.
 func (ab *AdaptiveBackoff) IsBlockDetected(text string) bool {
 	ab.mu.RLock()
 	defer ab.mu.RUnlock()
@@ -225,7 +208,6 @@ func (ab *AdaptiveBackoff) IsBlockDetected(text string) bool {
 	return false
 }
 
-// RecordBlock records a WAF block or rate-limit error, incrementing consecutive errors.
 func (ab *AdaptiveBackoff) RecordBlock() {
 	ab.mu.Lock()
 	defer ab.mu.Unlock()
@@ -233,13 +215,11 @@ func (ab *AdaptiveBackoff) RecordBlock() {
 	ab.consecutiveErrors++
 }
 
-// RateLimiter wraps HTTP requests with adaptive backoff.
 type RateLimiter struct {
 	backoff *AdaptiveBackoff
 	client  *http.Client
 }
 
-// NewRateLimiter creates a rate limiter with adaptive backoff.
 func NewRateLimiter(client *http.Client, baseDelayMs int, maxDelayMs int) *RateLimiter {
 	return &RateLimiter{
 		backoff: NewAdaptiveBackoff(baseDelayMs, maxDelayMs),
@@ -247,7 +227,6 @@ func NewRateLimiter(client *http.Client, baseDelayMs int, maxDelayMs int) *RateL
 	}
 }
 
-// Do executes an HTTP request with automatic backoff on throttling.
 func (rl *RateLimiter) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	maxRetries := 5
 	for attempt := 0; attempt < maxRetries; attempt++ {
@@ -270,16 +249,13 @@ func (rl *RateLimiter) Do(ctx context.Context, req *http.Request) (*http.Respons
 			}
 		}
 
-		// Check if backoff is needed
 		if !rl.backoff.ShouldBackoff(resp, body) {
 			rl.backoff.Reset()
 			return resp, nil
 		}
 
-		// Close current response
 		resp.Body.Close()
 
-		// Apply backoff if not last attempt
 		if attempt < maxRetries-1 {
 			delay := rl.backoff.CalculateDelay()
 			select {
@@ -294,7 +270,6 @@ func (rl *RateLimiter) Do(ctx context.Context, req *http.Request) (*http.Respons
 	return nil, fmt.Errorf("max retries exceeded after %d attempts", maxRetries)
 }
 
-// GetStats returns current backoff statistics.
 func (rl *RateLimiter) GetStats() map[string]interface{} {
 	return map[string]interface{}{
 		"consecutive_errors": rl.backoff.consecutiveErrors,
@@ -304,7 +279,6 @@ func (rl *RateLimiter) GetStats() map[string]interface{} {
 	}
 }
 
-// TokenBucket implements token bucket rate limiting per target.
 type TokenBucket struct {
 	capacity   int64
 	tokens     int64
@@ -313,7 +287,6 @@ type TokenBucket struct {
 	mu         sync.Mutex
 }
 
-// NewTokenBucket creates a new token bucket with capacity and refill rate (tokens per second).
 func NewTokenBucket(capacity, refillRate int64) *TokenBucket {
 	return &TokenBucket{
 		capacity:   capacity,
@@ -323,7 +296,6 @@ func NewTokenBucket(capacity, refillRate int64) *TokenBucket {
 	}
 }
 
-// Allow checks if a request is allowed based on available tokens.
 func (tb *TokenBucket) Allow() bool {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
@@ -331,7 +303,6 @@ func (tb *TokenBucket) Allow() bool {
 	now := time.Now()
 	elapsed := now.Sub(tb.lastRefill).Seconds()
 
-	// Refill tokens
 	tokensToAdd := int64(elapsed * float64(tb.refillRate))
 	tb.tokens += tokensToAdd
 	if tb.tokens > tb.capacity {
@@ -339,7 +310,6 @@ func (tb *TokenBucket) Allow() bool {
 	}
 	tb.lastRefill = now
 
-	// Check if we have enough tokens
 	if tb.tokens >= 1 {
 		tb.tokens--
 		return true
@@ -348,14 +318,12 @@ func (tb *TokenBucket) Allow() bool {
 	return false
 }
 
-// GetAvailableTokens returns the current number of available tokens.
 func (tb *TokenBucket) GetAvailableTokens() int64 {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
 	return tb.tokens
 }
 
-// PerTargetRateLimiter manages rate limiting per target/domain.
 type PerTargetRateLimiter struct {
 	buckets      map[string]*TokenBucket
 	defaultLimit int64
@@ -363,7 +331,6 @@ type PerTargetRateLimiter struct {
 	mu           sync.RWMutex
 }
 
-// NewPerTargetRateLimiter creates a per-target rate limiter.
 func NewPerTargetRateLimiter(defaultLimit, defaultRate int64) *PerTargetRateLimiter {
 	return &PerTargetRateLimiter{
 		buckets:      make(map[string]*TokenBucket),
@@ -372,7 +339,6 @@ func NewPerTargetRateLimiter(defaultLimit, defaultRate int64) *PerTargetRateLimi
 	}
 }
 
-// Allow checks if a request to the target is allowed.
 func (pt *PerTargetRateLimiter) Allow(target string) bool {
 	pt.mu.RLock()
 	bucket, exists := pt.buckets[target]
@@ -388,14 +354,12 @@ func (pt *PerTargetRateLimiter) Allow(target string) bool {
 	return bucket.Allow()
 }
 
-// SetCustomLimit sets a custom rate limit for a specific target.
 func (pt *PerTargetRateLimiter) SetCustomLimit(target string, limit, rate int64) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
 	pt.buckets[target] = NewTokenBucket(limit, rate)
 }
 
-// GetTargetStats returns statistics for a specific target.
 func (pt *PerTargetRateLimiter) GetTargetStats(target string) map[string]interface{} {
 	pt.mu.RLock()
 	defer pt.mu.RUnlock()
@@ -415,12 +379,10 @@ func (pt *PerTargetRateLimiter) GetTargetStats(target string) map[string]interfa
 	}
 }
 
-// WAFDetector provides advanced WAF detection capabilities.
 type WAFDetector struct {
 	signatures []WAFSignature
 }
 
-// WAFSignature represents a WAF detection signature.
 type WAFSignature struct {
 	Name        string
 	Headers     map[string]string
@@ -428,7 +390,6 @@ type WAFSignature struct {
 	StatusCode  int
 }
 
-// NewWAFDetector creates a new WAF detector with common signatures.
 func NewWAFDetector() *WAFDetector {
 	return &WAFDetector{
 		signatures: []WAFSignature{
@@ -466,17 +427,15 @@ func NewWAFDetector() *WAFDetector {
 	}
 }
 
-// DetectWAF analyzes a response to detect WAF blocking.
 func (wd *WAFDetector) DetectWAF(resp *http.Response, body []byte) *WAFSignature {
 	bodyStr := strings.ToLower(string(body))
 
 	for _, sig := range wd.signatures {
-		// Check status code
+
 		if sig.StatusCode != 0 && resp.StatusCode != sig.StatusCode {
 			continue
 		}
 
-		// Check headers
 		headerMatch := true
 		for key, value := range sig.Headers {
 			headerValue := resp.Header.Get(key)
@@ -497,7 +456,6 @@ func (wd *WAFDetector) DetectWAF(resp *http.Response, body []byte) *WAFSignature
 			continue
 		}
 
-		// Check body pattern
 		if sig.BodyPattern != "" && !strings.Contains(bodyStr, strings.ToLower(sig.BodyPattern)) {
 			continue
 		}
@@ -509,15 +467,10 @@ func (wd *WAFDetector) DetectWAF(resp *http.Response, body []byte) *WAFSignature
 	return nil
 }
 
-// AddSignature adds a custom WAF detection signature.
 func (wd *WAFDetector) AddSignature(sig WAFSignature) {
 	wd.signatures = append(wd.signatures, sig)
 }
 
-// --- Human-like timing utilities ---
-
-// HumanTimer produces inter-request delays that mimic human behavior.
-// Uses lognormal distribution (μ=1.5s mean, σ=0.4s std) + occasional long pauses.
 type HumanTimer struct {
 	baseMu    time.Duration // minimum delay
 	baseSigma time.Duration // standard deviation
@@ -527,7 +480,6 @@ type HumanTimer struct {
 	mu        sync.Mutex
 }
 
-// NewHumanTimer creates a timer with realistic human pacing.
 func NewHumanTimer() *HumanTimer {
 	return &HumanTimer{
 		baseMu:    1500 * time.Millisecond,
@@ -538,11 +490,8 @@ func NewHumanTimer() *HumanTimer {
 	}
 }
 
-// Sleep picks a delay from lognormal distribution, then sleeps.
 func (ht *HumanTimer) Sleep() {
-	// Lognormal: if X ~ Normal(μ, σ), then exp(X) is lognormal.
-	// Mean = exp(μ + σ²/2). For desired mean ≈ baseMu, solve μ.
-	// For simplicity: use normal distribution with positive support clamp.
+
 	ht.mu.Lock()
 	normVal := ht.rng.NormFloat64()
 	isPause := ht.rng.Float64() < ht.pauseProb
@@ -550,7 +499,6 @@ func (ht *HumanTimer) Sleep() {
 
 	delay := time.Duration(math.Abs(normVal*float64(ht.baseSigma) + float64(ht.baseMu)))
 
-	// Occasionally insert a longer pause (reading, thinking)
 	if isPause {
 		delay += ht.pauseDur
 	}
@@ -558,7 +506,6 @@ func (ht *HumanTimer) Sleep() {
 	time.Sleep(delay)
 }
 
-// SleepWithJitter adds a fixed jitter to an expected delay.
 func SleepWithJitter(base time.Duration, jitter time.Duration) {
 	if jitter <= 0 {
 		time.Sleep(base)
@@ -568,17 +515,15 @@ func SleepWithJitter(base time.Duration, jitter time.Duration) {
 	time.Sleep(base + offset)
 }
 
-// ExponentialBackoffJitter computes backoff: base * 2^attempt + random(0, base/2).
 func BackoffWithJitter(base time.Duration, attempt int) time.Duration {
 	if attempt <= 0 {
 		return base
 	}
-	backoff := base * time.Duration(1<<attempt) // exponential
+	backoff := base * time.Duration(1<<attempt)
 	jitter := time.Duration(rand.Int63n(int64(base) / 2))
 	return backoff + jitter
 }
 
-// PerHostAdaptiveLimiter manages independent adaptive backoff states per target host.
 type PerHostAdaptiveLimiter struct {
 	limiters    map[string]*AdaptiveBackoff
 	baseDelayMs int
@@ -586,7 +531,6 @@ type PerHostAdaptiveLimiter struct {
 	mu          sync.RWMutex
 }
 
-// NewPerHostAdaptiveLimiter creates a new PerHostAdaptiveLimiter.
 func NewPerHostAdaptiveLimiter(baseDelayMs, maxDelayMs int) *PerHostAdaptiveLimiter {
 	return &PerHostAdaptiveLimiter{
 		limiters:    make(map[string]*AdaptiveBackoff),
@@ -595,7 +539,6 @@ func NewPerHostAdaptiveLimiter(baseDelayMs, maxDelayMs int) *PerHostAdaptiveLimi
 	}
 }
 
-// GetBackoff retrieves or instantiates the AdaptiveBackoff state for a specific host.
 func (phal *PerHostAdaptiveLimiter) GetBackoff(host string) *AdaptiveBackoff {
 	phal.mu.RLock()
 	ab, exists := phal.limiters[host]

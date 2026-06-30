@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// AssetNode represents a node in the reconnaissance asset graph.
 type AssetNode struct {
 	ID         string          `json:"id"`
 	NodeType   string          `json:"node_type"`
@@ -21,7 +20,6 @@ type AssetNode struct {
 	Confidence float64         `json:"confidence"`
 }
 
-// AssetEdge represents a directed relationship between two asset nodes.
 type AssetEdge struct {
 	SourceID   string  `json:"source_id"`
 	TargetID   string  `json:"target_id"`
@@ -33,13 +31,11 @@ type AssetEdge struct {
 	EvidenceID string  `json:"evidence_id"`
 }
 
-// GenerateNodeID creates a deterministic ID for a node based on its type, value and scopeID.
 func GenerateNodeID(nodeType, value, scopeID string) string {
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%s:%s", strings.ToLower(nodeType), value, scopeID)))
 	return fmt.Sprintf("%x", hash)
 }
 
-// SaveNode inserts or updates an asset node in the graph.
 func (s *Storage) SaveNode(nodeType, value string, properties interface{}, scopeID string, source string, confidence float64) (string, error) {
 	nodeType = strings.ToLower(nodeType)
 	id := GenerateNodeID(nodeType, value, scopeID)
@@ -88,7 +84,6 @@ func (s *Storage) SaveNode(nodeType, value string, properties interface{}, scope
 	return id, err
 }
 
-// SaveEdge inserts or updates a relationship edge between two nodes.
 func (s *Storage) SaveEdge(sourceID, targetID, relation string, confidence float64, evidenceID string) error {
 	relation = strings.ToLower(relation)
 	query := `
@@ -117,7 +112,6 @@ func (s *Storage) SaveEdge(sourceID, targetID, relation string, confidence float
 	return err
 }
 
-// GetGraphPaths recursively queries the graph to discover attack paths up to a specified depth.
 func (s *Storage) GetGraphPaths(rootID string, maxDepth int) ([]AssetEdge, error) {
 	if maxDepth > 10 {
 		maxDepth = 10
@@ -175,7 +169,6 @@ func (s *Storage) GetGraphPaths(rootID string, maxDepth int) ([]AssetEdge, error
 	return edges, nil
 }
 
-// GetUnownedAssets returns all target/domain/subdomain nodes without owners or teams assigned.
 func (s *Storage) GetUnownedAssets() ([]AssetNode, error) {
 	query := `
 		SELECT id, node_type, value, properties, scope_id, first_seen, last_seen, source, confidence FROM asset_nodes
@@ -205,7 +198,6 @@ func (s *Storage) GetUnownedAssets() ([]AssetNode, error) {
 	return nodes, nil
 }
 
-// GetNodesByIDs retrieves multiple asset nodes by their deterministic IDs.
 func (s *Storage) GetNodesByIDs(ids []string) ([]AssetNode, error) {
 	if len(ids) == 0 {
 		return nil, nil
@@ -239,7 +231,6 @@ func (s *Storage) GetNodesByIDs(ids []string) ([]AssetNode, error) {
 	return nodes, nil
 }
 
-// GetShortestAttackPath finds the shortest path of edges from sourceID to targetID.
 func (s *Storage) GetShortestAttackPath(sourceID, targetID string, maxDepth int) ([]AssetEdge, error) {
 	edges, err := s.GetGraphPaths(sourceID, maxDepth)
 	if err != nil {
@@ -280,7 +271,6 @@ func (s *Storage) GetShortestAttackPath(sourceID, targetID string, maxDepth int)
 	return nil, fmt.Errorf("no path found between %s and %s within depth %d", sourceID, targetID, maxDepth)
 }
 
-// GetBlastRadius finds downstream assets/nodes affected by serviceID.
 func (s *Storage) GetBlastRadius(serviceID string, maxDepth int) ([]AssetNode, error) {
 	edges, err := s.GetGraphPaths(serviceID, maxDepth)
 	if err != nil {
@@ -297,7 +287,6 @@ func (s *Storage) GetBlastRadius(serviceID string, maxDepth int) ([]AssetNode, e
 	return s.GetNodesByIDs(ids)
 }
 
-// GetTeamOverdueFindings groups overdue findings by responsible team.
 func (s *Storage) GetTeamOverdueFindings() (map[string][]OverdueAssignment, error) {
 	overdue, err := s.GetOverdueAssignments()
 	if err != nil {
@@ -318,7 +307,6 @@ func (s *Storage) GetTeamOverdueFindings() (map[string][]OverdueAssignment, erro
 	return result, nil
 }
 
-// GetAllAssetNodes retrieves all asset nodes.
 func (s *Storage) GetAllAssetNodes(limit, offset int) ([]AssetNode, error) {
 	query := "SELECT id, node_type, value, properties, scope_id, first_seen, last_seen, source, confidence FROM asset_nodes"
 	if limit > 0 {
@@ -348,7 +336,6 @@ func (s *Storage) GetAllAssetNodes(limit, offset int) ([]AssetNode, error) {
 	return nodes, nil
 }
 
-// GetAllAssetEdges retrieves all asset edges.
 func (s *Storage) GetAllAssetEdges(limit, offset int) ([]AssetEdge, error) {
 	query := "SELECT source_id, target_id, relation, first_seen, last_seen, confidence, observed_at, evidence_id FROM asset_edges"
 	if limit > 0 {
@@ -376,7 +363,6 @@ func (s *Storage) GetAllAssetEdges(limit, offset int) ([]AssetEdge, error) {
 	return edges, nil
 }
 
-// LinkAssetChain links subdomain -> service -> technology -> owner -> repo -> cloud asset -> finding
 func (s *Storage) LinkAssetChain(subdomain, service, technology, ownerEmail, repo, cloudAsset, findingTitle, criticality, environment string) error {
 	meta := map[string]string{
 		"criticality": criticality,
@@ -412,7 +398,6 @@ func (s *Storage) LinkAssetChain(subdomain, service, technology, ownerEmail, rep
 		return err
 	}
 
-	// Save edges representing the provenance chain
 	_ = s.SaveEdge(subdomainID, serviceID, "exposes", 1.0, "system")
 	_ = s.SaveEdge(serviceID, techID, "uses_tech", 1.0, "system")
 	_ = s.SaveEdge(serviceID, ownerID, "owned_by", 1.0, "system")
@@ -423,7 +408,6 @@ func (s *Storage) LinkAssetChain(subdomain, service, technology, ownerEmail, rep
 	return nil
 }
 
-// PropagateRisk calculates threat scores for all nodes by propagating risk from findings.
 func (s *Storage) PropagateRisk() (map[string]float64, error) {
 	nodes, err := s.GetAllAssetNodes(0, 0)
 	if err != nil {
@@ -437,10 +421,9 @@ func (s *Storage) PropagateRisk() (map[string]float64, error) {
 	scores := make(map[string]float64)
 	queue := make([]string, 0)
 
-	// Initialize finding nodes with their base threat score
 	for _, node := range nodes {
 		if node.NodeType == "finding" {
-			// Base score of 90.0 for finding risk
+
 			scores[node.ID] = 90.0
 			queue = append(queue, node.ID)
 		} else {
@@ -448,14 +431,12 @@ func (s *Storage) PropagateRisk() (map[string]float64, error) {
 		}
 	}
 
-	// Adjacency list representation (incoming & outgoing edges)
 	adj := make(map[string][]AssetEdge)
 	for _, edge := range edges {
 		adj[edge.SourceID] = append(adj[edge.SourceID], edge)
 		adj[edge.TargetID] = append(adj[edge.TargetID], edge)
 	}
 
-	// Propagate risk scores using BFS with a max depth/damping factor
 	visited := make(map[string]int)
 	for len(queue) > 0 {
 		currID := queue[0]
@@ -473,7 +454,6 @@ func (s *Storage) PropagateRisk() (map[string]float64, error) {
 				neighborID = edge.TargetID
 			}
 
-			// Time decay factor based on how long since last observed (default 30 day half-life)
 			lastSeenTime, parseErr := time.Parse(time.RFC3339, edge.LastSeen)
 			decayFactor := 1.0
 			if parseErr == nil {
@@ -483,7 +463,6 @@ func (s *Storage) PropagateRisk() (map[string]float64, error) {
 				}
 			}
 
-			// Damping factor decreases threat score over path length
 			propagated := currScore * edge.Confidence * decayFactor * 0.8
 			if propagated > scores[neighborID] {
 				scores[neighborID] = propagated

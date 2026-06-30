@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -60,11 +60,9 @@ func (t *GitExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 
 		var events []recon.Event
 
-		// Target paths
 		headURL := fmt.Sprintf("%s://%s/.git/HEAD", base.Scheme, base.Host)
 		configURL := fmt.Sprintf("%s://%s/.git/config", base.Scheme, base.Host)
 
-		// 1. Probe /.git/HEAD
 		hReq, err := http.NewRequestWithContext(ctx, "GET", headURL, nil)
 		if err != nil {
 			return nil, nil
@@ -79,7 +77,7 @@ func (t *GitExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 			hResp.Body.Close()
 			bodyStr := string(bodyBytes)
 
-			if hResp.StatusCode == 200 && (strings.HasPrefix(bodyStr, "ref: refs/") || len(bodyStr) == 41 /* SHA1 hash length + newline */) {
+			if hResp.StatusCode == 200 && (strings.HasPrefix(bodyStr, "ref: refs/") || len(bodyStr) == 41) {
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 					"vuln_name":   "Exposed Git Repository",
 					"severity":    "high",
@@ -88,7 +86,6 @@ func (t *GitExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 					"description": fmt.Sprintf("Exposed Git directory discovered at %s", target),
 				}, "high"))
 
-				// 2. Probe /.git/config to extract extra credentials or remote URLs
 				cReq, err := http.NewRequestWithContext(ctx, "GET", configURL, nil)
 				if err == nil {
 					for k, v := range scanCtx.Headers {
@@ -101,7 +98,7 @@ func (t *GitExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 						cStr := string(cBody)
 
 						if cResp.StatusCode == 200 && strings.Contains(cStr, "[core]") {
-							// Scan config for secrets
+
 							foundSecrets := []string{}
 							for _, r := range gitSecretPatterns {
 								if m := r.FindString(cStr); m != "" {
@@ -109,7 +106,6 @@ func (t *GitExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 								}
 							}
 
-							// Check for remote URLs
 							remoteURL := ""
 							re := regexp.MustCompile(`url\s*=\s*([^\s]+)`)
 							if match := re.FindStringSubmatch(cStr); len(match) > 1 {

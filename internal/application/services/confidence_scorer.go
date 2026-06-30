@@ -5,14 +5,12 @@ import (
 	"strings"
 )
 
-// ScoredEvent embeds the real Event struct with confidence scoring metadata.
 type ScoredEvent struct {
 	Event
 	ConfidenceScore int  `json:"confidence_score"`
 	Suppressed      bool `json:"suppressed"`
 }
 
-// CorroborateEvents determines other tools that observed the same target and sets the "corroborated_by" property.
 func CorroborateEvents(events []Event) []Event {
 	targetTools := make(map[string]map[string]bool)
 	for _, ev := range events {
@@ -46,14 +44,12 @@ func CorroborateEvents(events []Event) []Event {
 	return events
 }
 
-// ScoreEvent calculates the confidence score of an event based on standard signal groups.
 func ScoreEvent(ev Event) int {
-	score := 50 // Base baseline score
+	score := 50
 
-	// Group 1: Source tool credibility
 	switch strings.ToLower(ev.Source) {
 	case "nuclei":
-		// Nuclei bonus depends on severity - info/low shouldn't get flat +15
+
 		if ev.Properties != nil {
 			if nsVal, ok := ev.Properties["nuclei_severity"]; ok {
 				switch strings.ToLower(nsVal) {
@@ -64,7 +60,7 @@ func ScoreEvent(ev Event) int {
 				case "low":
 					score += 5
 				}
-				// info severity gets no bonus (handled in Group 6)
+
 			}
 		}
 	case "gau":
@@ -73,7 +69,6 @@ func ScoreEvent(ev Event) int {
 		score += -5
 	}
 
-	// Group 2: Event type specificity
 	switch strings.ToLower(ev.Type) {
 	case "vulnerability":
 		score += 20
@@ -81,7 +76,6 @@ func ScoreEvent(ev Event) int {
 		score += -15
 	}
 
-	// Group 3: HTTP response
 	if ev.Properties != nil {
 		if scVal, ok := ev.Properties["status_code"]; ok {
 			if sc, err := strconv.Atoi(scVal); err == nil {
@@ -100,13 +94,12 @@ func ScoreEvent(ev Event) int {
 		}
 	}
 
-	// Group 4: Target URL quality
 	targetLower := strings.ToLower(ev.Target)
-	// Check loopback
+
 	if strings.Contains(targetLower, "127.0.0.1") || strings.Contains(targetLower, "localhost") || strings.Contains(targetLower, "[::1]") {
 		score += -25
 	} else {
-		// Check static asset
+
 		isStatic := false
 		staticExts := []string{".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"}
 		for _, ext := range staticExts {
@@ -118,7 +111,7 @@ func ScoreEvent(ev Event) int {
 		if isStatic {
 			score += -15
 		} else {
-			// Check high-value path
+
 			highValuePaths := []string{"/admin", "/api/", "/login", "/dashboard", ".env", ".git", "config"}
 			isHighValue := false
 			for _, hv := range highValuePaths {
@@ -133,7 +126,6 @@ func ScoreEvent(ev Event) int {
 		}
 	}
 
-	// Group 5: Multi-tool corroboration
 	if ev.Properties != nil {
 		if cbVal, ok := ev.Properties["corroborated_by"]; ok && cbVal != "" {
 			otherTools := strings.Split(cbVal, ",")
@@ -165,7 +157,6 @@ func ScoreEvent(ev Event) int {
 		score += -5
 	}
 
-	// Group 6: Nuclei template metadata
 	if ev.Properties != nil {
 		if ncVal, ok := ev.Properties["nuclei_confidence"]; ok && strings.ToLower(ncVal) == "confirmed" {
 			score += 15
@@ -175,7 +166,6 @@ func ScoreEvent(ev Event) int {
 		}
 	}
 
-	// Clamp score between 0 and 100
 	if score < 0 {
 		score = 0
 	}
@@ -186,7 +176,6 @@ func ScoreEvent(ev Event) int {
 	return score
 }
 
-// Filter filters scored events based on the threshold.
 func Filter(events []ScoredEvent) []ScoredEvent {
 	var kept []ScoredEvent
 	for _, ev := range events {

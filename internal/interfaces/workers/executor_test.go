@@ -60,7 +60,6 @@ func TestRegisterHandlerNilHandler(t *testing.T) {
 	worker := NewWorker("worker-1", nil, nil, []CapabilityType{CapSubdomainEnum})
 	executor := NewExecutor(worker)
 
-	// Should allow nil handler (though it will fail at runtime)
 	executor.RegisterHandler(CapSubdomainEnum, nil)
 
 	if len(executor.Handlers) != 1 {
@@ -117,7 +116,6 @@ func TestRun(t *testing.T) {
 	ctx := context.Background()
 	err := executor.Run(ctx)
 
-	// Should complete without error (even if no stream is set)
 	if err != nil {
 		t.Errorf("Run failed: %v", err)
 	}
@@ -138,7 +136,6 @@ func TestRunWithContextCancellation(t *testing.T) {
 
 	err := executor.Run(ctx)
 
-	// Should complete without error
 	if err != nil {
 		t.Errorf("Run failed: %v", err)
 	}
@@ -159,7 +156,6 @@ func TestRunWithTimeout(t *testing.T) {
 
 	err := executor.Run(ctx)
 
-	// Should complete without error
 	if err != nil {
 		t.Errorf("Run failed: %v", err)
 	}
@@ -172,7 +168,6 @@ func TestRunWithoutHandlers(t *testing.T) {
 	ctx := context.Background()
 	err := executor.Run(ctx)
 
-	// Should complete without error (no handlers to subscribe)
 	if err != nil {
 		t.Errorf("Run failed: %v", err)
 	}
@@ -190,19 +185,17 @@ func TestRunWithNilWorker(t *testing.T) {
 	ctx := context.Background()
 	err := executor.Run(ctx)
 
-	// Should complete without error
 	if err != nil {
 		t.Errorf("Run failed: %v", err)
 	}
 }
 
 func TestHandlerSignature(t *testing.T) {
-	// Test that handler signature matches expected type
+
 	handler := func(ctx context.Context, task Task) error {
 		return nil
 	}
 
-	// Call the handler to verify signature
 	ctx := context.Background()
 	task := Task{ID: "task-123", Payload: map[string]interface{}{"key": "value"}}
 	err := handler(ctx, task)

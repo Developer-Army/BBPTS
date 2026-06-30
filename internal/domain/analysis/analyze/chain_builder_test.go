@@ -8,7 +8,7 @@ import (
 )
 
 func TestFindVulnerabilityChains(t *testing.T) {
-	// Setup nodes
+
 	targetNode := storage.AssetNode{
 		ID:       "target-1",
 		NodeType: "target",

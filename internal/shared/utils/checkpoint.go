@@ -11,8 +11,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// Checkpoint tracks the execution state of an ongoing scan.
-// If the orchestrator crashes, it can load this file to resume.
 type Checkpoint struct {
 	Scope           string        `json:"scope"`
 	StartTime       time.Time     `json:"start_time"`
@@ -25,7 +23,6 @@ type Checkpoint struct {
 	FilePath        string        `json:"-"`
 }
 
-// NewCheckpoint creates or loads a checkpoint for the given scope.
 func NewCheckpoint(dir, scope string, targets []string) (*Checkpoint, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
@@ -33,7 +30,6 @@ func NewCheckpoint(dir, scope string, targets []string) (*Checkpoint, error) {
 
 	path := filepath.Join(dir, scope+"_checkpoint.json")
 
-	// Try to load existing
 	if data, err := os.ReadFile(path); err == nil {
 		var cp Checkpoint
 		if err := json.Unmarshal(data, &cp); err == nil {
@@ -42,7 +38,6 @@ func NewCheckpoint(dir, scope string, targets []string) (*Checkpoint, error) {
 		}
 	}
 
-	// Create new
 	cp := &Checkpoint{
 		Scope:          scope,
 		StartTime:      time.Now().UTC(),
@@ -53,7 +48,6 @@ func NewCheckpoint(dir, scope string, targets []string) (*Checkpoint, error) {
 	return cp, nil
 }
 
-// MarkComplete moves a target from pending to complete and saves state.
 func (c *Checkpoint) MarkComplete(target string) {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
@@ -67,11 +61,9 @@ func (c *Checkpoint) MarkComplete(target string) {
 	c.TargetsPending = newPending
 	c.TargetsComplete = append(c.TargetsComplete, target)
 
-	// In a real high-throughput system, we might debounce this save
 	c.saveInternal()
 }
 
-// Save persists the checkpoint to disk.
 func (c *Checkpoint) Save() {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()
@@ -87,7 +79,6 @@ func (c *Checkpoint) saveInternal() {
 	}
 }
 
-// Clear removes the checkpoint file (called upon successful scan completion).
 func (c *Checkpoint) Clear() {
 	c.Mu.Lock()
 	defer c.Mu.Unlock()

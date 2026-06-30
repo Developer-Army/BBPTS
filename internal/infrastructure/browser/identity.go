@@ -12,7 +12,6 @@ import (
 
 var identityCounter uint64
 
-// Identity represents a coherent browser fingerprint and TLS profile to evade WAFs.
 type Identity struct {
 	ID                  string
 	UserAgent           string
@@ -35,20 +34,17 @@ type Geolocation struct {
 	Longitude float64
 }
 
-// IdentityPool manages a fleet of realistic browser identities.
 type IdentityPool struct {
 	mu         sync.RWMutex
 	Identities map[string]*Identity
 }
 
-// NewIdentityPool initializes a pool of distinct browser profiles.
 func NewIdentityPool() *IdentityPool {
 	return &IdentityPool{
 		Identities: make(map[string]*Identity),
 	}
 }
 
-// GetOrCreate Identity returns an existing identity or generates a new coherent one.
 func (p *IdentityPool) GetOrCreate(sessionID string) *Identity {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -57,13 +53,11 @@ func (p *IdentityPool) GetOrCreate(sessionID string) *Identity {
 		return id
 	}
 
-	// Generate a new realistic identity
 	newID := generateCoherentIdentity(sessionID)
 	p.Identities[sessionID] = newID
 	return newID
 }
 
-// ReportChallenge decreases the trust score of an identity if it encounters a CAPTCHA.
 func (p *IdentityPool) ReportChallenge(sessionID string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -82,10 +76,8 @@ func generateCoherentIdentity(seed string) *Identity {
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%s_%d_%d", seed, count, time.Now().UnixNano())))
 	hashStr := hex.EncodeToString(hash[:])
 
-	// Seed PRNG locally for deterministic profile attributes based on hash
 	rng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(count)))
 
-	// Simplistic coherent generation. In a real stealth platform, these are pulled from a known-good database.
 	userAgents := []string{
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",

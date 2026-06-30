@@ -11,7 +11,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// extractClusterHost extracts a normalized hostname from a URL or host string.
 func extractClusterHost(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -40,7 +39,6 @@ func extractClusterHost(raw string) string {
 
 var _ Analyzer = (*ClusterAnalyzer)(nil)
 
-// ClusterAnalyzer evaluates endpoint clusters for attack surface density and novelty.
 type ClusterAnalyzer struct {
 	clusterer *cluster.TFIDFClustering
 	clusters  map[int][]recon.Event // computed per-host clusters
@@ -53,12 +51,9 @@ func NewClusterAnalyzer() *ClusterAnalyzer {
 	}
 }
 
-// Analyze is a no-op because cluster evaluation requires the complete set of
-// events across all targets, which is processed in PostProcess rather than per-event.
 func (ca *ClusterAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 }
 
-// PostProcess runs after insights are built; boosts scores based on endpoint clusters.
 func (ca *ClusterAnalyzer) PostProcess(insights []Insight, allEvents []recon.Event) {
 	if len(allEvents) < 2 {
 		return
@@ -77,11 +72,9 @@ func (ca *ClusterAnalyzer) PostProcess(insights []Insight, allEvents []recon.Eve
 		return
 	}
 
-	// Compute clusters
 	clusters := ca.clusterer.Cluster(endpointEvents, 0.6)
 	ca.clusters = clusters
 
-	// Map host → max cluster size
 	hostClusterSize := make(map[string]int)
 	for _, members := range clusters {
 		size := len(members)
@@ -96,7 +89,6 @@ func (ca *ClusterAnalyzer) PostProcess(insights []Insight, allEvents []recon.Eve
 		}
 	}
 
-	// Apply boost to insights
 	for i := range insights {
 		host := insights[i].Host
 		size := hostClusterSize[host]

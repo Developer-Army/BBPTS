@@ -13,7 +13,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 )
 
-// Config holds all runtime configuration for the BBPTS toolkit.
 type Config struct {
 	// APIKeys maps provider names to their API keys.
 	// Supported providers: shodan, securitytrails, github, chaos, virustotal, passivetotal, binaryedge
@@ -103,11 +102,12 @@ type Config struct {
 	// InsecureSkipVerify disables SSL/TLS certificate verification for scanners.
 	InsecureSkipVerify bool `json:"insecure_skip_verify"`
 
+	// NucleiTargetCap is the maximum number of targets nuclei will scan.
+	// When 0, defaults to 200. Set higher for large programs.
+	NucleiTargetCap int `json:"nuclei_target_cap"`
+
 	// WebEnder holds a custom research identifier tag (e.g., H1{username}).
 	WebEnder string `json:"web_ender"`
-
-	// MockMode gates simulated/mock event injection.
-	MockMode bool `json:"mock_mode"`
 
 	// FPConfidenceThreshold is the threshold below which events are marked suppressed.
 	FPConfidenceThreshold int `json:"fp_confidence_threshold"`
@@ -116,34 +116,30 @@ type Config struct {
 	FPKeepSuppressed bool `json:"fp_keep_suppressed"`
 
 	// AI noise triage configuration
-	AITriageEnabled   bool   `json:"ai_triage_enabled"`
-	AITriageThreshold int    `json:"ai_triage_threshold"`
-	AITriageProvider  string `json:"ai_triage_provider"`
-	AITriageModel     string `json:"ai_triage_model"`
-	AITriageURL       string `json:"ai_triage_url"`
-	AutoTransition    bool   `json:"auto_transition"`
+	AITriageEnabled   bool                `json:"ai_triage_enabled"`
+	AITriageThreshold int                 `json:"ai_triage_threshold"`
+	AITriageProvider  string              `json:"ai_triage_provider"`
+	AITriageModel     string              `json:"ai_triage_model"`
+	AITriageURL       string              `json:"ai_triage_url"`
+	AutoTransition    bool                `json:"auto_transition"`
 	AuthSessions      []AuthSessionConfig `json:"auth_sessions"`
 }
 
-// AuthSessionConfig defines an authentication state for the auth_matrix tool.
 type AuthSessionConfig struct {
 	Label   string            `json:"label"`
 	Headers map[string]string `json:"headers"`
 }
 
-// DatabaseConfig holds connection settings for Recon Memory.
 type DatabaseConfig struct {
 	Type string `json:"type"` // "sqlite" or "sqlite3"; postgres is not enabled in the default build
 	DSN  string `json:"dsn"`  // path for sqlite
 }
 
-// EventBusConfig holds connection settings for the event-driven core.
 type EventBusConfig struct {
 	Type string `json:"type"` // "in-memory" or "nats"
 	URL  string `json:"url"`  // e.g. "nats://127.0.0.1:4222"
 }
 
-// NotifyConfig holds webhook URLs for alerting channels.
 type NotifyConfig struct {
 	TelegramBotToken string `json:"telegram_bot_token"`
 	TelegramChatID   string `json:"telegram_chat_id"`
@@ -151,12 +147,10 @@ type NotifyConfig struct {
 	SlackWebhook     string `json:"slack_webhook"`
 }
 
-// SubmitConfig holds optional bug bounty platform submission settings.
 type SubmitConfig struct {
 	Platform string `json:"platform"`
 }
 
-// FleetConfig holds Axiom distributed fleet configuration.
 type FleetConfig struct {
 	Enabled     bool   `json:"enabled"`
 	WorkerMesh  bool   `json:"worker_mesh"` // Send jobs to NATS instead of Axiom/local
@@ -166,14 +160,12 @@ type FleetConfig struct {
 	SyncToken   string `json:"sync_token"`
 }
 
-// TLSConfig holds configuration for securing the web server/manager with HTTPS.
 type TLSConfig struct {
 	Enabled  bool   `json:"enabled"`
 	CertFile string `json:"cert_file"`
 	KeyFile  string `json:"key_file"`
 }
 
-// ResourceLimitsConfig holds configuration for CPU, memory, and GC limits.
 type ResourceLimitsConfig struct {
 	MaxCPUPercent int `json:"max_cpu_percent"`
 	MaxCPUCores   int `json:"max_cpu_cores"`
@@ -181,7 +173,6 @@ type ResourceLimitsConfig struct {
 	GCPercent     int `json:"gc_percent"`
 }
 
-// WordlistConfig holds tool-specific wordlist configurations.
 type WordlistConfig struct {
 	// DNS wordlist for subdomain enumeration tools (amass, subfinder, etc.)
 	DNS string `json:"dns"`
@@ -193,7 +184,6 @@ type WordlistConfig struct {
 	API string `json:"api"`
 }
 
-// DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	return &Config{
@@ -233,7 +223,7 @@ func DefaultConfig() *Config {
 		},
 		Database: DatabaseConfig{
 			Type: "sqlite",
-			DSN:  "", // Defaults to <TmpResultsDir>/bbpts.db in app.go
+			DSN:  "",
 		},
 		EventBus: EventBusConfig{
 			Type: "in-memory",
@@ -256,18 +246,16 @@ func DefaultConfig() *Config {
 	}
 }
 
-// LoadFromFile reads a JSON config file and merges it into the config.
-// Missing fields retain their default values.
 func LoadFromFile(path string) (*Config, error) {
 	cfg := DefaultConfig()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// safe to ignore: writing default config helper is non-critical for running with defaults
+
 			_ = WriteDefault(path)
 			cfg.RegisterSecrets()
-			return cfg, nil // No config file is fine, use defaults
+			return cfg, nil
 		}
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
 	}
@@ -276,7 +264,6 @@ func LoadFromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", path, err)
 	}
 
-	// Fallback to ~/.bbpts/wordlists if local doesn't exist
 	if cfg.WordlistsDir == "./wordlists" || cfg.WordlistsDir == "wordlists" {
 		if _, err := os.Stat(cfg.WordlistsDir); os.IsNotExist(err) {
 			home, _ := os.UserHomeDir()
@@ -291,15 +278,6 @@ func LoadFromFile(path string) (*Config, error) {
 	return cfg, nil
 }
 
-// LoadFromEnv overlays environment variables onto an existing config.
-// Environment variables take precedence over file-based config.
-//
-// Supported environment variables:
-//
-//	BBPTS_SHODAN_API_KEY, BBPTS_CENSYS_API_KEY, BBPTS_SECURITYTRAILS_API_KEY,
-//	BBPTS_GITHUB_TOKEN, BBPTS_CHAOS_API_KEY, BBPTS_VIRUSTOTAL_API_KEY,
-//	BBPTS_PASSIVETOTAL_API_KEY, BBPTS_BINARYEDGE_API_KEY,
-//	BBPTS_PROXIES (comma-separated), BBPTS_RATE_LIMIT, BBPTS_STATE_DIR
 func (c *Config) LoadFromEnv() {
 	envKeys := map[string]string{
 		"BBPTS_SHODAN_API_KEY":         "shodan",
@@ -403,52 +381,49 @@ func (c *Config) LoadFromEnv() {
 	c.RegisterSecrets()
 }
 
-// GetAPIKey returns the API key for a given provider, or empty string if not set.
 func (c *Config) GetAPIKey(provider string) string {
 	return c.APIKeys[strings.ToLower(provider)]
 }
 
-// HasProxy returns true if at least one proxy is configured.
 func (c *Config) HasProxy() bool {
 	return len(c.Proxies) > 0
 }
 
-// WriteDefault writes a default config file to the given path for the user to edit.
 func WriteDefault(path string) error {
 	cfg := DefaultConfig()
 	cfg.APIKeys = map[string]string{
-		"shodan":              "",
-		"securitytrails":      "",
-		"github":              "",
-		"chaos":               "",
-		"virustotal":          "",
-		"passivetotal":        "",
-		"binaryedge":          "",
-		"censys_id":           "",
-		"censys_secret":       "",
-		"fullhunt":            "",
-		"netlas":              "",
-		"whoisxmlapi":         "",
-		"intelx":              "",
-		"fofa_email":          "",
-		"fofa_key":            "",
-		"zoomeye":             "",
-		"quake":               "",
-		"bevigil":             "",
-		"robtex":              "",
-		"certspotter":         "",
-		"c99":                 "",
-		"chinaz":              "",
-		"threatbook":          "",
-		"dnsdb":               "",
-		"redhuntlabs":         "",
-		"facebook":            "",
-		"facebook_secret":     "",
-		"passivetotal_email":  "",
-		"hunter":              "",
-		"h1_username":         "",
-		"h1_api_token":        "",
-		"bugcrowd_api_token":  "",
+		"shodan":             "",
+		"securitytrails":     "",
+		"github":             "",
+		"chaos":              "",
+		"virustotal":         "",
+		"passivetotal":       "",
+		"binaryedge":         "",
+		"censys_id":          "",
+		"censys_secret":      "",
+		"fullhunt":           "",
+		"netlas":             "",
+		"whoisxmlapi":        "",
+		"intelx":             "",
+		"fofa_email":         "",
+		"fofa_key":           "",
+		"zoomeye":            "",
+		"quake":              "",
+		"bevigil":            "",
+		"robtex":             "",
+		"certspotter":        "",
+		"c99":                "",
+		"chinaz":             "",
+		"threatbook":         "",
+		"dnsdb":              "",
+		"redhuntlabs":        "",
+		"facebook":           "",
+		"facebook_secret":    "",
+		"passivetotal_email": "",
+		"hunter":             "",
+		"h1_username":        "",
+		"h1_api_token":       "",
+		"bugcrowd_api_token": "",
 	}
 	cfg.Proxies = []string{"socks5://127.0.0.1:9050"}
 	cfg.Headers = map[string]string{}
@@ -472,7 +447,6 @@ func WriteDefault(path string) error {
 	return os.WriteFile(path, data, 0600)
 }
 
-// ResolveWebEnder parses a tag format like NAME{value} and populates headers.
 func ResolveWebEnder(webEnder string, headers map[string]string) map[string]string {
 	if headers == nil {
 		headers = make(map[string]string)
@@ -497,7 +471,6 @@ func ResolveWebEnder(webEnder string, headers map[string]string) map[string]stri
 	return headers
 }
 
-// RegisterSecrets registers sensitive configuration fields with the security package redactor.
 func (c *Config) RegisterSecrets() {
 	if c.DashboardToken != "" {
 		security.RegisterSecretToRedact(c.DashboardToken)

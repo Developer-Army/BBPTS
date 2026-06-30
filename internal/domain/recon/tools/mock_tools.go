@@ -6,15 +6,12 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 )
 
-// MockTool is a test double that returns pre-configured events.
-// It implements the Tool interface for use in integration tests
-// without requiring external tool binaries.
 type MockTool struct {
 	ToolName    string
 	Events      []recon.Event
@@ -24,12 +21,10 @@ type MockTool struct {
 	LastThreads int
 }
 
-// Name returns the mock tool's name.
 func (m *MockTool) Name() string {
 	return m.ToolName
 }
 
-// Run returns the pre-configured events and error.
 func (m *MockTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
 	m.CallCount++
 	m.LastTargets = targets
@@ -42,7 +37,6 @@ func (m *MockTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 	return m.Events, nil
 }
 
-// NewMockTool creates a mock tool with the given name and output events.
 func NewMockTool(name string, events []recon.Event) *MockTool {
 	return &MockTool{
 		ToolName: name,
@@ -50,7 +44,6 @@ func NewMockTool(name string, events []recon.Event) *MockTool {
 	}
 }
 
-// NewFailingMockTool creates a mock tool that always returns an error.
 func NewFailingMockTool(name string, err error) *MockTool {
 	return &MockTool{
 		ToolName: name,
@@ -58,8 +51,6 @@ func NewFailingMockTool(name string, err error) *MockTool {
 	}
 }
 
-// MockToolOutputs provides realistic mock outputs for common recon tools.
-// Use these in tests to avoid needing actual tool binaries installed.
 var MockToolOutputs = map[string][]recon.Event{
 	"subfinder": {
 		recon.NewEvent("api.acme-corp.io", "subfinder", "discovery", nil),
@@ -148,7 +139,6 @@ var MockToolOutputs = map[string][]recon.Event{
 	},
 }
 
-// GetMockTool returns a MockTool pre-loaded with realistic output for the given tool name.
 func GetMockTool(toolName string) *MockTool {
 	events, ok := MockToolOutputs[toolName]
 	if !ok {
@@ -157,7 +147,6 @@ func GetMockTool(toolName string) *MockTool {
 	return NewMockTool(toolName, events)
 }
 
-// GetAllMockTools returns MockTools for all registered tools.
 func GetAllMockTools() []*MockTool {
 	var tools []*MockTool
 	for name := range MockToolOutputs {
@@ -166,12 +155,9 @@ func GetAllMockTools() []*MockTool {
 	return tools
 }
 
-// NewMockPipeline creates a full mock recon pipeline for testing.
-// Returns events simulating a complete recon flow against the given target.
 func NewMockPipeline(target string) []recon.Event {
 	var events []recon.Event
 
-	// Stage 1: Passive recon
 	for _, sub := range []string{"api", "mail", "dev", "staging", "cdn", "blog"} {
 		events = append(events, recon.NewEvent(
 			fmt.Sprintf("%s.%s", sub, target),
@@ -181,7 +167,6 @@ func NewMockPipeline(target string) []recon.Event {
 		))
 	}
 
-	// Stage 2: Active probing
 	for _, sub := range []string{"api", "mail", "dev"} {
 		host := fmt.Sprintf("%s.%s", sub, target)
 		events = append(events,
@@ -190,7 +175,6 @@ func NewMockPipeline(target string) []recon.Event {
 		)
 	}
 
-	// Stage 3: Web crawling
 	for _, path := range []string{"/api/v1/users", "/login", "/admin", "/robots.txt"} {
 		events = append(events, recon.NewEvent(
 			fmt.Sprintf("https://api.%s%s", target, path),
@@ -200,7 +184,6 @@ func NewMockPipeline(target string) []recon.Event {
 		))
 	}
 
-	// Stage 4: Port scanning
 	for _, sub := range []string{"api", "mail"} {
 		host := fmt.Sprintf("%s.%s", sub, target)
 		events = append(events,
@@ -209,7 +192,6 @@ func NewMockPipeline(target string) []recon.Event {
 		)
 	}
 
-	// Stage 5: Vulnerability scanning
 	events = append(events, recon.NewEvent(
 		fmt.Sprintf("https://api.%s", target),
 		"nuclei",
@@ -220,8 +202,6 @@ func NewMockPipeline(target string) []recon.Event {
 	return events
 }
 
-// MockCommandOutput provides mock command-line output strings for testing
-// tool parsers without running the actual commands.
 var MockCommandOutput = map[string]string{
 	"subfinder": strings.Join([]string{
 		"api.acme-corp.io",

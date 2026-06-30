@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net"
@@ -147,7 +147,6 @@ func (t *TakeoverTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 				return
 			}
 
-			// Clean hostname
 			cleanHost := host
 			if strings.Contains(cleanHost, "://") {
 				parts := strings.Split(cleanHost, "://")
@@ -176,9 +175,13 @@ func (t *TakeoverTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 				dnsCache.Store(cleanHost, cname)
 			}
 
+			if strings.TrimSuffix(cname, ".") == strings.TrimSuffix(strings.ToLower(cleanHost), ".") {
+				return
+			}
+
 			for _, sig := range takeoverSignatures {
 				if strings.Contains(cname, sig.CNameSub) {
-					// Check HTTP responses
+
 					schemes := []string{"http", "https"}
 					for _, scheme := range schemes {
 						url := fmt.Sprintf("%s://%s", scheme, cleanHost)
@@ -215,16 +218,28 @@ func (t *TakeoverTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 
 						for _, rStr := range sig.Response {
 							if strings.Contains(bodyStr, rStr) {
+
+								resolved := false
+								if ips, err := net.LookupHost(cleanHost); err == nil && len(ips) > 0 {
+									resolved = true
+								}
+
+								statusStr := "unresolved CNAME (highly vulnerable)"
+								if resolved {
+									statusStr = "CNAME resolved (check target registration)"
+								}
+
 								mu.Lock()
 								events = append(events, recon.NewEvent(url, t.Name(), "vulnerability", map[string]string{
 									"vuln_name":   "Subdomain Takeover",
 									"severity":    "high",
 									"cname":       cname,
 									"service":     sig.Name,
-									"description": fmt.Sprintf("Subdomain takeover possible on '%s' pointing to '%s' (%s).", cleanHost, cname, sig.Name),
+									"resolution":  statusStr,
+									"description": fmt.Sprintf("Subdomain takeover possible on '%s' pointing to '%s' (%s). Status: %s.", cleanHost, cname, sig.Name, statusStr),
 								}))
 								mu.Unlock()
-								slog.Warn("Subdomain takeover vulnerability detected", "host", cleanHost, "service", sig.Name, "cname", cname)
+								slog.Warn("Subdomain takeover vulnerability detected", "host", cleanHost, "service", sig.Name, "cname", cname, "resolved", resolved)
 								return
 							}
 						}
@@ -238,5 +253,4 @@ func (t *TakeoverTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 	return events, nil
 }
 
-// Make sure it implements Tool interface
 var _ recon.Tool = (*TakeoverTool)(nil)

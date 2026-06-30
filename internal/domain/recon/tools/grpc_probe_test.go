@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,10 +10,10 @@ import (
 )
 
 func TestGRPCProbeTool(t *testing.T) {
-	// Start an HTTP server mocking a gRPC reflection response
+
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/grpc")
-		w.Header().Set("grpc-status", "3") // InvalidArgument status indicating reflection is registered
+		w.Header().Set("grpc-status", "3")
 		w.WriteHeader(http.StatusOK)
 	}))
 	server.EnableHTTP2 = true
@@ -43,7 +43,6 @@ func TestGRPCProbeTool(t *testing.T) {
 		}
 	}
 
-	// Wait, if it connects successfully over TLS, it should find both:
 	if !foundService {
 		t.Error("expected to discover gRPC service event")
 	}

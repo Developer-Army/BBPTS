@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -52,7 +52,6 @@ func (t *PriceLogicTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 
 		var events []recon.Event
 
-		// Target price parameter endpoints
 		checkoutPaths := []string{
 			"/api/cart",
 			"/api/checkout",
@@ -63,7 +62,6 @@ func (t *PriceLogicTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 		for _, cPath := range checkoutPaths {
 			checkoutURL := fmt.Sprintf("%s://%s%s", parsed.Scheme, parsed.Host, cPath)
 
-			// Mutation: replay parameter manipulation
 			payloads := []string{
 				`{"price": -1, "quantity": 1, "product_id": "1"}`,
 				`{"amount": 0.01, "quantity": 1, "product_id": "1"}`,
@@ -86,7 +84,6 @@ func (t *PriceLogicTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 					resp.Body.Close()
 					bodyStr := strings.ToLower(string(bodyBytes))
 
-					// If 200 OK or 201 Created and response doesn't indicate error, check for validation bypass
 					if (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) &&
 						!strings.Contains(bodyStr, "error") && !strings.Contains(bodyStr, "invalid") && !strings.Contains(bodyStr, "failed") {
 						events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{

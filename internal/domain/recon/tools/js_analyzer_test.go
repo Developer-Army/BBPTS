@@ -85,14 +85,12 @@ const awsKey = "AKIAIOSFODNN7EXAMPLE";
 	analyzer := &JSAnalyzer{}
 	ctx := storage.WithStorage(context.Background(), store)
 
-	// Run 1: Store initial hash and content
 	currentJS = jsContentV1
 	_, err = analyzer.Run(ctx, &recon.ScanContext{}, []string{server.URL + "/test.js"}, 1)
 	if err != nil {
 		t.Fatalf("first Run failed: %v", err)
 	}
 
-	// Run 2: Verify change detection triggers
 	currentJS = jsContentV2
 	events, err := analyzer.Run(ctx, &recon.ScanContext{}, []string{server.URL + "/test.js"}, 1)
 	if err != nil {

@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -55,13 +55,10 @@ func (t *BlindInjectTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 		client := NewSafeHTTPClient(10 * time.Second)
 		var events []recon.Event
 
-		// Inject into URL parameters
 		events = append(events, t.testURLParams(ctx, client, target, payloads, scanCtx.Headers)...)
 
-		// Inject into common header fields
 		events = append(events, t.testHeaders(ctx, client, target, payloads, scanCtx.Headers)...)
 
-		// Inject into POST body fields
 		events = append(events, t.testPOSTBody(ctx, client, target, payloads, scanCtx.Headers)...)
 
 		return events, nil
@@ -161,9 +158,9 @@ func (t *BlindInjectTool) testURLParams(ctx context.Context, client *http.Client
 					"payload":         payload.Payload,
 					"description":     fmt.Sprintf("Blind %s payload injected via %s parameter", payload.Class, param),
 				}))
+				break
 			}
 			_ = err
-			break // One param per payload class per target
 		}
 	}
 
@@ -201,8 +198,8 @@ func (t *BlindInjectTool) testHeaders(ctx context.Context, client *http.Client, 
 					"payload":         payload.Payload,
 					"description":     fmt.Sprintf("Blind %s payload injected via %s header", payload.Class, header),
 				}))
+				break
 			}
-			break // One header per payload class
 		}
 	}
 
@@ -243,8 +240,8 @@ func (t *BlindInjectTool) testPOSTBody(ctx context.Context, client *http.Client,
 					"payload":         payload.Payload,
 					"description":     fmt.Sprintf("Blind %s payload injected via POST %s field", payload.Class, field),
 				}))
+				break
 			}
-			break // One field per payload class
 		}
 	}
 

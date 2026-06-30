@@ -7,7 +7,6 @@ import (
 	"text/template"
 )
 
-// ReportData holds the information needed to populate a vulnerability report.
 type ReportData struct {
 	Title       string
 	Severity    string
@@ -70,12 +69,10 @@ const BugcrowdTemplate = `
 ` + "```" + `
 `
 
-// GenerateH1Report produces a formatted HackerOne report.
 func GenerateH1Report(data ReportData) (string, error) {
 	return executeTemplate(HackerOneTemplate, data)
 }
 
-// GenerateBCReport produces a formatted Bugcrowd report.
 func GenerateBCReport(data ReportData) (string, error) {
 	return executeTemplate(BugcrowdTemplate, data)
 }

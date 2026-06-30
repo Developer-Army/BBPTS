@@ -1,15 +1,15 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestRaceTool(t *testing.T) {
-	// A mock server that simulates a vulnerable endpoint where multiple concurrent requests succeed (returning 200 OK)
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -22,7 +22,6 @@ func TestRaceTool(t *testing.T) {
 		t.Errorf("expected tool name race, got %s", tool.Name())
 	}
 
-	// Target URL must match state-changing keywords (e.g. "apply") to trigger the test
 	targetURL := server.URL + "/api/v1/coupon/apply"
 
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{targetURL}, 1)

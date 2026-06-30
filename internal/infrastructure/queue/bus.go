@@ -8,7 +8,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
-// Event types representing the event-driven core.
 const (
 	EventAssetDiscovered = "AssetDiscovered"
 	EventHostAlive       = "HostAlive"
@@ -19,8 +18,6 @@ const (
 	EventOwnerAssigned   = "OwnerAssigned"
 )
 
-// Event represents a generic recon event. It mirrors the recon.Event struct but is kept
-// lightweight for the internal bus.
 type Event struct {
 	Target     string            `json:"target"`
 	Source     string            `json:"source"`
@@ -29,10 +26,8 @@ type Event struct {
 	Data       []byte            `json:"data,omitempty"`
 }
 
-// Subscriber is a channel that receives events.
 type Subscriber chan Event
 
-// EventBus defines the interface for event publishing and subscribing.
 type EventBus interface {
 	Subscribe(eventType string) Subscriber
 	QueueSubscribe(eventType, queue string) Subscriber
@@ -41,25 +36,21 @@ type EventBus interface {
 	Close()
 }
 
-// InMemoryBus holds a map of event type -> list of subscriber channels.
 type InMemoryBus struct {
 	mu          sync.RWMutex
 	subscribers map[string][]Subscriber
 }
 
-// New creates a new InMemoryBus instance.
 func New() EventBus {
 	return &InMemoryBus{
 		subscribers: make(map[string][]Subscriber),
 	}
 }
 
-// Subscribe registers a new subscriber for the given event type.
 func (b *InMemoryBus) Subscribe(eventType string) Subscriber {
 	return b.subscribeInternal(eventType)
 }
 
-// QueueSubscribe registers a queue subscriber (in-memory ignores queue group, behaves like normal subscribe).
 func (b *InMemoryBus) QueueSubscribe(eventType, queue string) Subscriber {
 	return b.subscribeInternal(eventType)
 }
@@ -72,7 +63,6 @@ func (b *InMemoryBus) subscribeInternal(eventType string) Subscriber {
 	return ch
 }
 
-// Unsubscribe removes a subscriber channel from the bus and closes it.
 func (b *InMemoryBus) Unsubscribe(ch Subscriber) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -87,8 +77,6 @@ func (b *InMemoryBus) Unsubscribe(ch Subscriber) {
 	}
 }
 
-// Publish sends an event to all matching subscribers. If a subscriber's channel is full,
-// it blocks for up to 5 seconds to apply backpressure before dropping the event.
 func (b *InMemoryBus) Publish(ev Event) {
 	b.mu.RLock()
 	subs, ok := b.subscribers[ev.Type]
@@ -110,7 +98,6 @@ func (b *InMemoryBus) Publish(ev Event) {
 	}
 }
 
-// Close gracefully shuts down the bus, closing all subscriber channels.
 func (b *InMemoryBus) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -25,12 +25,10 @@ func TestSemanticAnalyzer_AnalyzeAST(t *testing.T) {
 		t.Fatal("AnalyzeAST should not return nil")
 	}
 
-	// Should extract at least one route
 	if len(routes) == 0 {
 		t.Error("should extract at least one route")
 	}
 
-	// Check route structure
 	for _, route := range routes {
 		if route.Path == "" {
 			t.Error("route path should not be empty")
@@ -52,7 +50,6 @@ func TestSemanticAnalyzer_AnalyzeAST_Fetch(t *testing.T) {
 		t.Error("should extract fetch call")
 	}
 
-	// Check that fetch was detected
 	found := false
 	for _, route := range routes {
 		if contains(route.Path, "/api/users") {
@@ -77,7 +74,6 @@ func TestSemanticAnalyzer_AnalyzeAST_Axios(t *testing.T) {
 		t.Error("should extract axios call")
 	}
 
-	// Check that axios was detected
 	found := false
 	for _, route := range routes {
 		if contains(route.Path, "/api/posts") {
@@ -102,7 +98,6 @@ func TestSemanticAnalyzer_AnalyzeAST_GraphQL(t *testing.T) {
 		t.Error("should extract GraphQL endpoint")
 	}
 
-	// Check that GraphQL was detected
 	foundGraphQL := false
 	for _, route := range routes {
 		if route.IsGraphQL {
@@ -158,7 +153,6 @@ func TestSemanticAnalyzer_AnalyzeAST_ObjectLiteral(t *testing.T) {
 		t.Error("should extract object literal path")
 	}
 
-	// Check that path was extracted
 	found := false
 	for _, route := range routes {
 		if contains(route.Path, "/admin") {
@@ -179,7 +173,6 @@ func TestSemanticAnalyzer_AnalyzeAST_Empty(t *testing.T) {
 
 	routes := sa.AnalyzeAST(js)
 
-	// Empty JS should return empty routes, not nil
 	if routes == nil {
 		t.Error("should return empty slice, not nil")
 	}
@@ -196,7 +189,6 @@ func TestSemanticAnalyzer_AnalyzeAST_Invalid(t *testing.T) {
 
 	routes := sa.AnalyzeAST(js)
 
-	// Invalid JS should return nil (parse error)
 	if routes != nil {
 		t.Error("should return nil for invalid JS")
 	}
@@ -210,7 +202,6 @@ func TestSemanticAnalyzer_WalkAST(t *testing.T) {
 		visited = true
 	})
 
-	// Walking nil should not crash
 	if visited {
 		t.Error("should not visit nil node")
 	}
@@ -252,7 +243,6 @@ func TestSemanticAnalyzer_AnalyzeAST_MultipleRoutes(t *testing.T) {
 		t.Errorf("should extract multiple routes, got %d", len(routes))
 	}
 
-	// Check for duplicates
 	seen := make(map[string]bool)
 	for _, route := range routes {
 		if seen[route.Path] {

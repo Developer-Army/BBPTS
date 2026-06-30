@@ -1,12 +1,14 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
+	"log/slog"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -41,15 +43,20 @@ func (t *CrtshTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
-	client, _ := network.NewStealthClient(profile, proxy)
-	if client != nil {
-		client.SetCustomHeaders(scanCtx.Headers)
+	client, err := network.NewStealthClient(profile, proxy)
+	if err != nil || client == nil {
+		return nil, fmt.Errorf("failed to create stealth client: %w", err)
 	}
+	client.SetCustomHeaders(scanCtx.Headers)
 	var hadAttempt bool
 	var lastErr error
 	for _, target := range targets {
 		domain := strings.TrimSpace(target)
 		if domain == "" {
+			continue
+		}
+		if isPrivateOrLocal(domain) {
+			slog.Debug("crtsh: skipping local/private target to prevent public scope leak", "target", domain)
 			continue
 		}
 		hadAttempt = true
@@ -109,7 +116,7 @@ func (t *CrtshTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 				if line == "" {
 					continue
 				}
-				// Clean up wildcard results
+
 				line = strings.TrimPrefix(line, "*.")
 				props := map[string]string{"certificate_subject": line}
 				events = append(events, recon.NewEvent(line, t.Name(), "subdomain", props))
@@ -120,4 +127,19 @@ func (t *CrtshTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 		return nil, fmt.Errorf("crt.sh produced no results: %w", lastErr)
 	}
 	return events, nil
+}
+
+func isPrivateOrLocal(domain string) bool {
+	domain = strings.TrimSpace(strings.ToLower(domain))
+	if idx := strings.Index(domain, ":"); idx != -1 {
+		domain = domain[:idx]
+	}
+	if domain == "localhost" || strings.HasSuffix(domain, ".local") || strings.HasSuffix(domain, ".internal") {
+		return true
+	}
+	ip := net.ParseIP(domain)
+	if ip != nil {
+		return ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified()
+	}
+	return false
 }

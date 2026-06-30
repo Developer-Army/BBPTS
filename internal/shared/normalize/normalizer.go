@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// DeduplicateAndNormalize processes a list of raw target strings, cleaning up
-// whitespace, removing URL schemes, extracting hosts, and removing duplicates.
 func DeduplicateAndNormalize(inputs []string) []string {
 	seen := make(map[string]struct{}, len(inputs))
 	normalized := make([]string, 0, len(inputs))
@@ -33,8 +31,6 @@ func DeduplicateAndNormalize(inputs []string) []string {
 	return normalized
 }
 
-// DeduplicateAndPreserveURLs keeps fully-qualified web URLs intact while still
-// normalizing plain hosts/IPs for staged pipeline handoff.
 func DeduplicateAndPreserveURLs(inputs []string) []string {
 	seen := make(map[string]struct{}, len(inputs))
 	normalized := make([]string, 0, len(inputs))
@@ -63,7 +59,7 @@ func IsValidDomain(host string) bool {
 	if host == "" || len(host) > 255 {
 		return false
 	}
-	// Basic syntax validation
+
 	parts := strings.Split(host, ".")
 	if len(parts) < 2 {
 		return false
@@ -78,7 +74,7 @@ func IsValidDomain(host string) bool {
 			}
 		}
 	}
-	// The last part (TLD) must not be purely numeric and must be at least 2 chars
+
 	lastPart := parts[len(parts)-1]
 	if len(lastPart) < 2 {
 		return false
@@ -96,7 +92,6 @@ func IsValidDomain(host string) bool {
 func normalizeTarget(target string) string {
 	target = strings.TrimSpace(target)
 
-	// If it's a full URL, extract the host/port
 	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
 		if parsed, err := url.Parse(target); err == nil && parsed.Host != "" {
 			host := parsed.Host
@@ -109,37 +104,33 @@ func normalizeTarget(target string) string {
 			target = host
 		}
 	} else {
-		// Not a URL with scheme. Check for CIDR before stripping paths
+
 		if _, _, err := net.ParseCIDR(target); err == nil {
 			return strings.ToLower(target)
 		}
 
-		// Remove path if present
 		if idx := strings.Index(target, "/"); idx != -1 {
 			target = target[:idx]
 		}
 	}
 
-	// Handle host + port
 	hostPart := target
 	if idx := strings.LastIndex(target, ":"); idx != -1 {
-		// Check if it's an IPv6 address with port or just a normal IPv6 address
+
 		if !strings.Contains(target, "]") && strings.Count(target, ":") > 1 {
-			// Plain IPv6 without brackets
+
 		} else {
 			hostPart = target[:idx]
-			// remove brackets for IPv6
+
 			hostPart = strings.TrimPrefix(hostPart, "[")
 			hostPart = strings.TrimSuffix(hostPart, "]")
 		}
 	}
 
-	// Try parsing as IP address (both IPv4 and IPv6)
 	if ip := net.ParseIP(hostPart); ip != nil {
 		return target
 	}
 
-	// Reject invalid targets/domains
 	if !IsValidDomain(hostPart) {
 		return ""
 	}

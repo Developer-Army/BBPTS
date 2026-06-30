@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -61,15 +61,20 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 
 		client := NewSafeHTTPClient(10 * time.Second)
 
-		// 1. Fetch JS bundle to check for sourceMappingURL or check directly for .map URL
+		parsedTarget, err := url.Parse(target)
+		if err != nil {
+			return nil, nil
+		}
+		pathLower := strings.ToLower(parsedTarget.Path)
 		var mapURLs []string
-		if strings.HasSuffix(target, ".map") {
+		if strings.HasSuffix(pathLower, ".map") {
 			mapURLs = append(mapURLs, target)
-		} else if strings.HasSuffix(target, ".js") {
-			// Try directly appending .map
-			mapURLs = append(mapURLs, target+".map")
+		} else if strings.HasSuffix(pathLower, ".js") {
 
-			// Also try fetching the JS to find sourceMappingURL
+			mapURLObj := *parsedTarget
+			mapURLObj.Path = parsedTarget.Path + ".map"
+			mapURLs = append(mapURLs, mapURLObj.String())
+
 			req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 			if err == nil {
 				for k, v := range scanCtx.Headers {
@@ -81,7 +86,6 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 					resp.Body.Close()
 					bodyStr := string(bodyBytes)
 
-					// search for sourceMappingURL=...
 					idx := strings.LastIndex(bodyStr, "sourceMappingURL=")
 					if idx != -1 {
 						val := bodyStr[idx+len("sourceMappingURL="):]
@@ -89,7 +93,7 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 						if end := strings.IndexAny(val, "\r\n "); end != -1 {
 							val = val[:end]
 						}
-						// resolve relative URL
+
 						base, err := url.Parse(target)
 						if err == nil {
 							ref, err := url.Parse(val)
@@ -101,7 +105,7 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 				}
 			}
 		} else {
-			// Not a JS/map file, skip
+
 			return nil, nil
 		}
 
@@ -127,8 +131,11 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			if err != nil {
 				continue
 			}
-			bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024)) // limit to 10MB
+			bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
 			resp.Body.Close()
+			if err != nil {
+				continue
+			}
 
 			if resp.StatusCode != http.StatusOK {
 				continue
@@ -139,7 +146,6 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 				continue
 			}
 
-			// If it's a valid source map, emit a discovery event first
 			mu.Lock()
 			events = append(events, recon.NewEvent(mapURL, t.Name(), "discovery", map[string]string{
 				"type":          "source_map",
@@ -148,14 +154,12 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			}))
 			mu.Unlock()
 
-			// Parse original sourcesContent
 			for i, content := range sm.SourcesContent {
 				if i >= len(sm.Sources) {
 					break
 				}
 				sourceFile := sm.Sources[i]
 
-				// Scan for secrets
 				for _, r := range sourceMapSecrets {
 					matches := r.FindAllStringSubmatch(content, -1)
 					for _, m := range matches {
@@ -172,7 +176,6 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 					}
 				}
 
-				// Scan for internal endpoints
 				endpoints := sourceMapEndpoints.FindAllStringSubmatch(content, -1)
 				for _, ep := range endpoints {
 					mu.Lock()
@@ -183,7 +186,6 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 					mu.Unlock()
 				}
 
-				// Scan for debug / TODO comments referencing security
 				comments := sourceMapComments.FindAllStringSubmatch(content, -1)
 				for _, comm := range comments {
 					mu.Lock()

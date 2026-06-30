@@ -55,7 +55,7 @@ func TestExecuteWithRetryPermanentError(t *testing.T) {
 		BaseDelay:  10 * time.Millisecond,
 	}, func(_ context.Context, attempt int) (bool, error) {
 		callCount++
-		return false, permanentErr // non-retryable
+		return false, permanentErr
 	})
 
 	if err == nil {
@@ -82,7 +82,7 @@ func TestExecuteWithRetryExhaustsRetries(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error after exhausting retries")
 	}
-	if callCount != 3 { // initial + 2 retries
+	if callCount != 3 {
 		t.Fatalf("expected 3 calls, got %d", callCount)
 	}
 }
@@ -93,7 +93,7 @@ func TestExecuteWithRetryContextCancellation(t *testing.T) {
 
 	err := ExecuteWithRetry(ctx, RetryConfig{
 		MaxRetries: 10,
-		BaseDelay:  200 * time.Millisecond, // longer than context timeout
+		BaseDelay:  200 * time.Millisecond,
 	}, func(_ context.Context, attempt int) (bool, error) {
 		return true, errors.New("keep trying")
 	})
@@ -108,7 +108,7 @@ func TestComputeBackoffExponential(t *testing.T) {
 		BaseDelay:      100 * time.Millisecond,
 		MaxDelay:       10 * time.Second,
 		Multiplier:     2.0,
-		JitterFraction: 0, // no jitter for deterministic test
+		JitterFraction: 0,
 	}
 
 	d1 := computeBackoff(cfg, 1)
@@ -134,7 +134,7 @@ func TestComputeBackoffCapsAtMax(t *testing.T) {
 		JitterFraction: 0,
 	}
 
-	d := computeBackoff(cfg, 10) // Would be 3^9 * 1s without cap
+	d := computeBackoff(cfg, 10)
 	if d != 5*time.Second {
 		t.Fatalf("expected delay capped at 5s, got %v", d)
 	}

@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// Finding represents a security finding for triage analysis.
 type Finding struct {
 	ID          string                 `json:"id"`
 	Type        string                 `json:"type"`         // subdomain, port, endpoint, header, cookie, etc.
@@ -22,7 +21,6 @@ type Finding struct {
 	Timestamp   int64                  `json:"timestamp"`
 }
 
-// TriageEngine analyzes findings and auto-prioritizes them without external APIs.
 type TriageEngine struct {
 	noisePatternsSubdomain []string
 	noisePatternsPort      []string
@@ -33,53 +31,48 @@ type TriageEngine struct {
 	commonSaaS []string
 }
 
-// NewTriageEngine creates a new AI-assisted triage engine.
 func NewTriageEngine() *TriageEngine {
 	te := &TriageEngine{
-		// Known noise patterns for subdomains
+
 		noisePatternsSubdomain: []string{
-			// Common wildcards and placeholders
+
 			"*.example", "*.test", "*.local", "*.internal",
-			// Generated/test subdomains
+
 			"test", "tmp", "temp",
 			"docker", "k8s", "lab", "sandbox",
-			// Common CDN/3rd party
+
 			"static", "media", "assets", "images",
 		},
 
-		// Known noise patterns for ports
 		noisePatternsPort: []string{
-			// These are less likely to be real findings
-			":22",    // SSH (infrastructure, not security finding)
-			":25",    // SMTP (mail server)
-			":53",    // DNS (infrastructure)
-			":631",   // CUPS printing
-			":5432",  // PostgreSQL default (internal)
-			":6379",  // Redis default (internal)
-			":27017", // MongoDB default (internal)
+
+			":22",
+			":25",
+			":53",
+			":631",
+			":5432",
+			":6379",
+			":27017",
 		},
 
-		// Known noise patterns for endpoints
 		noisePatternsEndpoint: []string{
-			// Marketing/tracking pixels
+
 			"pixel", "beacon", "analytics", "tracker",
-			// Ad networks
+
 			"/ads/", "/banner", "/dfa/",
-			// Common public endpoints
+
 			"/favicon.ico", "/robots.txt", "/sitemap.xml",
 			"/health", "/status", "/ping", "/.well-known",
-			// CDN paths
+
 			"/cdn/", "/static/", "/assets/", "/public/",
 		},
 
-		// Known noise patterns for headers
 		noisePatternsHeader: []string{
-			"x-aspnet-version", // Version fingerprint (common, not actionable)
-			"server: nginx",    // Server info (common)
-			"x-powered-by",     // Framework info (common)
+			"x-aspnet-version",
+			"server: nginx",
+			"x-powered-by",
 		},
 
-		// Common CDNs and SaaS platforms
 		commonCDNs: []string{
 			"cdn", "cloudflare", "akamai", "fastly", "cloudfront",
 			"edgecast", "limelight", "highwinds",
@@ -94,14 +87,12 @@ func NewTriageEngine() *TriageEngine {
 	return te
 }
 
-// AnalyzeFinding analyzes a finding and returns severity/noise classification.
 func (te *TriageEngine) AnalyzeFinding(f *Finding) {
-	// Default confidence
+
 	if f.Confidence == 0 {
 		f.Confidence = 0.5
 	}
 
-	// Analyze based on finding type
 	switch f.Type {
 	case "subdomain":
 		te.analyzeSubdomain(f)
@@ -122,11 +113,9 @@ func (te *TriageEngine) AnalyzeFinding(f *Finding) {
 	slog.Debug("Finding analyzed", "id", f.ID, "severity", f.Severity, "is_noise", f.IsNoise)
 }
 
-// analyzeSubdomain checks if a subdomain is noise or actionable.
 func (te *TriageEngine) analyzeSubdomain(f *Finding) {
 	target := strings.ToLower(f.Target)
 
-	// Check against noise patterns
 	for _, pattern := range te.noisePatternsSubdomain {
 		if strings.Contains(target, pattern) {
 			f.IsNoise = true
@@ -136,7 +125,6 @@ func (te *TriageEngine) analyzeSubdomain(f *Finding) {
 		}
 	}
 
-	// Check if it's a CDN or SaaS CNAME
 	for _, cdn := range te.commonCDNs {
 		if strings.Contains(target, cdn) {
 			f.Severity = "low"
@@ -147,17 +135,14 @@ func (te *TriageEngine) analyzeSubdomain(f *Finding) {
 		}
 	}
 
-	// Real subdomain finding
 	f.Severity = "medium"
 	f.Confidence = 0.8
 	f.IsNoise = false
 }
 
-// analyzePort checks if a port finding is actionable.
 func (te *TriageEngine) analyzePort(f *Finding) {
 	target := strings.ToLower(f.Target)
 
-	// Check infrastructure ports (low value)
 	for _, pattern := range te.noisePatternsPort {
 		if strings.Contains(target, pattern) {
 			f.IsNoise = true
@@ -168,7 +153,6 @@ func (te *TriageEngine) analyzePort(f *Finding) {
 		}
 	}
 
-	// Common web ports - actionable
 	commonWebPorts := []string{":80", ":443", ":8080", ":8443", ":3000", ":5000", ":9000"}
 	for _, port := range commonWebPorts {
 		if strings.Contains(target, port) {
@@ -179,17 +163,14 @@ func (te *TriageEngine) analyzePort(f *Finding) {
 		}
 	}
 
-	// Unknown open port - interesting
 	f.Severity = "medium"
 	f.Confidence = 0.7
 	f.IsNoise = false
 }
 
-// analyzeEndpoint checks if an endpoint is actionable.
 func (te *TriageEngine) analyzeEndpoint(f *Finding) {
 	target := strings.ToLower(f.Target)
 
-	// Check noise patterns
 	for _, pattern := range te.noisePatternsEndpoint {
 		if strings.Contains(target, pattern) {
 			f.IsNoise = true
@@ -199,7 +180,6 @@ func (te *TriageEngine) analyzeEndpoint(f *Finding) {
 		}
 	}
 
-	// Check for admin/sensitive paths
 	sensitivePatterns := []string{
 		"/admin", "/api", "/config", "/backup", "/database",
 		"/debug", "/test", "/.env", "/private", "/secret",
@@ -215,7 +195,6 @@ func (te *TriageEngine) analyzeEndpoint(f *Finding) {
 		}
 	}
 
-	// Check for parameter injection points
 	if strings.Contains(target, "?") || strings.Contains(target, "&") {
 		f.Severity = "medium"
 		f.Confidence = 0.7
@@ -223,17 +202,14 @@ func (te *TriageEngine) analyzeEndpoint(f *Finding) {
 		return
 	}
 
-	// Generic endpoint
 	f.Severity = "low"
 	f.Confidence = 0.5
 	f.IsNoise = false
 }
 
-// analyzeHeader checks if a header is actionable.
 func (te *TriageEngine) analyzeHeader(f *Finding) {
 	target := strings.ToLower(f.Target)
 
-	// Check noise patterns
 	for _, pattern := range te.noisePatternsHeader {
 		if strings.Contains(target, pattern) {
 			f.IsNoise = true
@@ -243,7 +219,6 @@ func (te *TriageEngine) analyzeHeader(f *Finding) {
 		}
 	}
 
-	// Security-relevant headers
 	securityHeaders := []string{
 		"x-xss-protection", "x-frame-options", "x-content-type-options",
 		"content-security-policy", "strict-transport-security",
@@ -259,7 +234,6 @@ func (te *TriageEngine) analyzeHeader(f *Finding) {
 		}
 	}
 
-	// Misconfiguration-related headers
 	if strings.Contains(target, "server:") || strings.Contains(target, "via:") {
 		f.Severity = "low"
 		f.Confidence = 0.5
@@ -272,11 +246,9 @@ func (te *TriageEngine) analyzeHeader(f *Finding) {
 	f.IsNoise = true
 }
 
-// analyzeCookie checks if a cookie is interesting.
 func (te *TriageEngine) analyzeCookie(f *Finding) {
 	target := strings.ToLower(f.Target)
 
-	// Check for security-relevant cookie attributes
 	if strings.Contains(target, "httponly=false") || strings.Contains(target, "secure=false") {
 		f.Severity = "high"
 		f.Confidence = 0.9
@@ -284,7 +256,6 @@ func (te *TriageEngine) analyzeCookie(f *Finding) {
 		return
 	}
 
-	// Session cookies
 	sessionPatterns := []string{"sessionid", "session", "sid", "jsessionid", "phpsessid"}
 	for _, pattern := range sessionPatterns {
 		if strings.Contains(target, pattern) {
@@ -295,7 +266,6 @@ func (te *TriageEngine) analyzeCookie(f *Finding) {
 		}
 	}
 
-	// Tracking/analytics cookies (noise)
 	if strings.Contains(target, "utm") || strings.Contains(target, "_ga") || strings.Contains(target, "_fbp") {
 		f.IsNoise = true
 		f.NoiseReason = "analytics/tracking cookie"
@@ -308,14 +278,12 @@ func (te *TriageEngine) analyzeCookie(f *Finding) {
 	f.IsNoise = false
 }
 
-// analyzeVulnerability checks if a vulnerability finding is actionable.
 func (te *TriageEngine) analyzeVulnerability(f *Finding) {
 	target := strings.ToLower(f.Target)
 
-	// CVE pattern matching
 	cveRegex := regexp.MustCompile(`cve-\d{4}-\d{4,5}`)
 	if cveRegex.MatchString(target) {
-		// Real CVE finding
+
 		if strings.Contains(target, "critical") || strings.Contains(target, "9.") {
 			f.Severity = "critical"
 			f.Confidence = 0.95
@@ -330,7 +298,6 @@ func (te *TriageEngine) analyzeVulnerability(f *Finding) {
 		return
 	}
 
-	// Common false positives
 	falsePositives := []string{"wont fix", "informational", "not applicable", "false positive"}
 	for _, fp := range falsePositives {
 		if strings.Contains(target, fp) {
@@ -341,20 +308,17 @@ func (te *TriageEngine) analyzeVulnerability(f *Finding) {
 		}
 	}
 
-	// Default to medium
 	f.Severity = "medium"
 	f.Confidence = 0.6
 	f.IsNoise = false
 }
 
-// PrioritizeFindings sorts findings by severity and actionability.
 func (te *TriageEngine) PrioritizeFindings(findings []*Finding) []*Finding {
-	// Analyze all findings first
+
 	for _, f := range findings {
 		te.AnalyzeFinding(f)
 	}
 
-	// Sort by severity (critical > high > medium > low > info)
 	severityRank := map[string]int{
 		"critical": 5,
 		"high":     4,
@@ -363,7 +327,6 @@ func (te *TriageEngine) PrioritizeFindings(findings []*Finding) []*Finding {
 		"info":     1,
 	}
 
-	// Sort by severity (critical > high > medium > low > info) then confidence descending
 	sort.Slice(findings, func(i, j int) bool {
 		rank1 := severityRank[findings[i].Severity]
 		rank2 := severityRank[findings[j].Severity]
@@ -376,7 +339,6 @@ func (te *TriageEngine) PrioritizeFindings(findings []*Finding) []*Finding {
 	return findings
 }
 
-// FilterNoise returns only actionable findings (excludes noise).
 func (te *TriageEngine) FilterNoise(findings []*Finding) []*Finding {
 	var actionable []*Finding
 	for _, f := range findings {
@@ -388,7 +350,6 @@ func (te *TriageEngine) FilterNoise(findings []*Finding) []*Finding {
 	return actionable
 }
 
-// GetStats returns triage statistics.
 func (te *TriageEngine) GetStats(findings []*Finding) map[string]interface{} {
 	stats := map[string]interface{}{
 		"total":       len(findings),

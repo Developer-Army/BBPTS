@@ -17,7 +17,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// JSAnalyzer parses JavaScript files to recover routing, mutations, and internal APIs.
 type JSAnalyzer struct{}
 
 func (j *JSAnalyzer) Name() string {
@@ -48,11 +47,11 @@ func (j *JSAnalyzer) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
-	// We can use random or fallback for proxy
+
 	_ = proxy
 	client, _ := network.NewStealthClient(profile, "")
 	if len(proxies) > 0 {
-		// Rebuild client with proxy
+
 		client, _ = network.NewStealthClient(profile, proxies[0])
 	}
 	if client != nil {
@@ -62,13 +61,23 @@ func (j *JSAnalyzer) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 	rateLimit := ToolRateLimitFromCtx(ctx, j.Name())
 	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
 
-	return pool.Process(ctx, jsTargets, func(ctx context.Context, url string) ([]recon.Event, error) {
-		events := j.analyzeJS(ctx, client, url)
+	return pool.Process(ctx, jsTargets, func(ctx context.Context, url string) (events []recon.Event, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("js_analyzer panicked on URL", "url", url, "error", r)
+				events = nil
+				err = nil
+			}
+		}()
+		events = j.analyzeJS(ctx, client, url)
 		return events, nil
 	})
 }
 
 func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClient, url string) []recon.Event {
+	if client == nil {
+		return nil
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil
@@ -93,7 +102,6 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 
 	var events []recon.Event
 
-	// 1. GraphQL operation names (regex fallback)
 	gqlRe := regexp.MustCompile(`(?i)(mutation|query)\s+([a-zA-Z0-9_]+)\s*[{(]`)
 	gqlOps := gqlRe.FindAllStringSubmatch(content, -1)
 	for _, match := range gqlOps {
@@ -103,12 +111,10 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 		}))
 	}
 
-	// 2. Delegate to domain JSAnalyzer
 	domainAnalyzer := recon.NewJSAnalyzer()
 	domainAnalyzer.SetHTTPClient(client)
 	findings := domainAnalyzer.AnalyzeContent(url, content)
 
-	// --- Differential JS Change Detection ---
 	store := storage.FromContext(ctx)
 	if store != nil {
 		h := sha256.New()
@@ -178,7 +184,6 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 			}
 			events = append(events, recon.NewEvent(f.Value, j.Name(), "api_endpoint", props))
 
-			// Also emit a frontend_route if AST router definition
 			if f.Type == "semantic_endpoint" && strings.Contains(f.Name, "Route:") {
 				events = append(events, recon.NewEvent(f.Value, j.Name(), "frontend_route", map[string]string{
 					"source": url,
@@ -194,14 +199,12 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 		}
 	}
 
-	// AI-powered semantic JS analysis (runs if LLM key is available)
 	aiEvents := j.analyzeJSWithLLM(ctx, url, content)
 	events = append(events, aiEvents...)
 
 	return events
 }
 
-// jsAIFinding represents a single finding from the LLM JS analysis.
 type jsAIFinding struct {
 	Type        string `json:"type"`        // endpoint, parameter, auth_logic, hardcoded_value, security_op
 	Value       string `json:"value"`       // The actual finding (URL, key, etc.)
@@ -209,11 +212,10 @@ type jsAIFinding struct {
 	Severity    string `json:"severity"`    // info, low, medium, high
 }
 
-// analyzeJSWithLLM sends beautified JS chunks to an LLM for semantic analysis.
 func (j *JSAnalyzer) analyzeJSWithLLM(ctx context.Context, sourceURL, content string) []recon.Event {
 	provider, model, apiURL, apiKey := GetLLMConfig(ctx)
 	if apiKey == "" {
-		return nil // No LLM key configured, skip gracefully
+		return nil
 	}
 
 	beautified := beautifyJS(content)
@@ -222,7 +224,6 @@ func (j *JSAnalyzer) analyzeJSWithLLM(ctx context.Context, sourceURL, content st
 		return nil
 	}
 
-	// Limit to first 5 chunks to avoid token exhaustion
 	if len(chunks) > 5 {
 		chunks = chunks[:5]
 	}
@@ -259,7 +260,7 @@ Output ONLY valid JSON, no markdown.`, sourceURL, i+1, len(chunks), chunk)
 		var findings []jsAIFinding
 		cleaned := CleanLLMJSON(rawText)
 		if err := json.Unmarshal([]byte(cleaned), &findings); err != nil {
-			// Try extracting JSON array
+
 			start := strings.Index(cleaned, "[")
 			end := strings.LastIndex(cleaned, "]")
 			if start != -1 && end != -1 && end > start {
@@ -323,7 +324,6 @@ Output ONLY valid JSON, no markdown.`, sourceURL, i+1, len(chunks), chunk)
 	return events
 }
 
-// beautifyJS applies simple formatting to minified JS for better LLM comprehension.
 func beautifyJS(content string) string {
 	var b strings.Builder
 	b.Grow(len(content) + len(content)/10)
@@ -361,7 +361,6 @@ func writeIndent(b *strings.Builder, level int) {
 	}
 }
 
-// chunkContent splits content into overlapping chunks for LLM processing.
 func chunkContent(content string, chunkSize int) []string {
 	if len(content) <= chunkSize {
 		if len(content) == 0 {
@@ -370,7 +369,7 @@ func chunkContent(content string, chunkSize int) []string {
 		return []string{content}
 	}
 
-	overlap := chunkSize / 10 // 10% overlap
+	overlap := chunkSize / 10
 	var chunks []string
 	for i := 0; i < len(content); {
 		end := i + chunkSize
@@ -410,10 +409,10 @@ func diffFindings(oldFindings, newFindings []recon.JSFinding) string {
 
 	var parts []string
 	if len(newEndpoints) > 0 {
-		parts = append(parts, "New Endpoints:\n- " + strings.Join(newEndpoints, "\n- "))
+		parts = append(parts, "New Endpoints:\n- "+strings.Join(newEndpoints, "\n- "))
 	}
 	if len(newSecrets) > 0 {
-		parts = append(parts, "New Secrets:\n- " + strings.Join(newSecrets, "\n- "))
+		parts = append(parts, "New Secrets:\n- "+strings.Join(newSecrets, "\n- "))
 	}
 
 	return strings.Join(parts, "\n\n")

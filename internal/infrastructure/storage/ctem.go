@@ -77,7 +77,6 @@ type OverdueAssignment struct {
 	Status       string    `json:"status"`
 }
 
-// AddTeam inserts a new team.
 func (s *Storage) AddTeam(name string) (int64, error) {
 	query := "INSERT INTO teams (name, created_at) VALUES (?, ?)"
 	if s.dbType == "postgres" {
@@ -93,7 +92,6 @@ func (s *Storage) AddTeam(name string) (int64, error) {
 	return res.LastInsertId()
 }
 
-// GetTeam retrieves a team by ID.
 func (s *Storage) GetTeam(id int64) (*Team, error) {
 	query := "SELECT id, name, manager_id, created_at FROM teams WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -107,7 +105,6 @@ func (s *Storage) GetTeam(id int64) (*Team, error) {
 	return t, err
 }
 
-// AddOwner inserts a new owner.
 func (s *Storage) AddOwner(name, email string) (int64, error) {
 	query := "INSERT INTO owners (name, email, created_at) VALUES (?, ?, ?)"
 	if s.dbType == "postgres" {
@@ -123,7 +120,6 @@ func (s *Storage) AddOwner(name, email string) (int64, error) {
 	return res.LastInsertId()
 }
 
-// GetOwner retrieves an owner by ID.
 func (s *Storage) GetOwner(id int64) (*Owner, error) {
 	query := "SELECT id, name, email, manager_id, created_at FROM owners WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -137,7 +133,6 @@ func (s *Storage) GetOwner(id int64) (*Owner, error) {
 	return o, err
 }
 
-// SetOwnerManager updates an owner's manager reporting relationship.
 func (s *Storage) SetOwnerManager(ownerID, managerID int64) error {
 	query := "UPDATE owners SET manager_id = ? WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -147,7 +142,6 @@ func (s *Storage) SetOwnerManager(ownerID, managerID int64) error {
 	return err
 }
 
-// SetTeamManager updates a team's manager.
 func (s *Storage) SetTeamManager(teamID, managerID int64) error {
 	query := "UPDATE teams SET manager_id = ? WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -157,7 +151,6 @@ func (s *Storage) SetTeamManager(teamID, managerID int64) error {
 	return err
 }
 
-// SetAssetOwner sets the owner of an asset using SCD Type 2.
 func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64, changeReason string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -167,7 +160,6 @@ func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64, c
 
 	now := time.Now().UTC()
 
-	// 1. Close current active ownerships for this asset
 	closeQuery := "UPDATE asset_ownership SET end_time = ? WHERE asset_id = ? AND end_time IS NULL"
 	if s.dbType == "postgres" {
 		closeQuery = "UPDATE asset_ownership SET end_time = $1 WHERE asset_id = $2 AND end_time IS NULL"
@@ -176,7 +168,6 @@ func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64, c
 		return err
 	}
 
-	// 2. Insert new ownership record
 	insertQuery := "INSERT INTO asset_ownership (asset_id, owner_id, team_id, start_time, end_time, change_reason) VALUES (?, ?, ?, ?, ?, ?)"
 	if s.dbType == "postgres" {
 		insertQuery = "INSERT INTO asset_ownership (asset_id, owner_id, team_id, start_time, end_time, change_reason) VALUES ($1, $2, $3, $4, $5, $6)"
@@ -189,14 +180,12 @@ func (s *Storage) SetAssetOwner(assetID string, ownerID *int64, teamID *int64, c
 		return err
 	}
 
-	// 3. Mirror in asset graph nodes and edges
 	if err := s.syncOwnershipToGraph(assetID, ownerID, teamID); err != nil {
 		return fmt.Errorf("failed to sync ownership to graph: %w", err)
 	}
 	return nil
 }
 
-// GetAssetOwners retrieves all ownership records for an asset (both past and present).
 func (s *Storage) GetAssetOwners(assetID string) ([]AssetOwnership, error) {
 	query := "SELECT id, asset_id, owner_id, team_id, start_time, end_time, change_reason FROM asset_ownership WHERE asset_id = ? ORDER BY start_time DESC"
 	if s.dbType == "postgres" {
@@ -223,7 +212,6 @@ func (s *Storage) GetAssetOwners(assetID string) ([]AssetOwnership, error) {
 	return list, nil
 }
 
-// AddSLAPolicy inserts a new SLA policy.
 func (s *Storage) AddSLAPolicy(name, severity string, durationDays int) (int64, error) {
 	query := "INSERT INTO sla_policies (name, severity, duration_days, created_at) VALUES (?, ?, ?, ?)"
 	if s.dbType == "postgres" {
@@ -239,7 +227,6 @@ func (s *Storage) AddSLAPolicy(name, severity string, durationDays int) (int64, 
 	return res.LastInsertId()
 }
 
-// GetSLAPolicy retrieves an SLA policy by ID.
 func (s *Storage) GetSLAPolicy(id int64) (*SLAPolicy, error) {
 	query := "SELECT id, name, severity, duration_days, created_at, asset_class, business_unit, environment, program FROM sla_policies WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -261,7 +248,6 @@ func (s *Storage) GetSLAPolicy(id int64) (*SLAPolicy, error) {
 	return p, nil
 }
 
-// AddSLAPolicyExt inserts a new SLA policy with rich matching criteria.
 func (s *Storage) AddSLAPolicyExt(name, severity string, durationDays int, assetClass, businessUnit, environment, program string) (int64, error) {
 	query := "INSERT INTO sla_policies (name, severity, duration_days, created_at, asset_class, business_unit, environment, program) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
 	if s.dbType == "postgres" {
@@ -277,7 +263,6 @@ func (s *Storage) AddSLAPolicyExt(name, severity string, durationDays int, asset
 	return res.LastInsertId()
 }
 
-// GetMatchingSLAPolicy matches SLA policy using the most specific criteria.
 func (s *Storage) GetMatchingSLAPolicy(severity, assetClass, businessUnit, environment, program string) (*SLAPolicy, error) {
 	query := `
 		SELECT id, name, severity, duration_days, created_at, asset_class, business_unit, environment, program
@@ -333,7 +318,6 @@ func (s *Storage) GetMatchingSLAPolicy(severity, assetClass, businessUnit, envir
 	return p, nil
 }
 
-// AssignFinding assigns a finding to a team and/or owner and computes the due date based on SLA policies.
 func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, severity string) (int64, error) {
 	// Query the target from the finding in db
 	var target string
@@ -363,7 +347,6 @@ func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, 
 		}
 	}
 
-	// Match the most specific SLA policy
 	durationDays := 14
 	policy, err := s.GetMatchingSLAPolicy(severity, assetClass, businessUnit, environment, program)
 	if err == nil && policy != nil {
@@ -420,14 +403,12 @@ func (s *Storage) AssignFinding(findingID int64, teamID *int64, ownerID *int64, 
 		return 0, err
 	}
 
-	// 2. Mirror assignment to the graph
 	if err := s.syncAssignmentToGraph(findingID, teamID, ownerID); err != nil {
 		return lastID, fmt.Errorf("failed to sync assignment to graph: %w", err)
 	}
 	return lastID, nil
 }
 
-// UpdateAssignmentStatus updates status and resolved_at timestamp.
 func (s *Storage) UpdateAssignmentStatus(id int64, status string) error {
 	normalized := normalizeCTEMState(status)
 
@@ -478,7 +459,6 @@ func (s *Storage) UpdateAssignmentStatus(id int64, status string) error {
 		}
 	}
 
-	// Insert status history record
 	historyQuery := `
 		INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -496,7 +476,6 @@ func (s *Storage) UpdateAssignmentStatus(id int64, status string) error {
 	return tx.Commit()
 }
 
-// GetOverdueAssignments queries assignments that have passed their due_at date.
 func (s *Storage) GetOverdueAssignments() ([]OverdueAssignment, error) {
 	query := `
 		SELECT fa.id, fa.finding_id, f.title, f.severity, f.target, fa.team_id, fa.owner_id, fa.due_at, fa.status
@@ -529,7 +508,6 @@ func (s *Storage) GetOverdueAssignments() ([]OverdueAssignment, error) {
 	return list, nil
 }
 
-// AddEscalationRule adds a new escalation rule under a policy.
 func (s *Storage) AddEscalationRule(policyID int64, delayDays int, actionType string, properties map[string]interface{}) (int64, error) {
 	propsJSON, err := json.Marshal(properties)
 	if err != nil {
@@ -550,7 +528,6 @@ func (s *Storage) AddEscalationRule(policyID int64, delayDays int, actionType st
 	return res.LastInsertId()
 }
 
-// GetEscalationRules retrieves all escalation rules for a policy.
 func (s *Storage) GetEscalationRules(policyID int64) ([]EscalationRule, error) {
 	query := "SELECT id, policy_id, delay_days, action_type, properties, created_at FROM escalation_rules WHERE policy_id = ? ORDER BY delay_days ASC"
 	if s.dbType == "postgres" {
@@ -659,7 +636,6 @@ func (s *Storage) syncAssignmentToGraph(findingID int64, teamID *int64, ownerID 
 		return fmt.Errorf("failed to save finding node: %w", err)
 	}
 
-	// Link finding/vuln to target/asset
 	targetNodeID := GenerateNodeID("target", target, "")
 	if err := s.SaveEdge(targetNodeID, findingNodeID, "is_vulnerable_to", 1.0, ""); err != nil {
 		return fmt.Errorf("failed to save is_vulnerable_to edge: %w", err)
@@ -701,7 +677,6 @@ func (s *Storage) syncAssignmentToGraph(findingID int64, teamID *int64, ownerID 
 	return nil
 }
 
-// GetEscalationRulesForSeverity queries all escalation rules linked to a policy of a given severity.
 func (s *Storage) GetEscalationRulesForSeverity(severity string) ([]EscalationRule, error) {
 	query := `
 		SELECT er.id, er.policy_id, er.delay_days, er.action_type, er.properties, er.created_at
@@ -740,7 +715,6 @@ func (s *Storage) GetEscalationRulesForSeverity(severity string) ([]EscalationRu
 	return list, nil
 }
 
-// AddFindingForTest inserts a mock finding for unit testing purposes.
 func (s *Storage) AddFindingForTest(title, description, severity, target string) (int64, error) {
 	query := `
 		INSERT INTO findings (title, description, severity, target, metadata, created_at)
@@ -763,7 +737,6 @@ func (s *Storage) AddFindingForTest(title, description, severity, target string)
 	return res.LastInsertId()
 }
 
-// ForceAssignmentOverdueForTest updates a finding assignment's due date to be in the past for testing.
 func (s *Storage) ForceAssignmentOverdueForTest(assignmentID int64, overdueDuration time.Duration) error {
 	query := "UPDATE finding_assignments SET due_at = ? WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -774,7 +747,6 @@ func (s *Storage) ForceAssignmentOverdueForTest(assignmentID int64, overdueDurat
 	return err
 }
 
-// GetAssignmentStatusForTest returns the current status of an assignment for testing.
 func (s *Storage) GetAssignmentStatusForTest(assignmentID int64) (string, error) {
 	query := "SELECT status FROM finding_assignments WHERE id = ?"
 	if s.dbType == "postgres" {
@@ -821,7 +793,7 @@ func normalizeCTEMState(status string) string {
 	case "overdue":
 		return "Overdue"
 	default:
-		// Handle escalated_lvl_N states (preserve level number)
+
 		if strings.HasPrefix(lower, "escalated_lvl_") {
 			return status
 		}
@@ -838,8 +810,6 @@ func isValidTransition(from, to string) bool {
 		return true
 	}
 
-	// Escalation-level states can always promote to higher levels,
-	// move to Remediated/Remediating, or be Acknowledged/SLA Exception.
 	if isEscalatedState(from) {
 		return isEscalatedState(to) || to == "Remediated" || to == "Remediating" || to == "Acknowledged" || to == "SLA Exception"
 	}
@@ -871,12 +841,11 @@ func isValidTransition(from, to string) bool {
 	case "Reopened":
 		return to == "Assigned" || to == "Triaged" || to == "SLA Exception"
 	default:
-		// Default fallback for any other transition (like empty/uninitialized legacy states)
+
 		return true
 	}
 }
 
-// GetFindingStatusHistory retrieves the status history for a finding.
 func (s *Storage) GetFindingStatusHistory(findingID int64) ([]FindingStatusHistory, error) {
 	query := `
 		SELECT id, finding_id, old_status, new_status, changed_at, COALESCE(comment, ''), COALESCE(changed_by, '')
@@ -911,7 +880,6 @@ func (s *Storage) GetFindingStatusHistory(findingID int64) ([]FindingStatusHisto
 	return list, nil
 }
 
-// UpdateAssignmentStatusWithComment updates status, resolved_at timestamp, and writes to history with a custom comment and changed_by fields.
 func (s *Storage) UpdateAssignmentStatusWithComment(id int64, status string, comment string, changedBy string) error {
 	normalized := normalizeCTEMState(status)
 
@@ -962,7 +930,6 @@ func (s *Storage) UpdateAssignmentStatusWithComment(id int64, status string, com
 		}
 	}
 
-	// Insert status history record
 	historyQuery := `
 		INSERT INTO finding_status_history (finding_id, old_status, new_status, changed_at, comment, changed_by)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -980,7 +947,6 @@ func (s *Storage) UpdateAssignmentStatusWithComment(id int64, status string, com
 	return tx.Commit()
 }
 
-// VerifyFindingFix transitions a finding assignment to "Verified" with a verification comment and recorder.
 func (s *Storage) VerifyFindingFix(id int64, comment string, verifiedBy string) error {
 	var oldStatus string
 	var querySelect string
@@ -997,12 +963,12 @@ func (s *Storage) VerifyFindingFix(id int64, comment string, verifiedBy string) 
 	normalizedOld := normalizeCTEMState(oldStatus)
 	if normalizedOld != "Remediated" {
 		if !isValidTransition(normalizedOld, "Remediated") {
-			// Try transitioning to Remediating first
+
 			if err := s.UpdateAssignmentStatusWithComment(id, "Remediating", "Auto-transitioning to Remediating prior to fix verification", verifiedBy); err != nil {
 				return fmt.Errorf("transition to Remediating failed: %w", err)
 			}
 		}
-		// Now transition to Remediated
+
 		if err := s.UpdateAssignmentStatusWithComment(id, "Remediated", "Marking as remediated for verification", verifiedBy); err != nil {
 			return fmt.Errorf("transition to Remediated failed: %w", err)
 		}
@@ -1011,7 +977,6 @@ func (s *Storage) VerifyFindingFix(id int64, comment string, verifiedBy string) 
 	return s.UpdateAssignmentStatusWithComment(id, "Verified", comment, verifiedBy)
 }
 
-// ApproveRiskException transitions a finding assignment to "SLA Exception" with risk approval details.
 func (s *Storage) ApproveRiskException(id int64, comment string, approvedBy string) error {
 	return s.UpdateAssignmentStatusWithComment(id, "SLA Exception", comment, approvedBy)
 }
@@ -1022,7 +987,6 @@ type ScanFinding struct {
 	Severity string
 }
 
-// AutoTransitionFindingStates automates assignment status updates based on scanner re-detections.
 func (s *Storage) AutoTransitionFindingStates(detected []ScanFinding, scannedTargets []string) error {
 	detectedMap := make(map[string]bool)
 	for _, f := range detected {
@@ -1038,7 +1002,7 @@ func (s *Storage) AutoTransitionFindingStates(detected []ScanFinding, scannedTar
 		}
 		err := s.db.QueryRow(queryID, f.Target, f.Title).Scan(&findingID)
 		if err != nil {
-			continue // Finding not saved in DB, skip
+			continue
 		}
 
 		var assignmentID int64
@@ -1050,7 +1014,7 @@ func (s *Storage) AutoTransitionFindingStates(detected []ScanFinding, scannedTar
 		err = s.db.QueryRow(queryAss, findingID).Scan(&assignmentID, &status)
 
 		if err == sql.ErrNoRows {
-			// Auto-assign to asset owners if found
+
 			owners, errOwners := s.GetAssetOwners(f.Target)
 			var activeOwnerID, activeTeamID *int64
 			if errOwners == nil {
@@ -1116,7 +1080,6 @@ func (s *Storage) AutoTransitionFindingStates(detected []ScanFinding, scannedTar
 	return nil
 }
 
-// AutoRemediateFinding transitions a finding assignment to "Remediated", executing intermediate transition states if needed.
 func (s *Storage) AutoRemediateFinding(id int64, comment string, resolvedBy string) error {
 	var oldStatus string
 	var querySelect string
@@ -1133,12 +1096,12 @@ func (s *Storage) AutoRemediateFinding(id int64, comment string, resolvedBy stri
 	normalizedOld := normalizeCTEMState(oldStatus)
 	if normalizedOld != "Remediated" {
 		if !isValidTransition(normalizedOld, "Remediated") {
-			// Transition to Remediating first
+
 			if err := s.UpdateAssignmentStatusWithComment(id, "Remediating", "Auto-transitioning to Remediating prior to auto-remediation", resolvedBy); err != nil {
 				return err
 			}
 		}
-		// Transition to Remediated
+
 		return s.UpdateAssignmentStatusWithComment(id, "Remediated", comment, resolvedBy)
 	}
 	return nil

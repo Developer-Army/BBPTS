@@ -14,41 +14,35 @@ func TestNewScorer(t *testing.T) {
 func TestScorer_ScoreEndpoint_EvidenceBased(t *testing.T) {
 	scorer := NewScorer()
 
-	// 1. Basic endpoint - no owner, no attack path, no evidence, unauthenticated, public exposure
 	res1 := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 	if res1.Score == 0 {
 		t.Error("expected non-zero score for public endpoint")
 	}
 
-	// 2. Unowned vs Owned (unowned should have higher score due to unmanaged risk)
 	resUnowned := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 	resOwned := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", true, false, 0, 0)
 	if resUnowned.Score <= resOwned.Score {
 		t.Errorf("expected unowned target risk (%d) to be higher than owned target risk (%d)", resUnowned.Score, resOwned.Score)
 	}
 
-	// 3. Authenticated vs Unauthenticated (unauthenticated is more exploitable and should have higher score)
 	resUnauth := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 	resAuth := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", true, "", false, false, 0, 0)
 	if resUnauth.Score <= resAuth.Score {
 		t.Errorf("expected unauthenticated target risk (%d) to be higher than authenticated target risk (%d)", resUnauth.Score, resAuth.Score)
 	}
 
-	// 4. Public vs Internal Exposure (public should have higher score)
 	resPublic := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 	resInternal := scorer.ScoreEndpointAdvanced("https://internal.acme-corp.io/api", false, "", false, false, 0, 0)
 	if resPublic.Score <= resInternal.Score {
 		t.Errorf("expected public target risk (%d) to be higher than internal target risk (%d)", resPublic.Score, resInternal.Score)
 	}
 
-	// 5. With Attack Path vs Without (with attack path should have higher score)
 	resNoPath := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 	resWithPath := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, true, 0, 0)
 	if resWithPath.Score <= resNoPath.Score {
 		t.Errorf("expected target risk with attack path (%d) to be higher than without (%d)", resWithPath.Score, resNoPath.Score)
 	}
 
-	// 6. With Concrete Evidence vs Without
 	resNoEv := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
 	resWithEv := scorer.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "db_password=secret", false, false, 0, 0)
 	if resWithEv.Score <= resNoEv.Score {
@@ -79,7 +73,6 @@ func TestScorer_ScoreEndpoint_JustificationTracking(t *testing.T) {
 		t.Error("expected at least one justification")
 	}
 
-	// Check that justifications are unique
 	seen := make(map[string]bool)
 	for _, j := range result.Justification {
 		if seen[j] {
@@ -90,7 +83,7 @@ func TestScorer_ScoreEndpoint_JustificationTracking(t *testing.T) {
 }
 
 func TestScorer_Phase4Adjustments(t *testing.T) {
-	// Test Staging environment adjustment (75% score reduction)
+
 	sStaging := NewScorer()
 	sStaging.AssetEnvironment = "staging"
 	resStaging := sStaging.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
@@ -103,7 +96,6 @@ func TestScorer_Phase4Adjustments(t *testing.T) {
 		t.Errorf("expected staging score %d, got %d", expectedStagingScore, resStaging.Score)
 	}
 
-	// Test Dev environment adjustment (50% score reduction)
 	sDev := NewScorer()
 	sDev.AssetEnvironment = "dev"
 	resDev := sDev.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
@@ -113,23 +105,20 @@ func TestScorer_Phase4Adjustments(t *testing.T) {
 		t.Errorf("expected dev score %d, got %d", expectedDevScore, resDev.Score)
 	}
 
-	// Test BlastRadius adjustment
 	sBlast := NewScorer()
 	sBlast.BlastRadius = 0.5
 	resBlast := sBlast.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 0, 0)
-	// Base business impact is 70 for API
+
 	expectedImpact := int(70.0 * 0.5)
 	if resBlast.BusinessImpactScore != expectedImpact {
 		t.Errorf("expected business impact %d, got %d", expectedImpact, resBlast.BusinessImpactScore)
 	}
 
-	// Test SourceConfidence & Reproducibility adjustment
 	sConf := NewScorer()
 	sConf.SourceConfidence = 0.8
 	sConf.Reproducibility = 0.5
 	resConf := sConf.ScoreEndpointAdvanced("https://acme-corp.io/api", false, "", false, false, 1, 0)
 
-	// Just verify confidence is non-zero
 	if resConf.ConfidenceScore == 0 {
 		t.Errorf("expected confidence score to be non-zero, got %d", resConf.ConfidenceScore)
 	}

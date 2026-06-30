@@ -28,17 +28,14 @@ func TestEventSubscriber_DriftDetection(t *testing.T) {
 	sub.Start(ctx, []string{"subdomain", "service", "DriftEvent"})
 	defer sub.Stop()
 
-	// Subscribe to DriftEvent to verify publishing
 	driftSub := bus.Subscribe("DriftEvent")
 
-	// 1. Publish a new subdomain event -> should create asset
 	bus.Publish(queue.Event{
 		Target: "test.acme.com",
 		Source: "subfinder",
 		Type:   "subdomain",
 	})
 
-	// Wait for processing & check DriftEvent channel for new_asset
 	select {
 	case ev := <-driftSub:
 		if ev.Type != "DriftEvent" {
@@ -62,14 +59,12 @@ func TestEventSubscriber_DriftDetection(t *testing.T) {
 		t.Errorf("Expected asset type 'subdomain', got '%s'", asset.Type)
 	}
 
-	// 2. Publish a service event for the same target -> should trigger type_change drift
 	bus.Publish(queue.Event{
 		Target: "test.acme.com",
 		Source: "naabu",
 		Type:   "service",
 	})
 
-	// Wait for processing & check DriftEvent channel for type_change
 	select {
 	case ev := <-driftSub:
 		if ev.Type != "DriftEvent" {
@@ -82,7 +77,6 @@ func TestEventSubscriber_DriftDetection(t *testing.T) {
 		t.Fatal("Timed out waiting for type_change DriftEvent")
 	}
 
-	// Verify asset type updated in DB
 	asset, err = s.GetAsset("test.acme.com")
 	if err != nil {
 		t.Fatalf("Failed to get asset after update: %v", err)

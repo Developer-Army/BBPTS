@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -52,7 +53,16 @@ func main() {
 		requiredTools := strings.Split(app.ToolsetForMode(mode), ",")
 		optionalTools := app.OptionalToolNamesForDoctor(mode)
 		health := services.RunHealthChecksForTools(context.Background(), requiredTools, optionalTools, mode)
-		fmt.Print(services.FormatHealthReport(health))
+		if opts.JSONOutput {
+			data, err := json.MarshalIndent(health, "", "  ")
+			if err != nil {
+				slog.Error("failed to marshal doctor report to JSON", "error", err)
+				os.Exit(1)
+			}
+			fmt.Println(string(data))
+		} else {
+			fmt.Print(services.FormatHealthReport(health))
+		}
 		return
 	}
 
@@ -69,11 +79,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// --- Signal Handling ---
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// --- Load Config ---
 	cfg, err := config.LoadFromFile(opts.ConfigPath)
 	if err != nil {
 		slog.Error("failed to load config", "error", err)
@@ -99,7 +107,6 @@ func main() {
 		cfg.Headers["Cookie"] = opts.Cookie
 	}
 
-	// Apply web_ender / header_tag if provided
 	webEnder := opts.WebEnder
 	if webEnder == "" {
 		webEnder = cfg.WebEnder
@@ -109,12 +116,10 @@ func main() {
 	}
 	app.ApplyPresetAndProfileDefaults(&opts, cfg)
 
-	// Fallback batch size to config value if CLI flag not set
 	if opts.BatchSize <= 0 && cfg.BatchSize > 1 {
 		opts.BatchSize = cfg.BatchSize
 	}
 
-	// Apply CLI overrides to configuration
 	if opts.FPThreshold >= 0 {
 		cfg.FPConfidenceThreshold = opts.FPThreshold
 	}
@@ -158,7 +163,6 @@ func main() {
 		cfg.ResourceLimits.GCPercent = opts.GCPercent
 	}
 
-	// Apply the resource limits
 	utils.ApplyResourceLimits(
 		cfg.ResourceLimits.MaxCPUPercent,
 		cfg.ResourceLimits.MaxCPUCores,
@@ -208,7 +212,6 @@ func main() {
 		tuiProgram = tea.NewProgram(model, tea.WithAltScreen())
 		bridge = tui.NewBridge(tuiProgram)
 
-		// Redirect logs to TUI
 		slog.SetDefault(slog.New(&tui.LogHandler{
 			Handler: baseHandler,
 			Program: tuiProgram,
@@ -222,7 +225,6 @@ func main() {
 		}
 	}
 
-	// --- Start Telemetry ---
 	if opts.EnableMetrics {
 		port := fmt.Sprintf(":%d", opts.MetricsPort)
 		if opts.RunWorker {
@@ -234,7 +236,6 @@ func main() {
 		slog.Info("Prometheus metrics enabled", "addr", port)
 	}
 
-	// --- Run BBPTS ---
 	if opts.RunWorker {
 		app.RunWorker(ctx, opts, cfg)
 	} else {
@@ -289,6 +290,11 @@ func parseFlags() app.Options {
 	flag.StringVar(&opts.Headers, "H", "", "Custom HTTP headers (comma-separated, e.g. 'Key: Value, Key2: Value2')")
 	flag.StringVar(&opts.Headers, "header", "", "Custom HTTP headers (comma-separated)")
 	flag.StringVar(&opts.Cookie, "cookie", "", "Custom session Cookie header to inject into all HTTP-active tools")
+	flag.StringVar(&opts.LoginURL, "login-url", "", "Login endpoint URL for session-based auth (POSTs credentials, captures Set-Cookie)")
+	flag.StringVar(&opts.LoginUser, "login-user", "", "Username or email for --login-url")
+	flag.StringVar(&opts.LoginPass, "login-pass", "", "Password for --login-url")
+	flag.StringVar(&opts.LoginFormUser, "login-form-user", "", "HTML form field name for username (default: auto-detect)")
+	flag.StringVar(&opts.LoginFormPass, "login-form-pass", "", "HTML form field name for password (default: auto-detect)")
 
 	flag.IntVar(&opts.MaxCPUPercent, "max-cpu-percent", 0, "Max CPU percentage to use")
 	flag.IntVar(&opts.MaxCPUCores, "max-cpu-cores", 0, "Max CPU cores to use (overrides percentage limit)")
@@ -359,7 +365,6 @@ func parseFlags() app.Options {
 		opts.ShowVersion = true
 	}
 
-	// Check if TUI was explicitly set
 	tuiExplicitlySet := false
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "tui" {
@@ -367,7 +372,6 @@ func parseFlags() app.Options {
 		}
 	})
 
-	// If web/worker mode, JSON output, dry-run, or non-interactive output is used, disable TUI unless explicitly requested.
 	if (opts.EnableDashboard || opts.RunWorker || opts.JSONOutput || opts.DryRun || !isatty.IsTerminal(os.Stdout.Fd())) && !tuiExplicitlySet {
 		opts.UseTUI = false
 	}
@@ -396,13 +400,13 @@ func parseFlags() app.Options {
 
 	if opts.InputPath == "" && !opts.EnableDashboard && !opts.RunWorker {
 		if opts.UseTUI {
-			// Run in TUI mode and prompt inside TUI
+
 		} else if tuiExplicitlySet {
-			// --tui=false passed with no input -> Default to Worker Mode
+
 			fmt.Println("No input and --tui=false provided. Defaulting to Worker Mode...")
 			opts.RunWorker = true
 		} else {
-			// No input -> Default to Web Interface
+
 			fmt.Println("No input provided. Defaulting to Web Interface...")
 			opts.EnableDashboard = true
 			opts.UseTUI = false
@@ -412,9 +416,6 @@ func parseFlags() app.Options {
 	return opts
 }
 
-// reorderArgs moves all defined flags (and their values) to the front,
-// followed by positional arguments. This allows Go's flag package to parse
-// flags that are placed after positional arguments.
 func reorderArgs(args []string) []string {
 	var flags []string
 	var posArgs []string
@@ -427,7 +428,7 @@ func reorderArgs(args []string) []string {
 			break
 		}
 		if strings.HasPrefix(arg, "-") {
-			// It is a flag
+
 			if strings.Contains(arg, "=") {
 				flags = append(flags, arg)
 				i++
@@ -437,12 +438,12 @@ func reorderArgs(args []string) []string {
 			name := strings.TrimLeft(arg, "-")
 			f := flag.Lookup(name)
 			if f != nil {
-				// Check if it is a boolean flag
+
 				if bf, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && bf.IsBoolFlag() {
 					flags = append(flags, arg)
 					i++
 				} else {
-					// Non-boolean flag, consumes next argument if available
+
 					flags = append(flags, arg)
 					if i+1 < len(args) {
 						flags = append(flags, args[i+1])
@@ -452,12 +453,12 @@ func reorderArgs(args []string) []string {
 					}
 				}
 			} else {
-				// Unknown flag, keep it in flags to let flag.Parse handle/fail on it
+
 				flags = append(flags, arg)
 				i++
 			}
 		} else {
-			// Positional argument
+
 			posArgs = append(posArgs, arg)
 			i++
 		}
@@ -466,7 +467,6 @@ func reorderArgs(args []string) []string {
 	return append(flags, posArgs...)
 }
 
-// resolveLogLevel maps the -log-level flag (and -debug shortcut) to slog.Level.
 func resolveLogLevel(opts app.Options) slog.Level {
 	if opts.LogLevel != "" {
 		switch strings.ToLower(strings.TrimSpace(opts.LogLevel)) {
@@ -496,7 +496,7 @@ func runPreScanHooks(cfg *config.Config, opts *app.Options) error {
 		}
 	}
 	if handle == "" {
-		return nil // no program flag — skip
+		return nil
 	}
 
 	loader := services.NewProgramLoader(services.ProgramLoaderConfig{
@@ -511,7 +511,6 @@ func runPreScanHooks(cfg *config.Config, opts *app.Options) error {
 		return fmt.Errorf("program loader: %w", err)
 	}
 
-	// Write scope file and auto-apply --scope-file if not already set
 	scopePath := fmt.Sprintf("configs/scope_%s.txt", profile.Handle)
 	if err := profile.WriteScopeFile(scopePath); err != nil {
 		return err
@@ -525,7 +524,6 @@ func runPreScanHooks(cfg *config.Config, opts *app.Options) error {
 		)
 	}
 
-	// Write bounty-eligible targets file and auto-apply --input if not set
 	targetsPath := fmt.Sprintf("configs/targets_%s.txt", profile.Handle)
 	if err := profile.WriteTargetsFile(targetsPath); err != nil {
 		return err
@@ -535,13 +533,11 @@ func runPreScanHooks(cfg *config.Config, opts *app.Options) error {
 		slog.Info("[program-loader] applied targets file", "path", targetsPath)
 	}
 
-	// Write config patch for fail-on severity and platform submission
 	configPatch := fmt.Sprintf("configs/program_%s.json", profile.Handle)
 	if err := profile.WriteConfigPatch(configPatch); err != nil {
 		return err
 	}
 
-	// Apply config patch overrides
 	if profile.FailOn != "" {
 		opts.CIFailOn = profile.FailOn
 	}
@@ -549,7 +545,6 @@ func runPreScanHooks(cfg *config.Config, opts *app.Options) error {
 		cfg.Submit.Platform = profile.SubmitPlatform
 	}
 
-	// Print a scope summary to the TUI/console
 	slog.Info("[program-loader] loaded profile",
 		"name", profile.Name,
 		"in_scope_assets", len(profile.InScope),

@@ -1,6 +1,5 @@
 package risk
 
-// RiskFactors represents multi-factor metrics for calculating asset and finding risk.
 type RiskFactors struct {
 	Exposure       int `json:"exposure"`
 	Exploitability int `json:"exploitability"`
@@ -9,7 +8,6 @@ type RiskFactors struct {
 	AttackPath     int `json:"attack_path"`
 }
 
-// EvidenceRiskFactors represents the new 7-factor evidence-based risk metrics.
 type EvidenceRiskFactors struct {
 	EvidenceQuality    int `json:"evidence_quality"`
 	Exploitability     int `json:"exploitability"`
@@ -20,7 +18,6 @@ type EvidenceRiskFactors struct {
 	AttackPathDistance int `json:"attack_path_distance"` // higher means closer/more dangerous
 }
 
-// CalculateRisk implements the advanced risk scoring engine logic.
 func CalculateRisk(f RiskFactors) int {
 	score := (float64(f.Exposure) * 0.20) +
 		(float64(f.Exploitability) * 0.25) +
@@ -30,7 +27,6 @@ func CalculateRisk(f RiskFactors) int {
 	return int(score)
 }
 
-// CalculateEvidenceRisk calculates the risk score based on the 7-factor evidence-based model.
 func CalculateEvidenceRisk(f EvidenceRiskFactors) int {
 	score := (float64(f.EvidenceQuality) * 0.25) +
 		(float64(f.Exploitability) * 0.20) +

@@ -7,7 +7,7 @@ assignees: ''
 ---
 
 ## Summary
-<!-- Brief description of the accuracy observation -->
+
 
 ## Tool(s) Affected
 - 
@@ -23,7 +23,7 @@ assignees: ''
 - **Scan Configuration**: 
 
 ## Detailed Findings
-<!-- Which detections were correct? Which were wrong? What was missed? -->
+
 
 ### True Positives (Correct Detections)
 | # | Vulnerability | URL | Confidence |
@@ -41,6 +41,6 @@ assignees: ''
 | 1 | | | |
 
 ## Tuning Suggestions
-<!-- Any suggestions for improving detection accuracy -->
+
 
 ## Additional Context

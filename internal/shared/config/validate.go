@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// ValidationError represents a single config validation error.
 type ValidationError struct {
 	Field   string
 	Message string
@@ -23,18 +22,15 @@ func (v ValidationError) String() string {
 	return fmt.Sprintf("[%s] %s: %s", prefix, v.Field, v.Message)
 }
 
-// ValidationResult holds all validation errors and warnings.
 type ValidationResult struct {
 	Errors   []ValidationError
 	Warnings []ValidationError
 }
 
-// IsValid returns true if no errors were found (warnings are acceptable).
 func (vr *ValidationResult) IsValid() bool {
 	return len(vr.Errors) == 0
 }
 
-// AllIssues returns all errors and warnings combined.
 func (vr *ValidationResult) AllIssues() []ValidationError {
 	all := make([]ValidationError, 0, len(vr.Errors)+len(vr.Warnings))
 	all = append(all, vr.Errors...)
@@ -42,7 +38,6 @@ func (vr *ValidationResult) AllIssues() []ValidationError {
 	return all
 }
 
-// FormatReport returns a human-readable validation report.
 func (vr *ValidationResult) FormatReport() string {
 	var b strings.Builder
 
@@ -74,8 +69,6 @@ func (vr *ValidationResult) FormatReport() string {
 	return b.String()
 }
 
-// Validate performs comprehensive validation of the config and returns
-// a ValidationResult containing all errors and warnings found.
 func Validate(cfg *Config) *ValidationResult {
 	result := &ValidationResult{}
 
@@ -88,7 +81,6 @@ func Validate(cfg *Config) *ValidationResult {
 		return result
 	}
 
-	// Validate threads
 	if cfg.Threads <= 0 {
 		result.Errors = append(result.Errors, ValidationError{
 			Field:   "threads",
@@ -103,7 +95,6 @@ func Validate(cfg *Config) *ValidationResult {
 		})
 	}
 
-	// Validate rate limit
 	if cfg.RateLimit < 0 {
 		result.Errors = append(result.Errors, ValidationError{
 			Field:   "rate_limit",
@@ -118,7 +109,6 @@ func Validate(cfg *Config) *ValidationResult {
 		})
 	}
 
-	// Validate proxies
 	for i, proxy := range cfg.Proxies {
 		proxy = strings.TrimSpace(proxy)
 		if proxy == "" {
@@ -143,7 +133,6 @@ func Validate(cfg *Config) *ValidationResult {
 		}
 	}
 
-	// Validate state directory
 	if strings.TrimSpace(cfg.StateDir) != "" {
 		if _, err := os.Stat(cfg.StateDir); os.IsNotExist(err) {
 			result.Warnings = append(result.Warnings, ValidationError{
@@ -154,7 +143,6 @@ func Validate(cfg *Config) *ValidationResult {
 		}
 	}
 
-	// Validate wordlists directory
 	if strings.TrimSpace(cfg.WordlistsDir) != "" {
 		if _, err := os.Stat(cfg.WordlistsDir); os.IsNotExist(err) {
 			result.Warnings = append(result.Warnings, ValidationError{
@@ -165,7 +153,6 @@ func Validate(cfg *Config) *ValidationResult {
 		}
 	}
 
-	// Validate API keys
 	if len(cfg.APIKeys) == 0 {
 		result.Warnings = append(result.Warnings, ValidationError{
 			Field:   "api_keys",
@@ -173,10 +160,10 @@ func Validate(cfg *Config) *ValidationResult {
 			Level:   "warning",
 		})
 	} else {
-		// Check for obviously invalid keys
+
 		for provider, key := range cfg.APIKeys {
 			if strings.TrimSpace(key) == "" {
-				continue // empty is fine — just means not configured
+				continue
 			}
 			if len(key) < 10 {
 				result.Warnings = append(result.Warnings, ValidationError{
@@ -188,7 +175,6 @@ func Validate(cfg *Config) *ValidationResult {
 		}
 	}
 
-	// Validate fleet config
 	if cfg.Fleet.Enabled {
 		if strings.TrimSpace(cfg.Fleet.FleetName) == "" {
 			result.Errors = append(result.Errors, ValidationError{
@@ -206,7 +192,6 @@ func Validate(cfg *Config) *ValidationResult {
 		}
 	}
 
-	// Validate event bus config
 	if cfg.EventBus.Type == "nats" && strings.TrimSpace(cfg.EventBus.URL) == "" {
 		result.Errors = append(result.Errors, ValidationError{
 			Field:   "event_bus.url",
@@ -222,7 +207,6 @@ func Validate(cfg *Config) *ValidationResult {
 		})
 	}
 
-	// Validate notify config
 	if cfg.Notify.TelegramBotToken != "" && cfg.Notify.TelegramChatID == "" {
 		result.Errors = append(result.Errors, ValidationError{
 			Field:   "notify.telegram_chat_id",
@@ -231,7 +215,6 @@ func Validate(cfg *Config) *ValidationResult {
 		})
 	}
 
-	// Validate database config
 	validDBTypes := map[string]bool{"sqlite": true, "sqlite3": true, "": true}
 	if !validDBTypes[cfg.Database.Type] {
 		result.Errors = append(result.Errors, ValidationError{
@@ -244,8 +227,6 @@ func Validate(cfg *Config) *ValidationResult {
 	return result
 }
 
-// ValidateAndPrint validates the config and prints the report.
-// Returns true if the config is valid.
 func ValidateAndPrint(w io.Writer, cfg *Config) bool {
 	result := Validate(cfg)
 	fmt.Fprint(w, result.FormatReport())

@@ -17,7 +17,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
-// NotifyConfig holds webhook URLs for each notification channel.
 type NotifyConfig struct {
 	TelegramBotToken string `json:"telegram_bot_token"`
 	TelegramChatID   string `json:"telegram_chat_id"`
@@ -25,13 +24,11 @@ type NotifyConfig struct {
 	SlackWebhook     string `json:"slack_webhook"`
 }
 
-// Notifier sends alerts over configured channels.
 type Notifier struct {
 	cfg        NotifyConfig
 	httpClient *http.Client
 }
 
-// NewNotifier creates a new Notifier.
 func NewNotifier(cfg NotifyConfig) *Notifier {
 	return &Notifier{
 		cfg: cfg,
@@ -41,19 +38,16 @@ func NewNotifier(cfg NotifyConfig) *Notifier {
 	}
 }
 
-// IsConfigured returns true if at least one notification channel is configured.
 func (n *Notifier) IsConfigured() bool {
 	return (n.cfg.TelegramBotToken != "" && n.cfg.TelegramChatID != "") ||
 		n.cfg.DiscordWebhook != "" ||
 		n.cfg.SlackWebhook != ""
 }
 
-// New creates a new Notifier (alias kept for internal use).
 func New(cfg NotifyConfig) *Notifier {
 	return NewNotifier(cfg)
 }
 
-// SendDiff fires a scan delta report to all configured channels.
 func (n *Notifier) SendDiff(ctx context.Context, scope string, diff *utils.Diff) error {
 	if diff == nil {
 		return nil
@@ -88,7 +82,6 @@ func (n *Notifier) SendDiff(ctx context.Context, scope string, diff *utils.Diff)
 	return nil
 }
 
-// SendRuleMatches fires high/critical rule match alerts immediately.
 func (n *Notifier) SendRuleMatches(ctx context.Context, scope string, matches []recon.Match) error {
 	criticals := filterByPriority(matches, "critical", "high")
 	if len(criticals) == 0 {

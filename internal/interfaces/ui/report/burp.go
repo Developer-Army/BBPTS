@@ -11,7 +11,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// BurpIssue represents a finding in Burp Suite's XML export format.
 type BurpIssue struct {
 	Name                  string `xml:"name"`
 	Host                  string `xml:"host"`
@@ -60,7 +59,6 @@ func splitHostAndPath(target string) (string, string) {
 	return u.Hostname(), path
 }
 
-// ExportToBurpXML generates an XML file that can be imported into Burp Suite.
 func ExportToBurpXML(path string, events []recon.Event) error {
 	var issues BurpIssues
 	for _, ev := range events {
@@ -90,7 +88,6 @@ func ExportToBurpXML(path string, events []recon.Event) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// WriteBurpLinks exports all discovered URLs to a text file for easy pasting into Burp.
 func WriteBurpLinks(path string, events []recon.Event) error {
 	file, err := os.Create(path)
 	if err != nil {

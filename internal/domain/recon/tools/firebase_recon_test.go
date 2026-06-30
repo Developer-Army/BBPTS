@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,7 +16,6 @@ func TestFirebaseReconTool(t *testing.T) {
 		path := r.URL.Path
 		host := r.Host
 
-		// Mock target page serving Firebase configs
 		if path == "/" && !strings.Contains(host, "firebaseio.com") && !strings.Contains(host, "googleapis.com") && !strings.Contains(host, "appspot.com") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`
@@ -40,28 +39,24 @@ func TestFirebaseReconTool(t *testing.T) {
 			return
 		}
 
-		// Mock RTDB request - responds to any host with .json path
 		if strings.HasSuffix(path, ".json") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"users": {"admin": true}}`))
 			return
 		}
 
-		// Mock Firestore documents list
 		if strings.Contains(path, "/databases/(default)/documents") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"documents": [{"name": "projects/bbpts-demo/databases/(default)/documents/users/admin"}]}`))
 			return
 		}
 
-		// Mock Firebase Storage list
 		if strings.HasSuffix(path, "/o") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"items": [{"name": "passwords.txt"}]}`))
 			return
 		}
 
-		// Mock Firebase Hosting init.json
 		if strings.HasSuffix(path, "/__/firebase/init.json") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"projectId": "bbpts-demo"}`))
@@ -77,25 +72,16 @@ func TestFirebaseReconTool(t *testing.T) {
 		t.Errorf("expected tool name firebase_recon, got %s", tool.Name())
 	}
 
-	// Build a custom scan target that points to the mock server but with
-	// a fake Firebase config that references the mock server as the RTDB host.
 	serverURL, _ := url.Parse(server.URL)
 
-	// Override the target to use the mock server
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{server.URL}, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// The tool will extract projectId=bbpts-demo and probe external Firebase URLs.
-	// Since we can't easily redirect external requests in a unit test,
-	// we verify that the tool at least processes the config correctly
-	// and doesn't error out. For a full integration test, we'd need a custom
-	// HTTP transport.
 	_ = events
 	_ = serverURL
 
-	// Verify the tool ran without errors and processed the target
 	if len(events) == 0 {
 		t.Log("No events found - expected since Firebase probing targets external URLs not the mock server")
 	}
@@ -122,8 +108,6 @@ func TestFirebaseReconToolConfigExtraction(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Events may be empty since external Firebase URLs won't resolve in test,
-	// but the tool should not error.
 	_ = events
 }
 
@@ -160,28 +144,24 @@ func TestFirebaseReconToolWithCustomTransport(t *testing.T) {
 			return
 		}
 
-		// RTDB .json
 		if strings.HasSuffix(path, ".json") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"data": "sensitive"}`))
 			return
 		}
 
-		// Firestore
 		if strings.Contains(path, "/databases/(default)/documents") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"documents": []}`))
 			return
 		}
 
-		// Storage
 		if strings.HasSuffix(path, "/o") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"items": []}`))
 			return
 		}
 
-		// Firebase init
 		if strings.HasSuffix(path, "/__/firebase/init.json") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"projectId": "testproj"}`))
@@ -192,16 +172,12 @@ func TestFirebaseReconToolWithCustomTransport(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	// The tool will probe external URLs which won't reach our mock server.
-	// This test primarily verifies the tool doesn't crash and handles
-	// network errors gracefully.
 	tool := &FirebaseReconTool{}
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{mockServer.URL}, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify the homepage was fetched
 	foundHomepage := false
 	for _, p := range requestedPaths {
 		if p == "/" {
@@ -212,7 +188,6 @@ func TestFirebaseReconToolWithCustomTransport(t *testing.T) {
 		t.Error("expected homepage to be fetched")
 	}
 
-	// Events will be empty or partial since external URLs won't resolve
 	_ = events
 	_ = fmt.Sprintf("events_count=%d", len(events))
 }

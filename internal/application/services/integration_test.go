@@ -9,7 +9,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
-// TestBurpExportIntegration tests the end-to-end Burp Suite export workflow
 func TestBurpExportIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "burp-export.xml")
@@ -24,7 +23,6 @@ func TestBurpExportIntegration(t *testing.T) {
 	t.Logf("Successfully exported Burp config to %s", outputPath)
 }
 
-// TestCaidoExportIntegration tests the end-to-end Caido export workflow
 func TestCaidoExportIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "caido-targets.txt")
@@ -44,19 +42,16 @@ func TestCaidoExportIntegration(t *testing.T) {
 	t.Logf("Successfully exported Caido targets to %s", outputPath)
 }
 
-// TestMultipleToolExportIntegration tests exporting for multiple tools simultaneously
 func TestMultipleToolExportIntegration(t *testing.T) {
 	tempDir := t.TempDir()
 
 	hosts := []string{"acme-corp.io", "api.acme-corp.io", "admin.acme-corp.io"}
 
-	// Export for Burp
 	burpPath := filepath.Join(tempDir, "burp.json")
 	if err := tools.ExportToBurpXML(burpPath, hosts); err != nil {
 		t.Fatalf("Burp export failed: %v", err)
 	}
 
-	// Export for Caido
 	caidoPath := filepath.Join(tempDir, "caido.txt")
 	if err := tools.ExportToCaidoTarget(caidoPath, hosts); err != nil {
 		t.Fatalf("Caido export failed: %v", err)
@@ -65,7 +60,6 @@ func TestMultipleToolExportIntegration(t *testing.T) {
 	t.Log("Successfully exported to multiple tools")
 }
 
-// TestExportWorkflow tests a complete export workflow with timeout
 func TestExportWorkflow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -73,7 +67,6 @@ func TestExportWorkflow(t *testing.T) {
 	tempDir := t.TempDir()
 	hosts := []string{"acme-corp.io", "api.acme-corp.io"}
 
-	// Simulate export workflow
 	done := make(chan error, 1)
 
 	go func() {

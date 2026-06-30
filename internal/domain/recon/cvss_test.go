@@ -8,11 +8,11 @@ func TestCVSS31BaseScore(t *testing.T) {
 		wantScore float64
 		wantSev   string
 	}{
-		// CVE-2021-44228 (Log4j): CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H
+
 		{"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H", 10.0, "Critical"},
-		// CVE-2020-0601 (Windows CryptoAPI): CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N
+
 		{"CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N", 7.4, "High"},
-		// AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N
+
 		{"CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N", 3.8, "Low"},
 	}
 

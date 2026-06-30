@@ -14,8 +14,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// CallLLM sends a prompt to the configured LLM provider and returns the raw text response.
-// Supports "gemini", "openai", "anthropic", and "ollama"/"local" providers.
 func CallLLM(ctx context.Context, prompt, provider, model, apiURL, apiKey string) (string, error) {
 	provider = strings.ToLower(strings.TrimSpace(provider))
 	if provider == "" {
@@ -113,7 +111,6 @@ func callOpenAIChatRaw(ctx context.Context, prompt, model, apiURL, apiKey string
 	return openAIResp.Choices[0].Message.Content, nil
 }
 
-
 func callAnthropicRaw(ctx context.Context, prompt, model, apiURL, apiKey string) (string, error) {
 	if apiKey == "" {
 		apiKey = os.Getenv("ANTHROPIC_API_KEY")
@@ -188,7 +185,6 @@ func callAnthropicRaw(ctx context.Context, prompt, model, apiURL, apiKey string)
 	return "", fmt.Errorf("empty response from Anthropic API")
 }
 
-// callGeminiRaw calls the Gemini API and returns the raw text response.
 func callGeminiRaw(ctx context.Context, prompt, model, apiKey string) (string, error) {
 	if apiKey == "" {
 		apiKey = os.Getenv("GEMINI_API_KEY")
@@ -272,7 +268,6 @@ func callGeminiRaw(ctx context.Context, prompt, model, apiKey string) (string, e
 	return geminiResp.Candidates[0].Content.Parts[0].Text, nil
 }
 
-// callOllamaRaw calls an OpenAI-compatible API (Ollama/local) and returns the raw text response.
 func callOllamaRaw(ctx context.Context, prompt, model, apiURL, apiKey string) (string, error) {
 	if apiURL == "" {
 		apiURL = "http://localhost:11434/v1/chat/completions"
@@ -354,7 +349,6 @@ func callOllamaRaw(ctx context.Context, prompt, model, apiURL, apiKey string) (s
 	return chatResp.Choices[0].Message.Content, nil
 }
 
-// CleanLLMJSON strips markdown fences and whitespace from LLM JSON output.
 func CleanLLMJSON(content string) string {
 	content = strings.TrimSpace(content)
 	if strings.HasPrefix(content, "```json") {
@@ -367,7 +361,6 @@ func CleanLLMJSON(content string) string {
 	return strings.TrimSpace(content)
 }
 
-// GetLLMConfig extracts LLM provider settings from the context's API keys.
 func GetLLMConfig(ctx context.Context) (provider, model, apiURL, apiKey string) {
 	provider = "gemini"
 	model = "gemini-2.5-flash"

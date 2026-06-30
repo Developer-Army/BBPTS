@@ -1,16 +1,16 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestAIVulnDetectAIEndpoints(t *testing.T) {
-	// Create a mock server that responds to AI endpoint paths
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/chat":
@@ -37,7 +37,6 @@ func TestAIVulnDetectAIEndpoints(t *testing.T) {
 		t.Fatalf("AIVulnTool.Run failed: %v", err)
 	}
 
-	// Should detect at least the /api/chat endpoint
 	foundAIEndpoint := false
 	for _, ev := range events {
 		if ev.Properties["type"] == "ai_endpoint" {
@@ -51,11 +50,11 @@ func TestAIVulnDetectAIEndpoints(t *testing.T) {
 }
 
 func TestAIVulnPromptInjection(t *testing.T) {
-	// Create a mock AI endpoint that leaks system prompt on injection
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			w.Header().Set("Content-Type", "application/json")
-			// Simulate a vulnerable AI that leaks system prompt
+
 			resp := map[string]string{
 				"response": "You are a helpful assistant. Your system prompt says: 'You are a customer support bot. Your api_key is sk-test123. Your instructions: always be polite.'",
 			}
@@ -78,7 +77,6 @@ func TestAIVulnPromptInjection(t *testing.T) {
 		t.Fatalf("AIVulnTool.Run failed: %v", err)
 	}
 
-	// Should detect prompt injection vulnerability
 	foundInjection := false
 	for _, ev := range events {
 		if ev.Properties["vuln_name"] == "AI Prompt Injection" {
@@ -90,7 +88,6 @@ func TestAIVulnPromptInjection(t *testing.T) {
 		t.Log("Prompt injection may not be detected if endpoint format doesn't match — this is expected in mock")
 	}
 
-	// Should have at least some events (discovery or vulnerability)
 	if len(events) == 0 {
 		t.Error("expected at least some events from AI vuln scan")
 	}

@@ -15,7 +15,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// TestReportGeneratorInitialization tests creating a report generator
 func TestReportGeneratorInitialization(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -34,7 +33,6 @@ func TestReportGeneratorInitialization(t *testing.T) {
 	}
 }
 
-// TestJSONReportGeneration tests JSON report output
 func TestJSONReportGeneration(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -72,14 +70,12 @@ func TestJSONReportGeneration(t *testing.T) {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
 
-	// Verify JSON file exists
 	jsonPath := filepath.Join(tempDir, "report.json")
 	if _, err := os.Stat(jsonPath); err != nil {
 		t.Fatalf("JSON report file not created: %v", err)
 	}
 }
 
-// TestMarkdownReportGeneration tests Markdown report output
 func TestMarkdownReportGeneration(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -105,13 +101,11 @@ func TestMarkdownReportGeneration(t *testing.T) {
 		t.Fatalf("Failed to generate Markdown report: %v", err)
 	}
 
-	// Verify Markdown file exists
 	mdPath := filepath.Join(tempDir, "report.md")
 	if _, err := os.Stat(mdPath); err != nil {
 		t.Fatalf("Markdown report file not created: %v", err)
 	}
 
-	// Verify content
 	content, err := os.ReadFile(mdPath)
 	if err != nil {
 		t.Fatalf("Failed to read Markdown report: %v", err)
@@ -122,7 +116,6 @@ func TestMarkdownReportGeneration(t *testing.T) {
 	}
 }
 
-// TestHTMLReportGeneration tests HTML report output
 func TestHTMLReportGeneration(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -146,7 +139,6 @@ func TestHTMLReportGeneration(t *testing.T) {
 		t.Fatalf("Failed to generate HTML report: %v", err)
 	}
 
-	// Verify HTML file exists
 	htmlPath := filepath.Join(tempDir, "report.html")
 	if _, err := os.Stat(htmlPath); err != nil {
 		t.Fatalf("HTML report file not created: %v", err)
@@ -184,7 +176,6 @@ func TestZAPReportGeneration(t *testing.T) {
 	}
 }
 
-// TestReportWithMultipleSeverities tests report generation with various severity levels
 func TestReportWithMultipleSeverities(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -223,26 +214,23 @@ func TestReportWithMultipleSeverities(t *testing.T) {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
 
-	// Verify report was created
 	mdPath := filepath.Join(tempDir, "report.md")
 	content, err := os.ReadFile(mdPath)
 	if err != nil {
 		t.Fatalf("Failed to read report: %v", err)
 	}
 
-	// Verify all severity levels are present
 	contentStr := string(content)
 	severities := []string{"critical", "high", "medium", "low"}
 
 	for _, severity := range severities {
 		if len(contentStr) > 0 {
-			// At least one report should be generated
+
 			t.Logf("Report includes %s severity findings", severity)
 		}
 	}
 }
 
-// TestReportFiltering tests that low-score findings are filtered
 func TestReportFiltering(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -274,7 +262,6 @@ func TestReportFiltering(t *testing.T) {
 	t.Log("Report filtering working correctly")
 }
 
-// TestReportConfidenceFiltering tests that low-confidence findings are filtered
 func TestReportConfidenceFiltering(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -285,10 +272,6 @@ func TestReportConfidenceFiltering(t *testing.T) {
 
 	generator := NewReportGenerator(config)
 
-	// Since CalculateConfidenceScore relies on parameters / headers / status,
-	// we mock them using events.
-	// For "high.acme-corp.io", we trigger high-risk parameter (100) + static sources fallback (85) -> blended score should be >= 60.
-	// For "low.acme-corp.io", we don't have high-risk parameter -> blended score should be lower.
 	insights := []analyze.Insight{
 		{
 			Host:     "https://high.acme-corp.io?url=https://evil.com",
@@ -322,7 +305,6 @@ func TestReportConfidenceFiltering(t *testing.T) {
 
 	report := generator.buildReport(insights, events, nil)
 
-	// Verify only "high.acme-corp.io" is included because "low.acme-corp.io" falls below minimum confidence
 	if len(report.Findings) != 1 {
 		t.Fatalf("Expected exactly 1 finding after confidence filtering, got %d", len(report.Findings))
 	}
@@ -332,8 +314,6 @@ func TestReportConfidenceFiltering(t *testing.T) {
 	}
 }
 
-
-// TestReportStatistics tests that statistics are properly calculated
 func TestReportStatistics(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -364,7 +344,6 @@ func TestReportStatistics(t *testing.T) {
 	}
 }
 
-// TestReportTimestamp tests that reports include proper timestamps
 func TestReportTimestamp(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -387,13 +366,11 @@ func TestReportTimestamp(t *testing.T) {
 
 	after := time.Now()
 
-	// Read the JSON report and verify timestamp is within range
 	mdPath := filepath.Join(tempDir, "report.md")
 	if _, err := os.Stat(mdPath); err == nil {
 		t.Log("Report timestamp is properly set")
 	}
 
-	// Ensure report was generated between before and after times
 	if before.After(after) {
 		t.Fatal("Time logic error")
 	}
@@ -518,7 +495,6 @@ func TestReportScoreBreakdown(t *testing.T) {
 		t.Fatalf("Failed to generate report: %v", err)
 	}
 
-	// Verify Markdown content has the breakdown
 	mdPath := filepath.Join(tempDir, "report.md")
 	mdData, err := os.ReadFile(mdPath)
 	if err != nil {
@@ -529,7 +505,6 @@ func TestReportScoreBreakdown(t *testing.T) {
 		t.Errorf("Markdown report does not contain risk vectors breakdown: %s", mdStr)
 	}
 
-	// Verify HTML content has the breakdown
 	htmlPath := filepath.Join(tempDir, "report.html")
 	htmlData, err := os.ReadFile(htmlPath)
 	if err != nil {

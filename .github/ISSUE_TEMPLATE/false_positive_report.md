@@ -17,7 +17,7 @@ assignees: ''
 - **Actual Behavior**: 
 
 ## Evidence
-<!-- Paste the relevant scan output, response headers, or body content -->
+
 ```
  
 
@@ -29,4 +29,4 @@ assignees: ''
 3. 
 
 ## Additional Context
-<!-- Any proxy logs, manual verification steps, or screenshots -->
+

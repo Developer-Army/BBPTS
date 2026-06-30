@@ -8,23 +8,20 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
-// VulnerabilityChain represents a chain of compatible vulnerabilities.
 type VulnerabilityChain struct {
-	Target       string            `json:"target"`
-	Findings     []string          `json:"findings"`
-	CombinedCVSS float64           `json:"combined_cvss"`
-	ChainType    string            `json:"chain_type"`
-	Description  string            `json:"description"`
+	Target       string   `json:"target"`
+	Findings     []string `json:"findings"`
+	CombinedCVSS float64  `json:"combined_cvss"`
+	ChainType    string   `json:"chain_type"`
+	Description  string   `json:"description"`
 }
 
-// FindVulnerabilityChains analyzes the target/finding/vulnerability graph to discover compatible chains.
 func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdge) []VulnerabilityChain {
 	nodeMap := make(map[string]storage.AssetNode)
 	for _, node := range nodes {
 		nodeMap[node.ID] = node
 	}
 
-	// Group target vulnerabilities by target host/value
 	targetVulns := make(map[string][]storage.AssetNode)
 	for _, edge := range edges {
 		if strings.ToLower(edge.Relation) == "is_vulnerable_to" || strings.ToLower(edge.Relation) == "has_finding" {
@@ -38,7 +35,6 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 
 	var chains []VulnerabilityChain
 
-	// Check chains for each target
 	for target, vulns := range targetVulns {
 		var hasOpenRedirect, hasOAuth bool
 		var hasSelfXSS, hasCSRF bool
@@ -71,69 +67,67 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 				title = v.Value
 			}
 
-			// Open Redirect
 			if strings.Contains(name, "open-redirect") || strings.Contains(name, "open_redirect") || strings.Contains(desc, "redirect") {
 				hasOpenRedirect = true
 				openRedirectTitle = title
 			}
-			// OAuth
+
 			if strings.Contains(name, "oauth") || strings.Contains(desc, "oauth") {
 				hasOAuth = true
 				oauthTitle = title
 			}
-			// Self-XSS
+
 			if (strings.Contains(name, "xss") || strings.Contains(desc, "xss")) && (strings.Contains(name, "self") || strings.Contains(desc, "self")) {
 				hasSelfXSS = true
 				selfXSSTitle = title
 			}
-			// CSRF
+
 			if strings.Contains(name, "csrf") || strings.Contains(desc, "csrf") || strings.Contains(name, "xsrf") {
 				hasCSRF = true
 				csrfTitle = title
 			}
-			// SSRF
+
 			if strings.Contains(name, "ssrf") || strings.Contains(desc, "ssrf") {
 				hasSSRF = true
 				ssrfTitle = title
 			}
-			// Internal Port / Service
+
 			if strings.Contains(name, "port") || strings.Contains(name, "internal") || strings.Contains(desc, "internal") || strings.Contains(desc, "port") {
 				hasInternalPort = true
 				internalPortTitle = title
 			}
-			// Subdomain Takeover
+
 			if strings.Contains(name, "subdomain") || strings.Contains(name, "takeover") {
 				hasSubdomainTakeover = true
 				takeoverTitle = title
 			}
-			// Cookie Scope Issues
+
 			if strings.Contains(name, "cookie") || strings.Contains(desc, "cookie scope") || strings.Contains(desc, "domain scope") {
 				hasCookieScope = true
 				cookieScopeTitle = title
 			}
-			// XXE
+
 			if strings.Contains(name, "xxe") || strings.Contains(desc, "xml external") || strings.Contains(desc, "xml entity") {
 				hasXXE = true
 				xxeTitle = title
 			}
-			// Path Traversal / LFI
+
 			if strings.Contains(name, "path-traversal") || strings.Contains(name, "path_traversal") || strings.Contains(name, "lfi") || strings.Contains(desc, "path traversal") || strings.Contains(desc, "directory traversal") {
 				hasPathTraversal = true
 				pathTraversalTitle = title
 			}
-			// File Read
+
 			if strings.Contains(name, "file-read") || strings.Contains(name, "file_read") || strings.Contains(name, "arbitrary file") || strings.Contains(desc, "file read") {
 				hasFileRead = true
 				fileReadTitle = title
 			}
-			// CORS Misconfiguration
+
 			if strings.Contains(name, "cors") || strings.Contains(desc, "cors misconfiguration") || strings.Contains(desc, "access-control-allow") {
 				hasCORSMisconfig = true
 				corsTitle = title
 			}
 		}
 
-		// 1. Open Redirect + OAuth = Account Takeover
 		if hasOpenRedirect && hasOAuth {
 			chains = append(chains, VulnerabilityChain{
 				Target:       target,
@@ -144,7 +138,6 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 			})
 		}
 
-		// 2. Self-XSS + CSRF = Stored XSS / Session Takeover
 		if hasSelfXSS && hasCSRF {
 			chains = append(chains, VulnerabilityChain{
 				Target:       target,
@@ -155,7 +148,6 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 			})
 		}
 
-		// 3. SSRF + Internal Port = RCE / Internal Network Pivot
 		if hasSSRF && hasInternalPort {
 			chains = append(chains, VulnerabilityChain{
 				Target:       target,
@@ -166,7 +158,6 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 			})
 		}
 
-		// 4. Subdomain Takeover + Cookie Scope = Cross-domain Session Theft
 		if hasSubdomainTakeover && hasCookieScope {
 			chains = append(chains, VulnerabilityChain{
 				Target:       target,
@@ -177,7 +168,6 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 			})
 		}
 
-		// 5. XXE + SSRF = Internal Network Exfiltration
 		if hasXXE && hasSSRF {
 			chains = append(chains, VulnerabilityChain{
 				Target:       target,
@@ -188,7 +178,6 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 			})
 		}
 
-		// 6. CORS Misconfiguration + Auth Endpoint = Account Takeover
 		if hasCORSMisconfig && hasOAuth {
 			chains = append(chains, VulnerabilityChain{
 				Target:       target,
@@ -199,7 +188,6 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 			})
 		}
 
-		// 7. Path Traversal + File Read = Sensitive File Disclosure
 		if hasPathTraversal && hasFileRead {
 			chains = append(chains, VulnerabilityChain{
 				Target:       target,

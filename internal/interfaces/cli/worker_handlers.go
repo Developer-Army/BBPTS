@@ -11,33 +11,27 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
-// registerRealHandlers maps the distributed capability types to actual recon tools.
-// This fully enables the Event-Driven Microservices architecture, removing the need
-// for a central synchronous orchestrator.
 func registerRealHandlers(ctx context.Context, executor *workers.Executor, cfg *config.Config) {
 	_ = ctx
-	// Subdomain Enumeration Handler
+
 	executor.RegisterHandler(workers.CapSubdomainEnum, func(c context.Context, t workers.Task) error {
 		slog.Info("Executing CapSubdomainEnum via Worker Mesh", "target", t.Target)
 		tools := []string{"subfinder", "amass", "crtsh"}
 		return executeToolsForTask(c, tools, t, cfg, executor.Worker)
 	})
 
-	// Browser Recon (Headless) Handler
 	executor.RegisterHandler(workers.CapBrowserRecon, func(c context.Context, t workers.Task) error {
 		slog.Info("Executing CapBrowserRecon via Worker Mesh", "target", t.Target)
 		tools := []string{"browser_recon"}
 		return executeToolsForTask(c, tools, t, cfg, executor.Worker)
 	})
 
-	// Port Scanning Handler
 	executor.RegisterHandler(workers.CapPortScan, func(c context.Context, t workers.Task) error {
 		slog.Info("Executing CapPortScan via Worker Mesh", "target", t.Target)
 		tools := []string{"naabu"}
 		return executeToolsForTask(c, tools, t, cfg, executor.Worker)
 	})
 
-	// JS Analysis Handler
 	executor.RegisterHandler(workers.CapJSDiff, func(c context.Context, t workers.Task) error {
 		slog.Info("Executing CapJSDiff via Worker Mesh", "target", t.Target)
 		tools := []string{"js_analyzer"}
@@ -51,7 +45,7 @@ func executeToolsForTask(ctx context.Context, toolNames []string, t workers.Task
 	jobCtx = recon.WithProxies(jobCtx, cfg.Proxies)
 
 	scanCtx := &recon.ScanContext{
-		APIKeys:      cfg.APIKeys,
+		APIKeys: cfg.APIKeys,
 	}
 
 	totalEvents := 0
@@ -62,14 +56,12 @@ func executeToolsForTask(ctx context.Context, toolNames []string, t workers.Task
 			continue
 		}
 
-		// Run tool independently
 		events, err := tool.Run(jobCtx, scanCtx, []string{t.Target}, 1)
 		if err != nil {
 			slog.Error("Worker tool execution failed", "tool", name, "error", err)
 			continue
 		}
 
-		// Publish results back to the StreamManager so other microservices can consume them
 		for _, ev := range events {
 			if err := publishWorkerEvent(worker, ev, t); err != nil {
 				slog.Warn("Failed to publish worker event", "error", err, "source", ev.Source)
@@ -135,7 +127,6 @@ func publishWorkerCompletion(worker *workers.Worker, task workers.Task, totalEve
 		"message":     message,
 	}
 
-	// Record task completion in idempotency store for replay
 	if worker.IdempotencyMgr != nil {
 		if err := worker.IdempotencyMgr.Complete(task.ID, worker.ID, status, totalEvents, nil, execErr); err != nil {
 			slog.Warn("Failed to record task completion", "error", err, "task_id", task.ID)

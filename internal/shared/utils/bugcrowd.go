@@ -9,13 +9,11 @@ import (
 	"os"
 )
 
-// BugcrowdClient handles API submissions to Bugcrowd.
 type BugcrowdClient struct {
 	Token   string
 	Program string
 }
 
-// NewBugcrowdClient creates a new client from environment variables.
 func NewBugcrowdClient(program string) *BugcrowdClient {
 	return &BugcrowdClient{
 		Token:   os.Getenv("BBPTS_BUGCROWD_API_TOKEN"),
@@ -23,18 +21,15 @@ func NewBugcrowdClient(program string) *BugcrowdClient {
 	}
 }
 
-// IsConfigured returns true if API credentials are provided.
 func (b *BugcrowdClient) IsConfigured() bool {
 	return b.Token != "" && b.Program != ""
 }
 
-// SubmitReport creates a submission on Bugcrowd.
 func (b *BugcrowdClient) SubmitReport(title, description, severity string) error {
 	if !b.IsConfigured() {
 		return fmt.Errorf("bugcrowd credentials not configured")
 	}
 
-	// Bugcrowd Crowdcontrol API v1
 	url := "https://api.bugcrowd.com/submissions"
 
 	payload := map[string]interface{}{
@@ -52,7 +47,6 @@ func (b *BugcrowdClient) SubmitReport(title, description, severity string) error
 		return err
 	}
 
-	// Bugcrowd uses Token auth
 	req.Header.Set("Authorization", "Token "+b.Token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/vnd.bugcrowd.v4+json")

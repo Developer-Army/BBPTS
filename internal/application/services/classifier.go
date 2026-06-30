@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// FailureClass represents the categorized reason for an operation failure.
 type FailureClass string
 
 const (
@@ -20,15 +19,12 @@ const (
 	ClassUnknown        FailureClass = "UNKNOWN"
 )
 
-// ErrorClassifier inspects HTTP responses to categorize the failure mode intelligently.
 type ErrorClassifier struct{}
 
 func NewErrorClassifier() *ErrorClassifier {
 	return &ErrorClassifier{}
 }
 
-// Classify inspects the response and error to determine the exact failure class.
-// It reads a chunk of the response body if available to check for WAF/Captcha signatures.
 func (ec *ErrorClassifier) Classify(resp *http.Response, err error) FailureClass {
 	if err != nil {
 		errStr := err.Error()
@@ -45,22 +41,20 @@ func (ec *ErrorClassifier) Classify(resp *http.Response, err error) FailureClass
 		return ClassUnknown
 	}
 
-	// HTTP Status Heuristics
 	if resp.StatusCode == 429 {
 		return ClassRateLimited
 	}
 
 	if resp.StatusCode == 403 || resp.StatusCode == 406 {
-		// Could be a WAF or a genuine access denied. We check headers and body.
+
 		if isWAFHeader(resp.Header) {
 			return ClassWAFBlock
 		}
 	}
 
-	// Check body signatures for WAFs or Captchas (Cloudflare, PerimeterX, Datadome)
 	if resp.Body != nil {
 		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 8192))
-		// Restore the body so it can be read downstream if needed
+
 		resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		bodyStr := strings.ToLower(string(bodyBytes))
 

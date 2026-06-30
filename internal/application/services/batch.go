@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// BatchConfig configures batch processing behavior.
 type BatchConfig struct {
 	// BatchSize is the max number of targets per batch.
 	BatchSize int
@@ -18,7 +17,6 @@ type BatchConfig struct {
 	DelayBetweenBatches time.Duration
 }
 
-// DefaultBatchConfig returns sensible defaults for batch processing.
 func DefaultBatchConfig() BatchConfig {
 	return BatchConfig{
 		BatchSize:            50,
@@ -27,7 +25,6 @@ func DefaultBatchConfig() BatchConfig {
 	}
 }
 
-// BatchResult holds the result of a single batch execution.
 type BatchResult struct {
 	BatchIndex int
 	Events     []Event
@@ -35,13 +32,10 @@ type BatchResult struct {
 	Duration   time.Duration
 }
 
-// BatchProcessor handles splitting large target lists into manageable batches
-// and running them with controlled concurrency.
 type BatchProcessor struct {
 	config BatchConfig
 }
 
-// NewBatchProcessor creates a new batch processor.
 func NewBatchProcessor(config BatchConfig) *BatchProcessor {
 	if config.BatchSize <= 0 {
 		config.BatchSize = 50
@@ -52,8 +46,6 @@ func NewBatchProcessor(config BatchConfig) *BatchProcessor {
 	return &BatchProcessor{config: config}
 }
 
-// Process splits targets into batches and runs the tool function against each.
-// Results are merged and returned in order.
 func (bp *BatchProcessor) Process(ctx context.Context, targets []string, fn func(ctx context.Context, batchTargets []string) ([]Event, error)) ([]Event, error) {
 	batches := bp.split(targets)
 	if len(batches) == 0 {
@@ -61,7 +53,7 @@ func (bp *BatchProcessor) Process(ctx context.Context, targets []string, fn func
 	}
 
 	if len(batches) == 1 {
-		// No need for batch machinery
+
 		return fn(ctx, batches[0])
 	}
 
@@ -108,7 +100,6 @@ func (bp *BatchProcessor) Process(ctx context.Context, targets []string, fn func
 				"duration", results[i].Duration,
 			)
 
-			// Delay between batches
 			if bp.config.DelayBetweenBatches > 0 && i < len(batches)-1 {
 				select {
 				case <-time.After(bp.config.DelayBetweenBatches):
@@ -149,7 +140,6 @@ func (bp *BatchProcessor) Process(ctx context.Context, targets []string, fn func
 	return allEvents, nil
 }
 
-// split divides targets into batches of the configured size.
 func (bp *BatchProcessor) split(targets []string) [][]string {
 	if len(targets) == 0 {
 		return nil
@@ -166,39 +156,35 @@ func (bp *BatchProcessor) split(targets []string) [][]string {
 	return batches
 }
 
-// ToolRateLimiter provides per-tool rate limiting to prevent WAF bans.
 type ToolRateLimiter struct {
 	limiters map[string]int // tool -> max requests per second
 	mu       sync.RWMutex
 }
 
-// NewToolRateLimiter creates a per-tool rate limiter with default limits.
 func NewToolRateLimiter() *ToolRateLimiter {
 	return &ToolRateLimiter{
 		limiters: map[string]int{
-			// Aggressive tools need lower limits
+
 			"ffuf":        50,
 			"feroxbuster": 50,
 			"gobuster":    50,
 			"nuclei":      30,
 			"dalfox":      20,
-			// Web probing tools
+
 			"httpx":     100,
 			"katana":    30,
 			"hakrawler": 30,
-			// Passive tools can go faster
+
 			"subfinder":   200,
 			"assetfinder": 200,
-			"crtsh":       10, // crt.sh is rate-limited
+			"crtsh":       10,
 			"chaos":       100,
-			// Port scanning
+
 			"naabu": 100,
-			// Default for unlisted tools
 		},
 	}
 }
 
-// GetLimit returns the rate limit for a tool. Returns 0 for unlimited.
 func (trl *ToolRateLimiter) GetLimit(toolName string) int {
 	trl.mu.RLock()
 	defer trl.mu.RUnlock()
@@ -206,10 +192,9 @@ func (trl *ToolRateLimiter) GetLimit(toolName string) int {
 	if limit, ok := trl.limiters[toolName]; ok {
 		return limit
 	}
-	return 0 // unlimited
+	return 0
 }
 
-// SetLimit configures a rate limit for a specific tool.
 func (trl *ToolRateLimiter) SetLimit(toolName string, maxPerSecond int) {
 	trl.mu.Lock()
 	defer trl.mu.Unlock()

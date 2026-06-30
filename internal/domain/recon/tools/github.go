@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -38,7 +38,7 @@ type githubSearchResponse struct {
 var (
 	githubSearchMu    sync.Mutex
 	lastGithubSearch  time.Time
-	githubSearchDelay = 2400 * time.Millisecond // 25 requests/min limit
+	githubSearchDelay = 2400 * time.Millisecond
 )
 
 func limitGithubSearch() {
@@ -81,7 +81,6 @@ func (t *GithubTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 			}
 			client := NewSafeHTTPClient(15 * time.Second)
 
-			// Query GitHub search API for domain occurrences in code
 			query := fmt.Sprintf(`"%s"`, dom)
 			apiURL := fmt.Sprintf("https://api.github.com/search/code?q=%s&per_page=50", url.QueryEscape(query))
 
@@ -145,11 +144,10 @@ func (t *GithubTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 				return
 			}
 
-			// Subdomain regex for this target domain
 			subdomainRegex := regexp.MustCompile(fmt.Sprintf(`(?i)([a-z0-9-_]+\.)*%s`, regexp.QuoteMeta(dom)))
 
 			for _, item := range searchResp.Items {
-				// Use the repository's actual default branch from the API response
+
 				branch := item.Repository.DefaultBranch
 				if branch == "" {
 					branch = "main"
@@ -189,6 +187,14 @@ func (t *GithubTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 					r, err := client.Do(rawReq)
 					if err != nil {
 						return true, err
+					}
+					if r.StatusCode == 403 || r.StatusCode == 429 {
+						r.Body.Close()
+						return true, fmt.Errorf("github rate limit: %d", r.StatusCode)
+					}
+					if r.StatusCode != 200 {
+						r.Body.Close()
+						return false, fmt.Errorf("github raw download status: %d", r.StatusCode)
 					}
 					rawResp = r
 					return false, nil

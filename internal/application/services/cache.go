@@ -17,7 +17,6 @@ import (
 
 const sqliteTimeFmt = "2006-01-02 15:04:05"
 
-// CacheEntry represents a cached tool result.
 type CacheEntry struct {
 	Key       string    `json:"key"`
 	ToolName  string    `json:"tool_name"`
@@ -28,7 +27,6 @@ type CacheEntry struct {
 	HitCount  int       `json:"hit_count"`
 }
 
-// CacheConfig configures the result caching layer.
 type CacheConfig struct {
 	// Enabled turns caching on/off.
 	Enabled bool
@@ -42,7 +40,6 @@ type CacheConfig struct {
 	ToolTTLOverrides map[string]time.Duration
 }
 
-// DefaultCacheConfig returns sensible defaults for the caching layer.
 func DefaultCacheConfig() CacheConfig {
 	return CacheConfig{
 		Enabled:    true,
@@ -50,14 +47,14 @@ func DefaultCacheConfig() CacheConfig {
 		DefaultTTL: 4 * time.Hour,
 		MaxEntries: 10000,
 		ToolTTLOverrides: map[string]time.Duration{
-			// Passive recon results change slowly — cache longer
+
 			"crtsh":       24 * time.Hour,
 			"whois":       24 * time.Hour,
 			"shodan":      12 * time.Hour,
 			"subfinder":   8 * time.Hour,
 			"assetfinder": 8 * time.Hour,
 			"chaos":       8 * time.Hour,
-			// Active probing results change quickly — cache shorter
+
 			"httpx":  2 * time.Hour,
 			"naabu":  2 * time.Hour,
 			"nuclei": 1 * time.Hour,
@@ -65,14 +62,12 @@ func DefaultCacheConfig() CacheConfig {
 	}
 }
 
-// ResultCache provides a SQLite-backed caching layer for tool execution results.
 type ResultCache struct {
 	db     *sql.DB
 	config CacheConfig
 	mu     sync.RWMutex
 }
 
-// NewResultCache creates and initializes a new result cache.
 func NewResultCache(config CacheConfig) (*ResultCache, error) {
 	if !config.Enabled {
 		return nil, nil
@@ -98,13 +93,11 @@ func NewResultCache(config CacheConfig) (*ResultCache, error) {
 		return nil, fmt.Errorf("failed to initialize cache schema: %w", err)
 	}
 
-	// Start background cleanup
 	go rc.cleanupLoop()
 
 	return rc, nil
 }
 
-// initialize creates the cache schema.
 func (rc *ResultCache) initialize() error {
 	schema := `
 		CREATE TABLE IF NOT EXISTS result_cache (
@@ -125,17 +118,15 @@ func (rc *ResultCache) initialize() error {
 	return err
 }
 
-// CacheKey generates a deterministic cache key from tool name, targets, and threads.
 func CacheKey(toolName string, targets []string, threads int) string {
 	sorted := make([]string, len(targets))
 	copy(sorted, targets)
-	// Don't sort — order matters for some tools, but we normalize
+
 	key := fmt.Sprintf("%s|%s|%d", strings.ToLower(toolName), strings.Join(sorted, ","), threads)
 	hash := sha256.Sum256([]byte(key))
-	return fmt.Sprintf("%x", hash[:16]) // 128-bit key
+	return fmt.Sprintf("%x", hash[:16])
 }
 
-// Get retrieves a cached result. Returns nil if not found or expired.
 func (rc *ResultCache) Get(toolName string, targets []string, threads int) (*CacheEntry, bool) {
 	if rc == nil {
 		return nil, false
@@ -174,7 +165,6 @@ func (rc *ResultCache) Get(toolName string, targets []string, threads int) (*Cac
 		slog.Warn("Failed to parse ExpiresAt from cache database", "string", expiresStr, "error", errParse)
 	}
 
-	// Update hit count
 	go func() {
 		rc.mu.Lock()
 		defer rc.mu.Unlock()
@@ -191,7 +181,6 @@ func (rc *ResultCache) Get(toolName string, targets []string, threads int) (*Cac
 	return &entry, true
 }
 
-// Put stores a tool result in the cache.
 func (rc *ResultCache) Put(toolName string, targets []string, threads int, events []Event) error {
 	if rc == nil {
 		return nil
@@ -226,7 +215,6 @@ func (rc *ResultCache) Put(toolName string, targets []string, threads int, event
 	return nil
 }
 
-// Invalidate removes a specific cache entry.
 func (rc *ResultCache) Invalidate(toolName string, targets []string, threads int) error {
 	if rc == nil {
 		return nil
@@ -240,7 +228,6 @@ func (rc *ResultCache) Invalidate(toolName string, targets []string, threads int
 	return err
 }
 
-// InvalidateAll clears all cache entries.
 func (rc *ResultCache) InvalidateAll() error {
 	if rc == nil {
 		return nil
@@ -253,7 +240,6 @@ func (rc *ResultCache) InvalidateAll() error {
 	return err
 }
 
-// Stats returns cache statistics.
 func (rc *ResultCache) Stats() map[string]interface{} {
 	if rc == nil {
 		return map[string]interface{}{"enabled": false}
@@ -273,7 +259,6 @@ func (rc *ResultCache) Stats() map[string]interface{} {
 		slog.Warn("Cache stats: failed to scan expired stats", "error", err)
 	}
 
-	// Per-tool breakdown
 	rows, err := rc.db.Query(`
 		SELECT tool_name, COUNT(*), SUM(hit_count) 
 		FROM result_cache 
@@ -308,7 +293,6 @@ func (rc *ResultCache) Stats() map[string]interface{} {
 	}
 }
 
-// Close shuts down the cache.
 func (rc *ResultCache) Close() error {
 	if rc == nil {
 		return nil
@@ -316,7 +300,6 @@ func (rc *ResultCache) Close() error {
 	return rc.db.Close()
 }
 
-// ttlForTool returns the TTL for a specific tool (using overrides or default).
 func (rc *ResultCache) ttlForTool(toolName string) time.Duration {
 	if ttl, ok := rc.config.ToolTTLOverrides[strings.ToLower(toolName)]; ok {
 		return ttl
@@ -324,7 +307,6 @@ func (rc *ResultCache) ttlForTool(toolName string) time.Duration {
 	return rc.config.DefaultTTL
 }
 
-// cleanupLoop periodically removes expired entries and enforces MaxEntries.
 func (rc *ResultCache) cleanupLoop() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
@@ -332,7 +314,6 @@ func (rc *ResultCache) cleanupLoop() {
 	for range ticker.C {
 		rc.mu.Lock()
 
-		// Remove expired
 		result, err := rc.db.Exec(`DELETE FROM result_cache WHERE expires_at <= datetime('now')`)
 		if err == nil {
 			if deleted, errRows := result.RowsAffected(); errRows == nil && deleted > 0 {
@@ -340,7 +321,6 @@ func (rc *ResultCache) cleanupLoop() {
 			}
 		}
 
-		// Enforce MaxEntries (LRU eviction)
 		if rc.config.MaxEntries > 0 {
 			var count int
 			if err := rc.db.QueryRow(`SELECT COUNT(*) FROM result_cache`).Scan(&count); err != nil {

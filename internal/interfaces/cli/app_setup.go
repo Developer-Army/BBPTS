@@ -26,19 +26,16 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
-// isDirectURL reports whether the -i value looks like a URL or hostname
-// that should be used as a target directly, rather than treated as a file path.
 func isDirectURL(s string) bool {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return false
 	}
-	// Has a scheme (http://, https://) — treat as a URL target
+
 	if strings.Contains(s, "://") {
 		return true
 	}
-	// Bare hostname: contains at least one dot, no path separators,
-	// and does not look like a common plain-file extension.
+
 	if !strings.Contains(s, "/") && !strings.Contains(s, `\`) {
 		lower := strings.ToLower(s)
 		for _, ext := range fileExtsThatMightBeURLs {
@@ -53,9 +50,6 @@ func isDirectURL(s string) bool {
 	return false
 }
 
-// fileExtsThatMightBeURLs lists file extensions that should NOT be treated as
-// bare URL targets. Used so that a hostname named "hostname.txt" (a file)
-// isn't mistaken for a target, while "acme-corp.io" still is.
 var fileExtsThatMightBeURLs = []string{
 	".txt", ".csv", ".json", ".yaml", ".yml", ".xml", ".toml", ".conf",
 	".log", ".jsonl", ".env", ".md", ".input",
@@ -99,7 +93,6 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	// Create a semaphore to cap parallel lookups to 50
 	sem := make(chan struct{}, 50)
 
 	for _, target := range targets {
@@ -130,7 +123,6 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 				}
 			}
 
-			// If it's a direct IP, it's alive
 			if net.ParseIP(cleanHost) != nil {
 				mu.Lock()
 				alive = append(alive, target)
@@ -138,7 +130,6 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 				return
 			}
 
-			// Try DNS lookup to see if it resolves
 			ips, err := net.LookupIP(cleanHost)
 			if err == nil && len(ips) > 0 {
 				parent := getParentDomain(cleanHost)
@@ -180,7 +171,6 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 		return nil, nil
 	}
 
-	// Sort alive list to keep deterministic order
 	sort.Strings(alive)
 
 	httpxTool := &tools.HTTPXTool{}
@@ -497,6 +487,10 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 	if opts.InputPath != "" {
 		if isDirectURL(opts.InputPath) {
 			normalized = []string{opts.InputPath}
+			if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
+				opts.OutputPath, opts.SummaryPath = defaultReportPaths(opts.InputPath)
+				slog.Info("no report paths provided; using defaults", "output", opts.OutputPath, "summary", opts.SummaryPath)
+			}
 		} else {
 			if strings.TrimSpace(opts.OutputPath) == "" && strings.TrimSpace(opts.SummaryPath) == "" {
 				opts.OutputPath, opts.SummaryPath = defaultReportPaths(opts.InputPath)
@@ -560,7 +554,6 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 		}
 	}
 
-	// Expand company: or asn: targets if present
 	if len(normalized) > 0 {
 		var expanded []string
 		for _, target := range normalized {

@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 	"testing"
 )
@@ -81,12 +81,10 @@ func TestIDORAssistExtractAndCluster(t *testing.T) {
 		t.Fatal("expected at least one IDOR cluster")
 	}
 
-	// Should have at least 2 clusters (users path + orders query)
 	if len(clusters) < 2 {
 		t.Errorf("expected >= 2 clusters, got %d", len(clusters))
 	}
 
-	// Check cluster properties
 	for _, c := range clusters {
 		if c.ObjectType == "" {
 			t.Errorf("cluster %s has empty object type", c.Pattern)
@@ -122,7 +120,6 @@ func TestIDORAssistRun(t *testing.T) {
 		t.Fatal("expected IDOR checklist events")
 	}
 
-	// Verify checklist content
 	for _, ev := range events {
 		if ev.Type != "idor_checklist" {
 			continue

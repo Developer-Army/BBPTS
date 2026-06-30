@@ -31,14 +31,12 @@ func TestWriteSubfinderProviderConfig(t *testing.T) {
 
 	content := string(data)
 
-	// Verify simple keys are present
 	for _, source := range []string{"shodan", "securitytrails", "github"} {
 		if !strings.Contains(content, source+":") {
 			t.Errorf("expected source %q in config", source)
 		}
 	}
 
-	// Verify composite censys key
 	if !strings.Contains(content, "censys:") {
 		t.Error("expected censys source in config")
 	}
@@ -46,7 +44,6 @@ func TestWriteSubfinderProviderConfig(t *testing.T) {
 		t.Error("expected composite censys key format")
 	}
 
-	// Verify composite fofa key
 	if !strings.Contains(content, "fofa:") {
 		t.Error("expected fofa source in config")
 	}
@@ -54,7 +51,6 @@ func TestWriteSubfinderProviderConfig(t *testing.T) {
 		t.Error("expected composite fofa key format")
 	}
 
-	// Verify intelx format
 	if !strings.Contains(content, "intelx:") {
 		t.Error("expected intelx source in config")
 	}
@@ -76,10 +72,10 @@ func TestWriteSubfinderProviderConfigEmpty(t *testing.T) {
 
 func TestWriteAmassDatasourcesConfig(t *testing.T) {
 	keys := map[string]string{
-		"shodan":         "shodan-key",
-		"censys_id":      "censys-id",
-		"censys_secret":  "censys-secret",
-		"passivetotal":   "pt-key",
+		"shodan":             "shodan-key",
+		"censys_id":          "censys-id",
+		"censys_secret":      "censys-secret",
+		"passivetotal":       "pt-key",
 		"passivetotal_email": "pt@example.com",
 	}
 

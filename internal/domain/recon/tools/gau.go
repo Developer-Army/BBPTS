@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 )
 
@@ -19,10 +19,6 @@ func (t *GauTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets [
 	}
 
 	args := []string{"--threads", fmt.Sprintf("%d", threads), "--subs"}
-	headers := scanCtx.Headers
-	for k, v := range headers {
-		args = append(args, "--header", fmt.Sprintf("%s: %s", k, v))
-	}
 	input := strings.Join(targets, "\n")
 	lines, err := RunCommandWithInputLines(ctx, []byte(input), "gau", args...)
 	if err != nil {

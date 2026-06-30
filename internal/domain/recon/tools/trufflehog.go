@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"strings"
 )
@@ -41,8 +41,24 @@ func (t *TrufflehogTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 			continue
 		}
 
-		// Run trufflehog filesystem scan
-		args := []string{"filesystem", target, "--json"}
+		var args []string
+		isURL := strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://")
+		if isURL {
+			targetLower := strings.ToLower(target)
+			isGit := strings.HasSuffix(targetLower, ".git") ||
+				strings.Contains(targetLower, "github.com") ||
+				strings.Contains(targetLower, "gitlab.com") ||
+				strings.Contains(targetLower, "bitbucket.org")
+
+			if !isGit {
+				slog.Debug("trufflehog: skipping plain web target (already scanned by regex/secrets modules)", "target", target)
+				continue
+			}
+			args = []string{"git", target, "--json"}
+		} else {
+			args = []string{"filesystem", target, "--json"}
+		}
+
 		lines, err := RunCommandLines(ctx, "trufflehog", args...)
 		if err != nil {
 			slog.Debug("trufflehog execution warning", "target", target, "error", err)

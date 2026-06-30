@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"os"
 	"strings"
 )
@@ -19,8 +19,6 @@ func (t *ChaosTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 		return nil, nil
 	}
 
-	// Create a temporary file for targets since chaos -dL is the most reliable
-	// way to scan multiple domains.
 	tmpFile, err := os.CreateTemp("", "chaos-targets-*.txt")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file for chaos: %w", err)
@@ -36,7 +34,7 @@ func (t *ChaosTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 	args := []string{"-silent", "-dL", tmpFile.Name()}
 	key := strings.TrimSpace(scanCtx.APIKeys["chaos"])
 	if key == "" {
-		// Chaos generally requires an API key; skip gracefully when not configured.
+
 		return nil, nil
 	}
 	args = append(args, "-key", key)

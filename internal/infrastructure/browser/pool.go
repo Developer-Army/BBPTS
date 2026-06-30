@@ -9,7 +9,6 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// PooledBrowser manages a pool of Playwright browser instances and reuses contexts per domain.
 type PooledBrowser struct {
 	pw          *playwright.Playwright
 	browsers    []BrowserInstance
@@ -21,14 +20,12 @@ type PooledBrowser struct {
 	closeOnce   sync.Once
 }
 
-// BrowserInstance represents a single Chromium instance.
 type BrowserInstance struct {
 	browser  playwright.Browser
 	contexts int
 	lastUsed time.Time
 }
 
-// PoolConfig configures browser pool behavior.
 type PoolConfig struct {
 	MaxBrowsers int           // max number of Chromium instances
 	MaxContexts int           // max total contexts across all browsers
@@ -39,7 +36,6 @@ type PoolConfig struct {
 	ExtraArgs   []string
 }
 
-// DefaultPoolConfig returns sensible defaults.
 func DefaultPoolConfig() PoolConfig {
 	return PoolConfig{
 		MaxBrowsers: 5,
@@ -58,11 +54,10 @@ func DefaultPoolConfig() PoolConfig {
 	}
 }
 
-// LowResourcePoolConfig returns a low-resource pool configuration.
 func LowResourcePoolConfig() PoolConfig {
 	return PoolConfig{
-		MaxBrowsers: 1, // single Chromium process
-		MaxContexts: 3, // max 3 contexts
+		MaxBrowsers: 1,
+		MaxContexts: 3,
 		ContextTTL:  5 * time.Minute,
 		Headless:    true,
 		ExtraArgs: []string{
@@ -75,15 +70,14 @@ func LowResourcePoolConfig() PoolConfig {
 			"--disable-background-networking",
 			"--disable-sync",
 			"--memory-pressure-thresholds=moderate:0.5,critical:0.9",
-			"--js-flags=--max-old-space-size=256", // cap V8 heap
-			"--window-size=1280,720",              // smaller viewport
+			"--js-flags=--max-old-space-size=256",
+			"--window-size=1280,720",
 		},
 	}
 }
 
-// NewPooledBrowser creates a managed browser pool.
 func NewPooledBrowser(cfg PoolConfig) (*PooledBrowser, error) {
-	// Install Playwright drivers if needed
+
 	if err := playwright.Install(&playwright.RunOptions{Verbose: false}); err != nil {
 		return nil, fmt.Errorf("playwright install failed: %w", err)
 	}
@@ -102,7 +96,6 @@ func NewPooledBrowser(cfg PoolConfig) (*PooledBrowser, error) {
 		contextTTL:  cfg.ContextTTL,
 	}
 
-	// Launch initial browser instances
 	for i := 0; i < cfg.MaxBrowsers; i++ {
 		b, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 			Headless: playwright.Bool(cfg.Headless),
@@ -120,27 +113,23 @@ func NewPooledBrowser(cfg PoolConfig) (*PooledBrowser, error) {
 
 	slog.Info("Browser pool initialized", "browsers", len(pb.browsers), "max_contexts", cfg.MaxContexts)
 
-	// Start cleanup goroutine
 	go pb.cleanupLoop()
 
 	return pb, nil
 }
 
-// GetContext obtains a browser context for a domain, reusing existing if available.
 func (pb *PooledBrowser) GetContext(domain string, headers map[string]string) (playwright.BrowserContext, error) {
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
 
-	// 1. Check if we have an existing context for this domain (least-recently-used)
 	if contexts, ok := pb.contextPool[domain]; ok && len(contexts) > 0 {
 		ctx := contexts[len(contexts)-1]
-		// Remove from pool
+
 		pb.contextPool[domain] = contexts[:len(contexts)-1]
 		slog.Debug("Reused existing context for domain", "domain", domain, "remaining", len(pb.contextPool[domain]))
 		return ctx, nil
 	}
 
-	// 2. Check global pool for any free context
 	if len(pb.globalPool) > 0 {
 		ctx := pb.globalPool[len(pb.globalPool)-1]
 		pb.globalPool = pb.globalPool[:len(pb.globalPool)-1]
@@ -148,7 +137,6 @@ func (pb *PooledBrowser) GetContext(domain string, headers map[string]string) (p
 		return ctx, nil
 	}
 
-	// 3. Need to create new context - find browser with capacity
 	browserIdx := pb.selectBrowser()
 	if browserIdx == -1 {
 		return nil, fmt.Errorf("no browser instances available or pool exhausted")
@@ -173,12 +161,10 @@ func (pb *PooledBrowser) GetContext(domain string, headers map[string]string) (p
 	return ctx, nil
 }
 
-// ReleaseContext returns a context to the pool for reuse.
 func (pb *PooledBrowser) ReleaseContext(domain string, ctx playwright.BrowserContext) {
 	pb.mu.Lock()
 	defer pb.mu.Unlock()
 
-	// Check pool size limit
 	totalContexts := 0
 	for _, list := range pb.contextPool {
 		totalContexts += len(list)
@@ -186,24 +172,22 @@ func (pb *PooledBrowser) ReleaseContext(domain string, ctx playwright.BrowserCon
 	totalContexts += len(pb.globalPool)
 
 	if totalContexts >= pb.maxPoolSize {
-		// Pool full - close context
+
 		ctx.Close()
 		slog.Debug("Closed context (pool full)", "domain", domain)
 		return
 	}
 
-	// Return to domain-specific pool
 	pb.contextPool[domain] = append(pb.contextPool[domain], ctx)
 	slog.Debug("Context returned to pool", "domain", domain, "pool_size", len(pb.contextPool[domain]))
 }
 
-// selectBrowser picks a browser instance (round-robin with capacity check).
 func (pb *PooledBrowser) selectBrowser() int {
-	// Start from last used + 1 (round-robin)
+
 	start := 0
 	for i := 0; i < len(pb.browsers); i++ {
 		idx := (start + i) % len(pb.browsers)
-		// Use browsers with available context capacity (arbitrary limit of 50 per browser)
+
 		if pb.browsers[idx].contexts < 50 {
 			return idx
 		}
@@ -211,7 +195,6 @@ func (pb *PooledBrowser) selectBrowser() int {
 	return -1
 }
 
-// cleanupLoop periodically removes stale contexts.
 func (pb *PooledBrowser) cleanupLoop() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
@@ -221,12 +204,11 @@ func (pb *PooledBrowser) cleanupLoop() {
 		for domain, contexts := range pb.contextPool {
 			active := make([]playwright.BrowserContext, 0, len(contexts))
 			for _, ctx := range contexts {
-				// Close stale contexts
-				// For now, cap pool size per domain to 1
+
 				if len(active) < 1 {
 					active = append(active, ctx)
 				} else {
-					ctx.Close() // evict extras
+					ctx.Close()
 				}
 			}
 			pb.contextPool[domain] = active
@@ -235,7 +217,6 @@ func (pb *PooledBrowser) cleanupLoop() {
 	}
 }
 
-// Stats returns pool statistics.
 func (pb *PooledBrowser) Stats() map[string]interface{} {
 	pb.mu.RLock()
 	defer pb.mu.RUnlock()
@@ -256,13 +237,11 @@ func (pb *PooledBrowser) Stats() map[string]interface{} {
 	return stats
 }
 
-// Close shuts down all browsers and clears pools.
 func (pb *PooledBrowser) Close() error {
 	pb.closeOnce.Do(func() {
 		pb.mu.Lock()
 		defer pb.mu.Unlock()
 
-		// Close all contexts
 		for domain, list := range pb.contextPool {
 			for _, ctx := range list {
 				ctx.Close()
@@ -274,7 +253,6 @@ func (pb *PooledBrowser) Close() error {
 		}
 		pb.globalPool = nil
 
-		// Close all browsers
 		for _, bi := range pb.browsers {
 			bi.browser.Close()
 		}

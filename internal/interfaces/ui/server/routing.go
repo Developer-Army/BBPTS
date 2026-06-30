@@ -5,12 +5,10 @@ import (
 	"net/http"
 )
 
-// RegisterRoutes registers all API and static routes to the multiplexer.
 func RegisterRoutes(mux *http.ServeMux, api *API) {
-	// Static Assets
+
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
 
-	// API Routes
 	mux.HandleFunc("/api/auth", api.Authenticate)
 	mux.HandleFunc("/api/logout", api.Logout)
 	mux.HandleFunc("/api/me", api.GetCurrentUser)
@@ -33,7 +31,6 @@ func RegisterRoutes(mux *http.ServeMux, api *API) {
 	mux.HandleFunc("/api/findings", api.GetFindings)
 	mux.HandleFunc("/api/status", api.GetStatus)
 
-	// API v2 Routes (Mobile Companion Support)
 	mux.HandleFunc("/api/v2/events/stream", api.StreamEventsv2)
 	mux.HandleFunc("/api/v2/findings/", api.HandleFindingsv2)
 	mux.HandleFunc("/api/v2/scan/status", api.GetScanStatusv2)
@@ -44,8 +41,6 @@ func RegisterRoutes(mux *http.ServeMux, api *API) {
 	mux.HandleFunc("/api/v2/auth/device", api.RegisterDeviceTokenv2)
 	mux.HandleFunc("/api/v2/auth/device/", api.RevokeDeviceTokenv2)
 
-
-	// Static Frontend (Embedded or simply served from a string for now)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

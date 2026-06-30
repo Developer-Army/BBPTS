@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// RetryConfig configures the exponential backoff retry strategy.
 type RetryConfig struct {
 	// MaxRetries is the maximum number of retry attempts (0 = no retries).
 	MaxRetries int
@@ -23,7 +22,6 @@ type RetryConfig struct {
 	JitterFraction float64
 }
 
-// DefaultRetryConfig returns a production-ready retry configuration.
 func DefaultRetryConfig() RetryConfig {
 	return RetryConfig{
 		MaxRetries:     5,
@@ -34,11 +32,9 @@ func DefaultRetryConfig() RetryConfig {
 	}
 }
 
-// ToolRetryConfig returns a config tuned for external recon tool execution,
-// where tools can be slow and intermittent failures are common.
 func ToolRetryConfig() RetryConfig {
 	return RetryConfig{
-		MaxRetries:     3,
+		MaxRetries:     1,
 		BaseDelay:      1 * time.Second,
 		MaxDelay:       30 * time.Second,
 		Multiplier:     2.0,
@@ -46,14 +42,8 @@ func ToolRetryConfig() RetryConfig {
 	}
 }
 
-// RetryableFunc is a function that can be retried. It returns an error and a boolean
-// indicating whether the error is retryable. Non-retryable errors abort immediately.
 type RetryableFunc func(ctx context.Context, attempt int) (retryable bool, err error)
 
-// ExecuteWithRetry runs fn with exponential backoff retries.
-// If fn returns (false, err), the error is considered permanent and retries stop.
-// If fn returns (true, err), the operation will be retried.
-// If fn returns (_, nil), the operation succeeded.
 func ExecuteWithRetry(ctx context.Context, cfg RetryConfig, fn RetryableFunc) error {
 	if cfg.Multiplier <= 0 {
 		cfg.Multiplier = 2.0
@@ -102,17 +92,14 @@ func ExecuteWithRetry(ctx context.Context, cfg RetryConfig, fn RetryableFunc) er
 	return fmt.Errorf("operation failed after %d attempts: %w", cfg.MaxRetries+1, lastErr)
 }
 
-// computeBackoff calculates the next backoff delay with optional jitter.
 func computeBackoff(cfg RetryConfig, attempt int) time.Duration {
-	// Exponential component: baseDelay * multiplier^(attempt-1)
+
 	backoff := float64(cfg.BaseDelay) * math.Pow(cfg.Multiplier, float64(attempt-1))
 
-	// Cap at max delay
 	if backoff > float64(cfg.MaxDelay) {
 		backoff = float64(cfg.MaxDelay)
 	}
 
-	// Add jitter
 	if cfg.JitterFraction > 0 {
 		jitter := backoff * cfg.JitterFraction * rand.Float64()
 		backoff += jitter

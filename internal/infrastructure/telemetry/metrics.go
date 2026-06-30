@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	// Queue Metrics
 	QueueLag = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "bbpts_queue_lag",
 		Help: "Number of pending recon jobs in the queue",
@@ -38,7 +37,6 @@ var (
 		Help: "Total number of queue message retries",
 	}, []string{"queue", "backend"})
 
-	// Worker Metrics
 	WorkerCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "bbpts_worker_count",
 		Help: "Number of active workers",
@@ -60,7 +58,6 @@ var (
 		Help: "Last heartbeat timestamp from workers",
 	}, []string{"worker_id"})
 
-	// Browser/Crawl Metrics
 	BrowserPoolSize = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "bbpts_browser_pool_size",
 		Help: "Current size of browser pool",
@@ -87,7 +84,6 @@ var (
 		Help: "Memory usage of browser instances",
 	}, []string{"browser_type"})
 
-	// Recon Tool Metrics
 	ToolExecutionDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "bbpts_tool_execution_duration_seconds",
 		Help:    "Duration of recon tool execution",
@@ -105,7 +101,6 @@ var (
 		Buckets: []float64{1024, 10240, 102400, 1048576, 10485760, 104857600},
 	}, []string{"tool"})
 
-	// Checkpoint/State Metrics
 	CheckpointCount = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "bbpts_checkpoint_count",
 		Help: "Number of active checkpoints",
@@ -122,7 +117,6 @@ var (
 		Buckets: []float64{60, 300, 600, 1800, 3600, 7200, 14400},
 	}, []string{"session_type"})
 
-	// WAF/Stealth Metrics
 	WAFTriggerRates = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "bbpts_waf_blocks_total",
 		Help: "Total number of WAF blocks triggered",
@@ -138,7 +132,6 @@ var (
 		Help: "Rate at which identities are being burned (blocks per minute)",
 	}, []string{"identity_pool"})
 
-	// Database/Storage Metrics
 	DBQueryDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "bbpts_db_query_duration_seconds",
 		Help:    "Duration of database queries",
@@ -155,7 +148,6 @@ var (
 		Help: "Storage usage in bytes",
 	}, []string{"storage_type"})
 
-	// System Metrics
 	GoroutineCount = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "bbpts_goroutines",
 		Help: "Current number of goroutines",
@@ -167,7 +159,6 @@ var (
 	})
 )
 
-// MetricsCollector periodically collects system metrics
 type MetricsCollector struct {
 	interval time.Duration
 	stopChan chan struct{}
@@ -176,7 +167,6 @@ type MetricsCollector struct {
 	stopped  bool
 }
 
-// NewMetricsCollector creates a new metrics collector
 func NewMetricsCollector(interval time.Duration) *MetricsCollector {
 	return &MetricsCollector{
 		interval: interval,
@@ -184,7 +174,6 @@ func NewMetricsCollector(interval time.Duration) *MetricsCollector {
 	}
 }
 
-// Start begins collecting metrics
 func (mc *MetricsCollector) Start() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -212,7 +201,6 @@ func (mc *MetricsCollector) Start() {
 	}()
 }
 
-// Stop stops the metrics collector
 func (mc *MetricsCollector) Stop() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -226,14 +214,11 @@ func (mc *MetricsCollector) Stop() {
 	}
 }
 
-// collectSystemMetrics collects system-level metrics
 func (mc *MetricsCollector) collectSystemMetrics() {
-	// This would typically use runtime.MemStats and other system metrics
-	// For now, we'll just log that collection happened
+
 	slog.Debug("System metrics collected")
 }
 
-// StartMetricsServer boots an HTTP server exposing Prometheus metrics on the given port (e.g., ":9090")
 func StartMetricsServer(addr string) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())

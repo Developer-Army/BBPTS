@@ -19,7 +19,6 @@ func TestNewIdentityPool(t *testing.T) {
 func TestGetOrCreate(t *testing.T) {
 	pool := NewIdentityPool()
 
-	// First call should create new identity
 	id1 := pool.GetOrCreate("session-1")
 	if id1 == nil {
 		t.Fatal("GetOrCreate returned nil")
@@ -41,13 +40,11 @@ func TestGetOrCreate(t *testing.T) {
 		t.Error("Expected Burned to be false for new identity")
 	}
 
-	// Second call with same session should return same identity
 	id2 := pool.GetOrCreate("session-1")
 	if id2.ID != id1.ID {
 		t.Error("Expected same identity for same session ID")
 	}
 
-	// Different session should create different identity
 	id3 := pool.GetOrCreate("session-2")
 	if id3.ID == id1.ID {
 		t.Error("Expected different identity for different session ID")
@@ -57,13 +54,10 @@ func TestGetOrCreate(t *testing.T) {
 func TestGetOrCreateBurnedIdentity(t *testing.T) {
 	pool := NewIdentityPool()
 
-	// Create identity
 	id1 := pool.GetOrCreate("session-1")
 
-	// Mark as burned
 	id1.Burned = true
 
-	// Should create new identity for burned one
 	id2 := pool.GetOrCreate("session-1")
 	if id2.ID == id1.ID {
 		t.Error("Expected new identity when previous is burned")
@@ -77,13 +71,11 @@ func TestGetOrCreateBurnedIdentity(t *testing.T) {
 func TestReportChallenge(t *testing.T) {
 	pool := NewIdentityPool()
 
-	// Create identity
 	id := pool.GetOrCreate("session-1")
 
 	initialTrust := id.BehavioralTrust
 	initialCaptchas := id.CaptchasEncountered
 
-	// Report first challenge
 	pool.ReportChallenge("session-1")
 
 	if id.CaptchasEncountered != initialCaptchas+1 {
@@ -94,21 +86,18 @@ func TestReportChallenge(t *testing.T) {
 		t.Errorf("Expected BehavioralTrust %d, got %d", initialTrust-20, id.BehavioralTrust)
 	}
 
-	// Report second challenge
 	pool.ReportChallenge("session-1")
 
 	if id.CaptchasEncountered != initialCaptchas+2 {
 		t.Errorf("Expected CaptchasEncountered %d, got %d", initialCaptchas+2, id.CaptchasEncountered)
 	}
 
-	// Report third challenge
 	pool.ReportChallenge("session-1")
 
 	if id.CaptchasEncountered != initialCaptchas+3 {
 		t.Errorf("Expected CaptchasEncountered %d, got %d", initialCaptchas+3, id.CaptchasEncountered)
 	}
 
-	// Should be burned after 3 challenges
 	if !id.Burned {
 		t.Error("Expected identity to be burned after 3 challenges")
 	}
@@ -117,13 +106,10 @@ func TestReportChallenge(t *testing.T) {
 func TestReportChallengeBurnsOnLowTrust(t *testing.T) {
 	pool := NewIdentityPool()
 
-	// Create identity
 	id := pool.GetOrCreate("session-1")
 
-	// Set trust to very low
 	id.BehavioralTrust = 10
 
-	// Report challenge - should burn due to low trust
 	pool.ReportChallenge("session-1")
 
 	if !id.Burned {
@@ -134,7 +120,6 @@ func TestReportChallengeBurnsOnLowTrust(t *testing.T) {
 func TestReportChallengeNonExistentSession(t *testing.T) {
 	pool := NewIdentityPool()
 
-	// Should not panic on non-existent session
 	pool.ReportChallenge("non-existent")
 }
 

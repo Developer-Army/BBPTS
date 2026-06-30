@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,11 +15,6 @@ import (
 )
 
 type SupplyChainTool struct{}
-
-type npmPackage struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
 
 func (t *SupplyChainTool) Name() string {
 	return "supply_chain"
@@ -48,13 +43,10 @@ func (t *SupplyChainTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 		client := NewSafeHTTPClient(10 * time.Second)
 		var events []recon.Event
 
-		// Extract package.json references from JS bundles
 		events = append(events, t.checkJSBundles(ctx, client, target)...)
 
-		// Check for exposed dependency files
 		events = append(events, t.checkDependencyFiles(ctx, client, target)...)
 
-		// Check for exposed CODEOWNERS
 		events = append(events, t.checkCODEOWNERS(ctx, client, target)...)
 
 		return events, nil
@@ -64,7 +56,6 @@ func (t *SupplyChainTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 func (t *SupplyChainTool) checkJSBundles(ctx context.Context, client *http.Client, target string) []recon.Event {
 	var events []recon.Event
 
-	// Fetch main page and look for JS bundles
 	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 	if err != nil {
 		return nil
@@ -78,7 +69,6 @@ func (t *SupplyChainTool) checkJSBundles(ctx context.Context, client *http.Clien
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 	bodyStr := string(body)
 
-	// Find JS file references
 	jsPattern := regexp.MustCompile(`src=["']([^"']*\.js[^"']*)["']`)
 	matches := jsPattern.FindAllStringSubmatch(bodyStr, 20)
 
@@ -93,7 +83,6 @@ func (t *SupplyChainTool) checkJSBundles(ctx context.Context, client *http.Clien
 			jsPath = strings.TrimSuffix(target, "/") + "/" + strings.TrimPrefix(jsPath, "/")
 		}
 
-		// Fetch JS bundle
 		jsReq, err := http.NewRequestWithContext(ctx, "GET", jsPath, nil)
 		if err != nil {
 			continue
@@ -105,7 +94,6 @@ func (t *SupplyChainTool) checkJSBundles(ctx context.Context, client *http.Clien
 		jsBody, _ := io.ReadAll(io.LimitReader(jsResp.Body, 512*1024))
 		jsResp.Body.Close()
 
-		// Extract npm package references
 		pkgPattern := regexp.MustCompile(`node_modules/([^/]+)/`)
 		pkgMatches := pkgPattern.FindAllStringSubmatch(string(jsBody), 50)
 
@@ -119,7 +107,6 @@ func (t *SupplyChainTool) checkJSBundles(ctx context.Context, client *http.Clien
 			}
 			seenPackages[pkgName] = true
 
-			// Check if package exists on npm
 			if t.checkNPMPackage(ctx, client, pkgName) {
 				events = append(events, recon.NewEvent(target, t.Name(), "supply_chain_package", map[string]string{
 					"package":  pkgName,
@@ -130,7 +117,6 @@ func (t *SupplyChainTool) checkJSBundles(ctx context.Context, client *http.Clien
 			}
 		}
 
-		// Check for typosquatting opportunities
 		events = append(events, t.checkTyposquats(ctx, client, target, seenPackages)...)
 	}
 
@@ -154,7 +140,6 @@ func (t *SupplyChainTool) checkNPMPackage(ctx context.Context, client *http.Clie
 func (t *SupplyChainTool) checkTyposquats(ctx context.Context, client *http.Client, target string, realPackages map[string]bool) []recon.Event {
 	var events []recon.Event
 
-	// Common typosquatting patterns
 	typos := map[string][]string{
 		"lodash":     {"lodah", "lodas", "lodashs", "lodash-es", "_lodash"},
 		"express":    {"expresss", "expres", "expressjs"},
@@ -253,7 +238,7 @@ func (t *SupplyChainTool) checkCODEOWNERS(ctx context.Context, client *http.Clie
 		resp.Body.Close()
 
 		if resp.StatusCode == 200 {
-			// Check for external accounts in CODEOWNERS
+
 			bodyStr := string(body)
 			lines := strings.Split(bodyStr, "\n")
 			for _, line := range lines {
@@ -266,10 +251,10 @@ func (t *SupplyChainTool) checkCODEOWNERS(ctx context.Context, client *http.Clie
 					owner := parts[len(parts)-1]
 					if strings.HasPrefix(owner, "@") && !strings.Contains(owner, "@github") {
 						events = append(events, recon.NewEvent(target, t.Name(), "supply_chain_owner", map[string]string{
-							"owner":     owner,
-							"path":      path,
-							"rule":      line,
-							"note":      "External account in CODEOWNERS - review for trust",
+							"owner": owner,
+							"path":  path,
+							"rule":  line,
+							"note":  "External account in CODEOWNERS - review for trust",
 						}))
 					}
 				}

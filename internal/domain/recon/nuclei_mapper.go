@@ -5,11 +5,8 @@ import (
 	"strings"
 )
 
-// NucleiTagMapping maps BBPTS rule-engine tags and insight tags to Nuclei
-// template tags. This enables automatic, targeted vulnerability scanning
-// based on what the recon pipeline discovered.
 var NucleiTagMapping = map[string][]string{
-	// Rule engine tags → nuclei template tags
+
 	"exposed-secrets":   {"exposure", "token", "config"},
 	"source-disclosure": {"git", "exposure", "config"},
 	"backup-file":       {"backup", "exposure"},
@@ -21,7 +18,6 @@ var NucleiTagMapping = map[string][]string{
 	"cloud-storage":     {"s3", "aws", "bucket"},
 	"dev-environment":   {"debug", "exposure", "config"},
 
-	// Insight tags → nuclei template tags
 	"api":            {"api", "graphql", "swagger"},
 	"auth":           {"login", "default-login", "brute-force", "auth-bypass"},
 	"parameterized":  {"sqli", "xss", "ssti", "lfi", "rfi", "ssrf"},
@@ -29,8 +25,6 @@ var NucleiTagMapping = map[string][]string{
 	"infrastructure": {"tech-detect", "waf-detect"},
 }
 
-// NucleiSeverityForPriority maps BBPTS priority levels to Nuclei severity
-// filters. Higher-priority findings get deeper scanning.
 var NucleiSeverityForPriority = map[string][]string{
 	"critical": {"info", "low", "medium", "high", "critical"},
 	"high":     {"low", "medium", "high", "critical"},
@@ -38,8 +32,6 @@ var NucleiSeverityForPriority = map[string][]string{
 	"low":      {"high", "critical"},
 }
 
-// ResolveTags takes a list of BBPTS tags (from rules or insights) and returns
-// the corresponding Nuclei template tags for targeted scanning.
 func ResolveTags(bbptsTags []string) []string {
 	seen := make(map[string]struct{})
 	var result []string
@@ -61,7 +53,6 @@ func ResolveTags(bbptsTags []string) []string {
 	return result
 }
 
-// ResolveSeverity returns the Nuclei severity filter for a given BBPTS priority.
 func ResolveSeverity(priority string) []string {
 	if sevs, ok := NucleiSeverityForPriority[strings.ToLower(priority)]; ok {
 		return sevs
@@ -69,7 +60,6 @@ func ResolveSeverity(priority string) []string {
 	return []string{"high", "critical"}
 }
 
-// NucleiTemplateSubsetMapping maps detected technologies to Nuclei template subsets/patterns.
 var NucleiTemplateSubsetMapping = map[string][]string{
 	"wordpress":   {"wp-*"},
 	"laravel":     {"php-*"},
@@ -93,7 +83,6 @@ var NucleiTemplateSubsetMapping = map[string][]string{
 	"keycloak":    {"keycloak-*"},
 }
 
-// ResolveTemplateSubsets matches detected technologies to relevant nuclei template subsets.
 func ResolveTemplateSubsets(techs []string) []string {
 	seen := make(map[string]struct{})
 	var result []string

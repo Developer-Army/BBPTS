@@ -10,20 +10,17 @@ import (
 	"strings"
 )
 
-// Expected for legacy modes (subdomains, alive)
 type Expected struct {
 	Target     string   `json:"target"`
 	Subdomains []string `json:"subdomains"`
 	Alive      []string `json:"alive"`
 }
 
-// ExpectedLocalhost for localhost mode
 type ExpectedLocalhost struct {
 	Target       string   `json:"target"`
 	ExpectedTags []string `json:"expected_tags"`
 }
 
-// ActualItem for results.json parsing
 type ActualItem struct {
 	Host     string   `json:"host"`
 	Priority string   `json:"priority"`
@@ -47,7 +44,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 1. Load Expected
 	expData, err := os.ReadFile(*expectedPath)
 	if err != nil {
 		fmt.Printf("Error reading expected file: %v\n", err)
@@ -76,7 +72,6 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 	fmt.Printf(" BBPTS DETECTOR EVALUATION: LOCALHOST\n")
 	fmt.Printf("========================================\n\n")
 
-	// Load actual results.json
 	actData, err := os.ReadFile(actualPath)
 	if err != nil {
 		fmt.Printf(" Error reading actual results: %v\n", err)
@@ -123,7 +118,6 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 
 	var tp, fn, fp []string
 
-	// Check expected tags (True Positives and False Negatives)
 	for _, tag := range expected.ExpectedTags {
 		tagClean := strings.ToLower(strings.TrimSpace(tag))
 		if actualTagsSet[tagClean] {
@@ -133,7 +127,6 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 		}
 	}
 
-	// Check for extra tags (False Positives)
 	expectedTagsSet := make(map[string]bool)
 	for _, tag := range expected.ExpectedTags {
 		expectedTagsSet[strings.ToLower(strings.TrimSpace(tag))] = true
@@ -159,7 +152,7 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 		fmt.Println("   (Perfect! No extra noise)")
 	} else {
 		for _, v := range fp {
-			// Classify priority: discovery is low priority, others might be medium/low unless critical
+
 			priority := "low priority noise"
 			if v != "discovery" {
 				priority = "unclassified extra finding"
@@ -187,13 +180,12 @@ func evaluateLocalhost(expected ExpectedLocalhost, actualPath, failuresPath stri
 	fmt.Printf("========================================\n")
 
 	if len(fn) > 0 {
-		// Log missed ones to terminal in bold red and write to targets failures file
+
 		fmt.Printf("\n\033[1;31m[-] TEST FAILED: Missed %d high-priority expected target findings!\033[0m\n", len(fn))
 		writeFailures(failuresPath, fn)
 		os.Exit(1)
 	}
 
-	// Clean up failures file if passed
 	_ = os.Remove(failuresPath)
 	fmt.Println("\n\033[1;32m[+] TEST PASSED: Validation complete with 100% coverage of expected findings.\033[0m")
 	os.Exit(0)
@@ -232,7 +224,7 @@ func evaluateLegacy(expected Expected, actualPath, mode, failuresPath string) {
 			}
 		}
 	} else {
-		// Parse CSV
+
 		f, err := os.Open(actualPath)
 		if err != nil {
 			fmt.Printf("Error reading actual CSV: %v\n", err)
@@ -259,7 +251,7 @@ func evaluateLegacy(expected Expected, actualPath, mode, failuresPath string) {
 
 			for i, row := range records {
 				if i == 0 {
-					continue // Skip header
+					continue
 				}
 				if len(row) <= hostIdx {
 					continue

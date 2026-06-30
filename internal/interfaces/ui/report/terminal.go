@@ -39,7 +39,7 @@ func (t *TerminalSummary) Write(w io.Writer) {
 		if insight.Priority != "high" {
 			continue
 		}
-		if i >= 5 { // Show top 5 high priority
+		if i >= 5 {
 			fmt.Fprintf(w, "  ... and %d more high-priority assets\n", highCount-5)
 			break
 		}

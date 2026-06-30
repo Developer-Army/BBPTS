@@ -16,17 +16,12 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// GithubDorkerTool performs passive GitHub dorking to find leaked secrets,
-// config files, internal endpoints, and API references for target domains.
-// Runs at Stage 0 — zero traffic to target, GitHub API only.
 type GithubDorkerTool struct{}
 
 func (t *GithubDorkerTool) Name() string {
 	return "github_dorker"
 }
 
-// dorkQueries returns curated search queries for a given domain.
-// Each query targets a specific class of leakage.
 func dorkQueries(domain string) []struct {
 	Query    string
 	Category string // secret, config, endpoint, infra
@@ -36,7 +31,7 @@ func dorkQueries(domain string) []struct {
 		Query    string
 		Category string
 	}{
-		// --- Credential / Secret Leaks ---
+
 		{Query: d + " password", Category: "secret"},
 		{Query: d + " api_key", Category: "secret"},
 		{Query: d + " apikey", Category: "secret"},
@@ -54,7 +49,6 @@ func dorkQueries(domain string) []struct {
 		{Query: d + ` "redis://"`, Category: "secret"},
 		{Query: d + " smtp", Category: "secret"},
 
-		// --- Config Files ---
 		{Query: d + " .env", Category: "config"},
 		{Query: d + " config.yml", Category: "config"},
 		{Query: d + " config.json", Category: "config"},
@@ -65,19 +59,16 @@ func dorkQueries(domain string) []struct {
 		{Query: d + " docker-compose", Category: "config"},
 		{Query: d + " dockerfile", Category: "config"},
 
-		// --- Internal / Staging Endpoints ---
 		{Query: d + " internal", Category: "endpoint"},
 		{Query: d + " staging", Category: "endpoint"},
 		{Query: d + " admin", Category: "endpoint"},
 
-		// --- API Documentation / Routes ---
 		{Query: d + " swagger.json", Category: "endpoint"},
 		{Query: d + " openapi", Category: "endpoint"},
 		{Query: d + " graphql", Category: "endpoint"},
 	}
 }
 
-// configFilePatterns detects known config file types by path/name.
 var configFilePatterns = regexp.MustCompile(
 	`(?i)(?:` +
 		`\.env|` +
@@ -95,7 +86,6 @@ var configFilePatterns = regexp.MustCompile(
 		`)`,
 )
 
-// internalEndpointPatterns detects internal/staging URLs in file content.
 var internalEndpointPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)https?://[a-z0-9._-]+\.internal\.[a-z0-9._-]+`),
 	regexp.MustCompile(`(?i)https?://[a-z0-9._-]+\.local\.[a-z0-9._-]+`),
@@ -103,12 +93,10 @@ var internalEndpointPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)https?://localhost[:/][^\s'"]+`),
 }
 
-// apiEndpointPatterns detects API route references in file content.
 var apiEndpointPatterns = regexp.MustCompile(
 	`(?i)(?:/api/v\d+[^\s'"]*|/graphql(?:/[^\s'"]*)?|/swagger[^\s'"]*|/openapi[^\s'"]*|/admin[^\s'"]*)`,
 )
 
-// dedupeKey uniquely identifies a finding to prevent duplicates across overlapping queries.
 type dedupeKey struct {
 	target    string
 	eventType string
@@ -129,7 +117,6 @@ func (t *GithubDorkerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 		seen   = make(map[dedupeKey]struct{})
 	)
 
-	// Limit concurrent domain processing
 	sem := make(chan struct{}, threads)
 
 	// Collect unique domains for org enumeration
@@ -194,7 +181,6 @@ func (t *GithubDorkerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 						"dork_query": dork.Query,
 					}
 
-					// 1. Scan for leaked secrets
 					secretMatches := recon.ScanForSecrets(fileContent)
 					for _, sm := range secretMatches {
 						key := dedupeKey{target: dom, eventType: "secret_exposed", value: sm.Value}
@@ -214,7 +200,6 @@ func (t *GithubDorkerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 						mu.Unlock()
 					}
 
-					// 2. Detect config file exposure by file path
 					if configFilePatterns.MatchString(item.Path) {
 						key := dedupeKey{target: dom, eventType: "config_file", value: item.Path}
 						mu.Lock()
@@ -229,7 +214,6 @@ func (t *GithubDorkerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 						mu.Unlock()
 					}
 
-					// 3. Extract internal/staging endpoints
 					for _, re := range internalEndpointPatterns {
 						matches := re.FindAllString(fileContent, 10)
 						for _, match := range matches {
@@ -248,7 +232,6 @@ func (t *GithubDorkerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 						}
 					}
 
-					// 4. Extract API endpoint references
 					apiMatches := apiEndpointPatterns.FindAllString(fileContent, 20)
 					for _, match := range apiMatches {
 						match = strings.TrimSpace(match)
@@ -265,7 +248,6 @@ func (t *GithubDorkerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 						mu.Unlock()
 					}
 
-					// 5. Extract subdomain references from content
 					subMatches := subdomainRegex.FindAllString(fileContent, -1)
 					for _, match := range subMatches {
 						match = strings.ToLower(strings.TrimSpace(match))
@@ -290,7 +272,6 @@ func (t *GithubDorkerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 
 	wg.Wait()
 
-	// Phase 6: Organization member enumeration
 outer:
 	for _, dom := range uniqueDomains {
 		select {
@@ -305,8 +286,6 @@ outer:
 	return events, nil
 }
 
-// enumerateOrgMembers queries the GitHub API /orgs/{org}/members to list public org members,
-// then scans their personal repos for leaked secrets about the target company.
 func (t *GithubDorkerTool) enumerateOrgMembers(ctx context.Context, apiKey, domain string) []recon.Event {
 	var events []recon.Event
 	orgName := extractOrgName(domain)
@@ -348,7 +327,7 @@ func (t *GithubDorkerTool) enumerateOrgMembers(ctx context.Context, apiKey, doma
 			return true, fmt.Errorf("rate limited: %d", r.StatusCode)
 		}
 		if r.StatusCode == 404 {
-			return false, nil // org not found or no public members
+			return false, nil
 		}
 		if r.StatusCode != 200 {
 			return false, fmt.Errorf("unexpected status: %d", r.StatusCode)
@@ -379,7 +358,6 @@ func (t *GithubDorkerTool) enumerateOrgMembers(ctx context.Context, apiKey, doma
 				continue
 			}
 
-			// Scan for leaked secrets referencing the target domain
 			secretMatches := recon.ScanForSecrets(rawContent)
 			for _, sm := range secretMatches {
 				props := map[string]string{
@@ -395,7 +373,6 @@ func (t *GithubDorkerTool) enumerateOrgMembers(ctx context.Context, apiKey, doma
 				events = append(events, recon.NewEventWithSeverity(domain, t.Name(), "secret_exposed", props, sm.Severity))
 			}
 
-			// Extract subdomains from member's repos
 			subMatches := subdomainRegex.FindAllString(rawContent, -1)
 			for _, match := range subMatches {
 				match = strings.ToLower(strings.TrimSpace(match))
@@ -481,8 +458,6 @@ func (t *GithubDorkerTool) fetchMemberRepos(ctx context.Context, client *http.Cl
 	return items
 }
 
-// extractOrgName attempts to extract a GitHub organization name from a domain.
-// E.g., "example.com" → "example", "acme-corp.com" → "acme-corp".
 func extractOrgName(domain string) string {
 	domain = strings.TrimSpace(domain)
 	domain = strings.TrimPrefix(domain, "www.")
@@ -497,7 +472,6 @@ func extractOrgName(domain string) string {
 	return org
 }
 
-// searchGithubCode queries the GitHub Code Search API with rate limiting and retry.
 func searchGithubCode(ctx context.Context, client *http.Client, apiKey, query string) ([]githubSearchItem, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/search/code?q=%s&per_page=50", url.QueryEscape(query))
 
@@ -559,7 +533,6 @@ func searchGithubCode(ctx context.Context, client *http.Client, apiKey, query st
 	return searchResp.Items, nil
 }
 
-// fetchRawContent downloads raw file content from GitHub for analysis.
 func fetchRawContent(ctx context.Context, client *http.Client, apiKey string, item githubSearchItem) (string, error) {
 	branch := item.Repository.DefaultBranch
 	if branch == "" {
@@ -617,7 +590,6 @@ func fetchRawContent(ctx context.Context, client *http.Client, apiKey string, it
 	return string(body), nil
 }
 
-// stripProtocol removes http(s):// and trailing paths from a domain string.
 func stripProtocol(s string) string {
 	s = strings.TrimPrefix(s, "https://")
 	s = strings.TrimPrefix(s, "http://")
@@ -630,7 +602,6 @@ func stripProtocol(s string) string {
 	return s
 }
 
-// copyProps returns a shallow copy of a string map.
 func copyProps(src map[string]string) map[string]string {
 	dst := make(map[string]string, len(src))
 	for k, v := range src {

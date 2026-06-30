@@ -18,8 +18,7 @@ func waitForCommand(ctx context.Context, cmd commandHandle, stderr *bytes.Buffer
 	select {
 	case <-ctx.Done():
 		TerminateCommand(cmd)
-		// Ensure cmd.Wait() returns before we read/return stderr-backed errors.
-		// This prevents races where os/exec is still copying stderr.
+
 		<-errCh
 		return ctx.Err()
 	case err := <-errCh:
@@ -34,8 +33,6 @@ func waitForCommand(ctx context.Context, cmd commandHandle, stderr *bytes.Buffer
 	}
 }
 
-// ExecTool runs an external tool safely. It uses platform-specific process cleanup
-// so that a timed out tool does not leave child processes behind.
 func ExecTool(ctx context.Context, name string, args []string, targets []string) ([]string, error) {
 	if len(targets) == 0 {
 		return nil, nil
@@ -75,8 +72,6 @@ func RunCommandWithInputLines(ctx context.Context, stdin []byte, name string, ar
 	return RunCommandStreamWithInput(ctx, stdin, name, args...)
 }
 
-// NewEventsFromLines converts a list of targets (one per line) into a slice of
-// Event records with the specified source and shared metadata.
 func NewEventsFromLines(lines []string, source string, metadata map[string]string) []recon.Event {
 	return NewEventsFromLinesFunc(lines, source, func(line string) map[string]string {
 		if len(metadata) == 0 {
@@ -90,17 +85,13 @@ func NewEventsFromLines(lines []string, source string, metadata map[string]strin
 	})
 }
 
-// NewEventsFromLinesFunc converts a list of targets into a slice of Event records,
-// using a generator function to produce properties for each line.
 func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(string) map[string]string) []recon.Event {
 	if metadataFunc == nil {
 		metadataFunc = func(string) map[string]string { return nil }
 	}
 
-	// Pre-allocate with initial capacity to reduce allocations
 	events := make([]recon.Event, 0, len(lines))
 
-	// Ensure we don't process duplicate events internally
 	seen := make(map[string]struct{}, len(lines))
 
 	for _, line := range lines {
@@ -109,17 +100,16 @@ func NewEventsFromLinesFunc(lines []string, source string, metadataFunc func(str
 			continue
 		}
 
-		// Skip ASCII art / banners (heuristic: high density of box-drawing or art characters)
-		if !strings.Contains(line, "://") {
-			if strings.Count(line, "/")+strings.Count(line, "_")+strings.Count(line, "\\")+strings.Count(line, "|") > 5 {
-				continue
-			}
-		}
-
 		if _, ok := seen[line]; ok {
 			continue
 		}
 		seen[line] = struct{}{}
+
+		if !strings.Contains(line, "://") {
+			if strings.Count(line, "/")+strings.Count(line, "_")+strings.Count(line, "\\")+strings.Count(line, "|") > 8 {
+				continue
+			}
+		}
 
 		properties := metadataFunc(line)
 		events = append(events, recon.NewEvent(line, source, "discovery", properties))

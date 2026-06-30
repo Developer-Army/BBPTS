@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -65,7 +65,6 @@ func (t *CachePoisoningTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 
 			req.Header.Set(th.name, th.value)
 
-			// Use safe HTTP client and disable automatic redirect following to capture Location headers safely without triggering SSRF warnings.
 			client := NewSafeHTTPClient(5 * time.Second)
 			client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse

@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,7 +15,7 @@ func init() {
 }
 
 func TestCORSTool(t *testing.T) {
-	// Setup test server reflecting origin
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin != "" {
@@ -42,7 +42,7 @@ func TestCORSTool(t *testing.T) {
 }
 
 func TestBypass403Tool(t *testing.T) {
-	// Setup test server returning 403 on standard, 200 on bypassed
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Forwarded-For") == "127.0.0.1" {
 			w.WriteHeader(http.StatusOK)
@@ -96,10 +96,6 @@ func TestJWTAnalyzerTool(t *testing.T) {
 		t.Errorf("Expected name jwt_analyzer, got %s", tool.Name())
 	}
 
-	// Test with a dummy HS256 JWT signed with weak secret "secret"
-	// Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-	// Payload: {"sub":"1234567890","name":"John Doe","iat":1516239022} -> eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ
-	// Signature of header+payload with key "secret" -> XbPfbIHMI6arZ3Y922BhjWgQzWXcXNrz0ogtVhfEd2o
 	dummyJWT := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.XbPfbIHMI6arZ3Y922BhjWgQzWXcXNrz0ogtVhfEd2o"
 
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{dummyJWT}, 1)
@@ -113,7 +109,7 @@ func TestJWTAnalyzerTool(t *testing.T) {
 }
 
 func TestOpenRedirectTool(t *testing.T) {
-	// Setup test server reflecting parameter redirect
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		dest := r.URL.Query().Get("next")
 		if dest != "" {
@@ -252,7 +248,7 @@ func TestDNSZoneTransferTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DNS Zone Transfer Run failed: %v", err)
 	}
-	// localhost has no NS records, so 0 events is expected but it should not error
+
 	if len(events) != 0 {
 		t.Errorf("Expected 0 events, got %d", len(events))
 	}
@@ -261,7 +257,7 @@ func TestDNSZoneTransferTool(t *testing.T) {
 func TestHTTP2DowngradeTool(t *testing.T) {
 	tool := &HTTP2DowngradeTool{}
 	ctx := recon.WithForceHTTP1(context.Background(), true)
-	// Against example.com or a non-running target, it should handle failure gracefully
+
 	events, err := tool.Run(ctx, &recon.ScanContext{ForceHTTP1: true}, []string{"http://127.0.0.1:9999/"}, 1)
 	if err != nil {
 		t.Fatalf("HTTP2 Downgrade Run failed: %v", err)
@@ -273,7 +269,7 @@ func TestHTTP2DowngradeTool(t *testing.T) {
 
 func TestTLSMisconfigTool(t *testing.T) {
 	tool := &TLSMisconfigTool{}
-	// Run against example.com or localhost on a closed port
+
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{"http://127.0.0.1:9999/"}, 1)
 	if err != nil {
 		t.Fatalf("TLS Misconfig Run failed: %v", err)
@@ -282,4 +278,3 @@ func TestTLSMisconfigTool(t *testing.T) {
 		t.Errorf("Expected 0 events, got %d", len(events))
 	}
 }
-

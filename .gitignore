@@ -52,6 +52,9 @@ scratch/
 *.storage-shm
 *.storage-wal
 
+# Scanner state files
+*.state
+
 # Runtime output
 results/
 !results/.gitkeep
@@ -99,3 +102,8 @@ test.tape
 test.gif
 targets.txt
 demo.tape
+
+# Temp files
+*.pid
+*.sock
+*.lock

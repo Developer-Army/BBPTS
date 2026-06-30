@@ -47,7 +47,7 @@ func TestDeduplicateAndNormalize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := DeduplicateAndNormalize(tc.inputs)
 			if len(got) == 0 && len(tc.expected) == 0 {
-				return // both empty
+				return
 			}
 			if !reflect.DeepEqual(got, tc.expected) {
 				t.Errorf("expected %v, got %v", tc.expected, got)

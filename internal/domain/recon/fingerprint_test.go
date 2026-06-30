@@ -38,8 +38,7 @@ func TestFingerprinter_Fingerprint(t *testing.T) {
 			if result.Host != tt.target {
 				t.Errorf("expected host %s, got %s", tt.target, result.Host)
 			}
-			// JARM and favicon hashes should be non-empty or empty based on connectivity
-			// We just verify they're strings
+
 			if result.JARMHash != "" && len(result.JARMHash) < 8 {
 				t.Error("JARM hash too short")
 			}
@@ -58,7 +57,6 @@ func TestFingerprinter_FingerprintAll(t *testing.T) {
 		t.Errorf("expected %d results, got %d", len(targets), len(results))
 	}
 
-	// Check that all targets are present (order may vary due to concurrency)
 	foundHosts := make(map[string]bool)
 	for _, result := range results {
 		foundHosts[result.Host] = true

@@ -280,7 +280,7 @@ func TestCheckpointLeaseExpiry(t *testing.T) {
 	now := time.Now().Unix()
 
 	cp := &Checkpoint{
-		LeaseExpiry: now + 300, // 5 minutes from now
+		LeaseExpiry: now + 300,
 	}
 
 	if cp.LeaseExpiry <= now {
@@ -320,7 +320,6 @@ func TestCheckpointManagerNilKV(t *testing.T) {
 		kv: nil,
 	}
 
-	// Methods should handle nil kv gracefully
 	cp := &Checkpoint{
 		SessionID: "session-123",
 		Stage:     "stage1",

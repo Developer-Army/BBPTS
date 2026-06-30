@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// TestInsightsGenerationBasic tests basic insight generation from events.
 func TestInsightsGenerationBasic(t *testing.T) {
 	targets := []string{"acme-corp.io", "api.acme-corp.io"}
 
@@ -31,7 +30,6 @@ func TestInsightsGenerationBasic(t *testing.T) {
 		t.Fatal("Expected at least one insight")
 	}
 
-	// Verify insights are properly scored
 	for _, insight := range insights {
 		if insight.Score < 0 || insight.Score > 100 {
 			t.Fatalf("Invalid insight score: %d (should be 0-100)", insight.Score)
@@ -43,11 +41,9 @@ func TestInsightsGenerationBasic(t *testing.T) {
 	}
 }
 
-// TestInsightsPriorityLevels tests that priority levels are correctly assigned.
 func TestInsightsPriorityLevels(t *testing.T) {
 	targets := []string{"acme-corp.io"}
 
-	// Create events with varying severity
 	events := []recon.Event{
 		{
 			Type:       "sql_injection",
@@ -69,14 +65,12 @@ func TestInsightsPriorityLevels(t *testing.T) {
 		t.Fatal("Expected insights")
 	}
 
-	// The high-severity finding should result in high priority
 	insight := insights[0]
 	if insight.Priority != "critical" && insight.Priority != "high" && insight.Priority != "medium" {
 		t.Fatalf("Invalid priority: %s", insight.Priority)
 	}
 }
 
-// TestInsightsTagging tests that insights are properly tagged.
 func TestInsightsTagging(t *testing.T) {
 	targets := []string{"acme-corp.io"}
 
@@ -101,7 +95,6 @@ func TestInsightsTagging(t *testing.T) {
 		t.Fatal("Expected insights")
 	}
 
-	// Verify at least one insight has tags
 	hasTaggedInsight := false
 	for _, insight := range insights {
 		if len(insight.Tags) > 0 {
@@ -115,7 +108,6 @@ func TestInsightsTagging(t *testing.T) {
 	}
 }
 
-// TestInsightsSuggestedTests tests that suggested tests are provided.
 func TestInsightsSuggestedTests(t *testing.T) {
 	targets := []string{"api.acme-corp.io"}
 
@@ -134,7 +126,6 @@ func TestInsightsSuggestedTests(t *testing.T) {
 		t.Fatal("Expected insights")
 	}
 
-	// API endpoints should have suggested tests
 	for _, insight := range insights {
 		if len(insight.SuggestedTests) > 0 {
 			t.Logf("Insight has %d suggested tests", len(insight.SuggestedTests))
@@ -177,7 +168,6 @@ func TestInsightsSuggestSQLInjectionForCategoryEndpoints(t *testing.T) {
 	}
 }
 
-// TestInsightsEmptyTargets tests handling of empty targets.
 func TestInsightsEmptyTargets(t *testing.T) {
 	insights := DeriveInsights([]string{}, []recon.Event{})
 
@@ -186,7 +176,6 @@ func TestInsightsEmptyTargets(t *testing.T) {
 	}
 }
 
-// TestInsightsEvidenceAccumulation tests that evidence count increases with events.
 func TestInsightsEvidenceAccumulation(t *testing.T) {
 	targets := []string{"acme-corp.io"}
 

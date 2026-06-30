@@ -12,7 +12,6 @@ import (
 	"time"
 )
 
-// Config holds the notification credentials.
 type Config struct {
 	TelegramBotToken string `json:"telegram_bot_token"`
 	TelegramChatID   string `json:"telegram_chat_id"`
@@ -20,7 +19,6 @@ type Config struct {
 	SlackWebhook     string `json:"slack_webhook"`
 }
 
-// Finding is a structured high-priority alert payload derived from scan results.
 type Finding struct {
 	Host     string
 	Priority string
@@ -29,13 +27,11 @@ type Finding struct {
 	Reasons  []string
 }
 
-// Notifier handles sending messages to various platforms.
 type Notifier struct {
 	cfg        Config
 	httpClient *http.Client
 }
 
-// NewNotifier creates a new instance of Notifier.
 func NewNotifier(cfg Config) *Notifier {
 	return &Notifier{
 		cfg: cfg,
@@ -64,7 +60,6 @@ func NewNotifier(cfg Config) *Notifier {
 	}
 }
 
-// SendMessage sends a plain text message to all enabled channels.
 func (n *Notifier) SendMessage(msg string) error {
 	var errors []error
 
@@ -92,7 +87,6 @@ func (n *Notifier) SendMessage(msg string) error {
 	return nil
 }
 
-// SendAlert formats a finding into a concise message and dispatches it.
 func (n *Notifier) SendAlert(_ context.Context, finding Finding) error {
 	parts := []string{
 		fmt.Sprintf("Host: %s", finding.Host),
@@ -108,7 +102,6 @@ func (n *Notifier) SendAlert(_ context.Context, finding Finding) error {
 	return n.SendMessage(strings.Join(parts, "\n"))
 }
 
-// sendDiscord sends a message via Discord Webhook.
 func (n *Notifier) sendDiscord(msg string) error {
 	payload := map[string]string{
 		"content": fmt.Sprintf(" **BBPTS Alert**\n%s", msg),
@@ -116,7 +109,6 @@ func (n *Notifier) sendDiscord(msg string) error {
 	return n.postJSON(n.cfg.DiscordWebhook, payload)
 }
 
-// sendTelegram sends a message via Telegram Bot API.
 func (n *Notifier) sendTelegram(msg string) error {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", n.cfg.TelegramBotToken)
 	payload := map[string]string{
@@ -127,7 +119,6 @@ func (n *Notifier) sendTelegram(msg string) error {
 	return n.postJSON(url, payload)
 }
 
-// sendSlack sends a message via Slack Webhook.
 func (n *Notifier) sendSlack(msg string) error {
 	payload := map[string]string{
 		"text": fmt.Sprintf(" *BBPTS Alert*\n%s", msg),

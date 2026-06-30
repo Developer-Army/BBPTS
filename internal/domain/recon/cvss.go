@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// CVSS31 represents a CVSS v3.1 score calculator.
 type CVSS31 struct {
 	AttackVector       string // AV: N, A, L, P
 	AttackComplexity   string // AC: L, H
@@ -18,14 +17,12 @@ type CVSS31 struct {
 	Availability       string // A: N, L, H
 }
 
-// Vector returns the CVSS v3.1 vector string.
 func (c CVSS31) Vector() string {
 	return fmt.Sprintf("CVSS:3.1/AV:%s/AC:%s/PR:%s/UI:%s/S:%s/C:%s/I:%s/A:%s",
 		c.AttackVector, c.AttackComplexity, c.PrivilegesRequired, c.UserInteraction,
 		c.Scope, c.Confidentiality, c.Integrity, c.Availability)
 }
 
-// BaseScore calculates the CVSS v3.1 base score.
 func (c CVSS31) BaseScore() float64 {
 	var av, ac, pr, ui, conf, intg, avail float64
 
@@ -141,7 +138,6 @@ func roundup(val float64) float64 {
 	return math.Ceil(val*10.0) / 10.0
 }
 
-// Severity returns the CVSS v3.1 severity rating.
 func (c CVSS31) Severity() string {
 	score := c.BaseScore()
 	if score <= 0.0 {
@@ -159,7 +155,6 @@ func (c CVSS31) Severity() string {
 	return "Critical"
 }
 
-// ParseCVSS31 parses a CVSS v3.1 vector string.
 func ParseCVSS31(vector string) (CVSS31, error) {
 	c := CVSS31{
 		AttackVector:       "N",

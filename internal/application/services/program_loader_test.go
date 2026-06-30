@@ -10,7 +10,7 @@ import (
 )
 
 func TestProgramLoader_HackerOne(t *testing.T) {
-	// Mock H1 Server
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/v1/hackers/programs/shopify" {
@@ -27,7 +27,7 @@ func TestProgramLoader_HackerOne(t *testing.T) {
 		}
 		if r.URL.Path == "/v1/hackers/programs/shopify/structured_scopes" {
 			w.WriteHeader(http.StatusOK)
-			// Return a single page of structured scopes
+
 			_, _ = w.Write([]byte(`{
 				"data": [
 					{
@@ -57,7 +57,6 @@ func TestProgramLoader_HackerOne(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Initialize Loader
 	cfg := ProgramLoaderConfig{
 		H1Username: "testuser",
 		H1Token:    "testtoken",
@@ -65,14 +64,12 @@ func TestProgramLoader_HackerOne(t *testing.T) {
 	loader := NewProgramLoader(cfg)
 	loader.h1Base = server.URL + "/v1/hackers"
 
-	// Create temp directory for configs cache
 	tmpDir, err := os.MkdirTemp("", "bbpts-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Override working directory or write paths
 	scopePath := filepath.Join(tmpDir, "scope_shopify.txt")
 	targetsPath := filepath.Join(tmpDir, "targets_shopify.txt")
 	configPath := filepath.Join(tmpDir, "program_shopify.json")
@@ -98,7 +95,6 @@ func TestProgramLoader_HackerOne(t *testing.T) {
 		t.Errorf("unexpected bounty targets: %v", profile.BountyTargets)
 	}
 
-	// Test writing files
 	if err := profile.WriteScopeFile(scopePath); err != nil {
 		t.Fatalf("failed to write scope file: %v", err)
 	}
@@ -109,7 +105,6 @@ func TestProgramLoader_HackerOne(t *testing.T) {
 		t.Fatalf("failed to write config patch: %v", err)
 	}
 
-	// Verify file content
 	scopeData, err := os.ReadFile(scopePath)
 	if err != nil {
 		t.Fatalf("failed to read scope file: %v", err)
@@ -120,7 +115,7 @@ func TestProgramLoader_HackerOne(t *testing.T) {
 }
 
 func TestProgramLoader_Bugcrowd(t *testing.T) {
-	// Mock BC Server
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.bugcrowd+json")
 		if r.URL.Path == "/programs" {
@@ -226,7 +221,6 @@ func TestProgramLoader_Bugcrowd(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Initialize Loader
 	cfg := ProgramLoaderConfig{
 		BCToken: "testtoken",
 	}
@@ -287,12 +281,10 @@ func TestProgramLoader_CacheTTL(t *testing.T) {
 
 	loader := NewProgramLoader(ProgramLoaderConfig{})
 
-	// Not older than 6 hours
 	if loader.shouldRefresh(filePath) {
 		t.Errorf("expected shouldRefresh to be false for new file")
 	}
 
-	// Make it 7 hours older
 	oldTime := time.Now().Add(-7 * time.Hour)
 	if err := os.Chtimes(filePath, oldTime, oldTime); err != nil {
 		t.Fatalf("failed to change file times: %v", err)
@@ -302,7 +294,6 @@ func TestProgramLoader_CacheTTL(t *testing.T) {
 		t.Errorf("expected shouldRefresh to be true for 7 hour old file")
 	}
 
-	// Non-existent file
 	if !loader.shouldRefresh(filepath.Join(tmpDir, "does_not_exist.txt")) {
 		t.Errorf("expected shouldRefresh to be true for non-existent file")
 	}

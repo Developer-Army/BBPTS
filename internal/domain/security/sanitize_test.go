@@ -834,7 +834,7 @@ func TestIsInternalURL(t *testing.T) {
 
 func TestRedactSecrets(t *testing.T) {
 	RegisterSecretToRedact("SuperSecretTokenString123")
-	RegisterSecretToRedact("Short") // Should be ignored (too short)
+	RegisterSecretToRedact("Short")
 
 	input := "AWS key is AKIA1234567890123456 and token is SuperSecretTokenString123 but Short is preserved"
 	expected := "AWS key is ●●●●●●●● and token is ●●●●●●●● but Short is preserved"
@@ -881,10 +881,10 @@ func TestIsPrivateIPAndAddr(t *testing.T) {
 
 func TestParseMixedNotationIP_Advanced(t *testing.T) {
 	tests := []struct {
-		name      string
-		input     string
-		expectIP  string
-		expectOK  bool
+		name     string
+		input    string
+		expectIP string
+		expectOK bool
 	}{
 		{"empty string", "", "", false},
 		{"brackets IPv6", "[::1]", "", false},
@@ -917,13 +917,11 @@ func TestParseMixedNotationIP_Advanced(t *testing.T) {
 func TestResolveAndValidateAddr_Advanced(t *testing.T) {
 	ctx := context.Background()
 
-	// 1. Test invalid address format
 	_, _, err := ResolveAndValidateAddr(ctx, "invalid-addr")
 	if err == nil {
 		t.Error("expected error for invalid host:port format")
 	}
 
-	// 2. Test direct IP - public
 	pinned, original, err := ResolveAndValidateAddr(ctx, "8.8.8.8:53")
 	if err != nil {
 		t.Errorf("unexpected error for public IP: %v", err)
@@ -932,13 +930,11 @@ func TestResolveAndValidateAddr_Advanced(t *testing.T) {
 		t.Errorf("unexpected results: original=%s, pinned=%s", original, pinned)
 	}
 
-	// 3. Test direct IP - private
 	_, _, err = ResolveAndValidateAddr(ctx, "127.0.0.1:80")
 	if err == nil {
 		t.Error("expected error for private direct IP")
 	}
 
-	// 4. Test resolved domain - public (acme-corp.io resolves to 8.8.8.8 via TestMain lookupIP stub)
 	pinned, original, err = ResolveAndValidateAddr(ctx, "acme-corp.io:443")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -947,7 +943,6 @@ func TestResolveAndValidateAddr_Advanced(t *testing.T) {
 		t.Errorf("unexpected results: original=%s, pinned=%s", original, pinned)
 	}
 
-	// 5. Test DNS resolution failure
 	_, _, err = ResolveAndValidateAddr(ctx, "nonexistent-domain.local:80")
 	if err == nil {
 		t.Error("expected error for non-resolvable domain")
@@ -957,17 +952,14 @@ func TestResolveAndValidateAddr_Advanced(t *testing.T) {
 func TestValidateResolvedIPEx_EdgeCases(t *testing.T) {
 	s := NewSanitizer()
 
-	// Test empty host
 	if err := s.ValidateResolvedIPEx("", true); err == nil {
 		t.Error("expected error for empty host")
 	}
 
-	// Test host with brackets
 	if err := s.ValidateResolvedIPEx("[8.8.8.8]", true); err != nil {
 		t.Errorf("unexpected error for host with brackets: %v", err)
 	}
 
-	// Test host resolving to empty list of IPs (via stub returning nil)
 	oldLookupIP := lookupIP
 	lookupIP = func(ctx context.Context, host string) ([]net.IP, error) {
 		return []net.IP{}, nil
@@ -982,39 +974,33 @@ func TestValidateResolvedIPEx_EdgeCases(t *testing.T) {
 func TestValidateURLStrict(t *testing.T) {
 	s := NewSanitizer()
 
-	// Test valid public URL
 	if err := s.ValidateURLStrict("https://acme-corp.io/path"); err != nil {
 		t.Errorf("unexpected error for valid URL: %v", err)
 	}
 
-	// Test empty URL
 	if err := s.ValidateURLStrict(""); err == nil {
 		t.Error("expected error for empty URL")
 	}
 
-	// Test invalid URL format
 	if err := s.ValidateURLStrict("invalid-url"); err == nil {
 		t.Error("expected error for invalid URL format")
 	}
 
-	// Test shell metacharacters in URL
 	if err := s.ValidateURLStrict("https://acme-corp.io;echo"); err == nil {
 		t.Error("expected error for shell injection in URL")
 	}
 
-	// Test private URL
 	if err := s.ValidateURLStrict("http://127.0.0.1/admin"); err == nil {
 		t.Error("expected error for private URL")
 	}
 }
 
 func TestSanitizerVerifyPrivateIPs(t *testing.T) {
-	// Test nil IP returns true by default
+
 	if !IsPrivateIP(nil) {
 		t.Error("expected IsPrivateIP(nil) to return true")
 	}
 
-	// If BBPTS_ALLOW_PRIVATE_IPS is set to true, private IPs shouldn't be blocked.
 	os.Setenv("BBPTS_ALLOW_PRIVATE_IPS", "true")
 	defer os.Unsetenv("BBPTS_ALLOW_PRIVATE_IPS")
 
@@ -1030,7 +1016,6 @@ func TestSanitizerVerifyPrivateIPs(t *testing.T) {
 func TestValidateResolvedIPAndStrict(t *testing.T) {
 	s := NewSanitizer()
 
-	// Test public IP
 	if err := s.ValidateResolvedIP("8.8.8.8"); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -1038,7 +1023,6 @@ func TestValidateResolvedIPAndStrict(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	// Test private IP
 	if err := s.ValidateResolvedIP("127.0.0.1"); err == nil {
 		t.Error("expected error for private IP")
 	}

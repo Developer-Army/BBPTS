@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"strings"
 
@@ -30,12 +30,10 @@ func (t *Wafw00fTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targe
 			return nil, nil
 		}
 
-		// Ensure target has a scheme
 		if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
 			target = "https://" + target
 		}
 
-		// Run wafw00f
 		args := []string{"-a", target}
 		headers := scanCtx.Headers
 		for k, v := range headers {
@@ -51,7 +49,7 @@ func (t *Wafw00fTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targe
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if strings.Contains(strings.ToLower(line), "identified") || strings.Contains(strings.ToLower(line), "detected") {
-				// Extract WAF name
+
 				if idx := strings.LastIndex(line, ":"); idx != -1 {
 					wafName := strings.TrimSpace(line[idx+1:])
 					if wafName != "" && wafName != "None" {

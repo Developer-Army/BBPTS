@@ -10,22 +10,18 @@ import (
 	"time"
 )
 
-// IDORNote represents a single IDOR testing note for Obsidian export.
 type IDORNote struct {
-	Target      string
-	Pattern     string
-	ParamName   string
-	ParamType   string
-	ObjectType  string
-	Risk        string
-	SampleIDs   []string
-	SampleURLs  []string
-	Checklist   string
+	Target     string
+	Pattern    string
+	ParamName  string
+	ParamType  string
+	ObjectType string
+	Risk       string
+	SampleIDs  []string
+	SampleURLs []string
+	Checklist  string
 }
 
-// WriteIDORNotes writes IDOR testing checklists as individual Obsidian notes
-// under the given vault directory. Each note is a standalone Markdown file
-// with frontmatter-compatible metadata.
 func WriteIDORNotes(vaultDir string, notes []IDORNote) error {
 	if len(notes) == 0 {
 		return nil

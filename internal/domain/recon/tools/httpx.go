@@ -132,7 +132,7 @@ func (t *HTTPXTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 
 	args := []string{
-		"-silent", "-tech", "-json", "-irh",
+		"-silent", "-td", "-json", "-irh",
 		"-t", fmt.Sprintf("%d", threads),
 		"-timeout", "10",
 		"-retries", "1",
@@ -144,7 +144,7 @@ func (t *HTTPXTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 	}
 
 	if rateLimit > 0 {
-		args = append(args, "-rate-limit", fmt.Sprintf("%d", rateLimit))
+		args = append(args, "-rl", fmt.Sprintf("%d", rateLimit))
 	}
 
 	headers := scanCtx.Headers
@@ -191,7 +191,6 @@ func (t *HTTPXTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 			}
 		}
 
-		// Run Wappalyzer-style technology stack detection
 		detectedTechs := recon.Detect(out.RawHeader, out.Title)
 		allTechs := make(map[string]bool)
 		for _, tech := range out.Technologies {

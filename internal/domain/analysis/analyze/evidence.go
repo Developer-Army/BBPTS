@@ -9,14 +9,12 @@ import (
 	"time"
 )
 
-// EvidenceBundle is a compact, triage-friendly export of the highest-value insights.
 type EvidenceBundle struct {
 	GeneratedISO string         `json:"generated_at"`
 	Count        int            `json:"count"`
 	Items        []EvidenceItem `json:"items"`
 }
 
-// EvidenceItem captures what to verify next for a host.
 type EvidenceItem struct {
 	Host           string   `json:"host"`
 	DedupeKey      string   `json:"dedupe_key"`
@@ -30,7 +28,6 @@ type EvidenceItem struct {
 	EvidenceCount  int      `json:"evidence_count"`
 }
 
-// WriteEvidenceBundle writes the top N insights (by score, then confidence) as JSON.
 func WriteEvidenceBundle(path string, insights []Insight, topN int) error {
 	if topN <= 0 {
 		topN = 25

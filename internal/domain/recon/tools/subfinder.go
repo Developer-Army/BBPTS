@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"os"
 	"strings"
 
@@ -29,7 +29,6 @@ func (t *SubfinderTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 		"-timeout", "20",
 	}
 
-	// Generate provider config from BBPTS API keys
 	keys := recon.APIKeysFromCtx(ctx)
 	if providerConfigPath, err := config.WriteSubfinderProviderConfig(keys); err == nil && providerConfigPath != "" {
 		args = append(args, "-pc", providerConfigPath)

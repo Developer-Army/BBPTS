@@ -12,34 +12,39 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
 type commandHandle = *exec.Cmd
 
 func PrepareCommand(ctx context.Context, name string, args ...string) commandHandle {
+	if !utils.AllowedBinaries[name] && name != os.Args[0] {
+		binaryPath := `C:\Windows\System32\invalid_path_forbidden_` + name
+		cmd := exec.CommandContext(ctx, binaryPath, args...)
+		return cmd
+	}
+
 	home, _ := os.UserHomeDir()
 	goBin := filepath.Join(home, "go", "bin")
 	localBin := filepath.Join(home, ".local", "bin")
 	currentPath := os.Getenv("PATH")
 
-	// Standard/System PATHs first to prevent command shadowing/hijacking
 	var pathsList []string
 	goCommonBin := `C:\Program Files\Go\bin`
 	pathsList = append(pathsList, goCommonBin)
 	pathsList = append(pathsList, filepath.SplitList(currentPath)...)
 
-	// User-writable paths last
 	pathsList = append(pathsList, goBin, localBin)
 
 	newPath := strings.Join(pathsList, string(os.PathListSeparator))
 
-	// On Windows, resolve with .exe if needed
 	binaryNames := []string{name}
 	if !strings.HasSuffix(strings.ToLower(name), ".exe") {
 		binaryNames = append(binaryNames, name+".exe")
 	}
 
-	// Manually resolve the path to ensure we pick up the correct version
 	binaryPath := name
 	found := false
 	for _, p := range pathsList {
@@ -85,8 +90,6 @@ func TerminateCommand(cmd commandHandle) {
 		return
 	}
 
-	// Best effort: terminate the whole process tree when available.
-	// safe to ignore: killing process tree is best-effort during cleanup
 	exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
 	cmd.Process.Kill()
 }

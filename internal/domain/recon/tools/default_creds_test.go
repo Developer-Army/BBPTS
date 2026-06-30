@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -31,8 +31,6 @@ func TestDefaultCredsTool_Jenkins(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Jenkins check is mapped to port 8080. Wait! Our mock server doesn't run on port 8080.
-	// So we can directly test helper functions, or verify that running on an unknown port returns nothing.
 	if len(events) > 0 && port != 8080 {
 		t.Errorf("expected no events for port %d, got %d", port, len(events))
 	}
@@ -49,7 +47,7 @@ func TestDefaultCredsTool_Jenkins(t *testing.T) {
 }
 
 func TestDefaultCredsTool_Redis(t *testing.T) {
-	// Start a TCP server to mock Redis responses
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start tcp listener: %v", err)

@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -26,7 +26,7 @@ type psbdmpSearchResult struct {
 }
 
 var (
-	psbdmpBaseURL   = "https://psbdmp.ws"
+	psbdmpBaseURL    = "https://psbdmp.ws"
 	pasteSecretRegex = regexp.MustCompile(`(?i)(?:api_key|password|db_conn|secret_key|private_key|token)\s*[:=]\s*["']?([a-zA-Z0-9_\-\.]{12,})["']?`)
 )
 
@@ -72,13 +72,12 @@ func (t *PasteLeaksTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 
 		var results []psbdmpSearchResult
 		if err := json.Unmarshal(bodyBytes, &results); err != nil {
-			// If not a JSON array, try parsing it as a single object or skip
+
 			return nil, nil
 		}
 
 		var events []recon.Event
 
-		// Limit paste content fetches to avoid hitting rate limits
 		maxPastes := len(results)
 		if maxPastes > 5 {
 			maxPastes = 5

@@ -12,22 +12,16 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// CalculateConfidenceScore scores a target URL or host (0-100) based on response status consistency,
-// multiple-request confirmation, header correlation, and parameter sensitivity.
 func CalculateConfidenceScore(ctx context.Context, insight analyze.Insight, events []recon.Event) int {
-	// 1. Parameter Sensitivity (0-100)
+
 	paramScore := calculateParamSensitivity(insight, events)
 
-	// 2. Header Correlation (0-100)
 	headerScore := calculateHeaderCorrelation(ctx, insight, events)
 
-	// 3. Response Status Consistency (0-100)
 	consistencyScore := calculateStatusConsistency(ctx, insight, events)
 
-	// 4. Multiple-Request Confirmation (0-100)
 	confirmScore := calculateRequestConfirmation(ctx, insight, events)
 
-	// Blend: equal weights (25% each)
 	blended := float64(paramScore)*0.25 + float64(headerScore)*0.25 + float64(consistencyScore)*0.25 + float64(confirmScore)*0.25
 	return int(blended)
 }

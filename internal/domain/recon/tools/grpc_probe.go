@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net"
 	"net/http"
 	"net/url"
@@ -68,15 +68,12 @@ func (t *GRPCProbeTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 				port, _ = strconv.Atoi(pStr)
 			} else {
 				host = target
-				port = 50051 // default gRPC port
+				port = 50051
 			}
 		}
 
 		var events []recon.Event
 
-		// If it's a raw host:port scan (like port 50051 or 50052), probe it directly.
-		// If it's a standard HTTP target, we only scan if we have reason to believe it supports gRPC.
-		// But let's check both HTTP and HTTPS modes on the target port
 		protocols := []string{"http", "https"}
 		if isHTTP {
 			if strings.HasPrefix(target, "https://") {
@@ -92,7 +89,7 @@ func (t *GRPCProbeTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			cancel()
 
 			if isGRPC {
-				// Emit a discovery event
+
 				events = append(events, recon.NewEvent(fmt.Sprintf("%s:%d", host, port), t.Name(), "discovery", map[string]string{
 					"type":       "grpc_service",
 					"protocol":   proto,
@@ -107,7 +104,7 @@ func (t *GRPCProbeTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 						"description": fmt.Sprintf("gRPC service at %s:%d has Server Reflection enabled. Attackers can map out the entire API schema.", host, port),
 					}, "medium"))
 				}
-				break // Found a valid service, skip other protocol attempts
+				break
 			}
 			_ = err
 		}
@@ -117,7 +114,7 @@ func (t *GRPCProbeTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 }
 
 func (t *GRPCProbeTool) probeGRPC(ctx context.Context, scheme, host string, port int) (bool, bool, error) {
-	// Build HTTP/2 client
+
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			d := net.Dialer{Timeout: 3 * time.Second}
@@ -128,7 +125,7 @@ func (t *GRPCProbeTool) probeGRPC(ctx context.Context, scheme, host string, port
 			NextProtos:         []string{"h2"},
 		},
 	}
-	// Force HTTP/2
+
 	_ = http2.ConfigureTransport(transport)
 
 	client := &http.Client{
@@ -136,7 +133,6 @@ func (t *GRPCProbeTool) probeGRPC(ctx context.Context, scheme, host string, port
 		Timeout:   4 * time.Second,
 	}
 
-	// We probe Server Reflection method ServerReflectionInfo
 	reflectionPath := "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo"
 	targetURL := fmt.Sprintf("%s://%s:%d%s", scheme, host, port, reflectionPath)
 
@@ -153,7 +149,6 @@ func (t *GRPCProbeTool) probeGRPC(ctx context.Context, scheme, host string, port
 	}
 	defer resp.Body.Close()
 
-	// In gRPC, headers or trailers contain "grpc-status"
 	grpcStatusHeader := resp.Header.Get("grpc-status")
 	grpcStatusTrailer := resp.Trailer.Get("grpc-status")
 	contentType := resp.Header.Get("Content-Type")
@@ -162,9 +157,7 @@ func (t *GRPCProbeTool) probeGRPC(ctx context.Context, scheme, host string, port
 	hasReflection := false
 
 	if isGRPC {
-		// If grpc-status is NOT 12 (UNIMPLEMENTED), reflection might be enabled.
-		// Standard code 12 means the ServerReflection method was not found on this server.
-		// Code 3 (INVALID_ARGUMENT) or other codes mean reflection is registered but our empty body was invalid.
+
 		statusCode := grpcStatusHeader
 		if statusCode == "" {
 			statusCode = grpcStatusTrailer

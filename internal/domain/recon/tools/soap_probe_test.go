@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,7 +18,8 @@ func TestSOAPProbeTool(t *testing.T) {
 		}
 		if r.Method == "POST" {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("xml parser error: failed to load external entity http://interactsh-oob.com/xxe.dtd"))
+
+			_, _ = w.Write([]byte("xml parser error: failed to load external entity http://blind-xxe.invalid/xxe.dtd"))
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -30,7 +31,7 @@ func TestSOAPProbeTool(t *testing.T) {
 		t.Errorf("expected tool name soap_probe, got %s", tool.Name())
 	}
 
-	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{server.URL + "/service.asmx"}, 1)
+	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{server.URL}, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -40,7 +41,7 @@ func TestSOAPProbeTool(t *testing.T) {
 		if ev.Type == "discovery" && ev.Properties["type"] == "soap_wsdl" {
 			foundWSDL = true
 		}
-		if ev.Type == "vulnerability" && ev.Properties["vuln_name"] == "XML External Entity (XXE) Injection Attempt" {
+		if ev.Type == "vulnerability" && ev.Properties["vuln_name"] == "XML External Entity (XXE) Injection" {
 			foundXXE = true
 		}
 	}

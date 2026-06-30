@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,9 +86,9 @@ func (t *GobusterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 				timeoutDuration = 15 * time.Second
 			}
 			targetCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
-			defer cancel()
 
 			lines, err := RunCommandStream(targetCtx, "gobuster", args...)
+			cancel()
 			if err != nil {
 				return
 			}
@@ -99,7 +99,7 @@ func (t *GobusterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 				if line == "" {
 					continue
 				}
-				// e.g. "Found: admin.example.com (Status: 200)"
+
 				if strings.Contains(line, "Found:") {
 					parts := strings.Split(line, "Found:")
 					if len(parts) > 1 {
@@ -109,7 +109,7 @@ func (t *GobusterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 						}
 					}
 				} else if !strings.HasPrefix(line, "[") && !strings.Contains(line, "Error:") {
-					// Fallback for simple line output
+
 					vhost := strings.TrimSpace(strings.Split(line, "(")[0])
 					if vhost != "" && !strings.Contains(vhost, " ") {
 						targetEvents = append(targetEvents, recon.NewEvent(vhost, t.Name(), "vhost", map[string]string{"vhost": vhost}))

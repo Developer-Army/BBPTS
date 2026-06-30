@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -21,8 +21,6 @@ func (t *DepAuditTool) Name() string {
 	return "dep_audit"
 }
 
-// A simple dictionary mapping package names to known vulnerable versions
-// and their associated details.
 type vulnPackage struct {
 	MaxVulnerableVersion []int
 	CVE                  string
@@ -89,7 +87,6 @@ func (t *DepAuditTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 
 		var events []recon.Event
 
-		// Audit paths
 		auditPaths := []string{
 			"/package.json",
 			"/static/package.json",
@@ -127,7 +124,7 @@ func (t *DepAuditTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 								versionClean := cleanVersionString(versionVal)
 								vParts := parseVersionParts(versionClean)
 								if len(vParts) > 0 && compareVersions(vParts, vuln.MaxVulnerableVersion) <= 0 {
-									// Vulnerable package found!
+
 									events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 										"vuln_name":   fmt.Sprintf("Vulnerable Dependency: %s (%s)", name, vuln.CVE),
 										"severity":    vuln.Severity,
@@ -151,7 +148,7 @@ func (t *DepAuditTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 }
 
 func cleanVersionString(v string) string {
-	// Remove prefixes like ^, ~, >=, <=, *
+
 	v = strings.TrimPrefix(v, "^")
 	v = strings.TrimPrefix(v, "~")
 	v = strings.TrimPrefix(v, ">=")

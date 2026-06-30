@@ -4,7 +4,6 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
@@ -21,8 +20,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-// --- Messages ---
 
 type StageUpdateMsg struct {
 	Stage    int
@@ -69,8 +66,6 @@ type FailureMsg struct {
 }
 
 type SessionCompleteMsg struct{}
-
-// --- Model Definition ---
 
 type Model struct {
 	// State
@@ -128,6 +123,10 @@ type Model struct {
 	toolDetail   map[string]string
 	stageTools   map[int][]string
 
+	// Real progress tracking (done/total per tool)
+	toolTargetsDone  map[string]int
+	toolTargetsTotal map[string]int
+
 	// Target states
 	targetList        []string
 	targetStatus      map[string]string
@@ -148,7 +147,6 @@ type Model struct {
 	configEditKey string
 }
 
-// HostInfo represents a discovered host with its details for display.
 type HostInfo struct {
 	Hostname    string
 	IP          string
@@ -276,8 +274,8 @@ func NewModel(args ...interface{}) Model {
 		discoveredHosts:   make([]HostInfo, 0),
 		discoveredSources: make(map[string]string),
 		startTime:         time.Now(),
-		width:             80, // Default width
-		height:            24, // Default height
+		width:             80,
+		height:            24,
 		stageToolPlan:     make(map[int]int),
 		stageCompletions:  make(map[int]map[string]struct{}),
 		lastToolStage:     -1,
@@ -304,10 +302,12 @@ func NewModel(args ...interface{}) Model {
 		cliHistory: []string{
 			"",
 		},
-		configPath:    configPath,
-		cfg:           cfg,
-		configView:    false,
-		configEditKey: "",
+		configPath:       configPath,
+		cfg:              cfg,
+		configView:       false,
+		configEditKey:    "",
+		toolTargetsDone:  make(map[string]int),
+		toolTargetsTotal: make(map[string]int),
 	}
 }
 
@@ -392,49 +392,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case TickMsg:
 		m.utcTime = time.Now().UTC().Format("2006-01-02 15:04:05")
 		if len(m.targetList) > 0 && !m.scanComplete {
-			// Real/Calculated Port Scanning count
+
 			if m.currentStage < 2 {
 				m.portsScanned = 0
-			} else if m.currentStage == 2 {
+			} else if m.currentStage == 2 && m.portsScanned == 0 {
+
 				totalPortsToScan := len(m.targetList) * 56
 				if totalPortsToScan > 0 {
 					m.portsScanned = int(m.calculateProgress() * float64(totalPortsToScan))
-					if m.toolActive["naabu"] && m.portsScanned < totalPortsToScan {
-						m.portsScanned += rand.Intn(5)
-						if m.portsScanned > totalPortsToScan {
-							m.portsScanned = totalPortsToScan
-						}
-					}
-				} else {
-					m.portsScanned = 0
 				}
-			} else {
-				m.portsScanned = len(m.targetList) * 56
 			}
 
-			// Realistic Request/sec based on actual RateLimit
-			if m.rateLimit > 0 {
-				m.requestsPerSec = m.rateLimit - rand.Intn(m.rateLimit/5+1)
-				if m.requestsPerSec < 1 {
-					m.requestsPerSec = 1
-				}
-			} else {
-				// Unlimited rate limit (0) - scale realistically based on active threads
-				baseRate := m.activeThreads * 3
-				if baseRate > 150 {
-					baseRate = 150
-				}
-				m.requestsPerSec = baseRate + rand.Intn(30)
-			}
 		} else {
 			m.activeThreads = 0
 			m.requestsPerSec = 0
 		}
+
 		for tool, active := range m.toolActive {
 			if active {
-				m.toolProgress[tool] += 0.02
-				if m.toolProgress[tool] > 0.95 {
-					m.toolProgress[tool] = 0.95
+
+				if total, ok := m.toolTargetsTotal[tool]; ok && total > 0 {
+					continue
+				}
+
+				if m.toolProgress[tool] < 0.95 {
+					m.toolProgress[tool] += 0.015
+					if m.toolProgress[tool] > 0.95 {
+						m.toolProgress[tool] = 0.95
+					}
 				}
 			}
 		}
@@ -447,6 +432,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case RateLimitMsg:
 		m.rateLimit = msg.RateLimit
+		return m, nil
+
+	case PortScannedMsg:
+		m.portsScanned += msg.Count
+		return m, nil
+
+	case RequestRateMsg:
+		m.requestsPerSec = msg.Rate
+		return m, nil
+
+	case ToolProgressMsg:
+		if m.toolTargetsDone == nil {
+			m.toolTargetsDone = make(map[string]int)
+		}
+		if m.toolTargetsTotal == nil {
+			m.toolTargetsTotal = make(map[string]int)
+		}
+
+		if msg.Tool == "naabu_ports" {
+			m.portsScanned += msg.Done
+			return m, nil
+		}
+		m.toolTargetsDone[msg.Tool] = msg.Done
+		m.toolTargetsTotal[msg.Tool] = msg.Total
+		if msg.Total > 0 {
+			m.toolProgress[msg.Tool] = float64(msg.Done) / float64(msg.Total)
+		}
 		return m, nil
 
 	case PromptForTargetMsg:
@@ -517,7 +529,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			// Parse IP
 			ip := msg.Properties["ip"]
 			if ip == "" {
 				ip = msg.Properties["address"]
@@ -543,7 +554,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				_, _ = fmt.Sscanf(lastPart, "%d", &portVal)
 			}
 
-			// Parse Vulnerability
 			isVuln := (msg.Type == "vulnerability")
 			if isVuln {
 				severity := strings.ToLower(msg.Properties["severity"])
@@ -559,7 +569,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.totalVulns++
 
-				// Log to vulnerability feed
 				vulnName := msg.Properties["vuln_name"]
 				if vulnName == "" {
 					vulnName = msg.Properties["name"]
@@ -751,7 +760,6 @@ func (m Model) View() string {
 
 		var b strings.Builder
 
-		// ── Centered Logo Banner ──────────────────────────────────────────────
 		logoLines := strings.Split(LogoBBPTS, "\n")
 		logoHeight := 0
 		logoStyle := lipgloss.NewStyle().Foreground(activeAccentColor)
@@ -765,7 +773,6 @@ func (m Model) View() string {
 		}
 		b.WriteString("\n")
 
-		// Dimensions
 		availWidth := termW - 2
 		bodyHeight := termH - logoHeight - 6
 		if bodyHeight < 12 {
@@ -779,9 +786,8 @@ func (m Model) View() string {
 			rightWidth = 0
 		}
 
-		// Helper to dynamically pad box content with blank rows
 		padContentLines := func(lines []string, height int) string {
-			contentHeight := height - 2 // subtract borders
+			contentHeight := height - 2
 			if contentHeight < 1 {
 				contentHeight = 1
 			}
@@ -977,7 +983,6 @@ func (m Model) View() string {
 		b.WriteString(center(body))
 		b.WriteString("\n")
 
-		// ── Bottom Status Bar ─────────────────────────────────────────────────
 		leftHints := StyleComment.Render("tab") + " switch mode  " + StyleComment.Render("esc") + " quit"
 		rightInfo := StyleCyan.Render("v1.5.0")
 		barInnerWidth := availWidth + 2
@@ -992,7 +997,6 @@ func (m Model) View() string {
 		return b.String()
 	}
 
-	// Subtract 2 to account for StyleMain Padding(0, 1) on left and right sides
 	availWidth := m.width - 2
 	if availWidth < 80 {
 		availWidth = 80
@@ -1058,7 +1062,6 @@ func (m Model) View() string {
 		}
 	}
 
-	// Safety mins
 	if topBoxHeight < 8 {
 		topBoxHeight = 8
 	}
@@ -1305,7 +1308,6 @@ func (m Model) View() string {
 	var finalView strings.Builder
 	finalView.WriteString(topSection)
 
-	// Middle Section: side-by-side Discovered Targets & Vulnerability Feed
 	if showTargets {
 		targetsWidth := leftWidth
 		vulnsWidth := rightWidth
@@ -1432,8 +1434,6 @@ func (m Model) View() string {
 	return StyleMain.Render(finalView.String())
 }
 
-// --- Helpers ---
-
 func domainFromTarget(target string) string {
 	target = strings.TrimSpace(target)
 	if target == "" {
@@ -1485,7 +1485,7 @@ type TargetValidationResultMsg struct {
 
 func validateTargetCmd(targetVal string) tea.Cmd {
 	return func() tea.Msg {
-		// Verify if it is a local file path and NOT a directory
+
 		if info, err := os.Stat(targetVal); err == nil && !info.IsDir() {
 			return TargetValidationResultMsg{Target: targetVal, IsValid: true, IsFile: true}
 		}
@@ -1516,7 +1516,6 @@ func validateTargetCmd(targetVal string) tea.Cmd {
 			return TargetValidationResultMsg{Target: targetVal, IsValid: false, ErrorMsg: "Invalid syntax."}
 		}
 
-		// DNS lookup
 		if !isIP && !isCIDR {
 			ips, err := net.LookupIP(cleanHost)
 			if err != nil || len(ips) == 0 {

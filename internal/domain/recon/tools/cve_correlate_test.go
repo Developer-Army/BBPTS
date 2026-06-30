@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"context"
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestCVECorrelateTool(t *testing.T) {
-	// Start mock server representing CISA KEV JSON endpoint
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{
@@ -29,16 +29,13 @@ func TestCVECorrelateTool(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Override URL package variable
 	oldURL := cisaKevURL
 	cisaKevURL = server.URL
 	defer func() { cisaKevURL = oldURL }()
 
-	// Clear local cache if any
 	_ = os.Remove(localKevCache)
 	defer os.Remove(localKevCache)
 
-	// Set up temporary sqlite storage db for events lookup
 	tmpDir, err := os.MkdirTemp("", "bbpts-cve-test-*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
@@ -52,7 +49,6 @@ func TestCVECorrelateTool(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Save a mock httpx/service event representing target runs Nginx 1.18.0
 	target := "http://example.com"
 	mockEv := recon.NewEvent(target, "httpx", "service", map[string]string{
 		"server":       "nginx/1.18.0",

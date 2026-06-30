@@ -1,6 +1,5 @@
 package findings
 
-// Finding represents the consolidated threat or exposure finding.
 type Finding struct {
 	ID            int64    `json:"id"`
 	AssetID       string   `json:"asset_id"`

@@ -1,11 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -33,7 +33,7 @@ var (
 		regexp.MustCompile(`(?i)uses:\s*\$\{\{.*\}\}`),
 		regexp.MustCompile(`(?i)run:\s*\|[\s\S]*\$\{\{`),
 	}
-	usesRefRe = regexp.MustCompile(`(?i)uses:\s*[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+@([a-zA-Z0-9_.-]+)`)
+	usesRefRe       = regexp.MustCompile(`(?i)uses:\s*[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+@([a-zA-Z0-9_.-]+)`)
 	ghSupplyChainRe = []*regexp.Regexp{
 		regexp.MustCompile(`(?i)curl\s+[^\|]*\|\s*(?:bash|sh)`),
 		regexp.MustCompile(`(?i)wget\s+[^\|]*\|\s*(?:bash|sh)`),

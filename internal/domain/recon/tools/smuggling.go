@@ -1,11 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net"
 	"net/url"
 	"strings"
@@ -45,23 +45,25 @@ func (t *SmugglingTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 
 		var events []recon.Event
 
-		// Test 1: CL.TE Timing Check
-		isCLTE, err := t.checkCLTE(ctx, parsed)
+		isCLTE, cltePayload, clteResp, err := t.checkCLTE(ctx, parsed)
 		if err == nil && isCLTE {
 			events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 				"vuln_name":   "HTTP Request Smuggling (CL.TE)",
 				"severity":    "high",
 				"description": fmt.Sprintf("HTTP Request Smuggling CL.TE detected via timing delay on %s.", target),
+				"request":     cltePayload,
+				"response":    clteResp,
 			}, "high"))
 		}
 
-		// Test 2: TE.CL Timing Check
-		isTECL, err := t.checkTECL(ctx, parsed)
+		isTECL, teclPayload, teclResp, err := t.checkTECL(ctx, parsed)
 		if err == nil && isTECL {
 			events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 				"vuln_name":   "HTTP Request Smuggling (TE.CL)",
 				"severity":    "high",
 				"description": fmt.Sprintf("HTTP Request Smuggling TE.CL detected via timing delay on %s.", target),
+				"request":     teclPayload,
+				"response":    teclResp,
 			}, "high"))
 		}
 
@@ -69,7 +71,7 @@ func (t *SmugglingTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 	})
 }
 
-func (t *SmugglingTool) sendRaw(ctx context.Context, u *url.URL, payload string, timeout time.Duration) (time.Duration, error) {
+func (t *SmugglingTool) sendRaw(ctx context.Context, u *url.URL, payload string, timeout time.Duration) (time.Duration, string, error) {
 	host := u.Host
 	if !strings.Contains(host, ":") {
 		if u.Scheme == "https" {
@@ -92,7 +94,7 @@ func (t *SmugglingTool) sendRaw(ctx context.Context, u *url.URL, payload string,
 	}
 
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 	defer conn.Close()
 
@@ -101,36 +103,39 @@ func (t *SmugglingTool) sendRaw(ctx context.Context, u *url.URL, payload string,
 	start := time.Now()
 	_, err = conn.Write([]byte(payload))
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
-	// Wait for response status line
 	reader := bufio.NewReader(conn)
-	_, readErr := reader.ReadString('\n')
-	duration := time.Since(start)
-
-	if readErr != nil {
-		// If read timed out, return the duration of timeout
-		if netErr, ok := readErr.(net.Error); ok && netErr.Timeout() {
-			return duration, nil
+	respBuf := make([]byte, 0, 4096)
+	for len(respBuf) < 4096 {
+		b, readErr := reader.ReadByte()
+		if readErr != nil {
+			break
 		}
-		return 0, readErr
+		respBuf = append(respBuf, b)
+		if b == '\n' && len(respBuf) >= 2 {
+			break
+		}
 	}
+	duration := time.Since(start)
+	respStr := string(respBuf)
 
-	return duration, nil
+	if duration < timeout {
+
+		return duration, respStr, nil
+	}
+	return duration, respStr, nil
 }
 
-func (t *SmugglingTool) checkCLTE(ctx context.Context, u *url.URL) (bool, error) {
-	// First establish a baseline response time
+func (t *SmugglingTool) checkCLTE(ctx context.Context, u *url.URL) (bool, string, string, error) {
+
 	baselinePayload := fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s\r\nContent-Length: 0\r\n\r\n", u.Host)
-	baseline, err := t.sendRaw(ctx, u, baselinePayload, 8*time.Second)
+	baseline, _, err := t.sendRaw(ctx, u, baselinePayload, 8*time.Second)
 	if err != nil {
-		return false, err
+		return false, "", "", err
 	}
 
-	// CL.TE Smuggling timing check
-	// Content-Length specifies 6 bytes, but we send chunked end "0\r\n\r\n" which is 5 bytes.
-	// The back-end server using Content-Length waits for the 6th byte, causing a timeout/delay.
 	cltePayload := fmt.Sprintf("POST / HTTP/1.1\r\n"+
 		"Host: %s\r\n"+
 		"Connection: keep-alive\r\n"+
@@ -138,29 +143,25 @@ func (t *SmugglingTool) checkCLTE(ctx context.Context, u *url.URL) (bool, error)
 		"Transfer-Encoding: chunked\r\n\r\n"+
 		"0\r\n\r\n", u.Host)
 
-	delay, err := t.sendRaw(ctx, u, cltePayload, 10*time.Second)
+	delay, respStr, err := t.sendRaw(ctx, u, cltePayload, 10*time.Second)
 	if err != nil {
-		return false, nil // assume non-vulnerable or connection error on malformed
+		return false, cltePayload, "", nil
 	}
 
-	// If baseline was fast but smuggling probe delayed by more than 2 seconds
 	if baseline < 2*time.Second && delay >= 3*time.Second {
-		return true, nil
+		return true, cltePayload, respStr, nil
 	}
 
-	return false, nil
+	return false, cltePayload, respStr, nil
 }
 
-func (t *SmugglingTool) checkTECL(ctx context.Context, u *url.URL) (bool, error) {
+func (t *SmugglingTool) checkTECL(ctx context.Context, u *url.URL) (bool, string, string, error) {
 	baselinePayload := fmt.Sprintf("POST / HTTP/1.1\r\nHost: %s\r\nContent-Length: 0\r\n\r\n", u.Host)
-	baseline, err := t.sendRaw(ctx, u, baselinePayload, 8*time.Second)
+	baseline, _, err := t.sendRaw(ctx, u, baselinePayload, 8*time.Second)
 	if err != nil {
-		return false, err
+		return false, "", "", err
 	}
 
-	// TE.CL Smuggling timing check
-	// Content-Length is 4 bytes (forwards "1a\r\n").
-	// Back-end server parses "1a" chunk and waits for 26 bytes of data. Timeout occurs.
 	teclPayload := fmt.Sprintf("POST / HTTP/1.1\r\n"+
 		"Host: %s\r\n"+
 		"Connection: keep-alive\r\n"+
@@ -169,16 +170,16 @@ func (t *SmugglingTool) checkTECL(ctx context.Context, u *url.URL) (bool, error)
 		"1a\r\n"+
 		"X", u.Host)
 
-	delay, err := t.sendRaw(ctx, u, teclPayload, 10*time.Second)
+	delay, respStr, err := t.sendRaw(ctx, u, teclPayload, 10*time.Second)
 	if err != nil {
-		return false, nil
+		return false, teclPayload, "", nil
 	}
 
 	if baseline < 2*time.Second && delay >= 3*time.Second {
-		return true, nil
+		return true, teclPayload, respStr, nil
 	}
 
-	return false, nil
+	return false, teclPayload, respStr, nil
 }
 
 var _ recon.Tool = (*SmugglingTool)(nil)

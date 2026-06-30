@@ -7,14 +7,31 @@ import (
 	"time"
 
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"github.com/Developer-Army/BBPTS/internal/interfaces/ui/tui"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Run executes the BBPTS engine with the provided options.
 func Run(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Bridge, tuiProgram *tea.Program) {
+	if bridge != nil {
+		tickerCtx, cancelTicker := context.WithCancel(ctx)
+		defer cancelTicker()
+		go func() {
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					bridge.SendRequestRate(tools.CurrentRequestRate())
+				case <-tickerCtx.Done():
+					return
+				}
+			}
+		}()
+	}
+
 	if opts.UseTUI && tuiProgram != nil {
 		go func() {
 			runLoop(ctx, opts, cfg, bridge)
@@ -50,7 +67,6 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	defer cancelAbort()
 	abortCtx = recon.WithDryRun(abortCtx, opts.DryRun)
 
-	// Monitor ScanAbortChan to cancel abortCtx
 	go func() {
 		select {
 		case <-tui.ScanAbortChan:
@@ -67,7 +83,6 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		reconThreads = opts.Threads
 	}
 
-	// Create a default context for reporting if scan is skipped
 	runCtx, cancel := context.WithCancel(abortCtx)
 	defer cancel()
 
@@ -93,7 +108,6 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 		dashboardDone = launchDashboard(opts, cfg)
 	}
 
-	// --- Final Intelligence & Reporting ---
 	events := handleIntelligence(runCtx, opts, cfg, store, result.events, result.matches, result.triggeredTools, reconThreads, bridge)
 
 	var matches []recon.Match
@@ -102,7 +116,6 @@ func executeRun(ctx context.Context, opts Options, cfg *config.Config, bridge *t
 	}
 	handleReporting(runCtx, opts, cfg, store, normalized, events, matches, bridge)
 
-	// If dashboard is enabled and not in cron mode, wait for it
 	if opts.EnableDashboard && opts.CronInterval <= 0 && dashboardDone != nil {
 		waitForDashboard(cancel, dashboardDone)
 	}

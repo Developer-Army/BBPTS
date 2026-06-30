@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// Platform defines the interface for bug bounty platform API clients.
 type Platform interface {
 	IsConfigured() bool
 	SubmitReport(title, description, severity string) error
@@ -21,8 +20,6 @@ type httpDoer interface {
 
 var defaultHTTPClient httpDoer = &http.Client{Timeout: 30 * time.Second}
 
-// SetHTTPClient swaps the HTTP client used by submitters and returns a restore function.
-// It is intended for tests.
 func SetHTTPClient(client httpDoer) func() {
 	previous := defaultHTTPClient
 	defaultHTTPClient = client
@@ -49,7 +46,7 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 		}
 		if err == nil {
 			lastErr = fmt.Errorf("server returned %s", resp.Status)
-			// safe to ignore: closing response body during error/retry path is best-effort
+
 			resp.Body.Close()
 		} else {
 			lastErr = err
@@ -73,8 +70,6 @@ func newJSONRequest(method, url string, payload []byte) (*http.Request, error) {
 	return req, nil
 }
 
-// AutoSubmit iterates through configured platforms and submits the report.
-// Note: Real submissions are currently gated/disabled to protect accounts from being banned.
 func AutoSubmit(platformName, program, title, description, severity string) error {
 	slog.Info("[DRY-RUN] AutoSubmit finding (real submissions disabled to protect account)",
 		"platform", platformName,

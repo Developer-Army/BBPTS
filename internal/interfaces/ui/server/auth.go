@@ -15,7 +15,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthenticateUser verifies username and password, returning the user role.
 func AuthenticateUser(db *storage.DB, username, password string) (string, error) {
 	rawDB := db.GetDB()
 	var storedVal, role string
@@ -47,7 +46,6 @@ const (
 	RoleKey     ContextKey = "role"
 )
 
-// User represents a dashboard user account.
 type User struct {
 	ID           int64
 	Username     string
@@ -56,7 +54,6 @@ type User struct {
 	CreatedAt    time.Time
 }
 
-// Session represents an active authenticated session.
 type Session struct {
 	Token     string
 	Username  string
@@ -65,7 +62,6 @@ type Session struct {
 	CreatedAt time.Time
 }
 
-// GenerateRandomString generates a secure cryptographically random hex string.
 func GenerateRandomString(length int) (string, error) {
 	b := make([]byte, length)
 	if _, err := rand.Read(b); err != nil {
@@ -74,7 +70,6 @@ func GenerateRandomString(length int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// HashPassword hashes a password using bcrypt with salt.
 func HashPassword(password, salt string) string {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(salt+password), bcrypt.DefaultCost)
 	if err != nil {
@@ -83,14 +78,11 @@ func HashPassword(password, salt string) string {
 	return string(hashed)
 }
 
-// VerifyPassword checks if a password matches the stored hash and salt.
 func VerifyPassword(password, salt, storedHash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(salt+password))
 	return err == nil
 }
 
-// BootstrapAdminUser ensures a default admin user exists for local dashboard access.
-// For local-only usage, auth is bypassed via middleware -- this just seeds the DB.
 func BootstrapAdminUser(db *storage.DB) error {
 	rawDB := db.GetDB()
 	var count int
@@ -103,7 +95,6 @@ func BootstrapAdminUser(db *storage.DB) error {
 		return nil
 	}
 
-	// Seed a default admin user (password unused for localhost -- middleware bypasses auth)
 	if envPassword := os.Getenv("BBPTS_ADMIN_PASSWORD"); envPassword != "" {
 		salt, err := GenerateRandomString(16)
 		if err != nil {
@@ -118,7 +109,6 @@ func BootstrapAdminUser(db *storage.DB) error {
 		return nil
 	}
 
-	// Default: create admin with a random password (auth is bypassed for localhost anyway)
 	salt, err := GenerateRandomString(16)
 	if err != nil {
 		return fmt.Errorf("failed to generate salt: %w", err)
@@ -135,7 +125,6 @@ func hashToken(token string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// ValidateSession retrieves the session from database, validating expiration.
 func ValidateSession(db *storage.DB, token string) (string, string, error) {
 	rawDB := db.GetDB()
 	var username, role string
@@ -150,7 +139,7 @@ func ValidateSession(db *storage.DB, token string) (string, string, error) {
 
 	expiresAt, err := time.Parse(time.RFC3339, expiresAtStr)
 	if err != nil {
-		// Try parsing fallback layout
+
 		expiresAt, err = time.Parse("2006-01-02 15:04:05-07:00", expiresAtStr)
 		if err != nil {
 			expiresAt, err = time.Parse("2006-01-02 15:04:05", expiresAtStr)
@@ -161,7 +150,7 @@ func ValidateSession(db *storage.DB, token string) (string, string, error) {
 	}
 
 	if time.Now().After(expiresAt) {
-		// Clean up expired session
+
 		_, _ = rawDB.Exec("DELETE FROM user_sessions WHERE token = ?", hashed)
 		return "", "", fmt.Errorf("session expired")
 	}
@@ -169,7 +158,6 @@ func ValidateSession(db *storage.DB, token string) (string, string, error) {
 	return username, role, nil
 }
 
-// CreateSession creates a new session token for the user.
 func CreateSession(db *storage.DB, username, role string, duration time.Duration) (string, error) {
 	token, err := GenerateRandomString(24)
 	if err != nil {
@@ -180,7 +168,6 @@ func CreateSession(db *storage.DB, username, role string, duration time.Duration
 	expiresAt := time.Now().Add(duration)
 	rawDB := db.GetDB()
 
-	// Revoke any existing active session for this user to enforce single session policy (or clean up)
 	_, _ = rawDB.Exec("DELETE FROM user_sessions WHERE username = ?", username)
 
 	_, err = rawDB.Exec("INSERT INTO user_sessions (token, username, role, expires_at) VALUES (?, ?, ?, ?)",
@@ -192,7 +179,6 @@ func CreateSession(db *storage.DB, username, role string, duration time.Duration
 	return token, nil
 }
 
-// RevokeSession deletes the session from the database.
 func RevokeSession(db *storage.DB, token string) error {
 	rawDB := db.GetDB()
 	hashed := hashToken(token)
@@ -200,7 +186,6 @@ func RevokeSession(db *storage.DB, token string) error {
 	return err
 }
 
-// LogAuditEvent records administrative transitions and security actions to db audit log.
 func LogAuditEvent(db *storage.DB, username, role, action, resource, ip, status string) {
 	rawDB := db.GetDB()
 	_, err := rawDB.Exec("INSERT INTO audit_logs (username, role, action, resource, ip_address, status) VALUES (?, ?, ?, ?, ?, ?)",
@@ -209,7 +194,6 @@ func LogAuditEvent(db *storage.DB, username, role, action, resource, ip, status 
 		slog.Error("failed to write audit log to database", "error", err)
 	}
 
-	// Also write to local audit file (read-only / append-only path) for audit trailing
 	auditLine := fmt.Sprintf("[%s] IP=%s USER=%s ROLE=%s ACTION=%s RESOURCE=%s STATUS=%s\n",
 		time.Now().Format(time.RFC3339), ip, username, role, action, resource, status)
 

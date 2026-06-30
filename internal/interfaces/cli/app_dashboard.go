@@ -11,7 +11,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/utils"
 )
 
-// launchDashboard starts the web dashboard server in a goroutine and returns a done channel.
 func launchDashboard(opts Options, cfg *config.Config) chan struct{} {
 	dashboardDone := make(chan struct{})
 	store, err := utils.NewStore(cfg.StateDir, true)
@@ -61,7 +60,6 @@ func launchDashboard(opts Options, cfg *config.Config) chan struct{} {
 	return dashboardDone
 }
 
-// waitForDashboard blocks until the dashboard server exits or user presses 'q'.
 func waitForDashboard(cancel context.CancelFunc, dashboardDone chan struct{}) {
 	go func() {
 		var b [1]byte
@@ -82,4 +80,3 @@ func waitForDashboard(cancel context.CancelFunc, dashboardDone chan struct{}) {
 
 	<-dashboardDone
 }
-

@@ -37,7 +37,6 @@ func TestTabToggleMode(t *testing.T) {
 	m.awaitingInput = true
 	m.targetMode = "normal"
 
-	// Simulate tab keypress
 	res, cmd := m.Update(tea.KeyMsg{Type: tea.KeyTab, Runes: []rune{}})
 	m = res.(Model)
 	if m.targetMode != "light" {
@@ -47,7 +46,6 @@ func TestTabToggleMode(t *testing.T) {
 		t.Errorf("expected cmd to be nil, got %v", cmd)
 	}
 
-	// Tab again
 	res, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab, Runes: []rune{}})
 	m = res.(Model)
 	if m.targetMode != "normal" {
@@ -80,7 +78,7 @@ func TestTargetValidationResultMsg_HandlesInvalid(t *testing.T) {
 }
 
 func TestValidateTargetCmd_RejectsDirectories(t *testing.T) {
-	// Test "."
+
 	cmd := validateTargetCmd(".")
 	msg := cmd()
 	res, ok := msg.(TargetValidationResultMsg)
@@ -91,7 +89,6 @@ func TestValidateTargetCmd_RejectsDirectories(t *testing.T) {
 		t.Errorf("expected '.' to be invalid target")
 	}
 
-	// Test "/"
 	cmd = validateTargetCmd("/")
 	msg = cmd()
 	res, ok = msg.(TargetValidationResultMsg)

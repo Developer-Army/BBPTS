@@ -68,10 +68,9 @@ func TestDashboardHTMLContainsChartJS(t *testing.T) {
 
 func TestStartWithNilDB(t *testing.T) {
 	cfg := Config{
-		Port: 0, // Use port 0 to get a random available port
+		Port: 0,
 	}
 
-	// This will fail to start properly due to nil db, but we can test the structure
 	err := Start(cfg, nil, "", "")
 
 	if err == nil {
@@ -84,8 +83,6 @@ func TestStartWithConfig(t *testing.T) {
 		Port: 8080,
 	}
 
-	// This would start a server, which we don't want in tests
-	// Just verify the config structure is correct
 	if cfg.Port != 8080 {
 		t.Errorf("Expected Port 8080, got %d", cfg.Port)
 	}
@@ -293,14 +290,14 @@ func TestDashboardHTMLContainsDOMContentLoaded(t *testing.T) {
 }
 
 func TestDashboardHTMLEncoding(t *testing.T) {
-	// Verify the HTML is properly encoded
+
 	if containsSubstring(DashboardHTML, "\x00") {
 		t.Error("DashboardHTML should not contain null bytes")
 	}
 }
 
 func TestDashboardHTMLLength(t *testing.T) {
-	// DashboardHTML should be substantial
+
 	if len(DashboardHTML) < 1000 {
 		t.Errorf("Expected DashboardHTML to be at least 1000 characters, got %d", len(DashboardHTML))
 	}

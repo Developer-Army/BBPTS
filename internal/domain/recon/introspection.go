@@ -11,14 +11,12 @@ import (
 	"time"
 )
 
-// Introspector performs GraphQL schema introspection and analysis.
 type Introspector struct {
 	client  *http.Client
 	timeout time.Duration
 	headers map[string]string
 }
 
-// NewIntrospector creates a new GraphQL introspector.
 func NewIntrospector(timeout time.Duration) *Introspector {
 	return &Introspector{
 		client:  &http.Client{Timeout: timeout},
@@ -27,12 +25,10 @@ func NewIntrospector(timeout time.Duration) *Introspector {
 	}
 }
 
-// SetHeader sets a custom header for requests.
 func (gi *Introspector) SetHeader(key, value string) {
 	gi.headers[key] = value
 }
 
-// IntrospectionQuery is the standard GraphQL introspection query.
 const IntrospectionQuery = `
 {
 	__schema {
@@ -120,7 +116,6 @@ const IntrospectionQuery = `
 }
 `
 
-// Schema represents a parsed GraphQL schema.
 type Schema struct {
 	QueryType        string      `json:"queryType"`
 	MutationType     string      `json:"mutationType"`
@@ -129,7 +124,6 @@ type Schema struct {
 	Directives       []Directive `json:"directives"`
 }
 
-// Type represents a GraphQL type.
 type Type struct {
 	Name        string       `json:"name"`
 	Kind        string       `json:"kind"`
@@ -139,7 +133,6 @@ type Type struct {
 	EnumValues  []EnumValue  `json:"enumValues,omitempty"`
 }
 
-// Field represents a GraphQL field.
 type Field struct {
 	Name              string  `json:"name"`
 	Type              TypeRef `json:"type"`
@@ -149,14 +142,12 @@ type Field struct {
 	Description       string  `json:"description"`
 }
 
-// TypeRef represents a type reference.
 type TypeRef struct {
 	Name   string   `json:"name,omitempty"`
 	Kind   string   `json:"kind"`
 	OfType *TypeRef `json:"ofType,omitempty"`
 }
 
-// Arg represents a field argument.
 type Arg struct {
 	Name         string  `json:"name"`
 	Type         TypeRef `json:"type"`
@@ -164,7 +155,6 @@ type Arg struct {
 	Description  string  `json:"description"`
 }
 
-// InputField represents an input field.
 type InputField struct {
 	Name         string  `json:"name"`
 	Type         TypeRef `json:"type"`
@@ -172,7 +162,6 @@ type InputField struct {
 	Description  string  `json:"description"`
 }
 
-// EnumValue represents an enum value.
 type EnumValue struct {
 	Name              string `json:"name"`
 	Description       string `json:"description"`
@@ -180,7 +169,6 @@ type EnumValue struct {
 	DeprecationReason string `json:"deprecationReason,omitempty"`
 }
 
-// Directive represents a GraphQL directive.
 type Directive struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
@@ -188,7 +176,6 @@ type Directive struct {
 	Args        []Arg    `json:"args"`
 }
 
-// IntrospectionResponse represents the response from an introspection query.
 type IntrospectionResponse struct {
 	Data struct {
 		Schema Schema `json:"__schema"`
@@ -196,12 +183,10 @@ type IntrospectionResponse struct {
 	Errors []GraphQLError `json:"errors,omitempty"`
 }
 
-// GraphQLError represents a GraphQL error.
 type GraphQLError struct {
 	Message string `json:"message"`
 }
 
-// Introspect performs schema introspection on a GraphQL endpoint.
 func (gi *Introspector) Introspect(endpoint string) (*Schema, error) {
 	payload := map[string]string{
 		"query": IntrospectionQuery,
@@ -251,7 +236,6 @@ func (gi *Introspector) Introspect(endpoint string) (*Schema, error) {
 	return &response.Data.Schema, nil
 }
 
-// SchemaAnalysis provides analysis of a GraphQL schema.
 type SchemaAnalysis struct {
 	Schema           *Schema
 	QueryFields      []string
@@ -262,14 +246,13 @@ type SchemaAnalysis struct {
 	InputTypes       []string
 }
 
-// Analyze performs analysis on a GraphQL schema.
 func (gi *Introspector) Analyze(schema *Schema) *SchemaAnalysis {
 	analysis := &SchemaAnalysis{
 		Schema: schema,
 	}
 
 	for _, t := range schema.Types {
-		// Skip introspection types
+
 		if strings.HasPrefix(t.Name, "__") {
 			continue
 		}
@@ -298,7 +281,7 @@ func (gi *Introspector) Analyze(schema *Schema) *SchemaAnalysis {
 					}
 				}
 			default:
-				// Check for sensitive fields in other object types
+
 				for _, field := range t.Fields {
 					if isSensitiveField(field.Name) {
 						analysis.SensitiveFields = append(analysis.SensitiveFields, fmt.Sprintf("%s.%s", t.Name, field.Name))
@@ -327,7 +310,6 @@ func (gi *Introspector) Analyze(schema *Schema) *SchemaAnalysis {
 	return analysis
 }
 
-// isSensitiveField checks if a field name suggests sensitive data.
 func isSensitiveField(name string) bool {
 	sensitiveKeywords := []string{
 		"password", "token", "secret", "key", "auth", "credential",
@@ -345,29 +327,24 @@ func isSensitiveField(name string) bool {
 	return false
 }
 
-// GenerateTestQueries generates test queries for a schema.
 func (gi *Introspector) GenerateTestQueries(analysis *SchemaAnalysis) []string {
 	var queries []string
 
-	// Generate basic query for each query field
 	for _, field := range analysis.QueryFields {
 		query := fmt.Sprintf("query { %s }", field)
 		queries = append(queries, query)
 	}
 
-	// Generate mutation test for each mutation field
 	for _, field := range analysis.MutationFields {
 		mutation := fmt.Sprintf("mutation { %s }", field)
 		queries = append(queries, mutation)
 	}
 
-	// Generate introspection query
 	queries = append(queries, IntrospectionQuery)
 
 	return queries
 }
 
-// ToMarkdown converts the schema analysis to a markdown report.
 func (sa *SchemaAnalysis) ToMarkdown() string {
 	var sb strings.Builder
 
@@ -427,7 +404,6 @@ func (sa *SchemaAnalysis) ToMarkdown() string {
 	return sb.String()
 }
 
-// ToJSON converts the schema analysis to JSON.
 func (sa *SchemaAnalysis) ToJSON() (string, error) {
 	data, err := json.MarshalIndent(sa, "", "  ")
 	if err != nil {

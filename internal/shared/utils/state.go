@@ -18,14 +18,12 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
-// Snapshot represents the results of a single scan run.
 type Snapshot struct {
 	Timestamp time.Time     `json:"timestamp"`
 	Targets   []string      `json:"targets"`
 	Events    []recon.Event `json:"events"`
 }
 
-// RiskChange tracks risk score and severity changes for an asset.
 type RiskChange struct {
 	Host          string `json:"host"`
 	PreviousScore int    `json:"previous_score"`
@@ -34,14 +32,12 @@ type RiskChange struct {
 	CurrentSev    string `json:"current_severity"`
 }
 
-// NewlyExposed tracks newly open ports or new vulnerability tags on an asset.
 type NewlyExposed struct {
 	Host        string   `json:"host"`
 	ExposedItem string   `json:"exposed_item"`
 	Why         []string `json:"why"`
 }
 
-// Diff represents changes between two consecutive scans.
 type Diff struct {
 	NewTargets     []string          `json:"new_targets"`
 	RemovedTargets []string          `json:"removed_targets"`
@@ -54,13 +50,11 @@ type Diff struct {
 	ChangeReasons  map[string]string `json:"change_reasons,omitempty"`
 }
 
-// Store manages persistent scan state on disk.
 type Store struct {
 	dir string
 	db  *storage.DB
 }
 
-// NewStore creates a new state store. If useDB is true, it initializes a SQLite backend.
 func NewStore(dir string, useDB bool) (*Store, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create state directory: %w", err)
@@ -79,7 +73,6 @@ func NewStore(dir string, useDB bool) (*Store, error) {
 	return &Store{dir: dir, db: db}, nil
 }
 
-// Close releases resources held by the store.
 func (s *Store) Close() error {
 	if s.db != nil {
 		return s.db.Close()
@@ -87,28 +80,22 @@ func (s *Store) Close() error {
 	return nil
 }
 
-// GetDB returns the underlying SQLite database.
 func (s *Store) GetDB() *storage.DB {
 	return s.db
 }
 
-// snapshotPath returns the path for the latest snapshot for a given scope identifier.
 func (s *Store) snapshotPath(scope string) string {
 	return filepath.Join(s.dir, scope+"_latest.json")
 }
 
-// previousPath returns the path for the previous snapshot (before the latest).
 func (s *Store) previousPath(scope string) string {
 	return filepath.Join(s.dir, scope+"_previous.json")
 }
 
-// diffPath returns the path where the latest diff is stored.
 func (s *Store) diffPath(scope string) string {
 	return filepath.Join(s.dir, scope+"_diff.json")
 }
 
-// Save persists the current scan results. It rotates the previous snapshot
-// before writing the new one, enabling subsequent diff computation.
 func (s *Store) Save(scope string, targets []string, events []recon.Event) error {
 	snap := Snapshot{
 		Timestamp: time.Now().UTC(),
@@ -119,7 +106,6 @@ func (s *Store) Save(scope string, targets []string, events []recon.Event) error
 	latestPath := s.snapshotPath(scope)
 	prevPath := s.previousPath(scope)
 
-	// Rotate: move current latest to previous
 	if _, err := os.Stat(latestPath); err == nil {
 		if err := os.Rename(latestPath, prevPath); err != nil {
 			slog.Warn("failed to rotate state snapshot", "error", err)
@@ -158,7 +144,6 @@ func (s *Store) Save(scope string, targets []string, events []recon.Event) error
 				return err
 			}
 
-			// Save insights for historical trend tracking
 			currInsights := analyze.DeriveInsights(targets, events)
 			dbInsights := make([]storage.InsightRecord, len(currInsights))
 			for i, in := range currInsights {
@@ -183,12 +168,10 @@ func (s *Store) Save(scope string, targets []string, events []recon.Event) error
 	return nil
 }
 
-// LoadLatest loads the most recent snapshot for a given scope.
 func (s *Store) LoadLatest(scope string) (*Snapshot, error) {
 	return s.loadSnapshot(s.snapshotPath(scope))
 }
 
-// LoadPrevious loads the previous snapshot for a given scope.
 func (s *Store) LoadPrevious(scope string) (*Snapshot, error) {
 	return s.loadSnapshot(s.previousPath(scope))
 }
@@ -197,7 +180,7 @@ func (s *Store) loadSnapshot(path string) (*Snapshot, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil // No previous state
+			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to read snapshot: %w", err)
 	}
@@ -209,8 +192,6 @@ func (s *Store) loadSnapshot(path string) (*Snapshot, error) {
 	return &snap, nil
 }
 
-// ComputeDiff compares the current scan results against the previous snapshot
-// and returns a Diff showing new and removed targets/events.
 func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents []recon.Event) (*Diff, error) {
 	prev, err := s.LoadPrevious(scope)
 	if err != nil {
@@ -218,7 +199,7 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 	}
 
 	if prev == nil {
-		// First scan ever—everything is new
+
 		return &Diff{
 			NewTargets:     currentTargets,
 			RemovedTargets: nil,
@@ -233,7 +214,6 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 		PreviousTime: prev.Timestamp,
 	}
 
-	// Diff targets
 	prevTargetSet := toSet(prev.Targets)
 	currTargetSet := toSet(currentTargets)
 
@@ -248,7 +228,6 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 		}
 	}
 
-	// Diff events by composite key (target+source)
 	prevEventSet := eventKeySet(prev.Events)
 	currEventSet := eventKeySet(currentEvents)
 
@@ -268,7 +247,6 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 	sort.Strings(diff.NewTargets)
 	sort.Strings(diff.RemovedTargets)
 
-	// Compute insights for both previous and current scans
 	prevInsights := analyze.DeriveInsights(prev.Targets, prev.Events)
 	currInsights := analyze.DeriveInsights(currentTargets, currentEvents)
 
@@ -346,15 +324,15 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 	}
 	diff.NewlyExposed = newlyExposed
 
-	// Enrich new targets/events with change reasons
 	diff.ChangeReasons = make(map[string]string)
 	for _, t := range diff.NewTargets {
 		reason := "Newly discovered target subdomain/host"
 		for _, ev := range currentEvents {
 			if ev.Target == t {
-				if ev.Type == "port_open" {
+				switch ev.Type {
+				case "port_open":
 					reason = fmt.Sprintf("Newly discovered target with open port %s", ev.Properties["port"])
-				} else if ev.Type == "service" {
+				case "service":
 					reason = "Newly resolved active service target"
 				}
 			}
@@ -378,7 +356,6 @@ func (s *Store) ComputeDiff(scope string, currentTargets []string, currentEvents
 		diff.ChangeReasons[key] = reason
 	}
 
-	// Persist the diff
 	data, err := json.MarshalIndent(diff, "", "  ")
 	if err == nil {
 		if errWrite := os.WriteFile(s.diffPath(scope), data, 0600); errWrite != nil {
@@ -403,7 +380,7 @@ func eventKey(ev recon.Event) string {
 	if len(ev.Properties) > 0 {
 		keys := make([]string, 0, len(ev.Properties))
 		for k := range ev.Properties {
-			// Skip highly volatile/ephemeral fields
+
 			if k == "timestamp" || k == "time" || k == "duration" {
 				continue
 			}
@@ -426,7 +403,6 @@ func eventKeySet(events []recon.Event) map[string]struct{} {
 	return s
 }
 
-// ToMarkdown converts the diff results into markdown report.
 func (d *Diff) ToMarkdown(scope string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# Differential Reconnaissance Report - %s\n\n", scope))

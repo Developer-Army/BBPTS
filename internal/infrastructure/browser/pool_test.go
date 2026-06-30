@@ -72,7 +72,6 @@ func TestDefaultPoolConfigArgs(t *testing.T) {
 func TestLowResourcePoolConfigArgs(t *testing.T) {
 	cfg := LowResourcePoolConfig()
 
-	// Check for memory-specific args
 	hasMemoryLimit := false
 	for _, arg := range cfg.ExtraArgs {
 		if arg == "--js-flags=--max-old-space-size=256" {
@@ -84,7 +83,6 @@ func TestLowResourcePoolConfigArgs(t *testing.T) {
 		t.Error("Expected low resource config to have memory limit")
 	}
 
-	// Check for smaller window size
 	hasSmallWindow := false
 	for _, arg := range cfg.ExtraArgs {
 		if arg == "--window-size=1280,720" {
@@ -98,7 +96,7 @@ func TestLowResourcePoolConfigArgs(t *testing.T) {
 }
 
 func TestBrowserInstance(t *testing.T) {
-	// This is a struct test - just verify the structure
+
 	bi := BrowserInstance{
 		contexts: 5,
 		lastUsed: time.Now(),
@@ -115,7 +113,6 @@ func TestBrowserInstance(t *testing.T) {
 func TestPoolConfigDefaults(t *testing.T) {
 	cfg := PoolConfig{}
 
-	// Test zero values
 	if cfg.MaxBrowsers != 0 {
 		t.Errorf("Expected MaxBrowsers 0, got %d", cfg.MaxBrowsers)
 	}
@@ -146,7 +143,7 @@ func TestPoolConfigCustom(t *testing.T) {
 	cfg := PoolConfig{
 		MaxBrowsers: 10,
 		MaxContexts: 50,
-		ContextTTL:  5 * 60 * 1000000000, // 5 minutes in nanoseconds
+		ContextTTL:  5 * 60 * 1000000000,
 		Headless:    false,
 		ProxyURL:    "http://proxy.acme-corp.io",
 		UserAgent:   "CustomAgent/1.0",
@@ -187,8 +184,6 @@ func TestPoolConfigCustom(t *testing.T) {
 }
 
 func TestSelectBrowserLogic(t *testing.T) {
-	// Test the logic of selectBrowser without actually calling it
-	// This tests the round-robin with capacity check logic
 
 	browsers := []BrowserInstance{
 		{contexts: 10},
@@ -196,8 +191,6 @@ func TestSelectBrowserLogic(t *testing.T) {
 		{contexts: 5},
 	}
 
-	// Simulate round-robin selection with capacity check
-	// Start from index 0, check each browser
 	selected := -1
 	start := 0
 	maxCapacity := 50
@@ -214,7 +207,6 @@ func TestSelectBrowserLogic(t *testing.T) {
 		t.Errorf("Expected to select browser at index 0, got %d", selected)
 	}
 
-	// Test when first browser is at capacity
 	browsers[0].contexts = 50
 	selected = -1
 
@@ -230,7 +222,6 @@ func TestSelectBrowserLogic(t *testing.T) {
 		t.Errorf("Expected to select browser at index 2, got %d", selected)
 	}
 
-	// Test when all browsers are at capacity
 	browsers[2].contexts = 50
 	selected = -1
 

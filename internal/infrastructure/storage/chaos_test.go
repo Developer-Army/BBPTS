@@ -8,10 +8,8 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// Scenario 3: Adversarial Edge-Case Injection (Scale/Blob Test)
-// Ensures the database does not bloat when fed massive 2MB response payloads.
 func TestChaos_AdversarialBlobInjection(t *testing.T) {
-	// Save current working directory and use a temp dir to support read-only filesystems
+
 	oldWD, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get working directory: %v", err)
@@ -28,14 +26,12 @@ func TestChaos_AdversarialBlobInjection(t *testing.T) {
 		os.RemoveAll(tempDir)
 	}()
 
-	// Setup in-memory sqlite for test
 	s, err := NewStorage("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	defer s.Close()
 
-	// Generate a 2MB adversarial payload (e.g. huge minified JS chunk or gzip bomb)
 	massivePayload := strings.Repeat("A", 2*1024*1024)
 
 	ev := recon.Event{
@@ -48,13 +44,11 @@ func TestChaos_AdversarialBlobInjection(t *testing.T) {
 		},
 	}
 
-	// Save the event
 	err = s.SaveEvent(ev)
 	if err != nil {
 		t.Fatalf("Storage engine failed to handle massive event: %v", err)
 	}
 
-	// Retrieve the event
 	events, err := s.GetEventsByTarget("https://adversarial.target.com/app.js")
 	if err != nil {
 		t.Fatalf("Failed to retrieve event: %v", err)
@@ -65,7 +59,6 @@ func TestChaos_AdversarialBlobInjection(t *testing.T) {
 
 	retrieved := events[0]
 
-	// Verify Hot/Cold Separation
 	if _, exists := retrieved.Properties["response_body"]; exists {
 		t.Fatal("Adversarial payload was stored in HOT storage! Database bloat failure.")
 	}
@@ -79,7 +72,6 @@ func TestChaos_AdversarialBlobInjection(t *testing.T) {
 		t.Fatalf("Invalid blob URI format: %s", blobURI)
 	}
 
-	// Verify the blob actually exists on disk
 	blobPath := strings.TrimPrefix(blobURI, "file://")
 	stat, err := os.Stat(blobPath)
 	if err != nil {
@@ -89,7 +81,6 @@ func TestChaos_AdversarialBlobInjection(t *testing.T) {
 		t.Fatalf("Blob file size mismatch. Expected %d, got %d", len(massivePayload), stat.Size())
 	}
 
-	// Cleanup the test blob
 	os.RemoveAll("results/blobs")
 
 	t.Logf("Adversarial Injection Success: 2MB payload safely intercepted, hashed, and moved to Cold Storage at %s", blobPath)

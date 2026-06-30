@@ -16,16 +16,12 @@ func init() {
 	os.Setenv("BBPTS_ALLOW_PRIVATE_IPS", "true")
 }
 
-// Scenario 1: WAF Simulation Test
-// Ensures the StealthClient correctly identifies a WAF, backs off, and rotates headers.
 func TestChaos_WAFSimulation(t *testing.T) {
 	requestCount := 0
 
-	// Create a mock Cloudflare edge server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 
-		// 1st request: Cloudflare block
 		if requestCount == 1 {
 			w.Header().Set("cf-ray", "123456789")
 			w.WriteHeader(http.StatusForbidden)
@@ -33,20 +29,18 @@ func TestChaos_WAFSimulation(t *testing.T) {
 			return
 		}
 
-		// 2nd request: Rate Limit
 		if requestCount == 2 {
 			w.WriteHeader(http.StatusTooManyRequests)
 			_, _ = w.Write([]byte(`Rate Limited`))
 			return
 		}
 
-		// 3rd request: Success
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"data": "success"}`))
 	}))
 	defer ts.Close()
 
-	client, err := NewStealthClient("", 0) // no proxy, 0 jitter for fast test
+	client, err := NewStealthClient("", 0)
 	if err != nil {
 		t.Fatalf("Failed to create stealth client: %v", err)
 	}
@@ -64,7 +58,6 @@ func TestChaos_WAFSimulation(t *testing.T) {
 		t.Fatalf("Expected StealthClient to recover and return 200, got %d", resp.StatusCode)
 	}
 
-	// Ensure backoff was actually applied
 	if duration < 1*time.Second {
 		t.Errorf("Expected backoff to delay request by at least 1s, got %v", duration)
 	}
@@ -72,16 +65,13 @@ func TestChaos_WAFSimulation(t *testing.T) {
 	t.Logf("WAF Evasion Success: Client transparently handled WAF block and Rate Limit, returning 200 OK after %v", duration)
 }
 
-// Scenario 2: Worker Assassination Test
-// Simulates the Health Monitor evicting a dead node and firing an event.
 func TestChaos_WorkerAssassination(t *testing.T) {
-	b := queue.New() // in-memory bus for testing
+	b := queue.New()
 
 	monitor := NewHealthMonitor(b)
 	monitor.Start()
 	defer monitor.Stop()
 
-	// Mock a worker connecting
 	workerID := "worker-chaos-99"
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -93,23 +83,17 @@ func TestChaos_WorkerAssassination(t *testing.T) {
 		BroadcastHeartbeat(ctx, b, workerID)
 	}()
 
-	// Wait a moment for it to register
 	time.Sleep(100 * time.Millisecond)
 
-	// Assassinate the worker (cancel context to stop heartbeats)
 	cancel()
 	wg.Wait()
 
-	// Fast-forward time/force check for testing purposes
-	// In the real system it waits 35s. For the test, we'll manually set the last seen to 40s ago
 	monitor.mu.Lock()
 	monitor.workers[workerID] = time.Now().Add(-40 * time.Second)
 	monitor.mu.Unlock()
 
-	// Listen for the dead worker event
 	deadChan := b.Subscribe("worker.dead")
 
-	// Force health check
 	monitor.checkHealth()
 
 	select {

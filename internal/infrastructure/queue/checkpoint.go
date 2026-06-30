@@ -16,7 +16,6 @@ var (
 	ErrCheckpointNotFound = errors.New("checkpoint not found")
 )
 
-// Checkpoint represents a saved state in the recon pipeline.
 type Checkpoint struct {
 	SessionID   string                 `json:"session_id"`
 	Stage       string                 `json:"stage"` // e.g., "subdomain_enum", "port_scan", "crawl"
@@ -31,14 +30,12 @@ type Checkpoint struct {
 	LeaseExpiry int64                  `json:"lease_expiry,omitempty"`
 }
 
-// CheckpointManager manages checkpoint state for resumable scans.
 type CheckpointManager struct {
 	kv     nats.KeyValue
 	leases *LeaseManager
 	mu     sync.RWMutex
 }
 
-// NewCheckpointManager creates a manager for checkpointing scan progress.
 func NewCheckpointManager(js nats.JetStreamContext, bucketName string, leases *LeaseManager) (*CheckpointManager, error) {
 	kv, err := js.KeyValue(bucketName)
 	if err != nil {
@@ -46,7 +43,7 @@ func NewCheckpointManager(js nats.JetStreamContext, bucketName string, leases *L
 			kv, err = js.CreateKeyValue(&nats.KeyValueConfig{
 				Bucket:      bucketName,
 				Description: "Checkpoint Store for BBPTS resumable scans",
-				TTL:         7 * 24 * time.Hour, // Keep checkpoints for a week
+				TTL:         7 * 24 * time.Hour,
 				Storage:     nats.FileStorage,
 				Replicas:    1,
 			})
@@ -64,7 +61,6 @@ func NewCheckpointManager(js nats.JetStreamContext, bucketName string, leases *L
 	}, nil
 }
 
-// SaveCheckpoint saves or updates a checkpoint.
 func (cm *CheckpointManager) SaveCheckpoint(cp *Checkpoint) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -93,7 +89,6 @@ func (cm *CheckpointManager) SaveCheckpoint(cp *Checkpoint) error {
 	return nil
 }
 
-// GetCheckpoint retrieves a checkpoint for a specific session, stage, and target.
 func (cm *CheckpointManager) GetCheckpoint(sessionID, stage, target string) (*Checkpoint, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
@@ -119,7 +114,6 @@ func (cm *CheckpointManager) GetCheckpoint(sessionID, stage, target string) (*Ch
 	return &cp, nil
 }
 
-// GetSessionCheckpoints retrieves all checkpoints for a session.
 func (cm *CheckpointManager) GetSessionCheckpoints(sessionID string) ([]*Checkpoint, error) {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
@@ -128,7 +122,6 @@ func (cm *CheckpointManager) GetSessionCheckpoints(sessionID string) ([]*Checkpo
 		return nil, errors.New("kv store is nil")
 	}
 
-	// Use a watcher to iterate through keys matching the pattern
 	watcher, err := cm.kv.Watch(fmt.Sprintf("checkpoint:%s>", sessionID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create key watcher: %w", err)
@@ -153,7 +146,6 @@ func (cm *CheckpointManager) GetSessionCheckpoints(sessionID string) ([]*Checkpo
 	return checkpoints, nil
 }
 
-// DeleteCheckpoint removes a checkpoint.
 func (cm *CheckpointManager) DeleteCheckpoint(sessionID, stage, target string) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -166,7 +158,6 @@ func (cm *CheckpointManager) DeleteCheckpoint(sessionID, stage, target string) e
 	return cm.kv.Delete(key)
 }
 
-// DeleteSession removes all checkpoints for a session.
 func (cm *CheckpointManager) DeleteSession(sessionID string) error {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
@@ -175,7 +166,6 @@ func (cm *CheckpointManager) DeleteSession(sessionID string) error {
 		return errors.New("kv store is nil")
 	}
 
-	// Use a watcher to iterate through keys matching the pattern
 	watcher, err := cm.kv.Watch(fmt.Sprintf("checkpoint:%s>", sessionID))
 	if err != nil {
 		return fmt.Errorf("failed to create key watcher: %w", err)
@@ -196,21 +186,17 @@ func (cm *CheckpointManager) DeleteSession(sessionID string) error {
 	return nil
 }
 
-// AcquireStageLease acquires a lease for processing a specific stage of a target.
-// This ensures only one worker processes a stage at a time.
 func (cm *CheckpointManager) AcquireStageLease(ctx context.Context, sessionID, stage, target, workerID string, ttl time.Duration) error {
 	leaseKey := fmt.Sprintf("lease:%s:%s:%s", sessionID, stage, target)
 
-	// Try to acquire lease
 	if err := cm.leases.Acquire(leaseKey, workerID); err != nil {
 		if err == ErrLeaseUnavailable {
-			// Lease is held by another worker
+
 			return ErrLeaseUnavailable
 		}
 		return fmt.Errorf("failed to acquire stage lease: %w", err)
 	}
 
-	// Update checkpoint with lease info
 	cp, err := cm.GetCheckpoint(sessionID, stage, target)
 	if err != nil && err != ErrCheckpointNotFound {
 		return err
@@ -231,20 +217,18 @@ func (cm *CheckpointManager) AcquireStageLease(ctx context.Context, sessionID, s
 	cp.LeaseExpiry = time.Now().Add(ttl).Unix()
 
 	if err := cm.SaveCheckpoint(cp); err != nil {
-		// Rollback lease if checkpoint save fails
+
 		if errRelease := cm.leases.Release(leaseKey); errRelease != nil {
 			slog.Warn("Failed to release lease on rollback", "key", leaseKey, "error", errRelease)
 		}
 		return err
 	}
 
-	// Start lease renewal in background
 	go cm.leases.KeepAlive(ctx, leaseKey, workerID)
 
 	return nil
 }
 
-// ReleaseStageLease releases a lease for a stage.
 func (cm *CheckpointManager) ReleaseStageLease(sessionID, stage, target string) error {
 	leaseKey := fmt.Sprintf("lease:%s:%s:%s", sessionID, stage, target)
 
@@ -252,7 +236,6 @@ func (cm *CheckpointManager) ReleaseStageLease(sessionID, stage, target string) 
 		return fmt.Errorf("failed to release stage lease: %w", err)
 	}
 
-	// Update checkpoint
 	cp, err := cm.GetCheckpoint(sessionID, stage, target)
 	if err == nil && cp != nil {
 		cp.LeaseExpiry = 0
@@ -264,12 +247,11 @@ func (cm *CheckpointManager) ReleaseStageLease(sessionID, stage, target string) 
 	return nil
 }
 
-// UpdateProgress updates the progress of a checkpoint.
 func (cm *CheckpointManager) UpdateProgress(sessionID, stage, target string, progress float64, data map[string]interface{}) error {
 	cp, err := cm.GetCheckpoint(sessionID, stage, target)
 	if err != nil {
 		if err == ErrCheckpointNotFound {
-			// Create new checkpoint
+
 			cp = &Checkpoint{
 				SessionID: sessionID,
 				Stage:     stage,
@@ -296,7 +278,6 @@ func (cm *CheckpointManager) UpdateProgress(sessionID, stage, target string, pro
 	return cm.SaveCheckpoint(cp)
 }
 
-// MarkCompleted marks a checkpoint as completed.
 func (cm *CheckpointManager) MarkCompleted(sessionID, stage, target string, data map[string]interface{}) error {
 	cp, err := cm.GetCheckpoint(sessionID, stage, target)
 	if err != nil {
@@ -329,7 +310,6 @@ func (cm *CheckpointManager) MarkCompleted(sessionID, stage, target string, data
 		return err
 	}
 
-	// Release lease
 	if errRelease := cm.ReleaseStageLease(sessionID, stage, target); errRelease != nil {
 		slog.Warn("Failed to release stage lease on completion", "error", errRelease)
 	}
@@ -337,7 +317,6 @@ func (cm *CheckpointManager) MarkCompleted(sessionID, stage, target string, data
 	return nil
 }
 
-// MarkFailed marks a checkpoint as failed.
 func (cm *CheckpointManager) MarkFailed(sessionID, stage, target string, errorMsg string) error {
 	cp, err := cm.GetCheckpoint(sessionID, stage, target)
 	if err != nil {
@@ -361,7 +340,6 @@ func (cm *CheckpointManager) MarkFailed(sessionID, stage, target string, errorMs
 		return err
 	}
 
-	// Release lease
 	if errRelease := cm.ReleaseStageLease(sessionID, stage, target); errRelease != nil {
 		slog.Warn("Failed to release stage lease on failure", "error", errRelease)
 	}
@@ -369,7 +347,6 @@ func (cm *CheckpointManager) MarkFailed(sessionID, stage, target string, errorMs
 	return nil
 }
 
-// GetResumePlan returns a plan for resuming a scan from checkpoints.
 func (cm *CheckpointManager) GetResumePlan(sessionID string) (*ResumePlan, error) {
 	checkpoints, err := cm.GetSessionCheckpoints(sessionID)
 	if err != nil {
@@ -389,9 +366,9 @@ func (cm *CheckpointManager) GetResumePlan(sessionID string) (*ResumePlan, error
 		case "completed":
 			plan.Completed[cp.Stage] = append(plan.Completed[cp.Stage], cp.Target)
 		case "in_progress":
-			// Check if lease is expired
+
 			if cp.LeaseExpiry > 0 && time.Now().Unix() > cp.LeaseExpiry {
-				// Lease expired, treat as pending for retry
+
 				plan.Pending[cp.Stage] = append(plan.Pending[cp.Stage], cp.Target)
 			} else {
 				plan.InProgress[cp.Stage] = append(plan.InProgress[cp.Stage], cp.Target)
@@ -406,7 +383,6 @@ func (cm *CheckpointManager) GetResumePlan(sessionID string) (*ResumePlan, error
 	return plan, nil
 }
 
-// ResumePlan represents a plan for resuming a scan.
 type ResumePlan struct {
 	SessionID  string
 	Completed  map[string][]string // stage -> targets
@@ -415,18 +391,16 @@ type ResumePlan struct {
 	Failed     map[string][]string // stage -> targets
 }
 
-// CanResume checks if a session can be resumed.
 func (rp *ResumePlan) CanResume() bool {
 	return len(rp.Pending) > 0 || len(rp.InProgress) > 0 || len(rp.Failed) > 0
 }
 
-// GetNextTargets returns the next targets to process for a given stage.
 func (rp *ResumePlan) GetNextTargets(stage string) []string {
-	// Return pending targets first
+
 	if targets, ok := rp.Pending[stage]; ok && len(targets) > 0 {
 		return targets
 	}
-	// Then failed targets (for retry)
+
 	if targets, ok := rp.Failed[stage]; ok && len(targets) > 0 {
 		return targets
 	}

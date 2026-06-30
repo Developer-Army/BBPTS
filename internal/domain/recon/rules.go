@@ -10,7 +10,6 @@ import (
 	"strings"
 )
 
-// Event represents a reconnaissance event in the domain layer.
 type Event struct {
 	Target     string            `json:"target"`
 	Source     string            `json:"source"`
@@ -18,7 +17,6 @@ type Event struct {
 	Properties map[string]string `json:"properties"`
 }
 
-// Condition operators supported in rules.
 const (
 	OpContains    = "contains"
 	OpEquals      = "equals"
@@ -27,7 +25,6 @@ const (
 	OpNotContains = "not_contains"
 )
 
-// Condition is a single predicate evaluated against an Event.
 type Condition struct {
 	// Field is the event field to evaluate: "target", "source", or any property key.
 	Field    string `json:"field"`
@@ -35,7 +32,6 @@ type Condition struct {
 	Value    string `json:"value"`
 }
 
-// Action defines what happens when all rule conditions match.
 type Action struct {
 	// Type is the action kind: "trigger_tool", "alert", "tag", "block", or "elevate".
 	Type string `json:"type"`
@@ -50,7 +46,6 @@ type Action struct {
 	Message string `json:"message,omitempty"`
 }
 
-// Rule is a single reactive rule that fires when all conditions are satisfied.
 type Rule struct {
 	ID          string      `json:"id"`
 	Description string      `json:"description"`
@@ -59,19 +54,15 @@ type Rule struct {
 	Action      Action      `json:"action"`
 }
 
-// RuleSet holds a collection of rules and evaluates them against events.
 type RuleSet struct {
 	Rules []Rule `json:"rules"`
 }
 
-// Match represents a rule that fired against a specific event.
 type Match struct {
 	Rule  Rule
 	Event Event
 }
 
-// DefaultRules returns the curated built-in rule set targeting the highest-
-// value vulnerability classes in bug bounty programs.
 func DefaultRules() *RuleSet {
 	return &RuleSet{
 		Rules: []Rule{
@@ -188,8 +179,6 @@ func DefaultRules() *RuleSet {
 	}
 }
 
-// Evaluate tests all rules in the set against the provided events.
-// It returns all matches and a list of tool names to dynamically inject.
 func (rs *RuleSet) Evaluate(events []Event) ([]Match, []string) {
 	var matches []Match
 	triggeredTools := map[string]struct{}{}
@@ -218,7 +207,6 @@ func (rs *RuleSet) Evaluate(events []Event) ([]Match, []string) {
 	return matches, tools
 }
 
-// matchesAll returns true only if every condition in the list is satisfied by the event.
 func (rs *RuleSet) matchesAll(ev Event, conditions []Condition) bool {
 	for _, cond := range conditions {
 		if !rs.matchesOne(ev, cond) {
@@ -248,7 +236,6 @@ func (rs *RuleSet) matchesOne(ev Event, cond Condition) bool {
 	}
 }
 
-// resolveField extracts the correct value from an Event based on the field name.
 func (rs *RuleSet) resolveField(ev Event, field string) string {
 	switch field {
 	case "target":
@@ -260,8 +247,6 @@ func (rs *RuleSet) resolveField(ev Event, field string) string {
 	}
 }
 
-// LoadFromFile loads a rule set from a JSON file.
-// Returns the default built-in rules if the file does not exist.
 func LoadFromFile(path string) (*RuleSet, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -281,7 +266,6 @@ func LoadFromFile(path string) (*RuleSet, error) {
 	return &rs, nil
 }
 
-// WriteDefault writes the built-in rule set to a file for the user to customize.
 func WriteDefault(dir string) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err

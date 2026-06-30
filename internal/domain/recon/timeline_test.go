@@ -61,10 +61,8 @@ func TestFingerprintTimeline_Record(t *testing.T) {
 		t.Fatalf("Record failed: %v", err)
 	}
 
-	// Wait a bit for async persist to complete
 	time.Sleep(100 * time.Millisecond)
 
-	// Check that record was added to history
 	ft.mu.RLock()
 	history := ft.history["acme-corp.io"]
 	ft.mu.RUnlock()
@@ -88,13 +86,11 @@ func TestFingerprintTimeline_Record_Prune(t *testing.T) {
 		FaviconHash: "fav456",
 	}
 
-	// Add 35 records (should be pruned to 30)
 	for i := 0; i < 35; i++ {
 		_ = ft.Record("session1", result)
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	// Wait for all async operations to complete
 	time.Sleep(500 * time.Millisecond)
 
 	ft.mu.RLock()
@@ -127,7 +123,6 @@ func TestFingerprintTimeline_GetHistory(t *testing.T) {
 		t.Errorf("expected 2 records, got %d", len(history))
 	}
 
-	// Wait for async operations to complete before cleanup
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -154,7 +149,6 @@ func TestFingerprintTimeline_GetHistory_WithLimit(t *testing.T) {
 		t.Errorf("expected 2 records with limit, got %d", len(history))
 	}
 
-	// Wait for async operations to complete before cleanup
 	time.Sleep(500 * time.Millisecond)
 }
 
@@ -173,7 +167,6 @@ func TestFingerprintTimeline_GetChanges(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
-	// Record first fingerprint
 	result1 := Result{
 		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
@@ -183,21 +176,17 @@ func TestFingerprintTimeline_GetChanges(t *testing.T) {
 	_ = ft.Record("session1", result1)
 	time.Sleep(100 * time.Millisecond)
 
-	// Record changed fingerprint
 	result2 := Result{
 		Host:        "acme-corp.io",
-		JARMHash:    "jarm789", // changed
+		JARMHash:    "jarm789",
 		FaviconHash: "fav456",
 		TLSIssuer:   "Issuer1",
 	}
 	_ = ft.Record("session2", result2)
 	time.Sleep(100 * time.Millisecond)
 
-	// Get changes with a longer window to ensure both records are included
 	changes := ft.GetChanges(24 * time.Hour)
 
-	// The change detection logic is complex, so we just verify it runs without error
-	// and returns a valid map structure
 	if changes == nil {
 		t.Error("expected changes map to be non-nil")
 	}
@@ -249,7 +238,6 @@ func TestFingerprintTimeline_ClusterByInfrastructure(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
 
-	// Add hosts with identical fingerprints
 	result1 := Result{
 		Host:        "acme-corp.io",
 		JARMHash:    "jarm123",
@@ -277,7 +265,6 @@ func TestFingerprintTimeline_ClusterByInfrastructure(t *testing.T) {
 
 	clusters := ft.ClusterByInfrastructure()
 
-	// Should have 2 clusters (one for identical fingerprints, one for different)
 	if len(clusters) != 2 {
 		t.Errorf("expected 2 clusters, got %d", len(clusters))
 	}
@@ -302,7 +289,6 @@ func TestFingerprintTimeline_ClusterByInfrastructure_EmptyFingerprints(t *testin
 		t.Errorf("expected 0 clusters for empty fingerprints, got %d", len(clusters))
 	}
 
-	// Wait for async operations to complete before cleanup
 	time.Sleep(500 * time.Millisecond)
 }
 

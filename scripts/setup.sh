@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
-## BBPTS Setup Script - Optimized for User & Developer Profiles
-# Part of the "Top 50 in the World" framework initiative.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Default setup mode
 MODE="user"
 
-# Parse CLI options
 for arg in "$@"; do
     case $arg in
         --user|-u)
@@ -28,7 +24,6 @@ for arg in "$@"; do
     esac
 done
 
-# Prompt interactively if no argument passed and stdin is TTY
 if [ -t 0 ] && [ -z "${1:-}" ]; then
     echo "Select Setup Profile:"
     echo "  1) User Mode      (Core tools only: subfinder, dnsx, httpx, nuclei, anew, uro-go + wordlists)"
@@ -45,7 +40,6 @@ echo "Starting BBPTS Setup in [$MODE] mode..."
 echo ""
 
 GO_TOOLS=(
-    # --- Recon & Subdomains ---
     "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6"
     "github.com/projectdiscovery/chaos-client/cmd/chaos@v0.2.1"
     "github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.1"
@@ -54,23 +48,19 @@ GO_TOOLS=(
     "github.com/owasp-amass/amass/v4/cmd/amass@v4.2.0"
     "github.com/tomnomnom/assetfinder@v0.1.1"
     
-    # --- Probing & Ports ---
     "github.com/projectdiscovery/httpx/cmd/httpx@v1.6.0"
     "github.com/projectdiscovery/naabu/v2/cmd/naabu@v2.3.0"
     
-    # --- Discovery, Crawling & Fuzzing ---
     "github.com/projectdiscovery/katana/cmd/katana@v1.1.0"
     "github.com/lc/gau/v2/cmd/gau@v2.2.3"
     "github.com/ffuf/ffuf/v2@v2.1.0"
     "github.com/hakluke/hakrawler@v2.4.0"
     
-    # --- Vulnerability, XSS & OOB ---
     "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.2.9"
     "github.com/projectdiscovery/interactsh/cmd/interactsh-client@v1.1.9"
     "github.com/hahwul/dalfox/v2@v2.9.0"
     "github.com/sensepost/gowitness@v3.0.3"
     
-    # --- Data Processing & Manipulation ---
     "github.com/tomnomnom/anew@v0.1.1"
     "github.com/tomnomnom/unfurl@v0.4.3"
     "github.com/tomnomnom/qsreplace@v0.0.3"
@@ -91,17 +81,21 @@ echo "   * subdomains-top1million-5000.txt (subdomain brute-force)"
 echo "   * api-endpoints.txt (API endpoints)"
 echo ""
 
-# 0. PREREQUISITES CHECK
 echo " Checking core prerequisites..."
 if ! command -v go &> /dev/null; then
     echo " Go is not installed. Attempting to install Go 1.23.0..."
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        wget https://go.dev/dl/go1.23.0.linux-amd64.tar.gz -O /tmp/go.tar.gz
+        GOARCH="amd64"
+        case "$(uname -m)" in
+            aarch64|arm64) GOARCH="arm64" ;;
+            armv6l|armv7l) GOARCH="armv6l" ;;
+        esac
+        wget "https://go.dev/dl/go1.23.0.linux-${GOARCH}.tar.gz" -O /tmp/go.tar.gz
         sudo tar -C /usr/local -xzf /tmp/go.tar.gz
         echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin' >> ~/.bashrc
         export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin:$HOME/.local/bin
         rm /tmp/go.tar.gz
-        echo " Go installed successfully for Linux."
+        echo " Go installed successfully for Linux (${GOARCH})."
     elif [[ "$OSTYPE" == "darwin"* ]]; then
         if command -v brew &> /dev/null; then
             brew install go
@@ -118,7 +112,6 @@ else
     echo " 'go' is installed."
 fi
 
-# Only check development-specific dependencies (make, gcc, docker) in dev mode
 if [ "$MODE" = "dev" ]; then
     for cmd in git docker make gcc; do
         if ! command -v $cmd &> /dev/null; then
@@ -130,7 +123,6 @@ if [ "$MODE" = "dev" ]; then
 fi
 echo ""
 
-# 1. GO-BASED ELITE TOOLS
 install_go_tool() {
     local tool=$1
     echo "Installing $tool..."
@@ -141,11 +133,9 @@ for tool in "${GO_TOOLS[@]}"; do
     install_go_tool "$tool"
 done
 
-# 2. GO-BASED URO (szybnev/uro-go)
 echo "Installing uro (Golang port szybnev)..."
 go install github.com/szybnev/uro-go/cmd/uro@v0.1.0 || echo " Warning: Failed to install Go uro"
 
-# 3. RUST-BASED TOOLS (feroxbuster)
 if ! command -v feroxbuster &> /dev/null; then
     echo "Installing feroxbuster (Rust binary) with checksum verification..."
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -175,8 +165,6 @@ if ! command -v feroxbuster &> /dev/null; then
     fi
 fi
 
-# 4. ADDITIONAL NON-GO TOOLS
-# --- Install massdns from source ---
 if ! command -v massdns &> /dev/null; then
     if command -v make &> /dev/null && command -v gcc &> /dev/null; then
         echo "Installing massdns..."
@@ -197,7 +185,6 @@ if ! command -v massdns &> /dev/null; then
     fi
 fi
 
-# --- Install whois ---
 if ! command -v whois &> /dev/null; then
     echo "Installing whois..."
     if command -v apt-get &> /dev/null; then
@@ -209,7 +196,6 @@ if ! command -v whois &> /dev/null; then
     fi
 fi
 
-# --- Install shodan CLI (Optional, requires API key) ---
 if [ -n "${SHODAN_API_KEY:-}" ]; then
     echo "Installing Shodan CLI..."
     if command -v pip &> /dev/null; then
@@ -223,7 +209,6 @@ else
     echo " Note: Shodan CLI installation skipped (requires SHODAN_API_KEY environment variable to be set)."
 fi
 
-# --- Install wafw00f (Optional) ---
 if ! command -v wafw00f &> /dev/null; then
     echo "Installing wafw00f (Optional)..."
     if ! command -v pip &> /dev/null && ! command -v pip3 &> /dev/null; then
@@ -248,7 +233,6 @@ if command -v gowitness &> /dev/null; then
     echo " Note: gowitness requires Chrome/Chromium to be installed on your system to take screenshots."
 fi
 
-# 4.5. PLAYWRIGHT BROWSER INSTALLATION
 echo "[*] Installing Playwright browser binaries..."
 go run github.com/playwright-community/playwright-go/cmd/playwright@latest install chromium --with-deps || echo " Warning: Failed to install Playwright browsers automatically."
 
@@ -257,15 +241,14 @@ echo "--------------------------------------------------"
 echo " WEAK PC TIPS: Use '-t 10' and always pipe to 'anew'."
 echo "To build main app: go build ./cmd/bbpts"
 
-# 5. WORDLISTS SETUP
 echo -e "\n Setting up wordlists..."
 
 WORDLISTS_DIR="$PROJECT_ROOT/wordlists"
 mkdir -p "$WORDLISTS_DIR"
 
-# Download essential wordlists from pinned SecLists revision
+SECLISTS_COMMIT="b63c78f2e8b0c6b5e31543fb6a31dd89873e88bf"
+
 echo "Downloading DNS wordlist (5k entries)..."
-SECLISTS_COMMIT="master"
 curl -s "https://raw.githubusercontent.com/danielmiessler/SecLists/${SECLISTS_COMMIT}/Discovery/DNS/dns-Jhaddix.txt" -o "$WORDLISTS_DIR/dns-5k.txt" || echo " Failed to download DNS wordlist"
 
 echo "Downloading directory wordlist (small)..."

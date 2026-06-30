@@ -35,7 +35,6 @@ func TestAddFinding(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Test adding a new finding
 	isNew, fp, err := store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	if err != nil {
 		t.Fatalf("AddFinding failed: %v", err)
@@ -74,7 +73,6 @@ func TestAddFindingDuplicate(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Add finding first time
 	isNew1, _, err := store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	if err != nil {
 		t.Fatalf("First AddFinding failed: %v", err)
@@ -84,7 +82,6 @@ func TestAddFindingDuplicate(t *testing.T) {
 		t.Error("Expected first finding to be new")
 	}
 
-	// Add same finding again
 	isNew2, fp2, err := store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	if err != nil {
 		t.Fatalf("Second AddFinding failed: %v", err)
@@ -128,7 +125,6 @@ func TestGetDiff(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Add a finding (should be considered new within the hour)
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 
 	diff := store.GetDiff()
@@ -150,7 +146,6 @@ func TestGetNewByType(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Add findings of different types
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "test.com")
 	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
@@ -173,23 +168,19 @@ func TestSaveBaseline(t *testing.T) {
 		t.Fatalf("NewBaselineStore failed: %v", err)
 	}
 
-	// Add some findings
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
 
-	// Save baseline
 	err = store.SaveBaseline()
 	if err != nil {
 		t.Fatalf("SaveBaseline failed: %v", err)
 	}
 
-	// Check that file exists
 	baselineFile := filepath.Join(tmpDir, ".baseline", "baseline.json")
 	if _, err := os.Stat(baselineFile); os.IsNotExist(err) {
 		t.Error("Baseline file was not created")
 	}
 
-	// Verify file contents
 	data, err := os.ReadFile(baselineFile)
 	if err != nil {
 		t.Fatalf("Failed to read baseline file: %v", err)
@@ -210,13 +201,11 @@ func TestSaveBaseline(t *testing.T) {
 func TestLoadBaseline(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create a baseline file with existing data
 	baselineDir := filepath.Join(tmpDir, ".baseline")
 	if err := os.MkdirAll(baselineDir, 0755); err != nil {
 		t.Fatalf("Failed to create baseline dir: %v", err)
 	}
 
-	// Compute real hash
 	storeDummy := &BaselineStore{}
 	realHash := storeDummy.hashFinding("subfinder", "subdomain", "existing.com")
 
@@ -242,14 +231,12 @@ func TestLoadBaseline(t *testing.T) {
 		t.Fatalf("Failed to write baseline file: %v", err)
 	}
 
-	// Create store and load baseline
 	store, err := NewBaselineStore(tmpDir, "test-session")
 	if err != nil {
 		t.Fatalf("NewBaselineStore failed: %v", err)
 	}
 	defer store.Close()
 
-	// Add a new finding
 	isNew, _, err := store.AddFinding("subfinder", "subdomain", "new.com")
 	if err != nil {
 		t.Fatalf("AddFinding failed: %v", err)
@@ -259,7 +246,6 @@ func TestLoadBaseline(t *testing.T) {
 		t.Error("Expected new finding to be new")
 	}
 
-	// Try to add existing finding
 	isNew2, _, err := store.AddFinding("subfinder", "subdomain", "existing.com")
 	if err != nil {
 		t.Fatalf("AddFinding for existing failed: %v", err)
@@ -278,23 +264,19 @@ func TestSaveSessionDiff(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Add findings
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
 
-	// Save session diff
 	err = store.SaveSessionDiff()
 	if err != nil {
 		t.Fatalf("SaveSessionDiff failed: %v", err)
 	}
 
-	// Check that diff file exists
 	diffFile := filepath.Join(tmpDir, ".baseline", "diff_test-session.json")
 	if _, err := os.Stat(diffFile); os.IsNotExist(err) {
 		t.Error("Diff file was not created")
 	}
 
-	// Verify file contents
 	data, err := os.ReadFile(diffFile)
 	if err != nil {
 		t.Fatalf("Failed to read diff file: %v", err)
@@ -318,7 +300,6 @@ func TestGetStats(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Add findings
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "test.com")
 	_, _, _ = store.AddFinding("naabu", "port", "acme-corp.io:80")
@@ -360,16 +341,13 @@ func TestClose(t *testing.T) {
 		t.Fatalf("NewBaselineStore failed: %v", err)
 	}
 
-	// Add findings
 	_, _, _ = store.AddFinding("subfinder", "subdomain", "acme-corp.io")
 
-	// Close should save baseline
 	err = store.Close()
 	if err != nil {
 		t.Fatalf("Close failed: %v", err)
 	}
 
-	// Verify baseline was saved
 	baselineFile := filepath.Join(tmpDir, ".baseline", "baseline.json")
 	if _, err := os.Stat(baselineFile); os.IsNotExist(err) {
 		t.Error("Baseline file was not saved on close")

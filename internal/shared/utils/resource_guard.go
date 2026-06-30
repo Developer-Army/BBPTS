@@ -12,15 +12,12 @@ import (
 	"strings"
 )
 
-// InitializeResourceGuard sets up CPU and memory limits with default settings.
 func InitializeResourceGuard() {
 	ApplyResourceLimits(0, 0, 0, 0)
 }
 
-// ApplyResourceLimits dynamically configures the CPU, Memory, and GC limits,
-// taking environment variables as the highest precedence overrides.
 func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int) {
-	// 1. Environment overrides
+
 	if envCPU := os.Getenv("BBPTS_MAX_CPU_PERCENT"); envCPU != "" {
 		if val, err := strconv.Atoi(envCPU); err == nil && val > 0 && val <= 100 {
 			maxCPUPercent = val
@@ -42,13 +39,12 @@ func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int)
 		}
 	}
 
-	// 2. Memory Guard & GC Percent
 	totalMemory := getSystemTotalMemory()
-	finalGCPercent := 100 // Go default
+	finalGCPercent := 100
 	if gcPercent > 0 {
 		finalGCPercent = gcPercent
 	} else if totalMemory > 0 && totalMemory < 4*1024*1024*1024 {
-		finalGCPercent = 50 // Keep GC aggressive for low memory systems (<4GB)
+		finalGCPercent = 50
 	}
 	debug.SetGCPercent(finalGCPercent)
 
@@ -58,7 +54,7 @@ func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int)
 		debug.SetMemoryLimit(limitBytes)
 		slog.Info("Resource Guard: set Go soft memory limit", "limit_mb", maxMemoryMB, "gc_percent", finalGCPercent)
 	} else if totalMemory > 0 {
-		// Cap memory limit at 2GB (or 85% of total system RAM, whichever is smaller) to protect low-end PCs
+
 		limitBytes = int64(float64(totalMemory) * 0.85)
 		twoGB := int64(2 * 1024 * 1024 * 1024)
 		if limitBytes > twoGB {
@@ -67,13 +63,12 @@ func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int)
 		debug.SetMemoryLimit(limitBytes)
 		slog.Info("Resource Guard: set Go soft memory limit", "limit_mb", limitBytes/(1024*1024), "gc_percent", finalGCPercent)
 	} else {
-		// Fallback memory limit: 2GB
+
 		limitBytes = 2 * 1024 * 1024 * 1024
 		debug.SetMemoryLimit(limitBytes)
 		slog.Info("Resource Guard: set fallback Go soft memory limit to 2GB", "gc_percent", finalGCPercent)
 	}
 
-	// 3. CPU Guard
 	numCPUs := runtime.NumCPU()
 	safeCPUs := 0
 	if maxCPUCores > 0 {
@@ -83,7 +78,7 @@ func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int)
 		if maxCPUPercent > 0 {
 			percent = maxCPUPercent
 		}
-		// Rounding rather than truncation so that 90% of 2 cores = 2 cores
+
 		safeCPUs = int(math.Round(float64(numCPUs) * float64(percent) / 100.0))
 	}
 
@@ -97,7 +92,6 @@ func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int)
 	slog.Info("Resource Guard: set GOMAXPROCS CPU cap", "max_cores", safeCPUs, "total_cores", numCPUs)
 }
 
-// getSystemTotalMemory returns the total system memory in bytes, or 0 if unknown.
 func getSystemTotalMemory() int64 {
 	switch runtime.GOOS {
 	case "linux":
@@ -115,7 +109,7 @@ func getSystemTotalMemory() int64 {
 				if len(fields) >= 2 {
 					val, err := strconv.ParseInt(fields[1], 10, 64)
 					if err == nil {
-						// MemTotal is in kB, convert to bytes
+
 						return val * 1024
 					}
 				}
@@ -126,7 +120,7 @@ func getSystemTotalMemory() int64 {
 		}
 
 	case "darwin":
-		// macOS: sysctl -n hw.memsize
+
 		cmd, cmdErr := PrepareSecureCommand(context.TODO(), "sysctl", "-n", "hw.memsize")
 		if cmdErr == nil {
 			out, err := cmd.Output()
@@ -139,7 +133,7 @@ func getSystemTotalMemory() int64 {
 		}
 
 	case "windows":
-		// Windows: wmic computersystem get TotalPhysicalMemory
+
 		cmd, cmdErr := PrepareSecureCommand(context.TODO(), "wmic", "computersystem", "get", "TotalPhysicalMemory")
 		if cmdErr == nil {
 			out, err := cmd.Output()

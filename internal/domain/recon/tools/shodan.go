@@ -1,11 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"math/bits"
@@ -70,7 +70,7 @@ func (t *ShodanTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 		}
 
 		if i > 0 {
-			// Rate limit: Shodan API allows 1 query per second on basic/academic plans
+
 			select {
 			case <-ctx.Done():
 				return events, ctx.Err()
@@ -83,7 +83,6 @@ func (t *ShodanTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 			qg.Increment("shodan")
 		}
 
-		// 1. Standard host search
 		url := fmt.Sprintf("https://api.shodan.io/shodan/host/search?query=%s&key=%s&limit=10", host, apiKey)
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err == nil {
@@ -120,7 +119,6 @@ func (t *ShodanTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 			}
 		}
 
-		// 2. Favicon hash discovery and correlation
 		if hash, errFav := fetchFaviconAndHash(ctx, target); errFav == nil {
 			slog.Info("Fetched favicon and calculated hash", "target", target, "hash", hash)
 			favQuery := fmt.Sprintf("http.favicon.hash:%d", hash)

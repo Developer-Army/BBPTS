@@ -57,13 +57,11 @@ func generateSelfSignedCert() (tls.Certificate, error) {
 	return cert, nil
 }
 
-// Start launches the BBPTS dashboard server on the specified port.
 func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) error {
 	if db == nil {
 		return fmt.Errorf("database client is required")
 	}
 
-	// Bootstrap default admin user
 	if err := BootstrapAdminUser(db); err != nil {
 		slog.Error("failed to bootstrap admin user", "error", err)
 	}
@@ -72,7 +70,6 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 
 	mux := http.NewServeMux()
 
-	// Register Routes
 	RegisterRoutes(mux, api)
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)

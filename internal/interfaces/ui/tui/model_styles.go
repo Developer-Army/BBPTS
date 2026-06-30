@@ -6,7 +6,6 @@ import (
 )
 
 var (
-	// --- Colors (Tokyo Night Color Palette) ---
 	ColorBackground = lipgloss.Color("#1a1b26")
 	ColorForeground = lipgloss.Color("#c0caf5")
 	ColorSelection  = lipgloss.Color("#292e42")
@@ -20,7 +19,6 @@ var (
 	ColorYellow     = lipgloss.Color("#e0af68")
 	ColorBorder     = lipgloss.Color("#3b4261")
 
-	// --- Styles ---
 	StyleMain = lipgloss.NewStyle().
 			Padding(0, 1).
 			Foreground(ColorForeground)
@@ -147,7 +145,6 @@ var (
 /_____/_____/_/     /_/  /____/  `
 )
 
-// GetPriorityStyle returns a Lip Gloss style based on finding priority.
 func GetPriorityStyle(priority string) lipgloss.Style {
 	switch priority {
 	case "critical":

@@ -33,7 +33,6 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, s
 	te := triage.NewTriageEngine()
 	scorer := recon.NewScorer()
 
-	// Convert events to findings
 	findings := make([]*triage.Finding, len(events))
 	for i, ev := range events {
 		findings[i] = &triage.Finding{
@@ -43,18 +42,15 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, s
 		}
 	}
 
-	// Filter noise and prioritize
 	actionable := te.FilterNoise(findings)
 	prioritized := te.PrioritizeFindings(actionable)
 
-	// Keep a map from type:target to original event to preserve original properties
 	eventMap := make(map[string]recon.Event)
 	for _, ev := range events {
 		key := fmt.Sprintf("%s:%s", ev.Type, ev.Target)
 		eventMap[key] = ev
 	}
 
-	// Convert back to events, scoring HTTP endpoints along the way
 	triagedEvents := make([]recon.Event, 0, len(prioritized))
 	for _, f := range prioritized {
 		key := fmt.Sprintf("%s:%s", f.Type, f.Target)
@@ -208,7 +204,7 @@ func handleIntelligence(ctx context.Context, opts Options, cfg *config.Config, s
 }
 
 func handleReporting(ctx context.Context, opts Options, cfg *config.Config, store *storage.Storage, normalized []string, events []recon.Event, matches []recon.Match, bridge *tui.Bridge) {
-	// Wire BaselineStore for continuous monitoring
+
 	scope := opts.Scope
 	if scope == "" {
 		scope = "default_run"
@@ -230,7 +226,6 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 
 	insights := analyze.DeriveInsights(normalized, events)
 
-	// Inject rule tags into insights
 	blockedHosts := make(map[string]bool)
 	for _, match := range matches {
 		for i := range insights {
@@ -239,12 +234,12 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 				case "tag":
 					insights[i].Tags = append(insights[i].Tags, match.Rule.Action.Tag)
 					insights[i].Reasons = append(insights[i].Reasons, match.Rule.Description)
-					insights[i].Score += 10 // Bonus for rule matches
+					insights[i].Score += 10
 				case "block":
 					blockedHosts[insights[i].Host] = true
 				case "elevate":
 					insights[i].Priority = "critical"
-					insights[i].Score = 100 // Bumps score to max
+					insights[i].Score = 100
 					insights[i].Reasons = append(insights[i].Reasons, "Elevated by triage rule: "+match.Rule.Description)
 				}
 			}
@@ -276,7 +271,6 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		}
 	}
 
-	// Dispatch real-time alerts for high-priority findings
 	if cfg.Notify.DiscordWebhook != "" || cfg.Notify.SlackWebhook != "" || (cfg.Notify.TelegramBotToken != "" && cfg.Notify.TelegramChatID != "") {
 		notifier := utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify)))
 		for _, in := range insights {
@@ -376,7 +370,6 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		}
 	}
 
-	// Generate a detailed multi-format report bundle in the local results directory.
 	reportDir := "results"
 	if strings.TrimSpace(opts.OutputPath) != "" {
 		reportDir = filepath.Dir(opts.OutputPath)
@@ -385,7 +378,7 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		slog.Warn("failed to ensure detailed report directory", "dir", reportDir, "error", err)
 		return
 	}
-	// Resolve custom report template path
+
 	templatePath := opts.ReportTemplate
 	if templatePath == "" {
 		templatePath = cfg.ReportTemplatePath
@@ -416,7 +409,6 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		slog.Warn("failed to generate detailed report bundle", "dir", reportDir, "error", err)
 	}
 
-	// Also generate in output directory
 	outputDir := "output"
 	if err := os.MkdirAll(outputDir, 0700); err != nil {
 		slog.Warn("failed to ensure output directory", "dir", outputDir, "error", err)
@@ -456,8 +448,6 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 			slog.Warn("failed to generate global detailed report bundle", "dir", globalReportDir, "error", err)
 		}
 	}
-
-
 
 	if store != nil && !opts.JSONOutput {
 		nodes, errNodes := store.GetAllAssetNodes(0, 0)
@@ -524,7 +514,6 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		}
 	}
 
-	// Send "Scan Finished" notification webhook
 	if cfg.Notify.DiscordWebhook != "" || cfg.Notify.SlackWebhook != "" || (cfg.Notify.TelegramBotToken != "" && cfg.Notify.TelegramChatID != "") {
 		notifier := utils.NewNotifier(utils.Config(notifierConfigFrom(cfg.Notify)))
 		finishMsg := fmt.Sprintf("Scan Completed!\nScope: %s\nTotal Targets: %d\nTotal Findings: %d\nNew Findings: %d", scope, len(normalized), len(insights), newCount)
@@ -533,7 +522,6 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 		}
 	}
 
-	// Print API quota usage summary
 	qg := quota.NewQuotaGuard(cfg.StateDir)
 	usage := qg.GetUsage()
 	fmt.Println("\n=== API QUOTA USAGE SUMMARY ===")
@@ -542,6 +530,62 @@ func handleReporting(ctx context.Context, opts Options, cfg *config.Config, stor
 	fmt.Printf("GitHub calls:  %d\n", usage.GitHubCalls)
 	fmt.Printf("Reset Date:    %s\n", usage.LastReset.Format("2006-01-02"))
 	fmt.Println("================================")
+
+	if !opts.JSONOutput {
+		fmt.Println()
+		fmt.Println("================================================================================")
+		fmt.Println("                       BBPTS SCAN COMPLETE & SUCCESSFUL                         ")
+		fmt.Println("================================================================================")
+		fmt.Printf("  Target Assets Scanned      : %d\n", len(normalized))
+		fmt.Printf("  Total Findings Discovered  : %d\n", len(insights))
+
+		criticals, highs, mediums, lows := 0, 0, 0, 0
+		for _, in := range insights {
+			switch strings.ToLower(in.Priority) {
+			case "critical":
+				criticals++
+			case "high":
+				highs++
+			case "medium":
+				mediums++
+			case "low":
+				lows++
+			}
+		}
+		fmt.Printf("  Severity Breakdown         : [CRITICAL: %d] [HIGH: %d] [MEDIUM: %d] [LOW: %d]\n",
+			criticals, highs, mediums, lows)
+		fmt.Println("--------------------------------------------------------------------------------")
+		fmt.Println("  Generated Reports & Deliverables:")
+
+		reportMDPath := opts.OutputPath
+		if reportMDPath == "" {
+			reportMDPath = filepath.Join(reportDir, "report.md")
+		}
+		reportHTMLPath := filepath.Join(reportDir, "report.html")
+		reportJSONPath := filepath.Join(reportDir, "report.json")
+
+		fmt.Printf("   ✓ Markdown Report  : %s\n", reportMDPath)
+		fmt.Printf("   ✓ Interactive HTML : %s\n", reportHTMLPath)
+		fmt.Printf("   ✓ JSON Findings    : %s\n", reportJSONPath)
+
+		if opts.SummaryPath != "" {
+			fmt.Printf("   ✓ CSV Summary      : %s\n", opts.SummaryPath)
+		}
+		if opts.ObsidianDir != "" {
+			fmt.Printf("   ✓ Obsidian Notes   : %s\n", opts.ObsidianDir)
+		}
+
+		fmt.Println("--------------------------------------------------------------------------------")
+		fmt.Println("  What to do next:")
+		fmt.Println("  1. Open the interactive HTML report in your browser to inspect findings visually.")
+		fmt.Println("  2. Follow the 'Beginner Guide & Step-by-Step Verification' section in the")
+		fmt.Println("     Markdown or HTML report to reproduce the vulnerabilities using Burp or Caido.")
+		if criticals+highs > 0 {
+			fmt.Println("  3. Target high-severity findings first to maximize remediation impact!")
+		}
+		fmt.Println("================================================================================")
+		fmt.Println()
+	}
 }
 
 func handleSubmit(opts Options, cfg *config.Config, in analyze.Insight) {
@@ -641,11 +685,9 @@ func hasBeenReported(stateDir string, finding utils.Finding) bool {
 	}
 	historyPath := filepath.Join(stateDir, "alert_history.txt")
 
-	// Calculate a unique hash for the finding
 	hashInput := fmt.Sprintf("%s|%s|%s", finding.Host, finding.Priority, strings.Join(finding.Reasons, ","))
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(hashInput)))
 
-	// Read existing hashes
 	data, err := os.ReadFile(historyPath)
 	if err == nil {
 		lines := strings.Split(string(data), "\n")
@@ -676,5 +718,3 @@ func markAsReported(stateDir string, finding utils.Finding) error {
 	_, err = f.WriteString(hash + "\n")
 	return err
 }
-
-

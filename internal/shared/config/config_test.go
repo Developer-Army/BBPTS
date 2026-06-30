@@ -53,7 +53,6 @@ func TestConfigToolRateLimitsAndAutoUpdate(t *testing.T) {
 		t.Error("expected default AutoUpdate to be false, got true")
 	}
 
-	// Test manually loading from JSON simulation
 	importJSON := `{
 		"tool_rate_limits": {
 			"httpx": 15,
@@ -95,7 +94,6 @@ func TestResolveWebEnder(t *testing.T) {
 		t.Errorf("expected User-Agent 'CustomUA H1{alice}', got '%s'", res["User-Agent"])
 	}
 
-	// Test without existing headers/User-Agent
 	res2 := ResolveWebEnder("HTM{bob}", nil)
 	if res2["X-Research-Tag"] != "HTM{bob}" {
 		t.Errorf("expected X-Research-Tag 'HTM{bob}', got '%s'", res2["X-Research-Tag"])

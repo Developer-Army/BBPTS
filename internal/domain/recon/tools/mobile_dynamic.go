@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -108,13 +108,13 @@ func (t *MobileDynamicTool) runFrida(ctx context.Context, target string) []recon
 		if err != nil {
 			continue
 		}
-		tmpFile.WriteString(s.Script)
+		_, _ = tmpFile.WriteString(s.Script)
 		tmpFile.Close()
-		defer os.Remove(tmpFile.Name())
 
 		args := []string{"-U", "-f", target, "-l", tmpFile.Name(), "--no-pause"}
-		cmd := exec.CommandContext(ctx, "frida", args...)
+		cmd := PrepareCommand(ctx, "frida", args...)
 		output, err := cmd.CombinedOutput()
+		os.Remove(tmpFile.Name())
 		if err != nil {
 			slog.Debug("mobile_dynamic: frida failed", "script", s.Name, "error", err)
 			continue
@@ -183,7 +183,7 @@ func (t *MobileDynamicTool) runObjection(ctx context.Context, target string) []r
 		default:
 		}
 
-		cmd := exec.CommandContext(ctx, "objection", "-g", target, "explore", "-c", c.Cmd)
+		cmd := PrepareCommand(ctx, "objection", "-g", target, "explore", "-c", c.Cmd)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			continue

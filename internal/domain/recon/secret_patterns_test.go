@@ -9,7 +9,6 @@ func TestSecretPatterns(t *testing.T) {
 		t.Error("SecretPatterns should not be empty")
 	}
 
-	// Verify each pattern has required fields
 	for _, pattern := range SecretPatterns {
 		if pattern.Name == "" {
 			t.Error("Pattern name should not be empty")
@@ -290,12 +289,10 @@ line5: AKIAIOSFODNN7EXAMPLE duplicate should be skipped`
 
 	matches := ScanForSecrets(content)
 
-	// Should find AWS key + DB connection string (duplicate AWS key deduplicated)
 	if len(matches) < 2 {
 		t.Fatalf("expected at least 2 matches, got %d", len(matches))
 	}
 
-	// Verify line numbers
 	foundAWS := false
 	foundDB := false
 	for _, m := range matches {
@@ -313,7 +310,6 @@ line5: AKIAIOSFODNN7EXAMPLE duplicate should be skipped`
 		t.Error("expected Database Connection String match on line 4")
 	}
 
-	// Verify deduplication — same AWS key on line 5 should not produce second match
 	awsCount := 0
 	for _, m := range matches {
 		if m.PatternName == "AWS Access Key ID" && m.Value == "AKIAIOSFODNN7EXAMPLE" {

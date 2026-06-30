@@ -59,7 +59,6 @@ func TestSwaggerParserJSON(t *testing.T) {
 		t.Fatalf("unexpected error parsing JSON: %v", err)
 	}
 
-	// Verify auth schemes event
 	foundAuth := false
 	for _, ev := range events {
 		if ev.Type == "discovery" && ev.Properties["type"] == "auth_scheme" {
@@ -73,7 +72,6 @@ func TestSwaggerParserJSON(t *testing.T) {
 		t.Error("expected auth scheme discovery event, not found")
 	}
 
-	// Verify api_endpoint event
 	foundEndpoint := false
 	for _, ev := range events {
 		if ev.Type == "api_endpoint" {
@@ -93,7 +91,6 @@ func TestSwaggerParserJSON(t *testing.T) {
 		t.Error("expected api_endpoint event, not found")
 	}
 
-	// Verify generated targets
 	hasQueryTarget := false
 	hasBaseTarget := false
 	for _, target := range targets {
@@ -152,7 +149,6 @@ paths:
 		t.Fatalf("unexpected error parsing YAML: %v", err)
 	}
 
-	// Verify auth scheme event
 	foundAuth := false
 	for _, ev := range events {
 		if ev.Type == "discovery" && ev.Properties["type"] == "auth_scheme" {
@@ -166,7 +162,6 @@ paths:
 		t.Error("expected auth scheme discovery event")
 	}
 
-	// Verify api_endpoint event
 	foundEndpoint := false
 	for _, ev := range events {
 		if ev.Type == "api_endpoint" {
@@ -183,7 +178,6 @@ paths:
 		t.Error("expected api_endpoint event")
 	}
 
-	// Verify targets
 	hasQueryTarget := false
 	for _, target := range targets {
 		if strings.HasPrefix(target, "https://app.test.local/api/v2/search?") {

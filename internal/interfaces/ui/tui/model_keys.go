@@ -39,7 +39,6 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 
 		lowerVal := strings.ToLower(val)
 
-		// 1. If currently in infoView or helpView, check for exit command
 		if m.infoView || m.helpView {
 			if lowerVal == "back" || lowerVal == "exit" {
 				m.infoView = false
@@ -49,7 +48,6 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// 2. If in modesView, check selection or exit
 		if m.modesView {
 			switch lowerVal {
 			case "1", "normal":
@@ -67,7 +65,6 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// 3. If in configView, check fields, save, or back
 		if m.configView {
 			if m.configEditKey != "" {
 				switch m.configEditKey {
@@ -114,7 +111,6 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 			}
 		}
 
-		// 4. Check for commands typed at the main prompt
 		if lowerVal == "/configure" || lowerVal == "configure" || lowerVal == "/setup" || lowerVal == "setup" || lowerVal == "/keys" || lowerVal == "keys" {
 			m.configView = true
 			m.configEditKey = ""
@@ -142,7 +138,6 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Handle modes commands with direct argument
 		if strings.HasPrefix(lowerVal, "/modes ") || strings.HasPrefix(lowerVal, "modes ") {
 			modeArg := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(lowerVal, "/modes "), "modes "))
 			switch modeArg {
@@ -155,7 +150,6 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 			}
 		}
 
-		// 5. It's a target domain/IP to start scan!
 		targetVal := val
 		if strings.HasPrefix(targetVal, "-i ") {
 			targetVal = strings.TrimSpace(strings.TrimPrefix(targetVal, "-i "))

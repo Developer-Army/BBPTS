@@ -10,8 +10,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// DedupeEvents merges reconnaissance events that describe the same logical target
-// (same host and equivalent URL path/query) so downstream scoring is not inflated.
 func DedupeEvents(events []recon.Event) []recon.Event {
 	if len(events) <= 1 {
 		return events
@@ -20,6 +18,7 @@ func DedupeEvents(events []recon.Event) []recon.Event {
 	type bucket struct {
 		canonical recon.Event
 		sources   map[string]struct{}
+		types     map[string]struct{}
 	}
 
 	groups := make(map[string]*bucket)
@@ -30,15 +29,21 @@ func DedupeEvents(events []recon.Event) []recon.Event {
 		if !ok {
 			src := make(map[string]struct{})
 			src[strings.TrimSpace(ev.Source)] = struct{}{}
+			tps := make(map[string]struct{})
+			tps[strings.TrimSpace(ev.Type)] = struct{}{}
 			groups[key] = &bucket{
 				canonical: ev,
 				sources:   src,
+				types:     tps,
 			}
 			continue
 		}
 
 		if ev.Source != "" {
 			g.sources[strings.TrimSpace(ev.Source)] = struct{}{}
+		}
+		if ev.Type != "" {
+			g.types[strings.TrimSpace(ev.Type)] = struct{}{}
 		}
 		g.canonical = mergeEvents(g.canonical, ev)
 	}
@@ -50,6 +55,7 @@ func DedupeEvents(events []recon.Event) []recon.Event {
 			ev.Properties = make(map[string]string)
 		}
 		ev.Properties["bbpts_sources"] = joinSortedSources(g.sources)
+		ev.Properties["bbpts_types"] = joinSortedSources(g.types)
 		out = append(out, ev)
 	}
 
@@ -60,7 +66,6 @@ func DedupeEvents(events []recon.Event) []recon.Event {
 		return out[i].Target < out[j].Target
 	})
 
-	// Add structural fingerprint clustering
 	ClusterByFingerprint(out)
 
 	return out

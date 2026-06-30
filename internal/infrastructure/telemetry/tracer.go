@@ -14,7 +14,6 @@ type tracerContextKey string
 
 const spanIDKey tracerContextKey = "span_id"
 
-// TraceNode represents a node in the trace tree.
 type TraceNode struct {
 	ID       string
 	ParentID string
@@ -26,24 +25,19 @@ type TraceNode struct {
 	Children []*TraceNode
 }
 
-// WorkflowTracer provides distributed workflow tracking.
-// In production, this would bridge to OpenTelemetry / Jaeger.
 type WorkflowTracer struct {
 	activeTraces map[string]*TraceNode
 	mu           sync.RWMutex
 }
 
-// NewWorkflowTracer creates a new workflow tracer instance.
 func NewWorkflowTracer() *WorkflowTracer {
 	return &WorkflowTracer{
 		activeTraces: make(map[string]*TraceNode),
 	}
 }
 
-// InternalTracer is a global tracer instance.
 var InternalTracer = NewWorkflowTracer()
 
-// GetSpanID retrieves the current span ID from context.
 func GetSpanID(ctx context.Context) string {
 	if val := ctx.Value(spanIDKey); val != nil {
 		if id, ok := val.(string); ok {
@@ -53,7 +47,6 @@ func GetSpanID(ctx context.Context) string {
 	return ""
 }
 
-// StartSpan begins a new trace span.
 func (t *WorkflowTracer) StartSpan(ctx context.Context, name string, parentID string) (context.Context, string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -69,7 +62,6 @@ func (t *WorkflowTracer) StartSpan(ctx context.Context, name string, parentID st
 
 	t.activeTraces[spanID] = node
 
-	// If parent exists, add as child
 	if parentID != "" {
 		if parent, exists := t.activeTraces[parentID]; exists {
 			parent.Children = append(parent.Children, node)
@@ -79,7 +71,6 @@ func (t *WorkflowTracer) StartSpan(ctx context.Context, name string, parentID st
 	return context.WithValue(ctx, spanIDKey, spanID), spanID
 }
 
-// EndSpan completes a trace span.
 func (t *WorkflowTracer) EndSpan(spanID string, metadata map[string]interface{}) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -92,13 +83,11 @@ func (t *WorkflowTracer) EndSpan(spanID string, metadata map[string]interface{})
 	node.End = time.Now()
 	node.Duration = node.End.Sub(node.Start)
 
-	// Merge metadata
 	for k, v := range metadata {
 		node.Metadata[k] = v
 	}
 }
 
-// GetTrace retrieves a complete trace tree.
 func (t *WorkflowTracer) GetTrace(rootID string) *TraceNode {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -106,7 +95,6 @@ func (t *WorkflowTracer) GetTrace(rootID string) *TraceNode {
 	return t.activeTraces[rootID]
 }
 
-// generateSpanID creates a unique span identifier.
 func generateSpanID() string {
 	count := atomic.AddUint64(&spanCounter, 1)
 	return fmt.Sprintf("%d_%d", time.Now().UnixNano(), count)

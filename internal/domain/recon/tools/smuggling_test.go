@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bufio"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net"
 	"os"
 	"strings"
@@ -15,7 +15,7 @@ func TestSmugglingTool(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping timing-sensitive request smuggling test in CI")
 	}
-	// Start a raw TCP server to simulate request smuggling delays
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start raw listener: %v", err)
@@ -44,7 +44,6 @@ func TestSmugglingTool(t *testing.T) {
 					headers = append(headers, line)
 				}
 
-				// Check if this is CL.TE or TE.CL probe
 				isProbe := false
 				for _, h := range headers {
 					if strings.Contains(h, "Transfer-Encoding: chunked") {
@@ -54,7 +53,7 @@ func TestSmugglingTool(t *testing.T) {
 				}
 
 				if isProbe {
-					// Simulate server-side timing delay/timeout
+
 					time.Sleep(3100 * time.Millisecond)
 				}
 

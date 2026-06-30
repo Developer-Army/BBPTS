@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// GraphNode represents an entity in the attack surface.
 type GraphNode struct {
 	ID              string
 	Type            string // e.g., "Domain", "Subdomain", "JS_File", "GraphQL_Endpoint", "IP"
@@ -22,7 +21,6 @@ type GraphNode struct {
 	BlastRadius     float64
 }
 
-// GraphEdge represents a relationship between two entities.
 type GraphEdge struct {
 	SourceID   string
 	TargetID   string
@@ -33,7 +31,6 @@ type GraphEdge struct {
 	LastSeen   time.Time
 }
 
-// MemoryGraph is an in-memory graph to cluster relationships.
 type MemoryGraph struct {
 	nodes map[string]*GraphNode
 	edges []GraphEdge
@@ -47,7 +44,6 @@ func NewMemoryGraph() *MemoryGraph {
 	}
 }
 
-// AddNode adds an entity to the graph.
 func (g *MemoryGraph) AddNode(node *GraphNode) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -66,7 +62,7 @@ func (g *MemoryGraph) AddNode(node *GraphNode) {
 	}
 
 	if existing, exists := g.nodes[node.ID]; exists {
-		// Update properties, confidence and last seen time
+
 		existing.LastSeen = node.LastSeen
 		if node.Confidence > 0 {
 			existing.Confidence = node.Confidence
@@ -90,17 +86,14 @@ func (g *MemoryGraph) AddNode(node *GraphNode) {
 	}
 }
 
-// AddEdge creates a relationship pivot between entities.
 func (g *MemoryGraph) AddEdge(sourceID, targetID, relation string, weight int) {
 	g.AddEdgeAdvanced(sourceID, targetID, relation, weight, 1.0, "system")
 }
 
-// AddEdgeAdvanced creates a relationship with confidence and provenance metadata.
 func (g *MemoryGraph) AddEdgeAdvanced(sourceID, targetID, relation string, weight int, confidence float64, provenance string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	// Ensure both nodes exist before linking (basic safety)
 	if _, ok := g.nodes[sourceID]; !ok {
 		slog.Debug("Graph: Attempted to link from unknown source", "source", sourceID)
 		return
@@ -122,7 +115,6 @@ func (g *MemoryGraph) AddEdgeAdvanced(sourceID, targetID, relation string, weigh
 	g.edges = append(g.edges, edge)
 }
 
-// FindPivots returns all connected nodes to a given starting ID.
 func (g *MemoryGraph) FindPivots(startID string) []*GraphNode {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -143,7 +135,6 @@ func (g *MemoryGraph) FindPivots(startID string) []*GraphNode {
 	return results
 }
 
-// PropagateRisk calculates risk scores of nodes by propagating risk dynamically across adjacent edges.
 func (g *MemoryGraph) PropagateRisk(initialRisk map[string]float64) map[string]float64 {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -153,7 +144,6 @@ func (g *MemoryGraph) PropagateRisk(initialRisk map[string]float64) map[string]f
 		propagated[k] = v
 	}
 
-	// Two-pass propagation to handle transitive edges
 	for pass := 0; pass < 2; pass++ {
 		for _, edge := range g.edges {
 			targetRisk := propagated[edge.TargetID]
@@ -162,7 +152,7 @@ func (g *MemoryGraph) PropagateRisk(initialRisk map[string]float64) map[string]f
 				if edge.Weight > 0 {
 					edgeFactor = float64(edge.Weight) / 100.0
 				}
-				// Factor in edge confidence
+
 				edgeConf := edge.Confidence
 				if edgeConf <= 0 {
 					edgeConf = 1.0
@@ -186,8 +176,6 @@ func (g *MemoryGraph) PropagateRisk(initialRisk map[string]float64) map[string]f
 	return propagated
 }
 
-// ApplyTimeDecay applies confidence decay based on last seen times.
-// confidence decays exponentially: C = C_orig * e^(-lambda * daysOld)
 func (g *MemoryGraph) ApplyTimeDecay(now time.Time, halfLifeDays float64) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -197,7 +185,6 @@ func (g *MemoryGraph) ApplyTimeDecay(now time.Time, halfLifeDays float64) {
 	}
 	lambda := math.Log(2) / halfLifeDays
 
-	// Decay node confidence
 	for _, node := range g.nodes {
 		daysOld := now.Sub(node.LastSeen).Hours() / 24.0
 		if daysOld > 0 {
@@ -206,7 +193,6 @@ func (g *MemoryGraph) ApplyTimeDecay(now time.Time, halfLifeDays float64) {
 		}
 	}
 
-	// Decay edge confidence
 	for i := range g.edges {
 		daysOld := now.Sub(g.edges[i].LastSeen).Hours() / 24.0
 		if daysOld > 0 {
@@ -216,7 +202,6 @@ func (g *MemoryGraph) ApplyTimeDecay(now time.Time, halfLifeDays float64) {
 	}
 }
 
-// PropagateBlastRadius calculates the cumulative downstream impact of compromising a node.
 func (g *MemoryGraph) PropagateBlastRadius(startID string) float64 {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -232,10 +217,9 @@ func (g *MemoryGraph) PropagateBlastRadius(startID string) float64 {
 
 	totalBlastRadius := startNode.BlastRadius
 	if totalBlastRadius <= 0 {
-		totalBlastRadius = 10.0 // default node impact
+		totalBlastRadius = 10.0
 	}
 
-	// Adjacency mapping
 	adj := make(map[string][]string)
 	for _, edge := range g.edges {
 		adj[edge.SourceID] = append(adj[edge.SourceID], edge.TargetID)
@@ -258,7 +242,7 @@ func (g *MemoryGraph) PropagateBlastRadius(startID string) float64 {
 					if exists && node.BlastRadius > 0 {
 						nodeImpact = node.BlastRadius
 					}
-					// Damped propagation based on distance
+
 					totalBlastRadius += nodeImpact * math.Pow(0.5, float64(depth+1))
 					queue = append(queue, neighbor)
 				}
@@ -270,8 +254,6 @@ func (g *MemoryGraph) PropagateBlastRadius(startID string) float64 {
 	return totalBlastRadius
 }
 
-// CalculatePathCost computes the attacker transition cost of a given path.
-// The cost is calculated by summing the edge weights (difficulty) divided by edge/node confidence.
 func (g *MemoryGraph) CalculatePathCost(path []string) float64 {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -294,15 +276,14 @@ func (g *MemoryGraph) CalculatePathCost(path []string) float64 {
 
 		edges, exists := edgeMap[key]
 		if !exists || len(edges) == 0 {
-			return math.MaxFloat64 // Disconnected path
+			return math.MaxFloat64
 		}
 
-		// Find the lowest cost edge between these two nodes
 		minEdgeCost := math.MaxFloat64
 		for _, edge := range edges {
 			weight := float64(edge.Weight)
 			if weight <= 0 {
-				weight = 10.0 // default difficulty weight
+				weight = 10.0
 			}
 			conf := edge.Confidence
 			if conf <= 0 {
@@ -319,7 +300,6 @@ func (g *MemoryGraph) CalculatePathCost(path []string) float64 {
 	return totalCost
 }
 
-// GetCheapestAttackPath finds the attack path from sourceID to targetID with the lowest total path cost.
 func (g *MemoryGraph) GetCheapestAttackPath(sourceID, targetID string) ([]string, float64) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -331,7 +311,6 @@ func (g *MemoryGraph) GetCheapestAttackPath(sourceID, targetID string) ([]string
 		return nil, -1.0
 	}
 
-	// Dijkstra implementation for cheapest path
 	dist := make(map[string]float64)
 	prev := make(map[string]string)
 	for id := range g.nodes {
@@ -339,7 +318,6 @@ func (g *MemoryGraph) GetCheapestAttackPath(sourceID, targetID string) ([]string
 	}
 	dist[sourceID] = 0.0
 
-	// Adjacency mapping
 	adj := make(map[string][]GraphEdge)
 	for _, edge := range g.edges {
 		adj[edge.SourceID] = append(adj[edge.SourceID], edge)

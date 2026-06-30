@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 )
 
@@ -26,12 +26,16 @@ func (t *NaabuTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 	args := []string{"-silent", "-c", fmt.Sprintf("%d", threads), "-p", vulnerablePorts}
 	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
 	if rateLimit > 0 {
-		args = append(args, "-rate-limit", fmt.Sprintf("%d", rateLimit))
+		args = append(args, "-rate", fmt.Sprintf("%d", rateLimit))
 	}
 	input := strings.Join(targets, "\n")
 	lines, err := RunCommandWithInputLines(ctx, []byte(input), "naabu", args...)
 	if err != nil {
 		return nil, fmt.Errorf("naabu execution failed: %w", err)
+	}
+
+	if cb := progressCallbackFromCtx(ctx); cb != nil && len(lines) > 0 {
+		cb("naabu_ports", len(lines), len(lines))
 	}
 
 	return NewEventsFromLinesFunc(lines, t.Name(), func(value string) map[string]string {

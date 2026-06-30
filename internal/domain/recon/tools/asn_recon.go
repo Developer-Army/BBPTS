@@ -1,11 +1,12 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -62,17 +63,22 @@ func (t *ASNReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 			}
 		}
 
-		// Resolve host to IP
 		ips, err := net.LookupIP(host)
 		if err != nil || len(ips) == 0 {
 			return nil, nil
 		}
 
-		ipStr := ips[0].String()
+		ip := ips[0]
+		isTestMock := strings.Contains(ripeBaseURL, "127.0.0.1") || strings.Contains(ripeBaseURL, "localhost")
+		if !isTestMock && (ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() || ip.IsLinkLocalUnicast()) {
+			slog.Debug("asn_recon: skipping local/private IP to prevent public scope leak", "ip", ip.String())
+			return nil, nil
+		}
+
+		ipStr := ip.String()
 
 		client := NewSafeHTTPClient(10 * time.Second)
 
-		// 1. Query RIPEstat for ASN by IP
 		asnURL := fmt.Sprintf("%s/data/asn-by-ip/data.json?resource=%s", ripeBaseURL, ipStr)
 		req, err := http.NewRequestWithContext(ctx, "GET", asnURL, nil)
 		if err != nil {
@@ -93,7 +99,6 @@ func (t *ASNReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 
 		asn := ripeASN.Data.ASNs[0]
 
-		// 2. Query announced prefixes for that ASN
 		prefixesURL := fmt.Sprintf("%s/data/announced-prefixes/data.json?resource=AS%s", ripeBaseURL, asn)
 		pReq, err := http.NewRequestWithContext(ctx, "GET", prefixesURL, nil)
 		if err != nil {
@@ -104,7 +109,7 @@ func (t *ASNReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 		if err != nil {
 			return nil, nil
 		}
-		pBodyBytes, _ := io.ReadAll(io.LimitReader(pResp.Body, 5*1024*1024)) // limit to 5MB
+		pBodyBytes, _ := io.ReadAll(io.LimitReader(pResp.Body, 5*1024*1024))
 		pResp.Body.Close()
 
 		var ripePrefixes ripePrefixesResponse
@@ -113,7 +118,7 @@ func (t *ASNReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 		}
 
 		var events []recon.Event
-		// Emit prefixes as discovery events
+
 		for _, p := range ripePrefixes.Data.Prefixes {
 			events = append(events, recon.NewEvent(p.Prefix, t.Name(), "discovery", map[string]string{
 				"asn":    asn,

@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// DriftEvent represents a detected change in asset inventory or metadata.
 type DriftEvent struct {
 	AssetID     string    `json:"asset_id"`
 	ChangeType  string    `json:"change_type"` // e.g. "new_subdomain", "new_service", "port_change", "tech_change"
@@ -14,12 +13,11 @@ type DriftEvent struct {
 	Description string    `json:"description"`
 }
 
-// DetectDrift compares old asset states with incoming states.
 func DetectDrift(oldAsset, newAsset Asset) []DriftEvent {
 	var events []DriftEvent
 
 	if oldAsset.ID == "" {
-		// Fresh asset discovery
+
 		events = append(events, DriftEvent{
 			AssetID:     newAsset.ID,
 			ChangeType:  "new_asset",
@@ -31,7 +29,6 @@ func DetectDrift(oldAsset, newAsset Asset) []DriftEvent {
 		return events
 	}
 
-	// Check for type change (e.g., subdomain to service, IP to domain)
 	if oldAsset.Type != newAsset.Type {
 		events = append(events, DriftEvent{
 			AssetID:     newAsset.ID,
@@ -43,7 +40,6 @@ func DetectDrift(oldAsset, newAsset Asset) []DriftEvent {
 		})
 	}
 
-	// Check status changes
 	if oldAsset.Status != newAsset.Status {
 		events = append(events, DriftEvent{
 			AssetID:     newAsset.ID,
@@ -55,7 +51,6 @@ func DetectDrift(oldAsset, newAsset Asset) []DriftEvent {
 		})
 	}
 
-	// Check criticality modifications
 	if oldAsset.Criticality != newAsset.Criticality {
 		events = append(events, DriftEvent{
 			AssetID:     newAsset.ID,

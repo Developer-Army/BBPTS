@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"math/rand"
@@ -47,11 +47,10 @@ func (t *OAuthTesterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 	}
 	var err error
 	t.client, err = network.NewStealthClient(profile, proxy)
-	if err != nil {
-		slog.Warn("Failed to initialize stealth client in oauth tester", "error", err)
-	} else if t.client != nil {
-		t.client.SetCustomHeaders(scanCtx.Headers)
+	if err != nil || t.client == nil {
+		return nil, fmt.Errorf("failed to create stealth client: %w", err)
 	}
+	t.client.SetCustomHeaders(scanCtx.Headers)
 
 	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
 
@@ -89,7 +88,6 @@ func (t *OAuthTesterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 			q := parsedCandidate.Query()
 			slog.Info("Discovered potential OAuth 2.0 endpoint", "url", candidate)
 
-			// Test 1: Missing state parameter (CSRF)
 			if q.Get("state") != "" {
 				testQ := parsedCandidate.Query()
 				testQ.Del("state")
@@ -106,7 +104,6 @@ func (t *OAuthTesterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				}
 			}
 
-			// Test 2: Open redirect_uri (OAuth hijacking)
 			if q.Get("redirect_uri") != "" {
 				testQ := parsedCandidate.Query()
 				evilDomain := "https://example.com"
@@ -125,7 +122,6 @@ func (t *OAuthTesterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				}
 			}
 
-			// Test 3: Implicit flow enabled (Token leakage)
 			if q.Get("response_type") != "" && q.Get("response_type") != "token" {
 				testQ := parsedCandidate.Query()
 				testQ.Set("response_type", "token")
@@ -142,7 +138,6 @@ func (t *OAuthTesterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				}
 			}
 
-			// Test 4: PKCE Bypass
 			if q.Get("code_challenge") != "" {
 				testQ := parsedCandidate.Query()
 				testQ.Del("code_challenge")
@@ -304,7 +299,6 @@ func (t *OAuthTesterTool) checkAuthSuccess(ctx context.Context, testURL string) 
 	}
 	defer resp.Body.Close()
 
-	// If it succeeds with 200 (prompting user login) or redirects to login/consents (302) without a 400 Bad Request
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		return true, nil
 	}

@@ -25,7 +25,6 @@ type ScanContext struct {
 	AuthSessions     []AuthSession
 }
 
-// AuthSession holds credentials for a single authentication state used by auth_matrix.
 type AuthSession struct {
 	Label   string            `json:"label"`
 	Headers map[string]string `json:"headers"`

@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// Owner represents the identity of the asset owner.
 type Owner struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`
@@ -14,21 +13,18 @@ type Owner struct {
 	ManagerID *int64 `json:"manager_id,omitempty"`
 }
 
-// Team represents a group within the organization.
 type Team struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`
 	ManagerID *int64 `json:"manager_id,omitempty"`
 }
 
-// BusinessUnit represents the highest organizational division.
 type BusinessUnit struct {
 	ID         int64  `json:"id"`
 	Name       string `json:"name"`
 	DirectorID *int64 `json:"director_id,omitempty"`
 }
 
-// OwnershipAudit represents a logged change in asset or finding ownership.
 type OwnershipAudit struct {
 	Timestamp  time.Time `json:"timestamp"`
 	Actor      string    `json:"actor"`
@@ -39,7 +35,6 @@ type OwnershipAudit struct {
 	Confidence float64   `json:"confidence"`
 }
 
-// AssetOwnership represents first-class ownership metadata for an asset.
 type AssetOwnership struct {
 	AssetID        string           `json:"asset_id"`
 	OwnerID        int64            `json:"owner_id,omitempty"`
@@ -49,12 +44,10 @@ type AssetOwnership struct {
 	AuditTrail     []OwnershipAudit `json:"audit_trail"`
 }
 
-// IsUnmanagedRisk returns true if no owner or team is assigned.
 func (ao *AssetOwnership) IsUnmanagedRisk() bool {
 	return ao.OwnerID == 0 && ao.TeamID == 0
 }
 
-// FindingOwnership represents first-class ownership metadata for a finding.
 type FindingOwnership struct {
 	FindingID      int64            `json:"finding_id"`
 	OwnerID        int64            `json:"owner_id,omitempty"`
@@ -64,12 +57,10 @@ type FindingOwnership struct {
 	AuditTrail     []OwnershipAudit `json:"audit_trail"`
 }
 
-// IsUnmanagedRisk returns true if no owner or team is assigned.
 func (fo *FindingOwnership) IsUnmanagedRisk() bool {
 	return fo.OwnerID == 0 && fo.TeamID == 0
 }
 
-// AssignAssetOwner updates ownership with audit trail logging and confidence validation.
 func (ao *AssetOwnership) AssignAssetOwner(newOwnerID int64, teamID int64, confidence float64, escalationPath []string, actor string, reason string) error {
 	if confidence < 0.0 || confidence > 1.0 {
 		return errors.New("confidence must be between 0.0 and 1.0")
@@ -96,7 +87,6 @@ func (ao *AssetOwnership) AssignAssetOwner(newOwnerID int64, teamID int64, confi
 	return nil
 }
 
-// AssignFindingOwner updates finding ownership.
 func (fo *FindingOwnership) AssignFindingOwner(newOwnerID int64, teamID int64, confidence float64, escalationPath []string, actor string, reason string) error {
 	if confidence < 0.0 || confidence > 1.0 {
 		return errors.New("confidence must be between 0.0 and 1.0")
@@ -123,7 +113,6 @@ func (fo *FindingOwnership) AssignFindingOwner(newOwnerID int64, teamID int64, c
 	return nil
 }
 
-// GenerateEscalationChain builds the hierarchy list for remediation escalation.
 func GenerateEscalationChain(ownerEmail string, teamName string, managerEmail string, directorEmail string) []string {
 	var chain []string
 	if ownerEmail != "" {

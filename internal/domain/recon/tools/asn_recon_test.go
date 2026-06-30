@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,7 +10,7 @@ import (
 )
 
 func TestASNReconTool(t *testing.T) {
-	// Start local mock server representing RIPEstat API
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "asn-by-ip") {
 			w.WriteHeader(http.StatusOK)
@@ -26,7 +26,6 @@ func TestASNReconTool(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Configure package-level base URL to point to mock server
 	oldBase := ripeBaseURL
 	ripeBaseURL = server.URL
 	defer func() { ripeBaseURL = oldBase }()
@@ -36,7 +35,6 @@ func TestASNReconTool(t *testing.T) {
 		t.Errorf("expected tool name asn_recon, got %s", tool.Name())
 	}
 
-	// We use "127.0.0.1" which resolves correctly without hitting external DNS resolver
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{"127.0.0.1"}, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

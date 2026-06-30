@@ -12,7 +12,6 @@ import (
 	"github.com/dop251/goja/parser"
 )
 
-// --- Regex fallback patterns for minified/obfuscated JS ---
 var fallbackEndpointPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`['"](/api/[a-zA-Z0-9_/\-{}:.]+)['"]`),
 	regexp.MustCompile(`['"](/v[0-9]+/[a-zA-Z0-9_/\-{}:.]+)['"]`),
@@ -46,9 +45,6 @@ func regexExtractRoutes(js string) []SemanticRoute {
 	return routes
 }
 
-// --- Core diff structures ---
-
-// JSBundleDiff compares two JavaScript bundles and reports semantic changes.
 type JSBundleDiff struct {
 	OldHash   string
 	NewHash   string
@@ -58,7 +54,6 @@ type JSBundleDiff struct {
 	Unchanged []SemanticRoute
 }
 
-// RouteModification describes a changed route between versions.
 type RouteModification struct {
 	Route      SemanticRoute
 	ChangeType string // "method_changed", "path_normalized", "variable_renamed"
@@ -66,9 +61,6 @@ type RouteModification struct {
 	NewValue   string
 }
 
-// --- Public API ---
-
-// DiffBundles performs a semantic diff between two JS source codes.
 func DiffBundles(oldJS, newJS string) *JSBundleDiff {
 	oldRoutes := extractAllRoutes(oldJS)
 	newRoutes := extractAllRoutes(newJS)
@@ -116,12 +108,11 @@ func DiffBundles(oldJS, newJS string) *JSBundleDiff {
 	return diff
 }
 
-// extractAllRoutes returns deduped routes from JS using AST first, regex fallback.
 func extractAllRoutes(js string) []SemanticRoute {
-	// Try AST parsing first
+
 	program, err := parser.ParseFile(nil, "bundle.js", js, 0, parser.WithDisableSourceMaps)
 	if err != nil {
-		// Fallback to regex (minified/unsupported syntax)
+
 		slog.Debug("AST parse failed in JS diff, using regex fallback", "error", err)
 		return regexExtractRoutes(js)
 	}
@@ -131,7 +122,6 @@ func extractAllRoutes(js string) []SemanticRoute {
 		extractRoutesFromNode(n, &routes)
 	})
 
-	// Deduplicate by signature
 	seen := make(map[string]struct{})
 	uniq := make([]SemanticRoute, 0, len(routes))
 	for _, r := range routes {
@@ -144,7 +134,6 @@ func extractAllRoutes(js string) []SemanticRoute {
 	return uniq
 }
 
-// extractRoutesFromNode walks AST nodes and appends discovered routes.
 func extractRoutesFromNode(node ast.Node, routes *[]SemanticRoute) {
 	switch n := node.(type) {
 	case *ast.CallExpression:
@@ -161,11 +150,10 @@ func extractRoutesFromNode(node ast.Node, routes *[]SemanticRoute) {
 	}
 }
 
-// extractFetchCall handles: fetch('/api/users', {method: 'POST'})
 func extractFetchCall(call *ast.CallExpression, routes *[]SemanticRoute) {
 	if ident, ok := call.Callee.(*ast.Identifier); ok && ident.Name == "fetch" && len(call.ArgumentList) >= 1 {
 		method := "GET"
-		// Look for method option
+
 		if len(call.ArgumentList) >= 2 {
 			if opts, ok := call.ArgumentList[1].(*ast.ObjectLiteral); ok {
 				for _, prop := range opts.Value {
@@ -189,7 +177,6 @@ func extractFetchCall(call *ast.CallExpression, routes *[]SemanticRoute) {
 	}
 }
 
-// extractRouterMethodCall handles: router.get('/admin', handler)
 func extractRouterMethodCall(call *ast.CallExpression, routes *[]SemanticRoute) {
 	member, ok := call.Callee.(*ast.DotExpression)
 	if !ok {
@@ -210,7 +197,6 @@ func extractRouterMethodCall(call *ast.CallExpression, routes *[]SemanticRoute) 
 	}
 }
 
-// extractPathObject handles: { path: '/login', component: LoginPage }
 func extractPathObject(obj *ast.ObjectLiteral, routes *[]SemanticRoute) {
 	for _, prop := range obj.Value {
 		if keyed, ok := prop.(*ast.PropertyKeyed); ok && propertyKeyName(keyed.Key) == "path" {
@@ -225,7 +211,6 @@ func extractPathObject(obj *ast.ObjectLiteral, routes *[]SemanticRoute) {
 	}
 }
 
-// extractConstAssign handles: const API_URL = '/api/v1/';
 func extractConstAssign(assign *ast.AssignExpression, routes *[]SemanticRoute) {
 	if str, ok := assign.Right.(*ast.StringLiteral); ok {
 		val := stringLiteralValue(str)
@@ -244,7 +229,6 @@ func extractConstAssign(assign *ast.AssignExpression, routes *[]SemanticRoute) {
 	}
 }
 
-// extractBinding handles: const API_URL = '/api/v1/';
 func extractBinding(binding *ast.Binding, routes *[]SemanticRoute) {
 	if str, ok := binding.Initializer.(*ast.StringLiteral); ok {
 		val := stringLiteralValue(str)
@@ -263,7 +247,6 @@ func extractBinding(binding *ast.Binding, routes *[]SemanticRoute) {
 	}
 }
 
-// extractRouterConfig handles: new Router({ routes: [{ path: '/', component: Home }] })
 func extractRouterConfig(expr *ast.NewExpression, routes *[]SemanticRoute) {
 	if len(expr.ArgumentList) == 0 {
 		return
@@ -282,8 +265,6 @@ func extractRouterConfig(expr *ast.NewExpression, routes *[]SemanticRoute) {
 		}
 	}
 }
-
-// --- Signature & hashing ---
 
 func computeRouteSignature(r SemanticRoute) string {
 	norm := r.Path
@@ -304,9 +285,6 @@ func hashBundle(js string) string {
 	return hex.EncodeToString(h[:16])
 }
 
-// --- Analysis helpers ---
-
-// Summary returns a concise human-readable diff summary.
 func (d *JSBundleDiff) Summary() string {
 	total := len(d.Added) + len(d.Removed) + len(d.Modified)
 	if total == 0 {
@@ -316,7 +294,6 @@ func (d *JSBundleDiff) Summary() string {
 		len(d.Added), len(d.Removed), len(d.Modified))
 }
 
-// HighValueChanges filters added/removed routes to those likely high-impact.
 func (d *JSBundleDiff) HighValueChanges() []SemanticRoute {
 	var high []SemanticRoute
 	for _, r := range d.Added {

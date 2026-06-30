@@ -8,7 +8,6 @@ func TestValidateDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 	result := Validate(cfg)
 
-	// Default config should have no errors (warnings are ok)
 	if !result.IsValid() {
 		t.Fatalf("default config should be valid, got errors: %v", result.Errors)
 	}
@@ -43,7 +42,7 @@ func TestValidateInvalidProxy(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Proxies = []string{"://not-a-valid-url"}
 	result := Validate(cfg)
-	// Should have at least a warning or error about the proxy
+
 	if len(result.Errors)+len(result.Warnings) == 0 {
 		t.Fatal("invalid proxy should generate an issue")
 	}

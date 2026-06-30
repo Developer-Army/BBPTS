@@ -9,14 +9,11 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// TakeoverAnalyzer detects potential subdomain takeovers by resolving CNAME records
-// and matching them against signatures of vulnerable SaaS platforms.
 type TakeoverAnalyzer struct {
 	cache       map[string]string
 	lookupCNAME func(ctx context.Context, host string) (string, error)
 }
 
-// NewTakeoverAnalyzer creates a new TakeoverAnalyzer.
 func NewTakeoverAnalyzer() *TakeoverAnalyzer {
 	return &TakeoverAnalyzer{
 		cache: make(map[string]string),
@@ -27,21 +24,20 @@ func NewTakeoverAnalyzer() *TakeoverAnalyzer {
 	}
 }
 
-// TakeoverSignatures maps vulnerable SaaS domains to their description.
 var TakeoverSignatures = map[string]string{
-	"github.io":             "GitHub Pages subdomain takeover",
-	"herokuapp.com":         "Heroku subdomain takeover",
-	"herokudns.com":         "Heroku subdomain takeover",
-	"s3.amazonaws.com":      "AWS S3 Bucket subdomain takeover",
-	"s3-website":            "AWS S3 website subdomain takeover",
-	"wordpress.com":         "WordPress subdomain takeover",
-	"ghost.io":              "Ghost subdomain takeover",
-	"myshopify.com":         "Shopify subdomain takeover",
-	"squarespace.com":       "Squarespace subdomain takeover",
-	"pantheonsite.io":       "Pantheon subdomain takeover",
-	"readmessl.com":         "Readme.io subdomain takeover",
-	"bitbucket.io":          "Bitbucket subdomain takeover",
-	"cargo.site":            "Cargo subdomain takeover",
+	"github.io":        "GitHub Pages subdomain takeover",
+	"herokuapp.com":    "Heroku subdomain takeover",
+	"herokudns.com":    "Heroku subdomain takeover",
+	"s3.amazonaws.com": "AWS S3 Bucket subdomain takeover",
+	"s3-website":       "AWS S3 website subdomain takeover",
+	"wordpress.com":    "WordPress subdomain takeover",
+	"ghost.io":         "Ghost subdomain takeover",
+	"myshopify.com":    "Shopify subdomain takeover",
+	"squarespace.com":  "Squarespace subdomain takeover",
+	"pantheonsite.io":  "Pantheon subdomain takeover",
+	"readmessl.com":    "Readme.io subdomain takeover",
+	"bitbucket.io":     "Bitbucket subdomain takeover",
+	"cargo.site":       "Cargo subdomain takeover",
 }
 
 func (t *TakeoverAnalyzer) Analyze(ev recon.Event, insight *Insight) {

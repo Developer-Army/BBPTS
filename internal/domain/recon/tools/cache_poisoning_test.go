@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 func TestCachePoisoningTool(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Mock reflection of unkeyed header X-Forwarded-Host
+
 		if r.Header.Get("X-Forwarded-Host") == "bbpts-poison-test.com" {
 			w.Header().Set("Location", "http://bbpts-poison-test.com/redirect")
 			w.WriteHeader(http.StatusFound)

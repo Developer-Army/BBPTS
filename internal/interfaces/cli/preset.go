@@ -13,8 +13,6 @@ const (
 	ModeNormal = "normal"
 )
 
-// ApplyPresetAndProfileDefaults sets opts.Tools (and optional rate/timeout) when the
-// operator did not pass -tools. Preset takes precedence over program profile.
 func ApplyPresetAndProfileDefaults(opts *Options, cfg *config.Config) {
 	if opts == nil || cfg == nil {
 		return
@@ -126,6 +124,8 @@ func LightModeTools() []string {
 		"asn_recon", "cve_correlate", "grpc_probe", "git_exposure",
 		"web3_recon", "paste_leaks", "cert_monitor", "price_logic", "dep_audit",
 		"soap_probe", "mobile_recon", "cloud_exposure",
+		"blind_inject", "business_logic", "second_order", "redos", "supply_chain",
+		"tenant_isolate", "auth_matrix", "ratelimit_bypass", "wordlist_gen",
 	}
 }
 
@@ -165,6 +165,8 @@ func NormalModeTools() []string {
 		"asn_recon", "cve_correlate", "grpc_probe", "git_exposure",
 		"web3_recon", "paste_leaks", "cert_monitor", "price_logic", "dep_audit",
 		"soap_probe", "mobile_recon", "cloud_exposure",
+		"blind_inject", "business_logic", "second_order", "redos", "supply_chain",
+		"tenant_isolate", "auth_matrix", "ratelimit_bypass", "wordlist_gen",
 	}
 }
 
@@ -196,8 +198,6 @@ func applyProfileRateOnly(opts *Options, cfg *config.Config) {
 	opts.RateLimit = pp.RateLimit
 }
 
-// FilterExcludedTools removes tools listed in the comma-separated exclude string
-// from the given tool list.
 func FilterExcludedTools(tools []string, exclude string) []string {
 	if strings.TrimSpace(exclude) == "" {
 		return tools

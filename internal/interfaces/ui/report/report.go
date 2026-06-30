@@ -25,7 +25,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
-// ReportConfig holds configuration for report generation
 type ReportConfig struct {
 	OutputPath        string
 	MarkdownPath      string
@@ -50,26 +49,25 @@ type ReportConfig struct {
 	AutoTransition    bool
 }
 
-// Report represents a comprehensive vulnerability report
 type Report struct {
-	Title           string                        `json:"title"`
-	Description     string                        `json:"description"`
-	GeneratedAt     time.Time                     `json:"generated_at"`
-	ScanDuration    string                        `json:"scan_duration"`
-	TargetCount     int                           `json:"target_count"`
-	FindingCount    int                           `json:"finding_count"`
-	CriticalCount   int                           `json:"critical_count"`
-	HighCount       int                           `json:"high_count"`
-	MediumCount     int                           `json:"medium_count"`
-	LowCount        int                           `json:"low_count"`
-	Findings        []DetailedFinding             `json:"findings"`
-	Statistics      ReportStatistics              `json:"statistics"`
-	Recommendations []string                      `json:"recommendations"`
-	Executive       ExecutiveSummary              `json:"executive_summary"`
-	TopTargets      []analyze.InvestigationTarget `json:"top_targets,omitempty"`
-	AttackPaths     []analyze.AttackPath          `json:"attack_paths,omitempty"`
-	ChainedFindings []analyze.VulnerabilityChain  `json:"chained_findings,omitempty"`
-	ConfidenceSummary ReportConfidenceSummary     `json:"confidence_summary"`
+	Title             string                        `json:"title"`
+	Description       string                        `json:"description"`
+	GeneratedAt       time.Time                     `json:"generated_at"`
+	ScanDuration      string                        `json:"scan_duration"`
+	TargetCount       int                           `json:"target_count"`
+	FindingCount      int                           `json:"finding_count"`
+	CriticalCount     int                           `json:"critical_count"`
+	HighCount         int                           `json:"high_count"`
+	MediumCount       int                           `json:"medium_count"`
+	LowCount          int                           `json:"low_count"`
+	Findings          []DetailedFinding             `json:"findings"`
+	Statistics        ReportStatistics              `json:"statistics"`
+	Recommendations   []string                      `json:"recommendations"`
+	Executive         ExecutiveSummary              `json:"executive_summary"`
+	TopTargets        []analyze.InvestigationTarget `json:"top_targets,omitempty"`
+	AttackPaths       []analyze.AttackPath          `json:"attack_paths,omitempty"`
+	ChainedFindings   []analyze.VulnerabilityChain  `json:"chained_findings,omitempty"`
+	ConfidenceSummary ReportConfidenceSummary       `json:"confidence_summary"`
 }
 
 type ReportConfidenceSummary struct {
@@ -79,7 +77,6 @@ type ReportConfidenceSummary struct {
 	NoiseReduction  float64 `json:"noise_reduction_percentage"`
 }
 
-// DetailedFinding represents a single finding with comprehensive details
 type DetailedFinding struct {
 	ID           string    `json:"id"`
 	Title        string    `json:"title"`
@@ -111,7 +108,6 @@ type DetailedFinding struct {
 	Suppressed     bool             `json:"suppressed"`
 }
 
-// ReportStatistics holds statistical information about the scan
 type ReportStatistics struct {
 	TotalTargets      int            `json:"total_targets"`
 	TotalSubdomains   int            `json:"total_subdomains"`
@@ -123,7 +119,6 @@ type ReportStatistics struct {
 	DiscoveryTimeline map[string]int `json:"discovery_timeline"`
 }
 
-// ExecutiveSummary provides a high-level overview
 type ExecutiveSummary struct {
 	OverallRisk      string          `json:"overall_risk"`
 	KeyFindings      []string        `json:"key_findings"`
@@ -132,21 +127,17 @@ type ExecutiveSummary struct {
 	ComplianceStatus map[string]bool `json:"compliance_status"`
 }
 
-// ReportGenerator generates comprehensive security reports
 type ReportGenerator struct {
 	config ReportConfig
 }
 
-// NewReportGenerator creates a new report generator
 func NewReportGenerator(config ReportConfig) *ReportGenerator {
 	return &ReportGenerator{config: config}
 }
 
-// GenerateFullReport creates comprehensive reports in all configured formats
 func (rg *ReportGenerator) GenerateFullReport(ctx context.Context, insights []analyze.Insight, events []recon.Event, store *storage.Storage) error {
 	report := rg.buildReport(insights, events, store)
 
-	// Generate JSON report
 	if rg.config.IncludeJSON {
 		if err := rg.generateJSONReport(report); err != nil {
 			return fmt.Errorf("failed to generate JSON report: %w", err)
@@ -158,21 +149,18 @@ func (rg *ReportGenerator) GenerateFullReport(ctx context.Context, insights []an
 		ProcessTriageIntegrations(context.Background(), report, jsonPath)
 	}
 
-	// Generate Markdown report
 	if rg.config.IncludeMarkdown {
 		if err := rg.generateMarkdownReport(report); err != nil {
 			return fmt.Errorf("failed to generate Markdown report: %w", err)
 		}
 	}
 
-	// Generate HTML report
 	if rg.config.IncludeHTML {
 		if err := rg.generateHTMLReport(report); err != nil {
 			return fmt.Errorf("failed to generate HTML report: %w", err)
 		}
 	}
 
-	// Generate tool-specific exports
 	if rg.config.IncludeBurp {
 		if err := rg.exportForBurp(report); err != nil {
 			return fmt.Errorf("failed to export for Burp: %w", err)
@@ -191,21 +179,18 @@ func (rg *ReportGenerator) GenerateFullReport(ctx context.Context, insights []an
 		}
 	}
 
-	// Always generate the interactive Attack Surface Graph if HTML is enabled
 	if rg.config.IncludeHTML {
 		if err := rg.generateAttackSurfaceGraph(events); err != nil {
 			return fmt.Errorf("failed to generate attack surface graph: %w", err)
 		}
 	}
 
-	// Generate custom template report if a template path is provided
 	if rg.config.TemplatePath != "" {
 		if err := rg.generateCustomTemplateReport(report); err != nil {
 			slog.Warn("failed to generate custom template report", "error", err, "template", rg.config.TemplatePath)
 		}
 	}
 
-	// AI-Assisted Report Drafting
 	if rg.config.DraftReport {
 		draftPath := filepath.Join(rg.config.OutputPath, "ai_draft_report.md")
 		if err := rg.draftReportWithLLM(ctx, report.Findings, draftPath); err != nil {
@@ -218,8 +203,6 @@ func (rg *ReportGenerator) GenerateFullReport(ctx context.Context, insights []an
 	return nil
 }
 
-// generateCustomTemplateReport loads a user-supplied Go text/template file
-// and executes it with the report data, writing output to custom_report.html.
 func (rg *ReportGenerator) generateCustomTemplateReport(report *Report) error {
 	tmplData, err := os.ReadFile(rg.config.TemplatePath)
 	if err != nil {
@@ -246,7 +229,6 @@ func (rg *ReportGenerator) generateCustomTemplateReport(report *Report) error {
 	return nil
 }
 
-// buildReport constructs the report structure from insights and events
 func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []recon.Event, store *storage.Storage) *Report {
 	findings := rg.convertInsightsToFindings(insights, events)
 
@@ -280,7 +262,6 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		findings = filteredFindings
 	}
 
-	// Count severities
 	criticalCount := 0
 	highCount := 0
 	mediumCount := 0
@@ -299,7 +280,6 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 		}
 	}
 
-	// Sort findings by severity and score
 	sort.Slice(findings, func(i, j int) bool {
 		severityOrder := map[string]int{"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 		if severityOrder[findings[i].Severity] != severityOrder[findings[j].Severity] {
@@ -322,7 +302,6 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 				topPaths = topPaths[:10]
 			}
 
-			// Translate path IDs to node values
 			nodeMap := make(map[string]string)
 			for _, n := range nodes {
 				nodeMap[n.ID] = n.Value
@@ -405,7 +384,6 @@ func (rg *ReportGenerator) buildReport(insights []analyze.Insight, events []reco
 	return report
 }
 
-// convertInsightsToFindings converts analyze.Insight to DetailedFinding
 func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight, events []recon.Event) []DetailedFinding {
 	findings := []DetailedFinding{}
 	eventMap := make(map[string][]recon.Event)
@@ -473,7 +451,6 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			sort.Strings(sourceList)
 		}
 
-		// Filter out internal "source: xxx" tokens from reasons before building the report.
 		cleanReasons := filterSourceReasons(insight.Reasons)
 
 		var evidenceParts []string
@@ -542,23 +519,38 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 			Suppressed:          isSuppressed,
 		}
 
-		// Lookup screenshot path
 		screenshotName := fmt.Sprintf("%x.png", md5.Sum([]byte(makeURL(insight.Host))))
-		screenshotPath := filepath.Join("results", "screenshots", screenshotName)
+		screenshotPath := filepath.Join(rg.config.OutputPath, "screenshots", screenshotName)
 		if _, err := os.Stat(screenshotPath); err == nil {
-			finding.ScreenshotPath = "/" + filepath.ToSlash(screenshotPath)
+			finding.ScreenshotPath = "screenshots/" + screenshotName
 		} else {
-			// Fallback: check without scheme
-			screenshotNameFallback := fmt.Sprintf("%x.png", md5.Sum([]byte(insight.Host)))
-			screenshotPathFallback := filepath.Join("results", "screenshots", screenshotNameFallback)
-			if _, err := os.Stat(screenshotPathFallback); err == nil {
-				finding.ScreenshotPath = "/" + filepath.ToSlash(screenshotPathFallback)
+
+			standardPath := filepath.Join("results", "screenshots", screenshotName)
+			if _, err := os.Stat(standardPath); err == nil {
+				finding.ScreenshotPath = "/" + filepath.ToSlash(standardPath)
+			} else {
+
+				screenshotNameFallback := fmt.Sprintf("%x.png", md5.Sum([]byte(insight.Host)))
+				screenshotPathFallback := filepath.Join(rg.config.OutputPath, "screenshots", screenshotNameFallback)
+				if _, err := os.Stat(screenshotPathFallback); err == nil {
+					finding.ScreenshotPath = "screenshots/" + screenshotNameFallback
+				} else {
+					standardFallback := filepath.Join("results", "screenshots", screenshotNameFallback)
+					if _, err := os.Stat(standardFallback); err == nil {
+						finding.ScreenshotPath = "/" + filepath.ToSlash(standardFallback)
+					}
+				}
 			}
 		}
 
-		// Store suggested tests directly as structured data for checklist rendering.
+		enrichFindingDetails(&finding)
+
 		if len(insight.SuggestedTests) > 0 {
-			finding.Remediation = "Suggested security tests: " + strings.Join(insight.SuggestedTests, "\x00")
+			if finding.Remediation != "" {
+				finding.Remediation = finding.Remediation + "\n\nSuggested security tests: " + strings.Join(insight.SuggestedTests, "\x00")
+			} else {
+				finding.Remediation = "Suggested security tests: " + strings.Join(insight.SuggestedTests, "\x00")
+			}
 		}
 
 		findings = append(findings, finding)
@@ -567,7 +559,6 @@ func (rg *ReportGenerator) convertInsightsToFindings(insights []analyze.Insight,
 	return findings
 }
 
-// buildStatistics creates statistical summary
 func (rg *ReportGenerator) buildStatistics(insights []analyze.Insight) ReportStatistics {
 	stats := ReportStatistics{
 		TotalTargets:      len(insights),
@@ -591,7 +582,6 @@ func (rg *ReportGenerator) buildStatistics(insights []analyze.Insight) ReportSta
 	return stats
 }
 
-// buildRecommendations creates actionable recommendations
 func (rg *ReportGenerator) buildRecommendations() []string {
 	recommendations := []string{
 		"Prioritize remediation of critical severity findings immediately",
@@ -606,12 +596,10 @@ func (rg *ReportGenerator) buildRecommendations() []string {
 	return recommendations
 }
 
-// buildExecutiveSummary creates an executive summary
 func (rg *ReportGenerator) buildExecutiveSummary(findings []DetailedFinding) ExecutiveSummary {
 	return GenerateDynamicExecutiveSummary(findings)
 }
 
-// generateMarkdownReport exports report as Markdown
 func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 	outputPath := rg.config.MarkdownPath
 	if outputPath == "" {
@@ -623,15 +611,38 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 	content += fmt.Sprintf("> **Risk Level:** %s | **Targets:** %d | **Findings:** %d\n\n",
 		report.Executive.OverallRisk, report.TargetCount, report.FindingCount)
 
-	content += "---\n\n## Quick Start Guide for Beginners\n\n"
-	content += "1. **Import Configs**: Load `burp-import.xml` in Burp Suite (`Project` > `Import scan items`) or `caido-import.json` in Caido (`Workspaces` > `Import`).\n"
-	content += "2. **Open Target**: Click target domain links or evidence URLs below to open targets in your browser configured with your proxy.\n"
-	content += "3. **Run Checklists**: Follow step-by-step checklists under each finding. Check them off as you test.\n\n"
+	content += "---\n\n## Quick Start Guide\n\n"
+	content += "Follow these easy steps to set up your tools and test the findings:\n\n"
+	content += "### 1. Set Up Your Tools\n"
+	content += "- **Proxy Tool**: Download [Burp Suite](https://portswigger.net/burp/communitydownload) or [Caido](https://caido.io/). These tools let you see website traffic.\n"
+	content += "- **Browser Helper**: Install the [FoxyProxy](https://foxyproxy.org/) browser extension and point it to your proxy listener (usually `127.0.0.1:8080` for Burp or `127.0.0.1:8080`/`127.0.0.1:8000` for Caido).\n"
+	content += "- **Import Project Configs**:\n"
+	content += "  - **Burp Suite**: Go to `Project` > `Import scan items` and select `burp-import.xml`.\n"
+	content += "  - **Caido**: Go to `Workspaces` > `Import` and select `caido-import.json`.\n\n"
+	content += "### 2. How to Test Findings\n"
+	content += "- **Open Targets**: Open the target URLs listed under the detailed findings in your web browser.\n"
+	content += "- **Run Tests**: Under each finding, look at the **Step-by-Step Instructions** and run the commands or steps manually.\n"
+	content += "- **Risk Scores**: A higher Risk Score (0-100) means the target is more vulnerable. Test these first!\n\n"
+	content += "### Reference Glossary\n"
+	content += "| Term | Simple Explanation |\n"
+	content += "| :--- | :--- |\n"
+	content += "| **SQLi** | Database break-in. Slipping a database command into a text box to trick the computer into showing secret records. |\n"
+	content += "| **SSRF** | Server hijacking. Tricking a website server into requesting private files or internal web pages it shouldn't show. |\n"
+	content += "| **CORS** | Sharing rules. A loose setting that lets bad external websites steal your logged-in session info. |\n"
+	content += "| **GraphQL Introspection** | Map leak. An endpoint setting that gives away the list of every secret query, type, and field in the API database. |\n"
+	content += "| **IDOR / BOLA** | ID guessing. Changing numbers in the website link (like changing `/user/1` to `/user/2`) to view other people's screens. |\n"
+	content += "| **CSP** | Security shield. A list of rules that stops bad scripts from running on your web browser page. |\n"
+	content += "| **WAF** | Guard at the gate. A helper program that blocks bad commands before they reach the main web server. |\n\n"
+	content += "### Risk Scoring Legend\n"
+	content += "- **Exposure**: How visible the website is to the public internet.\n"
+	content += "- **Attackability**: How easy it is for an automated script or beginner to hack the target.\n"
+	content += "- **Business Impact**: How bad the damage would be if hackers stole the database or files.\n"
+	content += "- **Confidence**: How sure the scanner is that the vulnerability is real.\n"
+	content += "- **Path Score**: How many steps/hops it takes to reach the target from the outside.\n\n"
 
 	content += "---\n\n## Executive Summary\n\n"
 	content += fmt.Sprintf("| Critical | High | Medium | Low |\n| :---: | :---: | :---: | :---: |\n| %d | %d | %d | %d |\n\n",
 		report.CriticalCount, report.HighCount, report.MediumCount, report.LowCount)
-
 
 	content += "### Key Highlights\n"
 	for _, highlight := range report.Executive.KeyFindings {
@@ -677,11 +688,11 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 
 		if finding.ExposureScore > 0 || finding.AttackabilityScore > 0 || finding.BusinessImpactScore > 0 || finding.ConfidenceScore > 0 || finding.PathScore > 0 {
 			content += "### Risk Vectors Breakdown\n"
-			content += fmt.Sprintf("- **Exposure:** %d/100\n", finding.ExposureScore)
-			content += fmt.Sprintf("- **Attackability:** %d/100\n", finding.AttackabilityScore)
-			content += fmt.Sprintf("- **Business Impact:** %d/100\n", finding.BusinessImpactScore)
-			content += fmt.Sprintf("- **Confidence:** %d/100\n", finding.ConfidenceScore)
-			content += fmt.Sprintf("- **Path Score:** %d/100\n", finding.PathScore)
+			content += fmt.Sprintf("- **Exposure:** %d/100 (Internet Visibility)\n", finding.ExposureScore)
+			content += fmt.Sprintf("- **Attackability:** %d/100 (Exploitation Ease)\n", finding.AttackabilityScore)
+			content += fmt.Sprintf("- **Business Impact:** %d/100 (Data Risk)\n", finding.BusinessImpactScore)
+			content += fmt.Sprintf("- **Confidence:** %d/100 (Signal Accuracy)\n", finding.ConfidenceScore)
+			content += fmt.Sprintf("- **Path Score:** %d/100 (Attack Depth)\n", finding.PathScore)
 			content += "\n"
 		}
 
@@ -718,9 +729,26 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 			content += fmt.Sprintf("![Screenshot](%s)\n\n", finding.ScreenshotPath)
 		}
 
+		if finding.Impact != "" {
+			content += "### Security Impact\n"
+			content += finding.Impact + "\n\n"
+		}
+
 		if finding.Remediation != "" {
-			content += "### Recommended Testing Checklist\n"
-			if strings.HasPrefix(finding.Remediation, "Suggested security tests: ") {
+			content += "### Remediation Guidance\n"
+			parts := strings.Split(finding.Remediation, "Suggested security tests: ")
+			if len(parts) > 1 {
+				if strings.TrimSpace(parts[0]) != "" {
+					content += strings.TrimSpace(parts[0]) + "\n\n"
+				}
+				content += "#### Recommended Testing Checklist\n"
+				for _, test := range strings.Split(parts[1], "\x00") {
+					test = strings.TrimSpace(test)
+					if test != "" {
+						content += fmt.Sprintf("- [ ] %s\n", test)
+					}
+				}
+			} else if strings.HasPrefix(finding.Remediation, "Suggested security tests: ") {
 				tests := strings.TrimPrefix(finding.Remediation, "Suggested security tests: ")
 				for _, test := range strings.Split(tests, "\x00") {
 					test = strings.TrimSpace(test)
@@ -734,15 +762,24 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 			content += "\n"
 		}
 
-		content += "### Next Steps\n"
-		switch strings.ToLower(finding.Severity) {
-		case "critical", "high":
-			content += "> **Next Action:** High risk target. Open Burp/Caido proxy. Fuzz the parameters listed in the findings with payloads (SQLi probes, SSRF endpoints, XSS scripts). Pay close attention to database-related input fields.\n\n"
-		case "medium":
-			content += "> **Next Action:** Active endpoints found. Verify authentication bypass mechanisms, look for IDOR vulnerabilities on object IDs in paths, or check CORS parameters for wildcards.\n\n"
-		default:
-			content += "> **Next Action:** Low priority/recon data. Check for directory listings or sensitive technology disclosures. Verify if security headers like CSP/HSTS are correctly set.\n\n"
+		if len(finding.References) > 0 {
+			content += "### Reference Links\n"
+			for _, ref := range finding.References {
+				content += fmt.Sprintf("- [%s](%s)\n", ref, ref)
+			}
+			content += "\n"
 		}
+
+		content += "### Next Steps\n"
+		firstStep := strings.Split(beginnerNextSteps(&finding), "\n")[0]
+		firstStep = strings.TrimPrefix(firstStep, "1. **")
+		firstStep = strings.Replace(firstStep, "**", "", 1)
+		content += "> **Next Action:** " + firstStep + "\n\n"
+		content += "<details>\n<summary><b>Beginner Guide & Step-by-Step Verification</b></summary>\n\n"
+		for _, step := range strings.Split(beginnerNextSteps(&finding), "\n") {
+			content += fmt.Sprintf("- %s\n", step)
+		}
+		content += "</details>\n"
 
 		content += "</details>\n\n"
 	}
@@ -765,10 +802,190 @@ func makeURL(target string) string {
 	return "https://" + target
 }
 
-// filterSourceReasons removes internal "source: xxx" tracking tokens from
-// the reasons list. These are useful internally but should not appear in
-// user-facing reports. If all reasons are source tokens, a summary count
-// is returned instead.
+func enrichFindingDetails(f *DetailedFinding) {
+	title := f.Title
+	hasTag := func(t string) bool {
+		for _, tag := range f.Tags {
+			if strings.EqualFold(tag, t) {
+				return true
+			}
+		}
+		return false
+	}
+	containsReason := func(r string) bool {
+		return strings.Contains(strings.ToLower(f.Description), strings.ToLower(r))
+	}
+
+	var impact, remediation string
+	var refs []string
+
+	if hasTag("git-leak") || containsReason("git repository") {
+		title = fmt.Sprintf("Exposed Git Repository Configuration on %s", f.Target)
+		impact = "Exposing the .git directory allows attackers to download your entire source code history, including configuration files, sensitive business logic, and hardcoded API credentials."
+		remediation = "1. Delete the .git directory from your web root.\n2. Configure your web server (Nginx/Apache) to deny access to hidden directories:\n\nFor Nginx:\nlocation ~ /\\.git {\n    deny all;\n}"
+		refs = []string{"https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/04-Authentication_Testing/06-Testing_for_Weak_Lockout_Mechanism"}
+	} else if hasTag("secrets") || containsReason("exposed environment file") || containsReason(".env") {
+		title = fmt.Sprintf("Sensitive API Secret / Credential Leak on %s", f.Target)
+		impact = "Exposed credentials (.env, config keys) allow attackers to access external APIs, database servers, and cloud resources, potentially leading to unauthorized data access or billing exploits."
+		remediation = "1. Revoke the leaked API keys or passwords immediately.\n2. Add the affected file (e.g., .env) to your .gitignore.\n3. Configure your server to block access to env/config files."
+		refs = []string{"https://owasp.org/www-community/vulnerabilities/Sensitive_Data_Exposure"}
+	} else if hasTag("takeover") || containsReason("takeover") {
+		title = fmt.Sprintf("Subdomain Takeover Exposure on %s", f.Target)
+		impact = "An attacker can hijack this subdomain by registering it on the orphaned SaaS platform (e.g. AWS S3, GitHub Pages, Heroku), hosting malicious content, running phishing attacks, or stealing cookies."
+		remediation = "1. Access your DNS provider console.\n2. Identify the dangling CNAME/A record for this host.\n3. Delete the record if the SaaS platform resource is no longer in use."
+		refs = []string{"https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeover", "https://github.com/EdOverflow/can-i-take-over-xyz"}
+	} else if hasTag("cors-risk") || containsReason("cors") {
+		title = fmt.Sprintf("Permissive CORS Policy Misconfiguration on %s", f.Target)
+		impact = "A wildcard or null origin in Cross-Origin Resource Sharing (CORS) headers allows unauthorized external websites to make authenticated API requests and retrieve sensitive user data."
+		remediation = "1. Do not set Access-Control-Allow-Origin: * when Access-Control-Allow-Credentials is true.\n2. Maintain a strict whitelist of allowed origins and validate the incoming Origin header against it."
+		refs = []string{"https://portswigger.net/web-security/cors"}
+	} else if containsReason("graphql") || containsReason("introspection") {
+		title = fmt.Sprintf("GraphQL Introspection Enabled on %s", f.Target)
+		impact = "Allows arbitrary clients to download the entire GraphQL schema definition (queries, mutations, types, fields), dramatically easing the task of locating hidden API entry points."
+		remediation = "Disable introspection queries in your GraphQL configuration for production environments.\n\nFor Apollo Server:\nconst server = new ApolloServer({\n  introspection: false\n});"
+		refs = []string{"https://graphql.org/learn/security/"}
+	} else if containsReason("directory listing") || hasTag("info-leak") {
+		title = fmt.Sprintf("Directory Listing Enabled / Information Leak on %s", f.Target)
+		impact = "Enables attackers to browse arbitrary files and directories on the server, potentially exposing source files, logs, database backups, or configurations."
+		remediation = "Disable directory listing (indexing) in your web server settings.\n\nFor Nginx (nginx.conf):\nautoindex off;\n\nFor Apache (.htaccess):\nOptions -Indexes"
+		refs = []string{"https://owasp.org/www-community/attacks/Information_Disclosure"}
+	} else if hasTag("phpmyadmin") {
+		title = fmt.Sprintf("Exposed phpMyAdmin Database Console on %s", f.Target)
+		impact = "An exposed database admin panel allows attackers to perform brute-force authentication attacks, potentially gaining full control over your relational database."
+		remediation = "1. Restrict phpMyAdmin access to trusted IPs only.\n2. Change the default login URL pathway from /phpmyadmin to a secure, obscure route."
+		refs = []string{"https://www.phpmyadmin.net/security/"}
+	} else if hasTag("monitoring") || containsReason("grafana") || containsReason("prometheus") {
+		title = fmt.Sprintf("Exposed Grafana / Prometheus Monitoring Interface on %s", f.Target)
+		impact = "Exposes operational telemetry, server metrics, user statistics, or system configurations, aiding attackers in mapping internal architecture."
+		remediation = "1. Configure strong authentication (OAuth, LDAP) for all monitoring portals.\n2. Put the interfaces behind a VPN or SSH tunnel."
+		refs = []string{"https://grafana.com/docs/grafana/latest/security/"}
+	} else if containsReason("bypass") || hasTag("manual-bypass") {
+		title = fmt.Sprintf("Access Control / Potential Bypass Opportunity on %s", f.Target)
+		impact = "Protected folders or endpoints return access restriction codes (e.g. 403 Forbidden, 401 Unauthorized) but might be bypassable using custom proxy headers or request overrides."
+		remediation = "1. Validate access authorization checks strictly on the application server layer.\n2. Do not trust or parse custom client routing headers like X-Original-URL or X-Rewrite-URL."
+		refs = []string{"https://portswigger.net/web-security/access-control"}
+	} else if hasTag("ssrf-candidate") || containsReason("ssrf") {
+		title = fmt.Sprintf("Potential Server-Side Request Forgery (SSRF) on %s", f.Target)
+		impact = "SSRF allows attackers to force the backend server to make HTTP requests to arbitrary domains, potentially exposing internal-only systems (e.g., metadata APIs, local database ports)."
+		remediation = "1. Enforce strict destination IP/domain whitelists.\n2. Avoid passing raw URLs in user input parameters; use mapped keys instead.\n3. Run the backend service in an isolated network segment without direct access to internal network nodes."
+		refs = []string{"https://portswigger.net/web-security/ssrf"}
+	} else if hasTag("sqli-candidate") || containsReason("sqli") {
+		title = fmt.Sprintf("Potential SQL Injection (SQLi) Vulnerability on %s", f.Target)
+		impact = "Enables attackers to manipulate SQL commands executed by the backend database, potentially allowing them to bypass logins, read or write private database content, or execute system commands."
+		remediation = "1. Use parameterized queries (prepared statements) for all database operations.\n2. Never concatenate untrusted user input directly into SQL strings."
+		refs = []string{"https://owasp.org/www-community/attacks/SQL_Injection"}
+	} else {
+		switch strings.ToLower(f.Severity) {
+		case "critical", "high":
+			title = fmt.Sprintf("High Risk Security Vulnerability / Exposure on %s", f.Target)
+			impact = "Indicates a high severity finding that could allow attackers to bypass authorization, leak private credentials, or execute arbitrary operations."
+			remediation = "1. Upgrade the software component to the latest patched version.\n2. Review the raw request/response logs and perform verification testing.\n3. Put the application behind a Web Application Firewall (WAF)."
+		default:
+			title = fmt.Sprintf("Security Discovery / Information Exposure on %s", f.Target)
+			impact = "Exposes non-sensitive services, open ports, or software version signatures, which help attackers map the target's attack surface during reconnaissance."
+			remediation = "1. Restrict public access to non-essential services.\n2. Disable verbose error messages and signature headers that disclose software versions."
+		}
+		refs = []string{"https://owasp.org/www-project-top-ten/"}
+	}
+
+	f.Title = title
+	f.Impact = impact
+	f.Remediation = remediation
+	f.References = refs
+}
+
+func getBaseURL(f *DetailedFinding) string {
+	parts := strings.Split(f.Evidence, "|")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, "http://") || strings.HasPrefix(part, "https://") {
+			urlParts := strings.SplitN(part, "/", 4)
+			if len(urlParts) >= 3 {
+				return urlParts[0] + "//" + urlParts[2]
+			}
+		}
+	}
+	return makeURL(f.Target)
+}
+
+func beginnerNextSteps(f *DetailedFinding) string {
+	hasTag := func(t string) bool {
+		for _, tag := range f.Tags {
+			if strings.EqualFold(tag, t) {
+				return true
+			}
+		}
+		return false
+	}
+	containsReason := func(r string) bool {
+		return strings.Contains(strings.ToLower(f.Description), strings.ToLower(r))
+	}
+
+	var steps []string
+	baseURL := getBaseURL(f)
+
+	if hasTag("git-leak") || containsReason("git repository") {
+		steps = []string{
+			"Run this terminal command: `curl -I " + baseURL + "/.git/HEAD`",
+			"Check output: If you see status `200 OK` and a reference to `refs/heads/`, the history files are leaked!",
+			"Download code: Run this command to download the code: `git-dumper " + baseURL + "/.git/ output-dir` and look inside for credentials.",
+		}
+	} else if hasTag("secrets") || containsReason("exposed environment file") || containsReason(".env") {
+		steps = []string{
+			"Open this link in your browser: " + baseURL + "/.env (or run `curl -s " + baseURL + "/.env`)",
+			"Check output: Look for secret words like `AWS_ACCESS_KEY_ID`, `DB_PASSWORD`, or private keys.",
+		}
+	} else if hasTag("takeover") || containsReason("takeover") {
+		steps = []string{
+			"Run this command to check where the domain points: `dig CNAME " + f.Target + " +short`",
+			"Check target: If the returned domain points to a deleted SaaS page (like Heroku or AWS S3), anyone can register it!",
+			"Takeover target: Go to the SaaS provider page and try to claim/register that exact name.",
+		}
+	} else if hasTag("cors-risk") || containsReason("cors") {
+		steps = []string{
+			"Run this test command: `curl -H \"Origin: https://evil.com\" -I " + baseURL + "`",
+			"Check output headers: If you see `Access-Control-Allow-Origin: https://evil.com` and `Access-Control-Allow-Credentials: true`, it is vulnerable!",
+		}
+	} else if containsReason("graphql") || containsReason("introspection") {
+		steps = []string{
+			"Run this command to download the API map: `curl -s -X POST -H \"Content-Type: application/json\" --data '{\"query\":\"{__schema{types{name}}}\"}' " + baseURL + "/graphql`",
+			"Check output: If it prints a list of queries and types, introspection is enabled! Check them for admin endpoints.",
+		}
+	} else if containsReason("directory listing") || hasTag("info-leak") {
+		steps = []string{
+			"Open this link in your browser: " + baseURL + " (or run `curl -s " + baseURL + "`)",
+			"Check output: If you see a list of files/folders (Index of /), directory listing is enabled. Look for backups like `.zip` or `.sql` files!",
+		}
+	} else if hasTag("ssrf-candidate") || containsReason("ssrf") {
+		steps = []string{
+			"Find the URL parameter (like `?url=` or `?file=`) in the discovery links.",
+			"Run this callback test command: `curl -i \"" + baseURL + "/path?url=http://your-interactsh-id.oast.fun\"` (replace with your Interactsh listener host)",
+			"Check listener: If your listener receives a hit, the target server has connected to your listener host!",
+		}
+	} else if hasTag("sqli-candidate") || containsReason("sqli") {
+		steps = []string{
+			"Type a single quote `'` in the input parameter to see if the website crashes or shows database error codes.",
+			"Automate check: Run `sqlmap -u \"" + baseURL + "/path?param=val\" --batch`",
+		}
+	} else {
+		switch strings.ToLower(f.Severity) {
+		case "critical", "high":
+			steps = []string{
+				"Open this link in your browser proxy: " + baseURL + ".",
+				"Fuzz inputs: Try typing bad characters (like `<script>` tags for XSS or path traversals `../../etc/passwd`) in text boxes.",
+				"Quick web check command: `curl -i \"" + baseURL + "\"`",
+			}
+		default:
+			steps = []string{
+				"Run this command to check headers: `curl -I \"" + baseURL + "\"`",
+				"Check headers: Look for missing security headers (like `Content-Security-Policy`) or versions showing in `Server` / `X-Powered-By` fields.",
+			}
+		}
+	}
+
+	return strings.Join(steps, "\n")
+}
+
 func filterSourceReasons(reasons []string) []string {
 	clean := make([]string, 0, len(reasons))
 	sourceCount := 0
@@ -785,7 +1002,6 @@ func filterSourceReasons(reasons []string) []string {
 	return clean
 }
 
-// filterEmpty removes blank strings from a slice.
 func filterEmpty(ss []string) []string {
 	out := make([]string, 0, len(ss))
 	for _, s := range ss {
@@ -803,7 +1019,7 @@ func (rg *ReportGenerator) draftReportWithLLM(ctx context.Context, findings []De
 
 	var findingsBuf strings.Builder
 	for i, f := range findings {
-		if i >= 20 { // Cap to avoid prompt limits
+		if i >= 20 {
 			findingsBuf.WriteString(fmt.Sprintf("\n... and %d more findings omitted for brevity.\n", len(findings)-20))
 			break
 		}

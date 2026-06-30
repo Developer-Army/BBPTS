@@ -1,11 +1,12 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"crypto/md5"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -34,21 +35,31 @@ func (t *GowitnessTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 		return nil, nil
 	}
 
-	// Create temp file for targets list
-	tmpFile, err := os.CreateTemp("", "gowitness_targets_*.txt")
+	tmpDir := recon.GetTmpResultsDir(ctx)
+	if tmpDir == "" {
+		tmpDir = filepath.Join("results", "tmp")
+	}
+	if errDir := os.MkdirAll(tmpDir, 0700); errDir != nil {
+		return nil, fmt.Errorf("failed to create workspace temp dir: %w", errDir)
+	}
+
+	tmpFile, err := os.CreateTemp(tmpDir, "gowitness_targets_*.txt")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gowitness temp file: %w", err)
 	}
 	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
 
 	for _, target := range httpTargets {
 		if _, err := tmpFile.WriteString(target + "\n"); err != nil {
+			tmpFile.Close()
 			return nil, fmt.Errorf("failed to write to gowitness temp file: %w", err)
 		}
 	}
 
-	// Ensure destination directory exists
+	if err := tmpFile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close gowitness temp file: %w", err)
+	}
+
 	destDir := "results/screenshots"
 	if tmpDir := recon.GetTmpResultsDir(ctx); tmpDir != "" {
 		destDir = filepath.Join(filepath.Dir(tmpDir), "screenshots")
@@ -62,13 +73,11 @@ func (t *GowitnessTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 		args = append(args, "--header", fmt.Sprintf("%s: %s", k, v))
 	}
 
-	// Execute gowitness
 	_, err = RunCommandLines(ctx, "gowitness", args...)
 	if err != nil {
 		return nil, fmt.Errorf("gowitness execution failed: %w", err)
 	}
 
-	// Match and rename gowitness screenshots to match MD5 naming convention of BBPTS reporting
 	files, errRead := os.ReadDir(destDir)
 	if errRead == nil {
 		for _, f := range files {
@@ -97,9 +106,15 @@ func (t *GowitnessTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 					}
 					md5URLSlash := fmt.Sprintf("%x.png", md5.Sum([]byte(targetWithSlash)))
 
-					_ = copyFile(srcPath, filepath.Join(destDir, md5URL))
-					_ = copyFile(srcPath, filepath.Join(destDir, md5Host))
-					_ = copyFile(srcPath, filepath.Join(destDir, md5URLSlash))
+					if errCopy := copyFile(srcPath, filepath.Join(destDir, md5URL)); errCopy != nil {
+						slog.Error("gowitness: failed to copy screenshot", "src", srcPath, "dst", md5URL, "error", errCopy)
+					}
+					if errCopy := copyFile(srcPath, filepath.Join(destDir, md5Host)); errCopy != nil {
+						slog.Error("gowitness: failed to copy screenshot", "src", srcPath, "dst", md5Host, "error", errCopy)
+					}
+					if errCopy := copyFile(srcPath, filepath.Join(destDir, md5URLSlash)); errCopy != nil {
+						slog.Error("gowitness: failed to copy screenshot", "src", srcPath, "dst", md5URLSlash, "error", errCopy)
+					}
 				}
 			}
 		}

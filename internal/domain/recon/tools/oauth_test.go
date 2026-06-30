@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,15 +12,12 @@ func TestOAuthTesterTool(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 
-		// Test Open Redirect
 		if q.Get("redirect_uri") == "https://example.com" {
 			w.Header().Set("Location", "https://example.com/callback")
 			w.WriteHeader(http.StatusFound)
 			return
 		}
 
-		// Test missing state, implicit flow response_type=token, or missing code_challenge
-		// If it's one of these test requests, return 200 OK to indicate successful bypass/access
 		if q.Get("state") == "" || q.Get("response_type") == "token" || (q.Get("client_id") != "" && q.Get("code_challenge") == "") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte("mock authorization screen"))
@@ -36,7 +33,6 @@ func TestOAuthTesterTool(t *testing.T) {
 		t.Errorf("expected tool name oauth, got %s", tool.Name())
 	}
 
-	// Construct a target authorize URL containing all params to trigger all checks
 	targetURL := server.URL + "/oauth/authorize?client_id=client123&response_type=code&redirect_uri=https://myhost.com/cb&state=secretstate&code_challenge=challenge&code_challenge_method=S256"
 
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{targetURL}, 1)

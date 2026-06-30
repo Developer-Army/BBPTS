@@ -7,7 +7,7 @@ import (
 )
 
 func TestReorderArgs(t *testing.T) {
-	// Register the CLI flags first so that flag.Lookup can resolve them.
+
 	if flag.Lookup("light") == nil {
 		flag.Bool("light", false, "")
 	}

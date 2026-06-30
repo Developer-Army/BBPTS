@@ -13,14 +13,11 @@ import (
 	"time"
 )
 
-// ProxyFeeder sends requests through a specified proxy to warm up tools like Burp or Caido.
 type ProxyFeeder struct {
 	ProxyURL   string
 	httpClient *http.Client
 }
 
-// NewProxyFeeder creates a ProxyFeeder.
-// If insecure is true, TLS certificate verification is skipped (useful for intercepting proxies).
 func NewProxyFeeder(proxyURL string, insecure bool) (*ProxyFeeder, error) {
 	if proxyURL == "" {
 		return nil, fmt.Errorf("proxy URL cannot be empty")
@@ -34,7 +31,7 @@ func NewProxyFeeder(proxyURL string, insecure bool) (*ProxyFeeder, error) {
 	transport := &http.Transport{
 		Proxy: http.ProxyURL(u),
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: insecure, //nolint:gosec
+			InsecureSkipVerify: insecure,
 		},
 		DialContext: (&net.Dialer{
 			Timeout: 5 * time.Second,
@@ -46,7 +43,7 @@ func NewProxyFeeder(proxyURL string, insecure bool) (*ProxyFeeder, error) {
 		httpClient: &http.Client{
 			Transport: transport,
 			Timeout:   10 * time.Second,
-			// Do not follow redirects so we see the original response in the proxy
+
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
@@ -54,7 +51,6 @@ func NewProxyFeeder(proxyURL string, insecure bool) (*ProxyFeeder, error) {
 	}, nil
 }
 
-// FeedURLs sends requests for all given URLs through the proxy concurrently.
 func (pf *ProxyFeeder) FeedURLs(ctx context.Context, urls []string, concurrency int) {
 	if concurrency <= 0 {
 		concurrency = 5
@@ -93,7 +89,6 @@ func (pf *ProxyFeeder) feedURL(ctx context.Context, u string) {
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; BBPTS-ProxyFeeder/1.0)")
 
-	// We don't really care about the response body, just that it passed through the proxy
 	resp, err := pf.httpClient.Do(req)
 	if err != nil {
 		slog.Debug("proxy feeder: request failed", "url", u, "error", err)

@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// FingerprintRecord stores a fingerprint snapshot for a host at a point in time.
 type FingerprintRecord struct {
 	Host        string    `json:"host"`
 	JARMHash    string    `json:"jarm_hash"`
@@ -26,10 +25,8 @@ type FingerprintRecord struct {
 	Checksum    string    `json:"checksum"` // for quick change detection
 }
 
-// FingerprintResult is the canonical result emitted by Fingerprinter.
 type FingerprintResult = Result
 
-// FingerprintChange describes a fingerprint transition detected for a host.
 type FingerprintChange struct {
 	Host          string            `json:"host"`
 	Previous      FingerprintRecord `json:"previous"`
@@ -38,14 +35,12 @@ type FingerprintChange struct {
 	DetectedAt    time.Time         `json:"detected_at"`
 }
 
-// FingerprintTimeline tracks fingerprint history per host to detect infrastructure changes.
 type FingerprintTimeline struct {
 	baseDir string
 	mu      sync.RWMutex
 	history map[string][]FingerprintRecord // host → records (desc by timestamp)
 }
 
-// NewFingerprintTimeline creates a timeline store.
 func NewFingerprintTimeline(baseDir string) (*FingerprintTimeline, error) {
 	if err := os.MkdirAll(baseDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create timeline dir: %w", err)
@@ -54,14 +49,13 @@ func NewFingerprintTimeline(baseDir string) (*FingerprintTimeline, error) {
 		baseDir: baseDir,
 		history: make(map[string][]FingerprintRecord),
 	}
-	// Load existing history from disk (best-effort)
+
 	if err := ft.loadAllHistory(); err != nil {
 		slog.Warn("Failed to load existing fingerprint timeline", "error", err)
 	}
 	return ft, nil
 }
 
-// Record saves a new fingerprint snapshot for a host.
 func (ft *FingerprintTimeline) Record(sessionID string, result FingerprintResult) error {
 	rec := FingerprintRecord{
 		Host:        result.Host,
@@ -77,21 +71,17 @@ func (ft *FingerprintTimeline) Record(sessionID string, result FingerprintResult
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
 
-	// Prepend to keep history sorted descending by timestamp
 	ft.history[result.Host] = append([]FingerprintRecord{rec}, ft.history[result.Host]...)
 
-	// Prune to last 30 entries per host (memory control)
 	if len(ft.history[result.Host]) > 30 {
 		ft.history[result.Host] = ft.history[result.Host][:30]
 	}
 
-	// Async persist
 	go ft.persistRecord(result.Host, rec)
 
 	return nil
 }
 
-// GetChanges returns hosts whose fingerprint changed within the given window.
 func (ft *FingerprintTimeline) GetChanges(since time.Duration) map[string][]FingerprintChange {
 	ft.mu.RLock()
 	defer ft.mu.RUnlock()
@@ -107,14 +97,14 @@ func (ft *FingerprintTimeline) GetChanges(since time.Duration) map[string][]Fing
 		var latest, previous *FingerprintRecord
 		for i, r := range records {
 			if r.Timestamp.Before(cutoff) {
-				// First record that is older than cutoff = previous
+
 				if i > 0 {
 					previous = &records[i-1]
-					latest = &records[i-1] // latest within window
+					latest = &records[i-1]
 				}
 				break
 			}
-			// r.Timestamp >= cutoff, r is within window
+
 			if latest == nil {
 				latest = &r
 			}
@@ -142,7 +132,6 @@ func (ft *FingerprintTimeline) GetChanges(since time.Duration) map[string][]Fing
 	return changes
 }
 
-// diffFields returns a human-readable list of changed fields.
 func (ft *FingerprintTimeline) diffFields(prev, curr FingerprintRecord) []string {
 	var changed []string
 	if curr.JARMHash != prev.JARMHash {
@@ -167,7 +156,6 @@ func safeHash(h string) string {
 	return h[:8]
 }
 
-// GetHistory returns the fingerprint history for a host.
 func (ft *FingerprintTimeline) GetHistory(host string, limit int) []FingerprintRecord {
 	ft.mu.RLock()
 	defer ft.mu.RUnlock()
@@ -182,7 +170,6 @@ func (ft *FingerprintTimeline) GetHistory(host string, limit int) []FingerprintR
 	return records
 }
 
-// ClusterByInfrastructure groups hosts that share identical latest fingerprints.
 func (ft *FingerprintTimeline) ClusterByInfrastructure() map[string][]string {
 	ft.mu.RLock()
 	defer ft.mu.RUnlock()
@@ -203,14 +190,12 @@ func (ft *FingerprintTimeline) ClusterByInfrastructure() map[string][]string {
 	return clusters
 }
 
-// computeRecordChecksum creates a hash of fingerprint fields.
 func (ft *FingerprintTimeline) computeRecordChecksum(rec FingerprintRecord) string {
 	data := fmt.Sprintf("%s|%s|%s|%s|%s", rec.Host, rec.JARMHash, rec.FaviconHash, rec.TLSIssuer, rec.TLSSubject)
 	h := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(h[:8])
 }
 
-// persistRecord writes a single record to JSONL file.
 func (ft *FingerprintTimeline) persistRecord(host string, rec FingerprintRecord) {
 	hostDir := filepath.Join(ft.baseDir, sanitizeHost(host))
 	if err := os.MkdirAll(hostDir, 0700); err != nil {
@@ -236,7 +221,6 @@ func (ft *FingerprintTimeline) persistRecord(host string, rec FingerprintRecord)
 	}
 }
 
-// loadAllHistory scans disk and loads all fingerprint history.
 func (ft *FingerprintTimeline) loadAllHistory() error {
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
@@ -255,7 +239,6 @@ func (ft *FingerprintTimeline) loadAllHistory() error {
 	})
 }
 
-// loadHostHistory reads JSONL for a host.
 func (ft *FingerprintTimeline) loadHostHistory(host string) error {
 	hostDir := filepath.Join(ft.baseDir, sanitizeHost(host))
 	fpath := filepath.Join(hostDir, "fingerprints.jsonl")
@@ -279,7 +262,6 @@ func (ft *FingerprintTimeline) loadHostHistory(host string) error {
 		records = append(records, rec)
 	}
 
-	// Sort desc by timestamp
 	sort.Slice(records, func(i, j int) bool {
 		return records[i].Timestamp.After(records[j].Timestamp)
 	})
@@ -288,7 +270,6 @@ func (ft *FingerprintTimeline) loadHostHistory(host string) error {
 	return nil
 }
 
-// sanitizeHost returns hostname without port, lowercase.
 func sanitizeHost(host string) string {
 	for i, r := range host {
 		if r == ':' || r == '/' {

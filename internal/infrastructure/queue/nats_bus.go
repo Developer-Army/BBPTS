@@ -14,7 +14,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
-// NatsBus implements EventBus using NATS JetStream for guaranteed delivery.
 type NatsBus struct {
 	nc          *nats.Conn
 	js          nats.JetStreamContext
@@ -26,7 +25,6 @@ type NatsBus struct {
 
 var _ func(string) (EventBus, error) = NewNatsBus
 
-// NewNatsBus creates a new NatsBus connecting to the given URL and initializes JetStream.
 func NewNatsBus(url string) (EventBus, error) {
 	nc, err := nats.Connect(url, nats.RetryOnFailedConnect(true), nats.MaxReconnects(10), nats.ReconnectWait(time.Second))
 	if err != nil {
@@ -39,12 +37,11 @@ func NewNatsBus(url string) (EventBus, error) {
 		return nil, fmt.Errorf("failed to get jetstream context: %w", err)
 	}
 
-	// Create or update the stream for recon events
 	streamName := "RECON"
 	cfg := &nats.StreamConfig{
 		Name:     streamName,
 		Subjects: []string{"recon.*", "scan.*", "worker.*"},
-		Storage:  nats.FileStorage, // Persistence
+		Storage:  nats.FileStorage,
 		MaxAge:   24 * time.Hour,
 	}
 	_, err = js.StreamInfo(streamName)
@@ -70,12 +67,10 @@ func NewNatsBus(url string) (EventBus, error) {
 	}, nil
 }
 
-// Subscribe registers a new subscriber for the given event type.
 func (b *NatsBus) Subscribe(eventType string) Subscriber {
 	return b.subscribeInternal(eventType, "")
 }
 
-// QueueSubscribe registers a queue subscriber for distributed worker load balancing.
 func (b *NatsBus) QueueSubscribe(eventType, queue string) Subscriber {
 	return b.subscribeInternal(eventType, queue)
 }
@@ -128,7 +123,6 @@ func (b *NatsBus) subscribeInternal(eventType, queue string) Subscriber {
 	return ch
 }
 
-// Unsubscribe removes a subscriber channel and unsubscribes the NATS subscription.
 func (b *NatsBus) Unsubscribe(ch Subscriber) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -138,7 +132,6 @@ func (b *NatsBus) Unsubscribe(ch Subscriber) {
 		_ = sub.Unsubscribe()
 		delete(b.chToSub, ch)
 
-		// Remove from event type map
 		for eventType, subs := range b.subscribers {
 			for i, s := range subs {
 				if s == sub {
@@ -149,7 +142,6 @@ func (b *NatsBus) Unsubscribe(ch Subscriber) {
 		}
 	}
 
-	// Remove from channels list and close
 	for i, c := range b.channels {
 		if c == ch {
 			b.channels = append(b.channels[:i], b.channels[i+1:]...)
@@ -159,7 +151,6 @@ func (b *NatsBus) Unsubscribe(ch Subscriber) {
 	}
 }
 
-// Publish publishes an event to NATS JetStream.
 func (b *NatsBus) Publish(ev Event) {
 	data, err := json.Marshal(ev)
 	if err != nil {
@@ -176,7 +167,6 @@ func (b *NatsBus) Publish(ev Event) {
 	}
 }
 
-// Close gracefully shuts down the NATS connection.
 func (b *NatsBus) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

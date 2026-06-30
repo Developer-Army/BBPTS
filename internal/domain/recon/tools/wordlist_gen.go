@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,7 +14,6 @@ import (
 
 type WordlistGenTool struct{}
 
-// Tech path vocabulary: tech keyword -> list of paths to add
 var techPaths = map[string][]string{
 	"wordpress":  {"wp-json", "wp-admin", "wp-cron.php", "xmlrpc.php", "wp-login.php", "wp-content", "wp-includes"},
 	"rails":      {"rails/info", "rails/mailers", "letter_opener", "sidekiq", "delayed_job"},
@@ -38,7 +37,6 @@ var techPaths = map[string][]string{
 	"grpc":       {"/grpc.reflection", "/grpc.health.v1.Health/Check"},
 }
 
-// Industry vocabulary
 var industryPaths = map[string][]string{
 	"fintech":    {"transactions", "ledger", "wallet", "kyc", "compliance", "accounts", "transfers", "payments"},
 	"healthcare": {"patients", "records", "appointments", "prescriptions", "lab-results"},
@@ -78,7 +76,6 @@ func (t *WordlistGenTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 
 		wordlist := t.Generate(domain, nil, nil, "")
 
-		// Save wordlist to file
 		outputDir := filepath.Join(".", "wordlists", "generated")
 		_ = os.MkdirAll(outputDir, 0700)
 		outputPath := filepath.Join(outputDir, domain+".txt")
@@ -111,10 +108,8 @@ func (t *WordlistGenTool) Generate(targetDomain string, detectedTechs []string, 
 		words = append(words, w)
 	}
 
-	// Company vocabulary
-CompanyNameVocab(targetDomain, addWord)
+	CompanyNameVocab(targetDomain, addWord)
 
-	// Tech stack vocabulary
 	for _, tech := range detectedTechs {
 		techLower := strings.ToLower(tech)
 		for keyword, paths := range techPaths {
@@ -126,12 +121,10 @@ CompanyNameVocab(targetDomain, addWord)
 		}
 	}
 
-	// Discovered path vocabulary: derive variations
 	for _, path := range discoveredPaths {
 		derivePathVariations(path, addWord)
 	}
 
-	// Industry vocabulary
 	if industry != "" {
 		industryLower := strings.ToLower(industry)
 		for ind, paths := range industryPaths {
@@ -143,7 +136,6 @@ CompanyNameVocab(targetDomain, addWord)
 		}
 	}
 
-	// Common high-value paths always included
 	commonPaths := []string{
 		"admin", "login", "api", "dashboard", "health", "status",
 		"config", "env", "debug", "trace", "metrics", "prometheus",
@@ -166,7 +158,6 @@ func CompanyNameVocab(domain string, addWord func(string)) {
 		return
 	}
 
-	// Main company name (first part)
 	company := parts[0]
 	addWord(company)
 	addWord(company + "-api")
@@ -191,7 +182,6 @@ func CompanyNameVocab(domain string, addWord func(string)) {
 	addWord(company + "-status")
 	addWord(company + "-health")
 
-	// Hyphenated variations
 	if len(company) > 3 {
 		addWord(company[:3] + "-api")
 		addWord(company[:3] + "-admin")
@@ -210,16 +200,13 @@ func derivePathVariations(path string, addWord func(string)) {
 		return
 	}
 
-	// Add the base resource name
 	addWord(parts[0])
 
-	// Add common suffixes
 	suffixes := []string{"", "/admin", "/settings", "/config", "/list", "/export", "/import", "/search", "/bulk", "/batch", "/status", "/health"}
 	for _, suffix := range suffixes {
 		addWord(parts[0] + suffix)
 	}
 
-	// If path has version, also try other versions
 	if len(parts) > 1 && strings.HasPrefix(parts[0], "v") {
 		base := strings.Join(parts[1:], "/")
 		for _, ver := range []string{"v1", "v2", "v3"} {
@@ -227,7 +214,6 @@ func derivePathVariations(path string, addWord func(string)) {
 		}
 	}
 
-	// Add sibling paths
 	if len(parts) > 1 {
 		parent := parts[0]
 		siblings := []string{"users", "admin", "settings", "profile", "accounts", "roles", "permissions", "logs", "audit"}

@@ -14,9 +14,8 @@ import (
 	"time"
 )
 
-// ProcessTriageIntegrations executes GitHub, Jira, and DefectDojo integrations based on environment configuration.
 func ProcessTriageIntegrations(ctx context.Context, r *Report, reportJSONPath string) {
-	// 1. DefectDojo upload
+
 	ddURL := os.Getenv("DEFECTDOJO_URL")
 	ddToken := os.Getenv("DEFECTDOJO_TOKEN")
 	ddProdID := os.Getenv("DEFECTDOJO_PRODUCT_ID")
@@ -29,7 +28,6 @@ func ProcessTriageIntegrations(ctx context.Context, r *Report, reportJSONPath st
 		}
 	}
 
-	// 2. GitHub issues for High/Critical findings
 	ghToken := os.Getenv("GITHUB_TOKEN")
 	ghRepo := os.Getenv("GITHUB_REPO")
 	if ghToken != "" && ghRepo != "" {
@@ -44,7 +42,6 @@ func ProcessTriageIntegrations(ctx context.Context, r *Report, reportJSONPath st
 		}
 	}
 
-	// 3. Jira tickets for High/Critical findings
 	jiraURL := os.Getenv("JIRA_URL")
 	jiraUser := os.Getenv("JIRA_USER")
 	jiraToken := os.Getenv("JIRA_TOKEN")
@@ -195,7 +192,6 @@ func createJiraTicket(ctx context.Context, jiraURL, username, token, project str
 	return nil
 }
 
-// GenerateDynamicExecutiveSummary produces an LLM-assisted or highly descriptive template-based summary.
 func GenerateDynamicExecutiveSummary(findings []DetailedFinding) ExecutiveSummary {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey != "" {

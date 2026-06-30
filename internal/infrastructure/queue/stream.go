@@ -11,13 +11,11 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// StreamManager handles durable event streams for the distributed recon mesh.
 type StreamManager struct {
 	nc *nats.Conn
 	js nats.JetStreamContext
 }
 
-// NewStreamManager connects to NATS and ensures the base JetStream configuration.
 func NewStreamManager(url string) (*StreamManager, error) {
 	nc, err := nats.Connect(url, nats.RetryOnFailedConnect(true), nats.MaxReconnects(-1), nats.ReconnectWait(2*time.Second))
 	if err != nil {
@@ -42,12 +40,10 @@ func NewStreamManager(url string) (*StreamManager, error) {
 	return streamMgr, nil
 }
 
-// JetStream returns the underlying JetStream context.
 func (sm *StreamManager) JetStream() nats.JetStreamContext {
 	return sm.js
 }
 
-// EnsureStream guarantees that a durable stream exists for a given task/event type.
 func (sm *StreamManager) EnsureStream(streamName string, subjects []string) error {
 	if sm.js == nil {
 		return fmt.Errorf("jetstream context is nil")
@@ -55,10 +51,10 @@ func (sm *StreamManager) EnsureStream(streamName string, subjects []string) erro
 	cfg := &nats.StreamConfig{
 		Name:       streamName,
 		Subjects:   subjects,
-		Storage:    nats.FileStorage, // Durable persistence
-		MaxAge:     72 * time.Hour,   // Keep events for 3 days for replayability
-		Replicas:   1,                // Can be increased for HA clusters
-		Duplicates: 5 * time.Minute,  // Duplicate message detection window
+		Storage:    nats.FileStorage,
+		MaxAge:     72 * time.Hour,
+		Replicas:   1,
+		Duplicates: 5 * time.Minute,
 	}
 	_, err := sm.js.StreamInfo(streamName)
 	if err != nil {
@@ -76,7 +72,6 @@ func (sm *StreamManager) EnsureStream(streamName string, subjects []string) erro
 	return nil
 }
 
-// PublishTask reliably publishes a task to the stream with retries.
 func (sm *StreamManager) PublishTask(subject string, payload interface{}) error {
 	if payload == nil {
 		return fmt.Errorf("payload cannot be nil")
@@ -89,7 +84,6 @@ func (sm *StreamManager) PublishTask(subject string, payload interface{}) error 
 		return err
 	}
 
-	// Publish with sync ack to guarantee it's durable
 	_, err = sm.js.Publish(mapSubject(subject), data)
 	if err != nil {
 		return fmt.Errorf("failed to publish task to %s: %w", subject, err)
@@ -97,7 +91,6 @@ func (sm *StreamManager) PublishTask(subject string, payload interface{}) error 
 	return nil
 }
 
-// SubscribeWorker attaches an idempotent consumer to a durable queue group.
 func (sm *StreamManager) SubscribeWorker(ctx context.Context, subject, queueGroup string, handler func(data []byte) error) error {
 	if handler == nil {
 		return fmt.Errorf("handler cannot be nil")
@@ -106,7 +99,7 @@ func (sm *StreamManager) SubscribeWorker(ctx context.Context, subject, queueGrou
 		return fmt.Errorf("jetstream context is nil")
 	}
 	cb := func(msg *nats.Msg) {
-		// Idempotent execution handler
+
 		err := handler(msg.Data)
 		if err != nil {
 			slog.Warn("Worker task failed, NAKing for retry", "subject", subject, "error", err)
@@ -129,7 +122,6 @@ func (sm *StreamManager) SubscribeWorker(ctx context.Context, subject, queueGrou
 	return nil
 }
 
-// Close disconnects the stream manager gracefully.
 func (sm *StreamManager) Close() error {
 	if sm.nc != nil {
 		if errDrain := sm.nc.Drain(); errDrain != nil {

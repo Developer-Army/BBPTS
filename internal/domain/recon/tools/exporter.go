@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// ExportToBurpXML generates a Burp Suite XML findings file for import into
-// Burp Scanner. Each host is exported as a Burp item with full scope coverage.
 func ExportToBurpXML(filename string, hosts []string) error {
 	f, err := os.Create(filename)
 	if err != nil {
@@ -41,7 +39,6 @@ func ExportToBurpXML(filename string, hosts []string) error {
 	return err
 }
 
-// ExportToCaidoTarget generates a simple line-delimited file for Caido import.
 func ExportToCaidoTarget(filename string, hosts []string) error {
 	f, err := os.Create(filename)
 	if err != nil {

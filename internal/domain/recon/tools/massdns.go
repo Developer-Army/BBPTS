@@ -1,9 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
-	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"strings"
 )
@@ -33,12 +32,9 @@ func (t *MassdnsTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targe
 			continue
 		}
 
-		// Build a temporary list file for massdns
 		args := []string{"-r", "/etc/resolv.conf", "-t", "A", "-o", "S"}
 
-		// Run massdns with stdin
-		cmd := fmt.Sprintf("echo '%s' | massdns %s", target, strings.Join(args, " "))
-		lines, err := RunCommandLines(ctx, "bash", "-c", cmd)
+		lines, err := RunCommandWithInputLines(ctx, []byte(target), "massdns", args...)
 		if err != nil {
 			slog.Debug("massdns execution warning", "target", target, "error", err)
 			continue
@@ -50,7 +46,6 @@ func (t *MassdnsTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targe
 				continue
 			}
 
-			// Parse massdns output: domain. A ip
 			parts := strings.Fields(line)
 			if len(parts) >= 3 && parts[1] == "A" {
 				domain := strings.TrimSuffix(parts[0], ".")

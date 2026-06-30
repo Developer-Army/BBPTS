@@ -12,7 +12,7 @@ import (
 )
 
 func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
-	// 1. Create a test HTTP server hosting a Swagger specification
+
 	swaggerServed := `{
 		"swagger": "2.0",
 		"basePath": "/api/v1",
@@ -45,8 +45,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 	parsedURL, _ := url.Parse(server.URL)
 	swaggerURL := server.URL + "/swagger.json"
 
-	// 2. Set up mock tools
-	// A directory bruteforcer (ffuf) that discovers the swagger.json spec
 	mockFfuf := &tools.MockTool{
 		ToolName: "ffuf",
 		Events: []Event{
@@ -54,7 +52,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 		},
 	}
 
-	// Nuclei tool to assert it receives the parsed endpoints
 	mockNuclei := &tools.MockTool{
 		ToolName: "nuclei",
 		Events: []Event{
@@ -64,7 +61,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 		},
 	}
 
-	// Dalfox tool to assert it receives the parameter-rich endpoint
 	mockDalfox := &tools.MockTool{
 		ToolName: "dalfox",
 		Events: []Event{
@@ -74,7 +70,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 		},
 	}
 
-	// 3. Configure Orchestrator
 	config := Config{
 		ToolNames:     []string{"ffuf", "nuclei", "dalfox"},
 		Threads:       2,
@@ -82,18 +77,14 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 	}
 	orchestrator := NewOrchestrator(config)
 
-	// Overwrite the orchestrator tools with our mock implementations
 	orchestrator.tools = []Tool{mockFfuf, mockNuclei, mockDalfox}
 
-	// 4. Run the pipeline stage containing these tools (Stage 4)
 	ctx := context.Background()
 	events, err := orchestrator.Run(ctx, []string{server.URL})
 	if err != nil {
 		t.Fatalf("orchestrator execution failed: %v", err)
 	}
 
-	// 5. Verify outcomes
-	// A. Verify that the api_endpoint was extracted and reported
 	foundAPIEndpoint := false
 	foundAuthScheme := false
 	for _, ev := range events {
@@ -107,9 +98,8 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 	if !foundAPIEndpoint {
 		t.Error("expected api_endpoint event not found in orchestrator output")
 	}
-	_ = foundAuthScheme // Swagger spec had no auth scheme, so no discovery event for auth expected
+	_ = foundAuthScheme
 
-	// B. Verify that Nuclei was executed with the parsed endpoints
 	if mockNuclei.CallCount == 0 {
 		t.Error("expected nuclei to be executed on swagger-discovered targets")
 	}
@@ -135,7 +125,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 		t.Errorf("expected nuclei to scan query-rich endpoint '/api/v1/users?id=1', got targets: %v", mockNuclei.LastTargets)
 	}
 
-	// C. Verify that Dalfox was executed with parameter-rich endpoints only
 	if mockDalfox.CallCount == 0 {
 		t.Error("expected dalfox to be executed on swagger-discovered targets")
 	}
@@ -145,7 +134,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 		}
 	}
 
-	// D. Verify that mock findings from Nuclei/Dalfox on Swagger endpoints are aggregated
 	foundNucleiFinding := false
 	foundDalfoxFinding := false
 	for _, ev := range events {
@@ -163,8 +151,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 		t.Error("dalfox vulnerability finding on swagger endpoint not aggregated")
 	}
 
-	// E. Verify that targets generated are scoped to allowed hosts (Scope Guard testing)
-	// We'll set a scope guard that blocks the server host and run it again
 	scopeConfig := Config{
 		ToolNames:     []string{"ffuf", "nuclei", "dalfox"},
 		Threads:       2,
@@ -173,7 +159,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 	scopedOrchestrator := NewOrchestrator(scopeConfig)
 	scopedOrchestrator.tools = []Tool{mockFfuf, mockNuclei, mockDalfox}
 
-	// Run with initial target as a completely different domain (e.g. google.com) to restrict scope
 	mockFfuf.CallCount = 0
 	mockNuclei.CallCount = 0
 	mockDalfox.CallCount = 0
@@ -182,7 +167,6 @@ func TestOrchestratorSwaggerDiscoveryIntegration(t *testing.T) {
 
 	_, _ = scopedOrchestrator.Run(ctx, []string{"https://google.com"})
 
-	// Nuclei and Dalfox should NOT be called on localhost server endpoints since they are out of scope of google.com
 	for _, tgt := range mockNuclei.LastTargets {
 		if strings.Contains(tgt, parsedURL.Host) {
 			t.Errorf("Scope Guard failure: out-of-scope target fuzzed by nuclei: %s", tgt)

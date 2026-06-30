@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 	"sync"
 )
@@ -53,7 +53,6 @@ func (t *ArjunTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 				return
 			}
 
-			// Run arjun to find hidden parameters
 			args := []string{"-u", urlStr, "--passive"}
 			headers := scanCtx.Headers
 			for k, v := range headers {
@@ -70,7 +69,7 @@ func (t *ArjunTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 				if line == "" {
 					continue
 				}
-				// Arjun outputs urls with discovered parameters appended
+
 				if strings.Contains(line, "?") || strings.Contains(line, "&") {
 					targetEvents = append(targetEvents, recon.NewEvent(line, t.Name(), "discovery", map[string]string{
 						"discovered_by": "arjun",

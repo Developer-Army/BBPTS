@@ -4,6 +4,42 @@ All notable changes to BBPTS are documented here.
 Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] — 2026-07-09
+
+### Added
+- **Doctor JSON output**: `-doctor` now supports `-json` flag for machine-readable health reports.
+- **Nuclei target cap**: Added `nuclei_target_cap` config field to limit nuclei concurrency (defaults to 200).
+- **Login form credentials**: Added `login_url`, `login_user`, `login_pass`, `login_form_user`, `login_form_pass` to orchestrator config for automated auth flows.
+- **Open redirect scope validation**: Added `inScopeHost` helper and expanded redirect parameter list to 40+ common variants.
+
+### Fixed
+- **Open redirect false positives**: Redirect responses now validate destination hostname against scope before flagging.
+- **CI workflow errors**: Fixed lint failures in mobile API discovery, mobile static analysis, source map, supply chain, playbook generator, and browser recon tools.
+- **Windows runner helper**: Fixed compilation issue on Windows builds.
+- **Registry cleanup**: Removed dead tool registration paths and simplified registry initialization.
+- **Dependency vulnerabilities**: Upgraded `utls` to v1.8.2 and `circl` to v1.6.1 to resolve govulncheck findings.
+- **CI Go version**: Bumped CI workflows from Go 1.23 to 1.24 to match updated dependency requirements.
+
+### Changed
+- **Removed MockMode**: Dropped unused `mock_mode` config field from `Config` and `Orchestrator`.
+- **Dead code purge**: Removed ~1,000 lines of unused comments, test stubs, and deprecated utility functions across 350+ files.
+- **Setup scripts**: Updated `setup.sh` and `setup.bat` with corrected tool install paths.
+- **Contributing links**: Surfaced CONTRIBUTING.md and case study links in README.
+- **Documentation**: Adding version `[1.5.0.1]` and `[1.5.1]` to CHANGELOG.md
+
+---
+
+## [1.5.0.1] — 2026-07-02
+
+### Fixed
+- **CI workflow errors**: Fixed lint failures across mobile API discovery, mobile static analysis, source map, supply chain, playbook generator, and browser recon tools.
+- **Code quality**: Resolved lint warnings and compilation issues across tool adapters and test files.
+
+### Changed
+- **Documentation**: Surfaced contributing guidelines and case study links in README.
+
+---
+
 ## [1.5.0] — 2026-06-30
 
 ### Added
@@ -17,9 +53,6 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
 - **Rate Limit Bypass**: Added detection tool for rate limiting bypasses.
 - **Auth Matrix Tool**: Added IDOR and broken access control detection.
 - **Specialized Scanners**: Added SOAP, mobile manifest, and cloud credentials scanners.
-
-### Changed
-- **Version**: Bumped to v1.5.0.
 
 ---
 

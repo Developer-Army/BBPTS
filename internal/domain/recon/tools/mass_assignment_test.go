@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,10 +15,10 @@ import (
 func TestMassAssignmentTool(t *testing.T) {
 	var mu sync.Mutex
 	db := map[string]interface{}{
-		"id":       "user123",
-		"name":     "Bob",
-		"role":     "user",
-		"isAdmin":  false,
+		"id":      "user123",
+		"name":    "Bob",
+		"role":    "user",
+		"isAdmin": false,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,7 @@ func TestMassAssignmentTool(t *testing.T) {
 			bodyBytes, _ := io.ReadAll(r.Body)
 			var reqData map[string]interface{}
 			if err := json.Unmarshal(bodyBytes, &reqData); err == nil {
-				// Update db
+
 				for k, v := range reqData {
 					db[k] = v
 				}

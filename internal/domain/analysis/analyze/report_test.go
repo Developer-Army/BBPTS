@@ -31,7 +31,6 @@ func TestReporting(t *testing.T) {
 		},
 	}
 
-	// Test Markdown Report
 	mdPath := filepath.Join(tempDir, "report.md")
 	if err := WriteMarkdownReport(mdPath, insights); err != nil {
 		t.Errorf("WriteMarkdownReport failed: %v", err)
@@ -40,7 +39,6 @@ func TestReporting(t *testing.T) {
 		t.Errorf("Markdown report not created")
 	}
 
-	// Test CSV Summary
 	csvPath := filepath.Join(tempDir, "summary.csv")
 	if err := WriteCSVSummary(csvPath, insights); err != nil {
 		t.Errorf("WriteCSVSummary failed: %v", err)
@@ -49,12 +47,11 @@ func TestReporting(t *testing.T) {
 		t.Errorf("CSV summary not created")
 	}
 
-	// Test Obsidian Export
 	obsDir := filepath.Join(tempDir, "obsidian")
 	if err := ExportToObsidian(obsDir, insights); err != nil {
 		t.Errorf("ExportToObsidian failed: %v", err)
 	}
-	// Only acme-corp.io should have a note because of priority/score
+
 	notePath := filepath.Join(obsDir, "acme-corp.io.md")
 	if _, err := os.Stat(notePath); os.IsNotExist(err) {
 		t.Errorf("Obsidian note for acme-corp.io not created")

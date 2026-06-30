@@ -14,6 +14,8 @@
 
 > **The only recon pipeline that thinks for itself.** Point it at target domains, gather intelligence, and get prioritized, actionable findings instantly.
 
+> **Contributing:** Want to help build or extend BBPTS? Start with [CONTRIBUTING.md](CONTRIBUTING.md). If you want proof that it finds real-world issues, read the [case study walkthrough](docs/case_study.md).
+
 ```bash
 brew install developer-army/bbpts/bbpts
 ```

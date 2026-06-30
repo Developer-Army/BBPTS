@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
@@ -77,14 +77,14 @@ func (t *GithubOrgDiscoveryTool) discover(ctx context.Context, apiKey, orgOrDoma
 	orgInfo := t.fetchOrg(ctx, apiKey, client, orgName)
 	if orgInfo != nil {
 		events = append(events, recon.NewEvent(orgName, t.Name(), "discovery", map[string]string{
-			"org_name":   orgInfo["login"],
-			"name":       orgInfo["name"],
+			"org_name":    orgInfo["login"],
+			"name":        orgInfo["name"],
 			"description": orgInfo["description"],
-			"email":      orgInfo["email"],
-			"blog":       orgInfo["blog"],
-			"location":   orgInfo["location"],
-			"repos":      orgInfo["public_repos"],
-			"scan_type":  "github_org_discovery",
+			"email":       orgInfo["email"],
+			"blog":        orgInfo["blog"],
+			"location":    orgInfo["location"],
+			"repos":       orgInfo["public_repos"],
+			"scan_type":   "github_org_discovery",
 		}))
 
 		if blog := orgInfo["blog"]; blog != "" {
@@ -153,12 +153,12 @@ func (t *GithubOrgDiscoveryTool) fetchOrg(ctx context.Context, apiKey string, cl
 	}
 
 	return map[string]string{
-		"name":        data.Name,
-		"login":       data.Login,
-		"description": data.Description,
-		"email":       data.Email,
-		"blog":        data.Blog,
-		"location":    data.Location,
+		"name":         data.Name,
+		"login":        data.Login,
+		"description":  data.Description,
+		"email":        data.Email,
+		"blog":         data.Blog,
+		"location":     data.Location,
 		"public_repos": fmt.Sprintf("%d", data.PublicRepos),
 	}
 }
@@ -343,8 +343,8 @@ func (t *GithubOrgDiscoveryTool) scanWebhooks(ctx context.Context, apiKey, org s
 	}
 
 	var hooks []struct {
-		ID     int64  `json:"id"`
-		Name   string `json:"name"`
+		ID     int64    `json:"id"`
+		Name   string   `json:"name"`
 		Events []string `json:"events"`
 		Config struct {
 			URL string `json:"url"`

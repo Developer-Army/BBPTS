@@ -11,18 +11,15 @@ import (
 	"strings"
 )
 
-// ScopeEngine loads allowed and excluded scope rules and checks targets against them.
 type ScopeEngine struct {
 	Allows   []string
 	Excludes []string
 }
 
-// NewScopeEngine creates a scope engine from lists of allow/exclude patterns.
 func NewScopeEngine(allows, excludes []string) *ScopeEngine {
 	return &ScopeEngine{Allows: allows, Excludes: excludes}
 }
 
-// LoadScopeFile parses a scope file into a ScopeEngine.
 func LoadScopeFile(path string) (*ScopeEngine, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -33,7 +30,6 @@ func LoadScopeFile(path string) (*ScopeEngine, error) {
 	return ParseScope(file)
 }
 
-// HackerOne structured scope format
 type H1ScopeItem struct {
 	AssetIdentifier       string `json:"asset_identifier"`
 	AssetType             string `json:"asset_type"`
@@ -48,7 +44,6 @@ type H1ProgramResponse struct {
 	} `json:"target"`
 }
 
-// Bugcrowd structured scope format
 type BugcrowdTarget struct {
 	Name     string `json:"name"`
 	Category string `json:"category"`
@@ -66,7 +61,6 @@ type BugcrowdProgram struct {
 	Targets      []BugcrowdTarget      `json:"targets"`
 }
 
-// ParseJSONScope parses a JSON string as either a HackerOne or Bugcrowd scope export.
 func ParseJSONScope(data []byte) (*ScopeEngine, bool) {
 	// 1. Try HackerOne
 	var h1 H1ProgramResponse
@@ -83,7 +77,7 @@ func ParseJSONScope(data []byte) (*ScopeEngine, bool) {
 				if val == "" {
 					continue
 				}
-				// By default, HackerOne treats structured scopes as in-scope unless ineligible
+
 				inScope := item.EligibleForSubmission
 				if inScope {
 					allows = append(allows, val)
@@ -157,7 +151,6 @@ func ParseJSONScope(data []byte) (*ScopeEngine, bool) {
 	return nil, false
 }
 
-// ParseScope parses allow/exclude patterns from a reader.
 func ParseScope(r io.Reader) (*ScopeEngine, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -202,7 +195,6 @@ func ParseScope(r io.Reader) (*ScopeEngine, error) {
 	return &ScopeEngine{Allows: allows, Excludes: excludes}, scanner.Err()
 }
 
-// IsInScope checks if a target (domain or URL) is in scope.
 func (se *ScopeEngine) IsInScope(target string) bool {
 	host := strings.ToLower(target)
 	if strings.Contains(host, "://") {
@@ -218,7 +210,6 @@ func (se *ScopeEngine) IsInScope(target string) bool {
 		}
 	}
 
-	// Check excludes first
 	for _, p := range se.Excludes {
 		if isCIDRorIP(p) {
 			if MatchCIDRPattern(host, p) {
@@ -231,7 +222,6 @@ func (se *ScopeEngine) IsInScope(target string) bool {
 		}
 	}
 
-	// If Allows is empty, default to in-scope
 	if len(se.Allows) == 0 {
 		return true
 	}
@@ -251,8 +241,6 @@ func (se *ScopeEngine) IsInScope(target string) bool {
 	return false
 }
 
-// MatchPattern checks if a host matches a wildcard pattern.
-// Pattern can be like "example.com", "*.example.com", or "abc.*.example.com".
 func MatchPattern(host, pattern string) bool {
 	if pattern == "*" {
 		return true
@@ -261,7 +249,7 @@ func MatchPattern(host, pattern string) bool {
 		return true
 	}
 	if strings.HasPrefix(pattern, "*.") {
-		suffix := pattern[1:] // ".example.com"
+		suffix := pattern[1:]
 		return strings.HasSuffix(host, suffix) || host == pattern[2:]
 	}
 	if strings.Contains(pattern, "*") {
@@ -273,21 +261,20 @@ func MatchPattern(host, pattern string) bool {
 	return host == pattern
 }
 
-// MatchCIDRPattern checks if a host (or its resolved IPs) matches a CIDR or single IP pattern.
 func MatchCIDRPattern(host, pattern string) bool {
 	_, ipnet, err := net.ParseCIDR(pattern)
 	if err != nil {
-		// Pattern is not a valid CIDR. Check if it's a single IP.
+
 		patIP := net.ParseIP(pattern)
 		if patIP == nil {
 			return false
 		}
-		// It's a single IP. Check if host is the same IP
+
 		hostIP := net.ParseIP(host)
 		if hostIP != nil {
 			return hostIP.Equal(patIP)
 		}
-		// If host is a domain, resolve it
+
 		ips, err := net.LookupIP(host)
 		if err == nil {
 			for _, ip := range ips {
@@ -299,13 +286,11 @@ func MatchCIDRPattern(host, pattern string) bool {
 		return false
 	}
 
-	// Pattern is a valid CIDR. Check if target is an IP.
 	hostIP := net.ParseIP(host)
 	if hostIP != nil {
 		return ipnet.Contains(hostIP)
 	}
 
-	// Resolve target domain to IPs and check if any fall in the CIDR
 	ips, err := net.LookupIP(host)
 	if err == nil {
 		for _, ip := range ips {

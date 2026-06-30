@@ -1,14 +1,15 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"sync"
 	"time"
@@ -45,7 +46,6 @@ func (t *MassAssignmentTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 
 		client := NewSafeHTTPClient(10 * time.Second)
 
-		// 1. Fetch current resource via GET
 		req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 		if err != nil {
 			return nil, nil
@@ -72,25 +72,21 @@ func (t *MassAssignmentTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 		// Try parsing JSON to find keys
 		var data map[string]interface{}
 		if err := json.Unmarshal(bodyBytes, &data); err != nil {
-			// Not a JSON API endpoint, skip
+
 			return nil, nil
 		}
 
-		// 2. Identify potential parameters to test for mass assignment
-		// Let's look for keys in the response or try adding standard privilege keys
 		testKeys := []string{"role", "isAdmin", "is_admin", "admin", "privileges", "permissions", "verified", "balance", "credits", "tier", "status"}
 		payload := make(map[string]interface{})
 
-		// Copy existing data to preserve structure, if any
 		for k, v := range data {
 			payload[k] = v
 		}
 
-		// Inject/overwrite keys
 		injectedValues := make(map[string]interface{})
 		for _, key := range testKeys {
 			if _, exists := data[key]; !exists {
-				// Inject the key
+
 				if strings.Contains(strings.ToLower(key), "admin") || strings.Contains(strings.ToLower(key), "verified") {
 					payload[key] = true
 					injectedValues[key] = true
@@ -105,7 +101,7 @@ func (t *MassAssignmentTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 					injectedValues[key] = "premium"
 				}
 			} else {
-				// Key already exists, try to elevate it
+
 				val := data[key]
 				if b, ok := val.(bool); ok && !b {
 					payload[key] = true
@@ -121,12 +117,11 @@ func (t *MassAssignmentTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 			return nil, nil
 		}
 
-		// 3. Re-send the resource update request via PUT (or POST/PATCH)
-		// We'll try PUT first, as it is standard for resource replacement
 		methodsToTest := []string{"PUT", "PATCH", "POST"}
 		var events []recon.Event
 		var mu sync.Mutex
 
+	methodLoop:
 		for _, method := range methodsToTest {
 			payloadBytes, err := json.Marshal(payload)
 			if err != nil {
@@ -142,58 +137,76 @@ func (t *MassAssignmentTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 				upReq.Header.Set(k, v)
 			}
 
+			upReqDump, _ := httputil.DumpRequestOut(upReq, true)
+
 			upResp, err := client.Do(upReq)
 			if err != nil {
 				continue
 			}
 			upBody, _ := io.ReadAll(io.LimitReader(upResp.Body, 64*1024))
+			upRespDump, _ := httputil.DumpResponse(upResp, false)
 			upResp.Body.Close()
 
-			// Check if accepted
-			if upResp.StatusCode == http.StatusOK || upResp.StatusCode == http.StatusNoContent || upResp.StatusCode == http.StatusCreated {
-				// 4. Verify by GETting the resource again
-				verifyReq, err := http.NewRequestWithContext(ctx, "GET", target, nil)
-				if err != nil {
+			if upResp.StatusCode != http.StatusOK && upResp.StatusCode != http.StatusNoContent && upResp.StatusCode != http.StatusCreated {
+				continue
+			}
+
+			verifyReq, err := http.NewRequestWithContext(ctx, "GET", target, nil)
+			if err != nil {
+				continue
+			}
+			for k, v := range scanCtx.Headers {
+				verifyReq.Header.Set(k, v)
+			}
+
+			verifyResp, err := client.Do(verifyReq)
+			if err != nil {
+				continue
+			}
+			verifyBody, _ := io.ReadAll(io.LimitReader(verifyResp.Body, 64*1024))
+			verifyResp.Body.Close()
+
+			var verifyData map[string]interface{}
+			if err := json.Unmarshal(verifyBody, &verifyData); err != nil {
+				continue
+			}
+
+			successKeys := []string{}
+			for k, injectedVal := range injectedValues {
+				actualVal, found := verifyData[k]
+				if !found {
 					continue
 				}
-				for k, v := range scanCtx.Headers {
-					verifyReq.Header.Set(k, v)
-				}
-
-				verifyResp, err := client.Do(verifyReq)
-				if err != nil {
+				injectedStr := fmt.Sprintf("%v", injectedVal)
+				actualStr := fmt.Sprintf("%v", actualVal)
+				if actualStr != injectedStr {
 					continue
 				}
-				verifyBody, _ := io.ReadAll(io.LimitReader(verifyResp.Body, 64*1024))
-				verifyResp.Body.Close()
 
-				var verifyData map[string]interface{}
-				if err := json.Unmarshal(verifyBody, &verifyData); err == nil {
-					// Check if any injected key holds the updated value
-					successKeys := []string{}
-					for k, v := range injectedValues {
-						if actualVal, found := verifyData[k]; found {
-							if fmt.Sprintf("%v", actualVal) == fmt.Sprintf("%v", v) {
-								successKeys = append(successKeys, fmt.Sprintf("%s=%v", k, v))
-							}
-						}
-					}
-
-					if len(successKeys) > 0 {
-						mu.Lock()
-						events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-							"vuln_name":   "Mass Assignment API Vulnerability",
-							"severity":    "high",
-							"method":      method,
-							"parameters":  strings.Join(successKeys, ", "),
-							"evidence":    string(upBody),
-							"description": fmt.Sprintf("Successfully modified parameters [%s] via %s request to target.", strings.Join(successKeys, ", "), method),
-						}, "high"))
-						mu.Unlock()
-						slog.Warn("Found Mass Assignment vulnerability", "target", target, "keys", successKeys)
-						break // Detected via one method is enough
+				if baselineVal, hadIt := data[k]; hadIt {
+					if fmt.Sprintf("%v", baselineVal) == injectedStr {
+						continue
 					}
 				}
+				successKeys = append(successKeys, fmt.Sprintf("%s=%v", k, injectedVal))
+			}
+
+			if len(successKeys) > 0 {
+				_ = upBody
+				mu.Lock()
+				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
+					"vuln_name":   "Mass Assignment API Vulnerability",
+					"severity":    "high",
+					"method":      method,
+					"parameters":  strings.Join(successKeys, ", "),
+					"evidence":    string(verifyBody),
+					"description": fmt.Sprintf("Parameters [%s] persisted after %s — baseline GET did NOT contain these values.", strings.Join(successKeys, ", "), method),
+					"request":     string(upReqDump),
+					"response":    string(upRespDump),
+				}, "high"))
+				mu.Unlock()
+				slog.Warn("Found Mass Assignment vulnerability", "target", target, "keys", successKeys)
+				break methodLoop
 			}
 		}
 

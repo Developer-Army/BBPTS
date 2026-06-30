@@ -1,11 +1,11 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"math/rand"
@@ -67,8 +67,8 @@ func (t *ProtoPollutionTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 	}
 	var errClient error
 	t.client, errClient = network.NewStealthClient(profile, proxy)
-	if errClient != nil {
-		slog.Warn("Failed to recreate stealth client for proto_pollution", "error", errClient)
+	if errClient != nil || t.client == nil {
+		return nil, fmt.Errorf("failed to create stealth client: %w", errClient)
 	}
 
 	pool := NewWorkerPool(threads, rate.Limit(rateLimit))
@@ -81,7 +81,6 @@ func (t *ProtoPollutionTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 
 		var events []recon.Event
 
-		// 1. Client-Side Prototype Pollution Check via browser
 		if t.pool != nil {
 			csEvents, err := t.checkClientSide(ctx, target)
 			if err != nil {
@@ -91,7 +90,6 @@ func (t *ProtoPollutionTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 			}
 		}
 
-		// 2. Server-Side Prototype Pollution Check via JSON post
 		ssEvents, err := t.checkServerSide(ctx, target)
 		if err != nil {
 			slog.Debug("Server-side prototype pollution check failed", "target", target, "error", err)
@@ -116,7 +114,7 @@ func (t *ProtoPollutionTool) checkClientSide(ctx context.Context, target string)
 
 	domain := u.Host
 	headers := recon.HeadersFromCtx(ctx)
-	
+
 	ctxBrowser, err := t.pool.GetContext(domain, headers)
 	if err != nil {
 		return nil, err
@@ -204,11 +202,41 @@ func (t *ProtoPollutionTool) checkServerSide(ctx context.Context, target string)
 	var events []recon.Event
 	bodyStr := string(respBody)
 	if strings.Contains(bodyStr, `"bbpts_polluted"`) && (strings.Contains(bodyStr, `"yes_proto"`) || strings.Contains(bodyStr, `yes_proto`)) {
-		events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-			"vuln_name":   "Server-Side Prototype Pollution (JSON Body Injection)",
-			"severity":    "high",
-			"description": fmt.Sprintf("Server reflected/merged polluted prototype keys from JSON body on %s.", target),
-		}, "high"))
+
+		cleanPayload := map[string]interface{}{}
+		cleanBody, errClean := json.Marshal(cleanPayload)
+		if errClean == nil {
+			cleanReq, errReq := http.NewRequestWithContext(ctx, "POST", target, bytes.NewBuffer(cleanBody))
+			if errReq == nil {
+				cleanReq.Header.Set("Content-Type", "application/json")
+				cleanReq.Header.Set("Accept", "application/json")
+				for k, v := range headers {
+					cleanReq.Header.Set(k, v)
+				}
+				var cleanResp *http.Response
+				var errDo error
+				if t.client != nil {
+					cleanResp, errDo = t.client.Do(cleanReq)
+				} else {
+					client := NewSafeHTTPClient(5 * time.Second)
+					cleanResp, errDo = client.Do(cleanReq)
+				}
+				if errDo == nil {
+					defer cleanResp.Body.Close()
+					cleanRespBody, errRead := io.ReadAll(io.LimitReader(cleanResp.Body, 100*1024))
+					if errRead == nil {
+						cleanBodyStr := string(cleanRespBody)
+						if strings.Contains(cleanBodyStr, `"bbpts_polluted"`) && (strings.Contains(cleanBodyStr, `"yes_proto"`) || strings.Contains(cleanBodyStr, `yes_proto`)) {
+							events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
+								"vuln_name":   "Server-Side Prototype Pollution (JSON Body Injection)",
+								"severity":    "high",
+								"description": fmt.Sprintf("Server prototype was successfully polluted on %s (confirmed via clean follow-up request).", target),
+							}, "high"))
+						}
+					}
+				}
+			}
+		}
 	}
 
 	return events, nil

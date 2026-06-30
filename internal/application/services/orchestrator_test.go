@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-// TestOrchestratorInitialization tests that the orchestrator initializes correctly
-// with valid configurations.
 func TestOrchestratorInitialization(t *testing.T) {
 	config := Config{
 		ToolNames: []string{"subfinder", "httpx"},
@@ -24,7 +22,6 @@ func TestOrchestratorInitialization(t *testing.T) {
 	}
 }
 
-// TestOrchestratorExecutionTimeout tests that execution respects context timeout.
 func TestOrchestratorExecutionTimeout(t *testing.T) {
 	config := Config{
 		ToolNames: []string{"subfinder"},
@@ -40,13 +37,11 @@ func TestOrchestratorExecutionTimeout(t *testing.T) {
 	targets := []string{"acme-corp.io"}
 	events, _ := orchestrator.Run(ctx, targets)
 
-	// Should complete without crashing on timeout
 	if events == nil {
 		t.Log("events is nil on timeout (allowed)")
 	}
 }
 
-// TestOrchestratorWithInvalidTools tests handling of non-existent tools.
 func TestOrchestratorWithInvalidTools(t *testing.T) {
 	config := Config{
 		ToolNames: []string{"nonexistent-tool-xyz"},
@@ -63,7 +58,6 @@ func TestOrchestratorWithInvalidTools(t *testing.T) {
 	}
 }
 
-// TestOrchestratorConcurrency tests that orchestrator respects thread limits.
 func TestOrchestratorConcurrency(t *testing.T) {
 	config := Config{
 		ToolNames: []string{"httpx"},
@@ -86,12 +80,11 @@ func TestOrchestratorConcurrency(t *testing.T) {
 	}
 }
 
-// TestOrchestratorRateLimiting tests that rate limiting is applied.
 func TestOrchestratorRateLimiting(t *testing.T) {
 	config := Config{
 		ToolNames: []string{"httpx"},
 		Threads:   2,
-		RateLimit: 1, // 1 request per second
+		RateLimit: 1,
 	}
 
 	orchestrator := NewOrchestrator(config)

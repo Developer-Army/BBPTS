@@ -10,49 +10,48 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// TargetInputChan is used to send targets from TUI to the orchestrator.
 var TargetInputChan = make(chan []string, 1)
 
-// TargetModeChan is used to send selected scan mode from TUI to the orchestrator.
 var TargetModeChan = make(chan string, 1)
 
-// ScanAbortChan is used to signal scan interruption from TUI.
 var ScanAbortChan = make(chan struct{}, 1)
 
-// PromptForTargetMsg triggers target entry prompt in the TUI.
 type PromptForTargetMsg struct{}
 
-// InitialTargetsMsg notifies the TUI of the target list to scan.
 type InitialTargetsMsg []string
 
-// StageToolsMsg lists the tools for the current stage.
 type StageToolsMsg struct {
 	Stage int
 	Tools []string
 }
 
-// ThreadCountMsg notifies the TUI of the thread configuration.
 type ThreadCountMsg struct {
 	Active int
 	Max    int
 }
 
-// RateLimitMsg notifies the TUI of the requests per second rate limit.
 type RateLimitMsg struct {
 	RateLimit int
 }
 
-// Bridge acts as a connector between the CLI logic and the TUI.
+type PortScannedMsg struct{ Count int }
+
+type RequestRateMsg struct{ Rate int }
+
+type ToolProgressMsg struct {
+	Tool  string
+	Done  int
+	Total int
+}
+
 type Bridge struct {
 	Program *tea.Program
 }
 
-// NewBridge creates a new TUI bridge.
 func NewBridge(p *tea.Program) *Bridge {
 	return &Bridge{Program: p}
 }
 
-// PromptForTarget requests the TUI to prompt the user for target entry.
 func (b *Bridge) PromptForTarget() {
 	if b == nil || b.Program == nil {
 		return
@@ -60,7 +59,6 @@ func (b *Bridge) PromptForTarget() {
 	b.Program.Send(PromptForTargetMsg{})
 }
 
-// SendInitialTargets sends the initial target list to the TUI.
 func (b *Bridge) SendInitialTargets(targets []string) {
 	if b == nil || b.Program == nil {
 		return
@@ -68,7 +66,6 @@ func (b *Bridge) SendInitialTargets(targets []string) {
 	b.Program.Send(InitialTargetsMsg(targets))
 }
 
-// ReportStageTools reports the tool list for the stage.
 func (b *Bridge) ReportStageTools(stage int, tools []string) {
 	if b == nil || b.Program == nil {
 		return
@@ -79,12 +76,10 @@ func (b *Bridge) ReportStageTools(stage int, tools []string) {
 	})
 }
 
-// ReportStage implements recon.ProgressReporter.
 func (b *Bridge) ReportStage(stage int, tools int, targets int, complete bool) {
 	b.SendStageUpdate(stage, tools, targets, complete)
 }
 
-// SendStageUpdate sends a pipeline stage update to the TUI.
 func (b *Bridge) SendStageUpdate(stage int, tools int, targets int, complete bool) {
 	if b == nil || b.Program == nil {
 		return
@@ -97,7 +92,6 @@ func (b *Bridge) SendStageUpdate(stage int, tools int, targets int, complete boo
 	})
 }
 
-// SendEvent sends a discovery event to the TUI.
 func (b *Bridge) SendEvent(source, target, eventType string, properties map[string]string) {
 	if b == nil || b.Program == nil {
 		return
@@ -110,12 +104,10 @@ func (b *Bridge) SendEvent(source, target, eventType string, properties map[stri
 	})
 }
 
-// ReportEvent streams a live discovery into the TUI.
 func (b *Bridge) ReportEvent(source, target, eventType string, properties map[string]string) {
 	b.SendEvent(source, target, eventType, properties)
 }
 
-// SendInsight sends a prioritized insight to the TUI.
 func (b *Bridge) SendInsight(host string, priority string, score int) {
 	if b == nil || b.Program == nil {
 		return
@@ -127,7 +119,6 @@ func (b *Bridge) SendInsight(host string, priority string, score int) {
 	})
 }
 
-// SendRuleMatch sends a rule engine match to the TUI.
 func (b *Bridge) SendRuleMatch(ruleID, priority, target string) {
 	if b == nil || b.Program == nil {
 		return
@@ -139,7 +130,6 @@ func (b *Bridge) SendRuleMatch(ruleID, priority, target string) {
 	})
 }
 
-// ReportToolStatus streams tool lifecycle updates into the TUI.
 func (b *Bridge) ReportToolStatus(tool, status, detail string) {
 	if b == nil || b.Program == nil {
 		return
@@ -151,7 +141,6 @@ func (b *Bridge) ReportToolStatus(tool, status, detail string) {
 	})
 }
 
-// ReportFailure streams tool failures into the TUI.
 func (b *Bridge) ReportFailure(tool, detail string) {
 	if b == nil || b.Program == nil {
 		return
@@ -162,7 +151,6 @@ func (b *Bridge) ReportFailure(tool, detail string) {
 	})
 }
 
-// SendThreadCount sends the actual active and max threads to the TUI.
 func (b *Bridge) SendThreadCount(active, max int) {
 	if b == nil || b.Program == nil {
 		return
@@ -173,7 +161,6 @@ func (b *Bridge) SendThreadCount(active, max int) {
 	})
 }
 
-// SendRateLimit sends the configured rate limit to the TUI.
 func (b *Bridge) SendRateLimit(rateLimit int) {
 	if b == nil || b.Program == nil {
 		return
@@ -183,7 +170,27 @@ func (b *Bridge) SendRateLimit(rateLimit int) {
 	})
 }
 
-// CompleteSession requests a graceful shutdown of the TUI once scan is done.
+func (b *Bridge) SendPortsScanned(count int) {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(PortScannedMsg{Count: count})
+}
+
+func (b *Bridge) SendRequestRate(rate int) {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(RequestRateMsg{Rate: rate})
+}
+
+func (b *Bridge) ReportToolProgress(tool string, done, total int) {
+	if b == nil || b.Program == nil {
+		return
+	}
+	b.Program.Send(ToolProgressMsg{Tool: tool, Done: done, Total: total})
+}
+
 func (b *Bridge) CompleteSession() {
 	if b == nil || b.Program == nil {
 		return
@@ -191,14 +198,13 @@ func (b *Bridge) CompleteSession() {
 	b.Program.Send(SessionCompleteMsg{})
 }
 
-// LogHandler is a custom slog.Handler that redirects logs to the TUI.
 type LogHandler struct {
 	slog.Handler
 	Program *tea.Program
 }
 
 func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
-	// Only forward logs when the TUI program is active
+
 	if h.Program != nil {
 		msg := r.Message
 		var errVal string
@@ -245,9 +251,9 @@ func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
 			Component: component,
 			Message:   msg,
 		})
-		return nil // suppress default output
+		return nil
 	}
-	// Fallback to original handler when TUI is not running
+
 	return h.Handler.Handle(ctx, r)
 }
 
@@ -266,7 +272,7 @@ func formatComponent(toolName string) string {
 	case "nuclei":
 		return "Scanner"
 	default:
-		// Capitalize first letter
+
 		runes := []rune(toolName)
 		runes[0] = rune(strings.ToUpper(string(runes[0]))[0])
 		return string(runes)

@@ -106,4 +106,3 @@ func TestBlockAndElevateRules(t *testing.T) {
 		}
 	}
 }
-

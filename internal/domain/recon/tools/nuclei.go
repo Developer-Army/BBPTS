@@ -16,7 +16,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
-// NucleiTool wraps projectdiscovery/nuclei for automated vulnerability scanning.
 type NucleiTool struct {
 	// Tags filters templates to run. If empty, runs with default templates.
 	Tags []string
@@ -28,7 +27,6 @@ type NucleiTool struct {
 	TemplatePaths []string
 }
 
-// nucleiOutput represents a single Nuclei JSON result line.
 type nucleiOutput struct {
 	TemplateID       string     `json:"template-id"`
 	Info             nucleiInfo `json:"info"`
@@ -44,7 +42,6 @@ type nucleiOutput struct {
 	Response         string     `json:"response"`
 }
 
-// nucleiInfo holds template metadata from Nuclei output.
 type nucleiInfo struct {
 	Name        string                 `json:"name"`
 	Severity    string                 `json:"severity"`
@@ -58,8 +55,6 @@ func (t *NucleiTool) Name() string {
 	return "nuclei"
 }
 
-// Run executes Nuclei against the given targets with configured filters.
-// Targets should be live HTTP endpoints (output of httpx / katana / etc).
 func (t *NucleiTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
 	if len(targets) == 0 {
 		return nil, nil
@@ -121,17 +116,15 @@ func (t *NucleiTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 		)
 	}
 
-	// Wire interactsh OOB server for blind vulnerability detection
 	if oobURL := scanCtx.InteractshOOBURL; oobURL != "" {
 		args = append(args, "-iserver", oobURL)
 		slog.Info("Nuclei: using interactsh OOB server for blind detection", "iserver", oobURL)
 	}
 
-	// Apply severity filter
 	if len(t.Severity) > 0 {
 		args = append(args, "-severity", strings.Join(t.Severity, ","))
 	} else {
-		// Default: only medium and above to avoid noise
+
 		args = append(args, "-severity", "medium,high,critical")
 	}
 
@@ -166,7 +159,6 @@ func (t *NucleiTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 		args = append(args, "-t", tp)
 	}
 
-	// Pass targets via stdin
 	headers := scanCtx.Headers
 	for k, v := range headers {
 		args = append(args, "-header", fmt.Sprintf("%s: %s", k, v))
@@ -195,13 +187,13 @@ func (t *NucleiTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 		}
 
 		props := map[string]string{
-			"template_id":       out.TemplateID,
-			"severity":          out.Info.Severity,
-			"vuln_name":         out.Info.Name,
-			"type":              out.Type,
-			"matched_at":        out.Matched,
-			"ip":                out.IP,
-			"nuclei_severity":   out.Info.Severity,
+			"template_id":     out.TemplateID,
+			"severity":        out.Info.Severity,
+			"vuln_name":       out.Info.Name,
+			"type":            out.Type,
+			"matched_at":      out.Matched,
+			"ip":              out.IP,
+			"nuclei_severity": out.Info.Severity,
 		}
 
 		if out.Request != "" {

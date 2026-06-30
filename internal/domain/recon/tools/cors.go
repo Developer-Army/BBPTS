@@ -1,11 +1,13 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -67,13 +69,12 @@ func (t *CORSTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 		}
 
 		for _, test := range tests {
-			// Test 1: Standard GET request with Origin header
+
 			req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 			if err != nil {
 				continue
 			}
 
-			// Add custom headers & cookie
 			headers := scanCtx.Headers
 			for k, v := range headers {
 				req.Header.Set(k, v)
@@ -84,6 +85,10 @@ func (t *CORSTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 			if err != nil {
 				continue
 			}
+
+			reqDump, _ := httputil.DumpRequestOut(req, true)
+			respDump, _ := httputil.DumpResponse(resp, false)
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 			resp.Body.Close()
 
 			acao := resp.Header.Get("Access-Control-Allow-Origin")
@@ -98,13 +103,14 @@ func (t *CORSTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 					"origin":      test.origin,
 					"method":      "GET",
 					"description": fmt.Sprintf("Permissive CORS policy: Allow-Origin reflects %s with credentials enabled.", test.origin),
+					"request":     string(reqDump),
+					"response":    string(respDump),
 				}, "medium"))
 				mu.Unlock()
 				slog.Warn("Found CORS misconfiguration", "target", target, "type", test.name, "method", "GET")
-				break // One CORS finding is enough per host
+				break
 			}
 
-			// Test 2: OPTIONS preflight — many servers only reflect origin on preflight
 			preflightReq, err := http.NewRequestWithContext(ctx, "OPTIONS", target, nil)
 			if err != nil {
 				continue
@@ -120,6 +126,10 @@ func (t *CORSTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 			if err != nil {
 				continue
 			}
+
+			pfReqDump, _ := httputil.DumpRequestOut(preflightReq, true)
+			pfRespDump, _ := httputil.DumpResponse(preflightResp, false)
+			_, _ = io.Copy(io.Discard, io.LimitReader(preflightResp.Body, 4096))
 			preflightResp.Body.Close()
 
 			preflightACAO := preflightResp.Header.Get("Access-Control-Allow-Origin")
@@ -134,6 +144,8 @@ func (t *CORSTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 					"origin":      test.origin,
 					"method":      "OPTIONS",
 					"description": fmt.Sprintf("Permissive CORS policy on preflight: Allow-Origin reflects %s with credentials enabled.", test.origin),
+					"request":     string(pfReqDump),
+					"response":    string(pfRespDump),
 				}, "medium"))
 				mu.Unlock()
 				slog.Warn("Found CORS misconfiguration (preflight)", "target", target, "type", test.name)

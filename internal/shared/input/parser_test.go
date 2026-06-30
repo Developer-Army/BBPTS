@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-// TestParserCSVBasic tests basic CSV parsing functionality.
 func TestParserCSVBasic(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "targets.csv")
@@ -38,7 +37,6 @@ test.io,dev.test.io`
 	}
 }
 
-// TestParserNewlineFormat tests newline-separated targets parsing.
 func TestParserNewlineFormat(t *testing.T) {
 	tempDir := t.TempDir()
 	txtPath := filepath.Join(tempDir, "targets.txt")
@@ -62,7 +60,6 @@ admin.acme-corp.io`
 	}
 }
 
-// TestParserComments tests that comments are properly ignored.
 func TestParserComments(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "targets_comments.csv")
@@ -82,7 +79,6 @@ test.io`
 		t.Fatalf("Failed to parse CSV: %v", err)
 	}
 
-	// Should be 3: acme-corp.io, api.acme-corp.io, test.io (comments excluded)
 	if len(targets) != 3 {
 		t.Fatalf("Expected 3 targets (excluding comments), got %d", len(targets))
 	}
@@ -94,7 +90,6 @@ test.io`
 	}
 }
 
-// TestParserWhitespaceHandling tests that whitespace is properly trimmed.
 func TestParserWhitespaceHandling(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "targets_whitespace.csv")
@@ -120,7 +115,6 @@ func TestParserWhitespaceHandling(t *testing.T) {
 	}
 }
 
-// TestParserEmptyFile tests handling of empty files.
 func TestParserEmptyFile(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "empty.csv")
@@ -140,7 +134,6 @@ func TestParserEmptyFile(t *testing.T) {
 	}
 }
 
-// TestParserNonexistentFile tests handling of missing files.
 func TestParserNonexistentFile(t *testing.T) {
 	parser := NewParser()
 	_, err := parser.ParseFile("/nonexistent/path/targets.csv")
@@ -149,7 +142,6 @@ func TestParserNonexistentFile(t *testing.T) {
 	}
 }
 
-// TestParserQuotedCSVFields tests CSV parsing with quoted fields.
 func TestParserQuotedCSVFields(t *testing.T) {
 	tempDir := t.TempDir()
 	csvPath := filepath.Join(tempDir, "targets_quoted.csv")

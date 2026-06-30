@@ -10,7 +10,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/telemetry"
 )
 
-// Task represents a generic executable job pulled from the durable stream.
 type Task struct {
 	ID        string                 `json:"id"`
 	Type      CapabilityType         `json:"type"`
@@ -19,16 +18,13 @@ type Task struct {
 	SessionID string                 `json:"session_id"`
 }
 
-// TaskHandler is the signature for logic executing a specific capability.
 type TaskHandler func(ctx context.Context, task Task) error
 
-// Executor pulls tasks from streams mapped to the worker's capabilities.
 type Executor struct {
 	Worker   *Worker
 	Handlers map[CapabilityType]TaskHandler
 }
 
-// NewExecutor creates an executor bound to a specific worker.
 func NewExecutor(w *Worker) *Executor {
 	return &Executor{
 		Worker:   w,
@@ -36,12 +32,10 @@ func NewExecutor(w *Worker) *Executor {
 	}
 }
 
-// RegisterHandler binds a specific TaskHandler function to a CapabilityType.
 func (e *Executor) RegisterHandler(cap CapabilityType, handler TaskHandler) {
 	e.Handlers[cap] = handler
 }
 
-// Run starts consuming queues for all registered capabilities.
 func (e *Executor) Run(ctx context.Context) error {
 	if e.Worker == nil {
 		return nil
@@ -64,12 +58,11 @@ func (e *Executor) Run(ctx context.Context) error {
 		err := e.Worker.Stream.SubscribeWorker(ctx, subject, queueGroup, func(data []byte) error {
 			var t Task
 			if err := json.Unmarshal(data, &t); err != nil {
-				// Malformed JSON is considered a poison pill. We should NOT retry it infinitely.
+
 				slog.Error("Poison pill detected: malformed task JSON", "error", err)
-				return nil // returning nil AckSyncs it to clear the poison
+				return nil
 			}
 
-			// Idempotency check: Skip if task already completed
 			if e.Worker.IdempotencyMgr != nil {
 				processed, err := e.Worker.IdempotencyMgr.HasBeenProcessed(t.ID)
 				if err != nil {
@@ -78,10 +71,9 @@ func (e *Executor) Run(ctx context.Context) error {
 				}
 				if processed {
 					slog.Info("Task already processed (idempotent), skipping", "taskID", t.ID, "target", t.Target)
-					return nil // Idempotently skip
+					return nil
 				}
 
-				// Register task as claimed
 				if err := e.Worker.IdempotencyMgr.Register(context.Background(), t.ID, e.Worker.ID); err != nil {
 					if err == queue.ErrTaskAlreadyProcessed {
 						slog.Info("Task claimed by another worker (idempotent), skipping", "taskID", t.ID)
@@ -91,17 +83,15 @@ func (e *Executor) Run(ctx context.Context) error {
 				}
 			}
 
-			// Distributed Lease: Ensure no other worker is currently executing this exact target in this session
 			leaseKey := fmt.Sprintf("lease:%s:%s:%s", t.SessionID, t.Type, t.Target)
 			if err := e.Worker.LeaseMgr.Acquire(leaseKey, e.Worker.ID); err != nil {
 				if err == queue.ErrLeaseUnavailable {
 					slog.Info("Target already locked by another lease, skipping", "taskID", t.ID, "target", t.Target)
-					return nil // Already handled
+					return nil
 				}
-				return err // Retry on NATS error
+				return err
 			}
 
-			// Start KeepAlive for the lease while task runs
 			leaseCtx, cancelLease := context.WithCancel(ctx)
 			go e.Worker.LeaseMgr.KeepAlive(leaseCtx, leaseKey, e.Worker.ID)
 

@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// generateJSONReport exports report as JSON
 func (rg *ReportGenerator) generateJSONReport(report *Report) error {
 	outputPath := filepath.Join(rg.config.OutputPath, "report.json")
 	data, err := json.MarshalIndent(report, "", "  ")
@@ -18,7 +17,6 @@ func (rg *ReportGenerator) generateJSONReport(report *Report) error {
 	return os.WriteFile(outputPath, data, 0644)
 }
 
-// SARIF output structs
 type sarifReport struct {
 	Schema  string     `json:"$schema"`
 	Version string     `json:"version"`
@@ -138,4 +136,3 @@ func (rg *ReportGenerator) generateSARIFReport(report *Report) error {
 	}
 	return os.WriteFile(outputPath, data, 0644)
 }
-

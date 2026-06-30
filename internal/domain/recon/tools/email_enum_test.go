@@ -79,7 +79,7 @@ func TestInferUsernamePatterns(t *testing.T) {
 				{first: "eve", last: "hacker", email: "ehacker@mix.com"},
 			},
 			domain:   "mix.com",
-			wantLen:  2, // first.last (60%) and flast (40%)
+			wantLen:  2,
 			wantTop:  "first.last",
 			wantConf: 0.6,
 		},
@@ -191,7 +191,7 @@ func TestPatternGenerators(t *testing.T) {
 }
 
 func TestHunterResponseParsing(t *testing.T) {
-	// Verify struct tags parse correctly with sample JSON
+
 	jsonData := `{
 		"data": {
 			"domain": "example.com",
@@ -272,7 +272,6 @@ func TestEmailEnumDeduplication(t *testing.T) {
 	}
 }
 
-// parseJSON is a test helper to parse JSON bytes.
 func parseJSON(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }

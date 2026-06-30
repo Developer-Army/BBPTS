@@ -10,7 +10,7 @@ import (
 
 func TestTakeoverAnalyzer(t *testing.T) {
 	analyzer := NewTakeoverAnalyzer()
-	// Mock CNAME resolver
+
 	analyzer.lookupCNAME = func(ctx context.Context, host string) (string, error) {
 		if host == "sub.target.com" {
 			return "dangling.github.io", nil

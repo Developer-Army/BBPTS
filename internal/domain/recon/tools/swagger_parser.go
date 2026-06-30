@@ -15,7 +15,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Parameter represents a parameter extracted from the Swagger/OpenAPI spec.
 type Parameter struct {
 	Name     string
 	In       string // "query", "path", "header", "body", "formData"
@@ -23,19 +22,16 @@ type Parameter struct {
 	Type     string
 }
 
-// SwaggerParser handles fetching and parsing Swagger v2/OpenAPI v3 specs.
 type SwaggerParser struct {
 	client *http.Client
 }
 
-// NewSwaggerParser creates a new SwaggerParser instance.
 func NewSwaggerParser(timeout time.Duration) *SwaggerParser {
 	return &SwaggerParser{
 		client: NewSafeHTTPClient(timeout),
 	}
 }
 
-// FetchAndParse downloads and parses an OpenAPI/Swagger spec.
 func (p *SwaggerParser) FetchAndParse(ctx context.Context, specURL string) ([]recon.Event, []string, error) {
 	u, err := url.Parse(specURL)
 	if err != nil {
@@ -65,7 +61,6 @@ func (p *SwaggerParser) FetchAndParse(ctx context.Context, specURL string) ([]re
 	return p.Parse(body, u)
 }
 
-// Parse extracts endpoints, params, and auth schemes from raw spec content.
 func (p *SwaggerParser) Parse(specContent []byte, parsedSpecURL *url.URL) ([]recon.Event, []string, error) {
 	var data map[string]interface{}
 	if err := json.Unmarshal(specContent, &data); err != nil {
@@ -90,7 +85,6 @@ func (p *SwaggerParser) Parse(specContent []byte, parsedSpecURL *url.URL) ([]rec
 	events := []recon.Event{}
 	targetURLs := []string{}
 
-	// Emit events for the security schemes discovered
 	for name, scheme := range securitySchemes {
 		props := map[string]string{
 			"type":        "auth_scheme",
@@ -137,7 +131,6 @@ func (p *SwaggerParser) Parse(specContent []byte, parsedSpecURL *url.URL) ([]rec
 			methodParameters := p.extractParameters(methodMap["parameters"])
 			params := p.mergeParameters(pathParameters, methodParameters)
 
-			// OpenAPI 3.0 requestBody schema parameters extraction
 			if requestBody, ok := methodMap["requestBody"].(map[string]interface{}); ok {
 				if content, ok := requestBody["content"].(map[string]interface{}); ok {
 					for _, mediaVal := range content {
@@ -164,7 +157,6 @@ func (p *SwaggerParser) Parse(specContent []byte, parsedSpecURL *url.URL) ([]rec
 
 			authSchemes := p.getAuthSchemesForOperation(rootSecurity, methodMap)
 
-			// Construct URL with replaced path parameters
 			resolvedPath := pathStr
 			for _, p := range params {
 				if p.In == "path" {
@@ -223,7 +215,6 @@ func (p *SwaggerParser) resolveBaseURL(parsedSpecURL *url.URL, data map[string]i
 	host := parsedSpecURL.Host
 	basePath := ""
 
-	// Check OpenAPI 3.x servers
 	if servers, ok := data["servers"].([]interface{}); ok && len(servers) > 0 {
 		if serverMap, ok := servers[0].(map[string]interface{}); ok {
 			if sURL, ok := serverMap["url"].(string); ok && sURL != "" {
@@ -244,7 +235,6 @@ func (p *SwaggerParser) resolveBaseURL(parsedSpecURL *url.URL, data map[string]i
 		}
 	}
 
-	// Check Swagger 2.0 host, basePath, schemes
 	if sHost, ok := data["host"].(string); ok && sHost != "" {
 		host = sHost
 	}

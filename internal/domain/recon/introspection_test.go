@@ -45,7 +45,6 @@ func TestIntrospectionQuery(t *testing.T) {
 		t.Error("IntrospectionQuery should not be empty")
 	}
 
-	// Verify it contains key GraphQL introspection fields
 	requiredFields := []string{"__schema", "queryType", "mutationType", "types", "fields"}
 	for _, field := range requiredFields {
 		if !contains(IntrospectionQuery, field) {
@@ -77,7 +76,6 @@ func TestSchemaAnalysis_ToMarkdown(t *testing.T) {
 		t.Error("ToMarkdown should not return empty string")
 	}
 
-	// Verify markdown contains expected sections
 	expectedSections := []string{"GraphQL Schema Analysis", "Query Type", "Mutation Type", "Summary", "Query Fields", "Mutation Fields", "Sensitive Fields"}
 	for _, section := range expectedSections {
 		if !contains(markdown, section) {
@@ -105,7 +103,6 @@ func TestSchemaAnalysis_ToJSON(t *testing.T) {
 		t.Error("ToJSON should not return empty string")
 	}
 
-	// Verify it's valid JSON by checking for expected fields
 	if !contains(json, "QueryFields") {
 		t.Error("JSON should contain QueryFields")
 	}
@@ -124,12 +121,10 @@ func TestIntrospector_GenerateTestQueries(t *testing.T) {
 		t.Error("GenerateTestQueries should return at least one query")
 	}
 
-	// Should have 2 query tests + 2 mutation tests + 1 introspection = 5
 	if len(queries) != 5 {
 		t.Errorf("expected 5 queries, got %d", len(queries))
 	}
 
-	// Verify introspection query is included
 	foundIntrospection := false
 	for _, q := range queries {
 		if contains(q, "__schema") {
@@ -151,7 +146,6 @@ func TestIntrospector_GenerateTestQueries_Empty(t *testing.T) {
 	gi := NewIntrospector(10 * time.Second)
 	queries := gi.GenerateTestQueries(analysis)
 
-	// Should still have introspection query
 	if len(queries) != 1 {
 		t.Errorf("expected 1 query (introspection only), got %d", len(queries))
 	}
@@ -261,32 +255,26 @@ func TestIntrospector_Analyze(t *testing.T) {
 		t.Error("Analysis should contain the original schema")
 	}
 
-	// Should identify query fields
 	if len(analysis.QueryFields) != 2 {
 		t.Errorf("expected 2 query fields, got %d", len(analysis.QueryFields))
 	}
 
-	// Should identify mutation fields
 	if len(analysis.MutationFields) != 2 {
 		t.Errorf("expected 2 mutation fields, got %d", len(analysis.MutationFields))
 	}
 
-	// Should identify sensitive fields
 	if len(analysis.SensitiveFields) == 0 {
 		t.Error("should identify sensitive fields like 'password' and 'deleteToken'")
 	}
 
-	// Should identify deprecated fields
 	if len(analysis.DeprecatedFields) == 0 {
 		t.Error("should identify deprecated fields")
 	}
 
-	// Should identify enum types
 	if len(analysis.EnumTypes) != 1 {
 		t.Errorf("expected 1 enum type, got %d", len(analysis.EnumTypes))
 	}
 
-	// Should identify input types
 	if len(analysis.InputTypes) != 1 {
 		t.Errorf("expected 1 input type, got %d", len(analysis.InputTypes))
 	}
@@ -332,7 +320,6 @@ func TestIntrospector_Analyze_SkipsIntrospectionTypes(t *testing.T) {
 	gi := NewIntrospector(10 * time.Second)
 	analysis := gi.Analyze(schema)
 
-	// Introspection types should be skipped
 	if len(analysis.EnumTypes) != 0 {
 		t.Error("introspection types should not be counted as enum types")
 	}
@@ -353,13 +340,11 @@ func TestSchemaAnalysis_ToMarkdown_Empty(t *testing.T) {
 		t.Error("ToMarkdown should not return empty string")
 	}
 
-	// Should still have basic structure
 	if !contains(markdown, "GraphQL Schema Analysis") {
 		t.Error("Markdown should have title")
 	}
 }
 
-// Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && findSubstring(s, substr))
 }

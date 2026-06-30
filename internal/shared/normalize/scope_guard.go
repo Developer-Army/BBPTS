@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// ScopeGuard ensures no external or forbidden assets bleed into the active pipeline.
 type ScopeGuard struct {
 	allowedDomains []string
 	allowedIPs     map[string]struct{}
@@ -47,7 +46,6 @@ func NewScopeGuard(inScopeDomains []string) *ScopeGuard {
 	return sg
 }
 
-// IsAllowed returns true ONLY if the target strictly belongs to an allowed domain.
 func (sg *ScopeGuard) IsAllowed(target string) bool {
 	if len(sg.allowedDomains) == 0 && len(sg.allowedIPs) == 0 && len(sg.allowedCIDRs) == 0 {
 		return true
@@ -78,7 +76,6 @@ func (sg *ScopeGuard) IsAllowed(target string) bool {
 	return false
 }
 
-// Filter out all out-of-scope targets from a slice
 func (sg *ScopeGuard) Filter(targets []string) []string {
 	safe := make([]string, 0, len(targets))
 	for _, t := range targets {

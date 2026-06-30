@@ -211,7 +211,6 @@ func TestGetEventsWithNegativeScanID(t *testing.T) {
 
 	api.GetEvents(w, req)
 
-	// Should parse as valid int64, then fail on db call
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status 500, got %d", w.Code)
 	}
@@ -225,7 +224,6 @@ func TestGetEventsWithZeroScanID(t *testing.T) {
 
 	api.GetEvents(w, req)
 
-	// Should parse as valid int64, then fail on db call
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status 500, got %d", w.Code)
 	}
@@ -239,7 +237,6 @@ func TestGetEventsWithLargeScanID(t *testing.T) {
 
 	api.GetEvents(w, req)
 
-	// Should parse as valid int64, then fail on db call
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status 500, got %d", w.Code)
 	}
@@ -248,13 +245,11 @@ func TestGetEventsWithLargeScanID(t *testing.T) {
 func TestGetStatsMethod(t *testing.T) {
 	api := NewAPI(nil, "", "")
 
-	// Test POST method (should still work, but typically would be GET)
 	req := httptest.NewRequest("POST", "/api/stats", nil)
 	w := httptest.NewRecorder()
 
 	api.GetStats(w, req)
 
-	// Should still return 500 due to nil db
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status 500, got %d", w.Code)
 	}
@@ -263,21 +258,18 @@ func TestGetStatsMethod(t *testing.T) {
 func TestGetScansMethod(t *testing.T) {
 	api := NewAPI(nil, "", "")
 
-	// Test POST method
 	req := httptest.NewRequest("POST", "/api/scans", nil)
 	w := httptest.NewRecorder()
 
 	api.GetScans(w, req)
 
-	// Should still return 500 due to nil db
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("Expected status 500, got %d", w.Code)
 	}
 }
 
 func TestAPIWithMockDB(t *testing.T) {
-	// This would require mocking the storage.DB interface
-	// For now, we just test the structure
+
 	api := NewAPI(nil, "", "")
 
 	if api.db != nil {
@@ -312,7 +304,6 @@ func TestRespondWithErrorDifferentCodes(t *testing.T) {
 func TestHistoricalAPI(t *testing.T) {
 	api := NewAPI(nil, "", "")
 
-	// Test GetRiskHistory
 	{
 		req := httptest.NewRequest("GET", "/api/history/risk?host=test.com", nil)
 		w := httptest.NewRecorder()
@@ -322,7 +313,6 @@ func TestHistoricalAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetTechTrend
 	{
 		req := httptest.NewRequest("GET", "/api/history/tech?scope=default", nil)
 		w := httptest.NewRecorder()
@@ -332,7 +322,6 @@ func TestHistoricalAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetOwnershipHistory missing parameter
 	{
 		req := httptest.NewRequest("GET", "/api/history/ownership", nil)
 		w := httptest.NewRecorder()
@@ -342,7 +331,6 @@ func TestHistoricalAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetOwnershipHistory
 	{
 		req := httptest.NewRequest("GET", "/api/history/ownership?asset_id=test", nil)
 		w := httptest.NewRecorder()
@@ -352,7 +340,6 @@ func TestHistoricalAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetAssetHistory missing parameter
 	{
 		req := httptest.NewRequest("GET", "/api/history/asset", nil)
 		w := httptest.NewRecorder()
@@ -362,7 +349,6 @@ func TestHistoricalAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetAssetHistory
 	{
 		req := httptest.NewRequest("GET", "/api/history/asset?host=test.com", nil)
 		w := httptest.NewRecorder()
@@ -372,7 +358,6 @@ func TestHistoricalAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetFindingHistory missing parameter
 	{
 		req := httptest.NewRequest("GET", "/api/history/finding", nil)
 		w := httptest.NewRecorder()
@@ -382,7 +367,6 @@ func TestHistoricalAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetFindingHistory
 	{
 		req := httptest.NewRequest("GET", "/api/history/finding?target=test", nil)
 		w := httptest.NewRecorder()
@@ -527,7 +511,6 @@ func TestConfigUpdateSecrets(t *testing.T) {
 func TestGraphAPI(t *testing.T) {
 	api := NewAPI(nil, "", "")
 
-	// Test GetGraphNodes
 	{
 		req := httptest.NewRequest("GET", "/api/graph/nodes", nil)
 		w := httptest.NewRecorder()
@@ -537,7 +520,6 @@ func TestGraphAPI(t *testing.T) {
 		}
 	}
 
-	// Test GetGraphEdges
 	{
 		req := httptest.NewRequest("GET", "/api/graph/edges", nil)
 		w := httptest.NewRecorder()
@@ -551,7 +533,6 @@ func TestGraphAPI(t *testing.T) {
 func TestGetCurrentUser(t *testing.T) {
 	api := NewAPI(nil, "", "")
 
-	// Test unauthorized
 	{
 		req := httptest.NewRequest("GET", "/api/me", nil)
 		w := httptest.NewRecorder()
@@ -561,7 +542,6 @@ func TestGetCurrentUser(t *testing.T) {
 		}
 	}
 
-	// Test authorized with context keys
 	{
 		req := httptest.NewRequest("GET", "/api/me", nil)
 		ctx := req.Context()
@@ -598,19 +578,17 @@ func TestLoginRateLimit(t *testing.T) {
 
 	api := NewAPI(nil, "", "")
 
-	// 5 attempts should not be rate limited on the rate limiter itself
 	for i := 0; i < 5; i++ {
 		req := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{}`))
 		req.RemoteAddr = "1.2.3.4:1234"
 		w := httptest.NewRecorder()
 		api.Authenticate(w, req)
-		// It might return BadRequest since request body `{}` is invalid or empty, but it shouldn't be TooManyRequests
+
 		if w.Code == http.StatusTooManyRequests {
 			t.Errorf("Attempt %d unexpectedly rate limited", i+1)
 		}
 	}
 
-	// 6th attempt should be rate limited
 	req := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{}`))
 	req.RemoteAddr = "1.2.3.4:1234"
 	w := httptest.NewRecorder()
@@ -621,7 +599,7 @@ func TestLoginRateLimit(t *testing.T) {
 }
 
 func TestAuthMiddlewareLoopbackBypass(t *testing.T) {
-	// Create an endpoint handler that just returns the auth details from context
+
 	handler := authMiddleware(nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, _ := r.Context().Value(UsernameKey).(string)
 		role, _ := r.Context().Value(RoleKey).(string)
@@ -630,7 +608,6 @@ func TestAuthMiddlewareLoopbackBypass(t *testing.T) {
 		_, _ = w.Write([]byte(`{"username":"` + username + `","role":"` + role + `"}`))
 	}))
 
-	// Test 1: Loopback request gets admin auto-auth
 	reqLoopback := httptest.NewRequest("GET", "/api/stats", nil)
 	reqLoopback.RemoteAddr = "127.0.0.1:1234"
 	w1 := httptest.NewRecorder()
@@ -643,7 +620,6 @@ func TestAuthMiddlewareLoopbackBypass(t *testing.T) {
 		t.Errorf("Expected local/admin auto-auth, got %s", w1.Body.String())
 	}
 
-	// Test 2: Remote request without credentials gets 401 Unauthorized
 	reqRemote := httptest.NewRequest("GET", "/api/stats", nil)
 	reqRemote.RemoteAddr = "192.168.1.1:1234"
 	w2 := httptest.NewRecorder()
@@ -657,7 +633,6 @@ func TestAuthMiddlewareLoopbackBypass(t *testing.T) {
 func TestV2Endpoints(t *testing.T) {
 	api := NewAPI(nil, "", "")
 
-	// 1. GetScanStatusv2
 	{
 		req := httptest.NewRequest("GET", "/api/v2/scan/status", nil)
 		w := httptest.NewRecorder()
@@ -667,7 +642,6 @@ func TestV2Endpoints(t *testing.T) {
 		}
 	}
 
-	// 2. StartScanv2
 	{
 		req := httptest.NewRequest("POST", "/api/v2/scan/start", strings.NewReader(`{"target":"test.com","preset":"normal"}`))
 		w := httptest.NewRecorder()
@@ -677,7 +651,6 @@ func TestV2Endpoints(t *testing.T) {
 		}
 	}
 
-	// 3. GetPendingNotificationsv2
 	{
 		req := httptest.NewRequest("GET", "/api/v2/notifications/pending", nil)
 		w := httptest.NewRecorder()
@@ -687,7 +660,6 @@ func TestV2Endpoints(t *testing.T) {
 		}
 	}
 
-	// 4. AckNotificationv2
 	{
 		req := httptest.NewRequest("POST", "/api/v2/notifications/ack/1", nil)
 		w := httptest.NewRecorder()
@@ -697,7 +669,6 @@ func TestV2Endpoints(t *testing.T) {
 		}
 	}
 
-	// 5. RevokeDeviceTokenv2
 	{
 		req := httptest.NewRequest("DELETE", "/api/v2/auth/device/token123", nil)
 		w := httptest.NewRecorder()
@@ -707,4 +678,3 @@ func TestV2Endpoints(t *testing.T) {
 		}
 	}
 }
-

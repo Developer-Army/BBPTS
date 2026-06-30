@@ -14,12 +14,10 @@ var (
 	ErrLeaseUnavailable = errors.New("lease unavailable or held by another worker")
 )
 
-// LeaseManager implements distributed locking/leases using NATS KeyValue store.
 type LeaseManager struct {
 	kv nats.KeyValue
 }
 
-// NewLeaseManager creates a manager for executing exclusive tasks via leases.
 func NewLeaseManager(js nats.JetStreamContext, bucketName string) (*LeaseManager, error) {
 	kv, err := js.KeyValue(bucketName)
 	if err != nil {
@@ -27,7 +25,7 @@ func NewLeaseManager(js nats.JetStreamContext, bucketName string) (*LeaseManager
 			kv, err = js.CreateKeyValue(&nats.KeyValueConfig{
 				Bucket:      bucketName,
 				Description: "Distributed Lease Locks for BBPTS workers",
-				TTL:         1 * time.Minute, // Auto-release lock if worker crashes
+				TTL:         1 * time.Minute,
 				Storage:     nats.FileStorage,
 				Replicas:    1,
 			})
@@ -42,12 +40,11 @@ func NewLeaseManager(js nats.JetStreamContext, bucketName string) (*LeaseManager
 	return &LeaseManager{kv: kv}, nil
 }
 
-// Acquire tries to grab a lease for a specific key (e.g. target_domain).
 func (lm *LeaseManager) Acquire(key, workerID string) error {
 	if lm.kv == nil {
 		return errors.New("kv store is nil")
 	}
-	// We use Create to ensure we only get the lock if it doesn't exist
+
 	_, err := lm.kv.Create(key, []byte(workerID))
 	if err != nil {
 		return ErrLeaseUnavailable
@@ -55,17 +52,15 @@ func (lm *LeaseManager) Acquire(key, workerID string) error {
 	return nil
 }
 
-// Renew updates the lease TTL, proving the worker is still alive.
 func (lm *LeaseManager) Renew(key, workerID string) error {
 	if lm.kv == nil {
 		return errors.New("kv store is nil")
 	}
-	// Simply update the key with the same workerID to refresh the TTL
+
 	_, err := lm.kv.Put(key, []byte(workerID))
 	return err
 }
 
-// Release drops the lease, allowing others to pick it up.
 func (lm *LeaseManager) Release(key string) error {
 	if lm.kv == nil {
 		return errors.New("kv store is nil")
@@ -73,7 +68,6 @@ func (lm *LeaseManager) Release(key string) error {
 	return lm.kv.Delete(key)
 }
 
-// KeepAlive runs in the background and continuously renews the lease until the context is canceled.
 func (lm *LeaseManager) KeepAlive(ctx context.Context, key, workerID string) {
 	if lm.kv == nil {
 		return

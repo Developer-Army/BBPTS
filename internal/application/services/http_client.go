@@ -13,18 +13,16 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
 	utls "github.com/refraction-networking/utls"
+	"golang.org/x/net/http2"
 )
 
-// StealthClient provides an http.Client that mimics a real browser's TLS signature
-// to avoid detection by WAFs like Cloudflare and Akamai.
 type StealthClient struct {
 	client *http.Client
 	jitter time.Duration
 }
 
-// NewStealthClient creates a new HTTP client configured for evasion.
 func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, error) {
-	// Custom dialer using utls for TLS fingerprint spoofing (mimics Chrome)
+
 	dialTLS := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		pinnedAddr, host, err := security.ResolveAndValidateAddr(ctx, addr)
 		if err != nil {
@@ -83,7 +81,6 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
-	// Add proxy if provided
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {
@@ -91,6 +88,8 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 		}
 		transport.Proxy = http.ProxyURL(proxyURL)
 	}
+
+	_ = http2.ConfigureTransport(transport)
 
 	client := &http.Client{
 		Transport: transport,
@@ -113,7 +112,6 @@ func NewStealthClient(proxy string, maxJitter time.Duration) (*StealthClient, er
 	}, nil
 }
 
-// Do executes an HTTP request, optionally adding random jitter delay beforehand.
 func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 	classifier := NewErrorClassifier()
 	var lastErr error
@@ -150,18 +148,17 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 		}
 
 		if class == ClassDeadHost {
-			return resp, lastErr // No point retrying a dead host immediately
+			return resp, lastErr
 		}
 
-		// Intelligent handling
 		if class == ClassWAFBlock || class == ClassCaptcha {
-			// Identity rotation logic would go here. For now, we rotate the UA slightly.
+
 			req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			backoff = backoff * 2 // Slow down
+			backoff = backoff * 2
 		}
 
 		if class == ClassRateLimited {
-			backoff = backoff * 3 // Exponential backoff
+			backoff = backoff * 3
 		}
 
 		if resp != nil && class != ClassSuccess {
@@ -178,7 +175,6 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 	return resp, lastErr
 }
 
-// Get is a wrapper around client.Get with stealth capabilities
 func (sc *StealthClient) Get(url string) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

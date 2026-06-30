@@ -1,15 +1,14 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bufio"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"strings"
 	"time"
 )
 
-// InteractshTool wraps interactsh-client for OOB vulnerability testing.
 type InteractshTool struct{}
 
 func (t *InteractshTool) Name() string {
@@ -17,10 +16,6 @@ func (t *InteractshTool) Name() string {
 }
 
 func (t *InteractshTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
-	// Interactsh-client polls for out-of-band interactions.
-	// We start the command and read the first line of stdout to get the URL,
-	// then keep it running in a background goroutine to log any incoming interactions
-	// until the context is cancelled.
 
 	cmd := PrepareCommand(ctx, "interactsh-client")
 
@@ -66,15 +61,13 @@ func (t *InteractshTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 		return nil, nil
 	}
 
-	// Keep the process running in the background until context is canceled.
 	go func() {
-		// Wait for context done, then kill the process
+
 		go func() {
 			<-ctx.Done()
 			TerminateCommand(cmd)
 		}()
 
-		// Read continuous interaction logs from stdout
 		for scanner.Scan() {
 			text := scanner.Text()
 			if strings.Contains(text, "[") || strings.Contains(text, "interaction") || strings.Contains(text, "DNS") || strings.Contains(text, "HTTP") {
@@ -85,7 +78,7 @@ func (t *InteractshTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 			slog.Error("Interactsh scanner error", "error", err)
 		}
 
-		_ = cmd.Wait() // Reclaim resources
+		_ = cmd.Wait()
 	}()
 
 	return []recon.Event{

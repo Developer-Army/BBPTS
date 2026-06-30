@@ -9,7 +9,6 @@ func TestNucleiTagMapping(t *testing.T) {
 		t.Error("NucleiTagMapping should not be empty")
 	}
 
-	// Verify each mapping has valid structure
 	for bbptsTag, nucleiTags := range NucleiTagMapping {
 		if bbptsTag == "" {
 			t.Error("BBPTS tag should not be empty")
@@ -25,7 +24,6 @@ func TestNucleiSeverityForPriority(t *testing.T) {
 		t.Error("NucleiSeverityForPriority should not be empty")
 	}
 
-	// Verify each priority has valid severity levels
 	expectedPriorities := []string{"critical", "high", "medium", "low"}
 	for _, priority := range expectedPriorities {
 		sevs, ok := NucleiSeverityForPriority[priority]
@@ -89,7 +87,6 @@ func TestResolveTags(t *testing.T) {
 				t.Errorf("expected at least %d tags, got %d", tt.minCount, len(result))
 			}
 
-			// Check for duplicates
 			seen := make(map[string]bool)
 			for _, tag := range result {
 				if seen[tag] {
@@ -102,7 +99,7 @@ func TestResolveTags(t *testing.T) {
 }
 
 func TestResolveTags_Deduplication(t *testing.T) {
-	// Test that duplicate tags are removed
+
 	bbptsTags := []string{"graphql", "graphql", "api-docs", "api-docs"}
 	result := ResolveTags(bbptsTags)
 
@@ -116,8 +113,8 @@ func TestResolveTags_Deduplication(t *testing.T) {
 }
 
 func TestResolveTags_Overlap(t *testing.T) {
-	// Test that overlapping tags from different BBPTS tags are deduplicated
-	bbptsTags := []string{"graphql", "api-docs"} // both map to "swagger"
+
+	bbptsTags := []string{"graphql", "api-docs"}
 	result := ResolveTags(bbptsTags)
 
 	seen := make(map[string]bool)
@@ -139,8 +136,8 @@ func TestResolveSeverity(t *testing.T) {
 		{"high", "high", 4},
 		{"medium", "medium", 3},
 		{"low", "low", 2},
-		{"unknown", "unknown", 2}, // defaults to high, critical
-		{"empty", "", 2},          // defaults to high, critical
+		{"unknown", "unknown", 2},
+		{"empty", "", 2},
 		{"case insensitive", "CRITICAL", 5},
 	}
 
@@ -155,14 +152,13 @@ func TestResolveSeverity(t *testing.T) {
 }
 
 func TestResolveSeverity_Default(t *testing.T) {
-	// Test that unknown priorities return default
+
 	result := ResolveSeverity("nonexistent-priority")
 
 	if len(result) != 2 {
 		t.Errorf("expected 2 default severity levels, got %d", len(result))
 	}
 
-	// Default should be high, critical
 	expectedSeverities := map[string]bool{"high": true, "critical": true}
 	for _, sev := range result {
 		if !expectedSeverities[sev] {
@@ -172,7 +168,7 @@ func TestResolveSeverity_Default(t *testing.T) {
 }
 
 func TestNucleiTagMapping_Coverage(t *testing.T) {
-	// Test that important BBPTS tags are mapped
+
 	importantTags := []string{
 		"exposed-secrets",
 		"source-disclosure",
@@ -199,7 +195,7 @@ func TestNucleiTagMapping_Coverage(t *testing.T) {
 }
 
 func TestNucleiSeverityForPriority_Coverage(t *testing.T) {
-	// Test that all priority levels are defined
+
 	expectedPriorities := []string{"critical", "high", "medium", "low"}
 	for _, priority := range expectedPriorities {
 		if _, ok := NucleiSeverityForPriority[priority]; !ok {
@@ -209,7 +205,7 @@ func TestNucleiSeverityForPriority_Coverage(t *testing.T) {
 }
 
 func TestResolveTags_Ordering(t *testing.T) {
-	// Test that tags are returned in a consistent order
+
 	bbptsTags := []string{"graphql", "api-docs"}
 	result1 := ResolveTags(bbptsTags)
 	result2 := ResolveTags(bbptsTags)

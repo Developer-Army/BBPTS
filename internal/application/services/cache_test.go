@@ -357,7 +357,6 @@ func TestCacheOverwrite(t *testing.T) {
 		t.Fatalf("Failed to put: %v", err)
 	}
 
-	// Overwrite with different data
 	err = cache.Put("test", []string{"a.com"}, 5, []Event{{Target: "a.com", Source: "updated"}})
 	if err != nil {
 		t.Fatalf("Failed to overwrite: %v", err)
@@ -390,7 +389,6 @@ func TestCacheHitCount(t *testing.T) {
 		t.Fatalf("Failed to put: %v", err)
 	}
 
-	// Multiple hits
 	for i := 0; i < 3; i++ {
 		_, ok := cache.Get("test", []string{"a.com"}, 5)
 		if !ok {
@@ -398,7 +396,6 @@ func TestCacheHitCount(t *testing.T) {
 		}
 	}
 
-	// Give async hit-count goroutines time to complete
 	time.Sleep(50 * time.Millisecond)
 
 	stats := cache.Stats()

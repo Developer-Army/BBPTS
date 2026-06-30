@@ -1,12 +1,13 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +44,6 @@ func (t *RaceTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 			return nil, nil
 		}
 
-		// Heuristic: only test endpoints matching state-changing keywords to minimize noise/traffic
 		targetLower := strings.ToLower(target)
 		isStateChanging := false
 		for _, kw := range stateChangingKeywords {
@@ -61,8 +61,7 @@ func (t *RaceTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 			return nil, nil
 		}
 
-		// Run race condition test
-		hasRace, successCount, err := t.testRace(ctx, target)
+		hasRace, successCount, reqDump, respDump, err := t.testRace(ctx, target)
 		if err != nil {
 			return nil, nil
 		}
@@ -70,10 +69,12 @@ func (t *RaceTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets 
 		var events []recon.Event
 		if hasRace {
 			events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
-				"vuln_name":       "Race Condition Vulnerability",
-				"severity":        "high",
-				"success_count":   fmt.Sprintf("%d", successCount),
-				"description":     fmt.Sprintf("Multiple concurrent state-changing requests (%d successes) succeeded on %s, suggesting a race condition.", successCount, target),
+				"vuln_name":     "Race Condition Vulnerability",
+				"severity":      "high",
+				"success_count": fmt.Sprintf("%d", successCount),
+				"description":   fmt.Sprintf("Multiple concurrent state-changing requests (%d successes) succeeded on %s, suggesting a race condition.", successCount, target),
+				"request":       reqDump,
+				"response":      respDump,
 			}, "high"))
 		}
 
@@ -110,17 +111,19 @@ func (t *RaceTool) looksStateChangingByResponse(ctx context.Context, target stri
 	return false
 }
 
-func (t *RaceTool) testRace(ctx context.Context, target string) (bool, int, error) {
+func (t *RaceTool) testRace(ctx context.Context, target string) (bool, int, string, string, error) {
 	numRequests := 15
 	var wg sync.WaitGroup
 	barrier := make(chan struct{})
-	
+
 	type reqResult struct {
 		statusCode int
+		reqDump    string
+		respDump   string
 		err        error
 	}
 	results := make([]reqResult, numRequests)
-	
+
 	client := NewSafeHTTPClient(10 * time.Second)
 
 	for i := 0; i < numRequests; i++ {
@@ -128,8 +131,6 @@ func (t *RaceTool) testRace(ctx context.Context, target string) (bool, int, erro
 		go func(idx int) {
 			defer wg.Done()
 
-			// Prepare request
-			// We try POST first as it is standard for state-changing, fallback to GET if needed
 			req, err := http.NewRequestWithContext(ctx, "POST", target, bytes.NewBuffer([]byte("{}")))
 			if err != nil {
 				results[idx] = reqResult{err: err}
@@ -143,38 +144,43 @@ func (t *RaceTool) testRace(ctx context.Context, target string) (bool, int, erro
 				req.Header.Set(k, v)
 			}
 
-			// Wait for the release barrier
+			reqDump, _ := httputil.DumpRequestOut(req, true)
+
 			<-barrier
 
 			resp, err := client.Do(req)
 			if err != nil {
-				results[idx] = reqResult{err: err}
+				results[idx] = reqResult{err: err, reqDump: string(reqDump)}
 				return
 			}
-			defer resp.Body.Close()
+			respDump, _ := httputil.DumpResponse(resp, false)
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+			resp.Body.Close()
 
-			results[idx] = reqResult{statusCode: resp.StatusCode}
+			results[idx] = reqResult{statusCode: resp.StatusCode, reqDump: string(reqDump), respDump: string(respDump)}
 		}(i)
 	}
 
-	// Release all request goroutines at once
 	close(barrier)
 	wg.Wait()
 
 	successCount := 0
+	var firstReqDump, firstRespDump string
 	for _, res := range results {
 		if res.err == nil && (res.statusCode == http.StatusOK || res.statusCode == http.StatusCreated || res.statusCode == http.StatusNoContent) {
 			successCount++
+			if firstReqDump == "" {
+				firstReqDump = res.reqDump
+				firstRespDump = res.respDump
+			}
 		}
 	}
 
-	// Heuristic: If we sent 15 concurrent requests, and more than 1 succeeded, it indicates a race condition
-	// (usually, only 1 request like coupon application should succeed, others should conflict/fail with 4xx/5xx).
 	if successCount > 1 {
-		return true, successCount, nil
+		return true, successCount, firstReqDump, firstRespDump, nil
 	}
 
-	return false, successCount, nil
+	return false, successCount, "", "", nil
 }
 
 var _ recon.Tool = (*RaceTool)(nil)

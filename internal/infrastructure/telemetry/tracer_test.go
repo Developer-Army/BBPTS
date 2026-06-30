@@ -28,7 +28,6 @@ func TestStartSpan(t *testing.T) {
 		t.Error("Expected spanID to be non-empty")
 	}
 
-	// Check that context was updated
 	retrievedSpanID := ctx.Value(spanIDKey)
 	if retrievedSpanID == nil {
 		t.Error("Expected spanID to be in context")
@@ -38,7 +37,6 @@ func TestStartSpan(t *testing.T) {
 		t.Error("Expected spanID in context to match returned spanID")
 	}
 
-	// Check that span was added to active traces
 	tracer.mu.RLock()
 	_, exists := tracer.activeTraces[spanID]
 	tracer.mu.RUnlock()
@@ -60,7 +58,6 @@ func TestStartSpanWithParent(t *testing.T) {
 		t.Error("Expected child spanID to be non-empty")
 	}
 
-	// Check that child has parent
 	tracer.mu.RLock()
 	parentSpan, parentExists := tracer.activeTraces[parentID]
 	childSpan, childExists := tracer.activeTraces[childID]
@@ -95,7 +92,6 @@ func TestEndSpan(t *testing.T) {
 	}
 	tracer.EndSpan(spanID, metadata)
 
-	// Check that span was updated
 	tracer.mu.RLock()
 	span, exists := tracer.activeTraces[spanID]
 	tracer.mu.RUnlock()
@@ -120,7 +116,6 @@ func TestEndSpan(t *testing.T) {
 func TestEndSpanNonExistent(t *testing.T) {
 	tracer := NewWorkflowTracer()
 
-	// Should not panic
 	tracer.EndSpan("non-existent", nil)
 }
 
@@ -217,12 +212,10 @@ func TestMultipleSpans(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create multiple spans
 	ctx, span1 := tracer.StartSpan(ctx, "span-1", "")
 	ctx, span2 := tracer.StartSpan(ctx, "span-2", "")
 	_, span3 := tracer.StartSpan(ctx, "span-3", "")
 
-	// All should be active
 	tracer.mu.RLock()
 	count := len(tracer.activeTraces)
 	tracer.mu.RUnlock()
@@ -231,12 +224,10 @@ func TestMultipleSpans(t *testing.T) {
 		t.Errorf("Expected 3 active spans, got %d", count)
 	}
 
-	// End them
 	tracer.EndSpan(span1, nil)
 	tracer.EndSpan(span2, nil)
 	tracer.EndSpan(span3, nil)
 
-	// Should still be in active traces (just ended)
 	tracer.mu.RLock()
 	count = len(tracer.activeTraces)
 	tracer.mu.RUnlock()
@@ -251,17 +242,13 @@ func TestSpanHierarchy(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create parent
 	ctx, parentID := tracer.StartSpan(ctx, "parent", "")
 
-	// Create children
 	ctx, child1ID := tracer.StartSpan(ctx, "child-1", parentID)
 	ctx, child2ID := tracer.StartSpan(ctx, "child-2", parentID)
 
-	// Create grandchild
 	_, grandchildID := tracer.StartSpan(ctx, "grandchild", child1ID)
 
-	// Check hierarchy
 	tracer.mu.RLock()
 	parent := tracer.activeTraces[parentID]
 	child1 := tracer.activeTraces[child1ID]
@@ -292,15 +279,12 @@ func TestSpanMetadataMerge(t *testing.T) {
 	ctx := context.Background()
 	ctx, spanID := tracer.StartSpan(ctx, "test-span", "")
 
-	// End with initial metadata
 	tracer.EndSpan(spanID, map[string]interface{}{
 		"key1": "value1",
 	})
 
-	// Start a new span with same ID (simulating update)
 	_, spanID = tracer.StartSpan(ctx, "test-span", "")
 
-	// End with additional metadata
 	tracer.EndSpan(spanID, map[string]interface{}{
 		"key2": "value2",
 	})
@@ -309,8 +293,6 @@ func TestSpanMetadataMerge(t *testing.T) {
 	span := tracer.activeTraces[spanID]
 	tracer.mu.RUnlock()
 
-	// In the actual implementation, this would be a new span
-	// This test just verifies the structure handles metadata
 	if span == nil {
 		t.Error("Expected span to exist")
 	}
@@ -340,7 +322,6 @@ func TestConcurrentSpanOperations(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create spans concurrently
 	done := make(chan bool)
 	for i := 0; i < 10; i++ {
 		go func(index int) {
@@ -350,12 +331,10 @@ func TestConcurrentSpanOperations(t *testing.T) {
 		}(i)
 	}
 
-	// Wait for all to complete
 	for i := 0; i < 10; i++ {
 		<-done
 	}
 
-	// Should have 10 spans
 	tracer.mu.RLock()
 	count := len(tracer.activeTraces)
 	tracer.mu.RUnlock()

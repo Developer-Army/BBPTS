@@ -1,15 +1,14 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"strings"
 	"time"
 )
 
-// FeroxbusterTool wraps the Rust-based fuzzer for directory discovery.
 type FeroxbusterTool struct{}
 
 func (t *FeroxbusterTool) Name() string {
@@ -30,13 +29,17 @@ func (t *FeroxbusterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 		return nil, nil
 	}
 
-	// We use --stdin to process multiple targets and --json for structured output.
 	args := []string{
 		"--stdin",
 		"--json",
 		"--silent",
 		"--threads", fmt.Sprintf("%d", threads),
-		"--no-recursion", // For performance on weak PCs, recursion is handled by BBPTS logic
+		"--no-recursion",
+	}
+
+	wordlist := recon.GetWordlistPath(ctx, "directory")
+	if wordlist != "" {
+		args = append(args, "-w", wordlist)
 	}
 
 	if scanCtx.LowResource {
@@ -62,7 +65,7 @@ func (t *FeroxbusterTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 	defer cancel()
 
 	lines, err := RunCommandWithInputLines(targetCtx, []byte(input), "feroxbuster", args...)
-	if err != nil {
+	if err != nil && len(lines) == 0 {
 		return nil, fmt.Errorf("feroxbuster execution failed: %w", err)
 	}
 

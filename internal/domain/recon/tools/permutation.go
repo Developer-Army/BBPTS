@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net"
 	"strings"
 	"sync"
@@ -32,7 +32,7 @@ func (t *PermutationTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 		if target == "" {
 			continue
 		}
-		// Strip http/https if present
+
 		if strings.Contains(target, "://") {
 			parts := strings.Split(target, "://")
 			target = parts[len(parts)-1]
@@ -46,13 +46,12 @@ func (t *PermutationTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 
 		parts := strings.Split(target, ".")
 		if len(parts) < 3 {
-			continue // Not a subdomain (e.g. just example.com)
+			continue
 		}
 
 		sub := parts[0]
 		domain := strings.Join(parts[1:], ".")
 
-		// Generate variations
 		variants := []string{
 			sub,
 		}
@@ -79,7 +78,6 @@ func (t *PermutationTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 		return nil, nil
 	}
 
-	// Resolve the generated permutation candidates in parallel
 	results := make(chan string, len(candidates))
 	sem := make(chan struct{}, threads)
 	var wg sync.WaitGroup
@@ -103,7 +101,6 @@ func (t *PermutationTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				return
 			}
 
-			// Resolve IP
 			ctxTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 			defer cancel()
 			ips, err := resolver.LookupIPAddr(ctxTimeout, domain)

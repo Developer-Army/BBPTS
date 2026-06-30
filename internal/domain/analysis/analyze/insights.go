@@ -15,8 +15,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 )
 
-// Insight encapsulates findings for a specific target host, including a computed
-// risk score, priority level, relevant tags, and suggested security tests.
 type Insight struct {
 	Host           string   `json:"host"`
 	Score          int      `json:"score"`
@@ -45,14 +43,10 @@ type Insight struct {
 	Risk recon.RiskVector `json:"risk_vector"`
 }
 
-// Analyzer defines the interface for components that evaluate recon events
-// to enrich an Insight with findings, scores, and tags.
 type Analyzer interface {
 	Analyze(ev recon.Event, insight *Insight)
 }
 
-// DeriveInsights aggregates initial targets and subsequent reconnaissance events
-// to calculate risk scores and build Insight records for each discovered host.
 func DeriveInsights(targets []string, events []recon.Event) []Insight {
 	return deriveInsightsWithTime(targets, events, time.Now())
 }
@@ -96,7 +90,7 @@ func deriveInsightsWithTime(targets []string, events []recon.Event, currentTime 
 		NewTakeoverAnalyzer(),
 		&IDORAnalyzer{},
 	}
-	// Add cluster analyzer for post-processing
+
 	clusterAnalyzer := NewClusterAnalyzer()
 	analyzers = append(analyzers, clusterAnalyzer)
 
@@ -108,7 +102,6 @@ func deriveInsightsWithTime(targets []string, events []recon.Event, currentTime 
 		insight := ensureInsight(host, insights)
 		insight.EvidenceCount++
 
-		// Collect unique evidence samples (max 1000)
 		if ev.Target != "" && len(insight.Evidence) < 1000 {
 			if evidencePerHost[host] == nil {
 				evidencePerHost[host] = make(map[string]struct{})
@@ -163,17 +156,12 @@ func deriveInsightsWithTime(targets []string, events []recon.Event, currentTime 
 		result = append(result, *insight)
 	}
 
-	// Cluster-based scoring boost (must happen after result built, before normalization)
 	clusterAnalyzer.PostProcess(result, events)
 
-	// Group subdomain sibling findings
 	clusterSubdomainSiblings(result)
 
-	// Normalize all raw scores to 0–100 using log-scale so that
-	// scores reflect suspicion level rather than data volume.
 	normalizeScores(result)
 
-	// Apply Risk Decay (Phase 4 / Option 3)
 	for i := range result {
 		host := result[i].Host
 		if t, ok := mostRecentTime[host]; ok && !t.IsZero() {
@@ -194,7 +182,6 @@ func deriveInsightsWithTime(targets []string, events []recon.Event, currentTime 
 		}
 	}
 
-	// Priority must be set after normalization and decay.
 	for i := range result {
 		adjustPriority(&result[i])
 	}
@@ -283,8 +270,6 @@ func ensureInsight(host string, collection map[string]*Insight) *Insight {
 	collection[host] = insight
 	return insight
 }
-
-// --- Specific Analyzers ---
 
 type SeverityAnalyzer struct{}
 
@@ -418,19 +403,16 @@ func (p *ParameterAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 	addTag(insight, "parameterized")
 	addReason(insight, "Active parameters detected attack surface")
 
-	// Generic SQL injection coverage for any query-bearing endpoint.
 	addTag(insight, "sqli-candidate")
 	addSuggestedTest(insight, "Test query parameters for SQL injection and backend query injection")
 	insight.Score += 12
 
-	// SSRF / Open Redirect indicators
 	if strings.Contains(targetLower, "url=") || strings.Contains(targetLower, "dest=") || strings.Contains(targetLower, "redirect=") || strings.Contains(targetLower, "uri=") {
 		addTag(insight, "ssrf-candidate")
 		addSuggestedTest(insight, "Test for SSRF and Open Redirect via URL parameters")
 		insight.Score += 15
 	}
 
-	// File Inclusion / Path Traversal indicators
 	if strings.Contains(targetLower, "file=") || strings.Contains(targetLower, "path=") || strings.Contains(targetLower, "include=") {
 		addTag(insight, "lfi-candidate")
 		addSuggestedTest(insight, "Test for Local/Remote File Inclusion and Path Traversal")
@@ -440,7 +422,6 @@ func (p *ParameterAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 	addSuggestedTest(insight, "Parameter tampering and XSS testing on query-bearing endpoints")
 	insight.Score += 8
 
-	// Parameter-aware test suggestions for higher manual testing depth.
 	u, err := url.Parse(ev.Target)
 	if err == nil {
 		for key := range u.Query() {
@@ -479,13 +460,12 @@ func (t *TechAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		Reason  string
 		Score   int
 	}{
-		// CMS & High-Value Targets
+
 		{"wp-content", "wordpress", "WordPress CMS detected", 8},
 		{"wp-includes", "wordpress", "WordPress CMS detected", 8},
 		{"/admin", "admin-panel", "Administrative interface found", 15},
 		{"/dashboard", "dashboard", "Admin/user dashboard detected", 12},
 
-		// DevOps & Monitoring (High-Value Targets)
 		{"jenkins", "devops", "Jenkins automation server", 20},
 		{"grafana", "monitoring", "Grafana dashboard (monitoring)", 15},
 		{"prometheus", "monitoring", "Prometheus monitoring stack", 12},
@@ -493,18 +473,15 @@ func (t *TechAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		{"splunk", "siem", "Splunk SIEM platform", 18},
 		{"datadog", "monitoring", "Datadog monitoring/APM", 10},
 
-		// Cloud Services
 		{"s3.amazonaws.com", "aws-s3", "AWS S3 Bucket", 12},
 		{"blob.core.windows.net", "azure-blob", "Azure Blob Storage", 12},
 		{"storage.googleapis.com", "gcs", "Google Cloud Storage", 10},
 		{"cloudfront", "aws-cdn", "AWS CloudFront CDN", 8},
 
-		// Container & Orchestration
 		{"kubernetes", "k8s", "Kubernetes cluster indicator", 18},
 		{"docker", "containerization", "Docker container/registry", 10},
 		{"/api/v1", "api", "Kubernetes API endpoint pattern", 15},
 
-		// Message Queues & Databases (Exposed = Critical)
 		{"rabbitmq", "message-queue", "RabbitMQ message broker", 15},
 		{"kafka", "streaming", "Apache Kafka streaming platform", 15},
 		{"elasticsearch", "database", "Elasticsearch exposed", 20},
@@ -513,13 +490,11 @@ func (t *TechAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		{"postgres", "database", "PostgreSQL database", 18},
 		{"mysql", "database", "MySQL database", 15},
 
-		// VCS & Secrets
 		{"gitlab", "git-repo", "GitLab instance", 15},
 		{"gitea", "git-repo", "Gitea git service", 12},
 		{".git/config", "git-leak", "Exposed Git repository", 25},
 		{".env", "secrets", "Environment/config file exposed", 25},
 
-		// Frameworks & Web Servers
 		{"/phpmyadmin", "phpmyadmin", "phpMyAdmin exposed", 20},
 		{"tomcat", "java-server", "Apache Tomcat", 10},
 		{"jboss", "java-server", "JBoss application server", 15},
@@ -589,23 +564,21 @@ func (s *SubdomainAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 type FingerprintAnalyzer struct{}
 
 func (f *FingerprintAnalyzer) Analyze(ev recon.Event, insight *Insight) {
-	// Detect shared infrastructure via favicon hash (commonly used to find dev/admin panels)
+
 	if v, ok := ev.Properties["favicon_hash"]; ok {
 		addTag(insight, "fingerprinted")
 		addReason(insight, "favicon hash: "+v)
-		// Known sensitive hashes (example: spring boot, django admin, etc.)
+
 		insight.Score += 10
 	}
 
-	// Detect via TLS/SSL JARM fingerprint
 	if v, ok := ev.Properties["jarm"]; ok {
 		addTag(insight, "jarm-fingerprint")
 		addReason(insight, "JARM hash: "+v)
-		// JARM can identify specific software versions even if obscured
+
 		insight.Score += 5
 	}
 
-	// Detect via common SSL subject/issuer
 	if v, ok := ev.Properties["ssl_subject"]; ok {
 		if strings.Contains(strings.ToLower(v), "internal") || strings.Contains(strings.ToLower(v), "localhost") {
 			addTag(insight, "internal-ssl")
@@ -619,24 +592,83 @@ func (f *FingerprintAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 type SourceAnalyzer struct{}
 
 func (s *SourceAnalyzer) Analyze(ev recon.Event, insight *Insight) {
-	source := strings.ToLower(strings.TrimSpace(ev.Source))
-	switch source {
-	case "crtsh", "subfinder", "assetfinder", "amass", "puredns", "chaos", "gau", "hakrawler", "katana", "gobuster", "feroxbuster", "browser", "httpx":
-		if !tagExists(insight, "discovery") {
-			addTag(insight, "discovery")
-			insight.Score += 5
+
+	sources := make(map[string]bool)
+	if s := strings.ToLower(strings.TrimSpace(ev.Source)); s != "" {
+		sources[s] = true
+	}
+	if raw, ok := ev.Properties["bbpts_sources"]; ok {
+		for _, part := range strings.Split(raw, ",") {
+			if s := strings.ToLower(strings.TrimSpace(part)); s != "" {
+				sources[s] = true
+			}
 		}
-		addReason(insight, fmt.Sprintf("Discovered through %s", source))
-	case "nuclei", "dalfox", "secrets":
-		if !tagExists(insight, "vulnerability") {
-			addTag(insight, "vulnerability")
-			insight.Score += 20
+	}
+
+	types := make(map[string]bool)
+	if t := strings.ToLower(strings.TrimSpace(ev.Type)); t != "" {
+		types[t] = true
+	}
+	if raw, ok := ev.Properties["bbpts_types"]; ok {
+		for _, part := range strings.Split(raw, ",") {
+			if t := strings.ToLower(strings.TrimSpace(part)); t != "" {
+				types[t] = true
+			}
 		}
-		addReason(insight, fmt.Sprintf("Vulnerability scan matched by %s", source))
-	default:
-		if source != "" {
-			addReason(insight, fmt.Sprintf("Source: %s", source))
+	}
+
+	for source := range sources {
+		switch source {
+		case "crtsh", "subfinder", "assetfinder", "amass", "puredns", "chaos", "gau", "hakrawler", "katana", "gobuster", "feroxbuster", "browser", "httpx":
+			if !tagExists(insight, "discovery") {
+				addTag(insight, "discovery")
+				insight.Score += 5
+			}
+			addReason(insight, fmt.Sprintf("Discovered through %s", source))
+		case "nuclei", "dalfox", "secrets":
+			if !tagExists(insight, "vulnerability") {
+				addTag(insight, "vulnerability")
+				insight.Score += 20
+			}
+			addReason(insight, fmt.Sprintf("Vulnerability scan matched by %s", source))
+		default:
+			if source != "" {
+				addReason(insight, fmt.Sprintf("Source: %s", source))
+			}
 		}
+	}
+
+	if sources["wafw00f"] || types["waf-detection"] {
+		addTag(insight, "waf")
+		addReason(insight, "WAF Detection: Active firewall protection analyzed")
+	}
+	if (types["service"] || types["tech-fingerprint"]) && (strings.Contains(strings.ToLower(ev.Properties["technologies"]), "express") || strings.Contains(strings.ToLower(ev.Properties["server"]), "nginx") || ev.Properties["technologies"] != "") {
+		addTag(insight, "tech-fingerprint")
+		addReason(insight, "Technology Fingerprinting analysis compiled for target stack")
+	}
+	if sources["httpx"] && (strings.Contains(ev.Target, "redirect") || ev.Properties["status_code"] == "301" || ev.Properties["status_code"] == "302" || types["redirect"]) {
+		addTag(insight, "redirect")
+		addReason(insight, "Redirect Analysis: chain of navigation verified")
+	}
+	if sources["tlsx"] || types["tls"] {
+		addTag(insight, "tls")
+		addReason(insight, "TLS Analysis completed on open secure ports")
+	}
+	if strings.Contains(strings.ToLower(ev.Target), "/api") || types["api"] {
+		addTag(insight, "api")
+		addReason(insight, "API Enumeration compiled from endpoints")
+	}
+	if sources["bypass403"] || strings.Contains(strings.ToLower(ev.Target), "/admin") || types["auth"] {
+		addTag(insight, "auth-bypass")
+		addReason(insight, "Auth Bypass Testing on restricted areas")
+	}
+	if types["cdn"] || strings.Contains(strings.ToLower(ev.Target), "cloudfront") {
+		addTag(insight, "cdn")
+		addReason(insight, "CDN Detection: edge delivery node identified")
+	}
+	if sources["dnsx"] || strings.Contains(ev.Target, ":53") {
+		addTag(insight, "dns")
+		addReason(insight, "Alive Host Detection completed on active resolver targets")
 	}
 }
 
@@ -645,7 +677,19 @@ type ManualTestingAnalyzer struct{}
 type IDORAnalyzer struct{}
 
 func (i *IDORAnalyzer) Analyze(ev recon.Event, insight *Insight) {
-	if ev.Source != "idor_assist" {
+
+	hasIDOR := strings.ToLower(strings.TrimSpace(ev.Source)) == "idor_assist"
+	if !hasIDOR {
+		if raw, ok := ev.Properties["bbpts_sources"]; ok {
+			for _, part := range strings.Split(raw, ",") {
+				if strings.ToLower(strings.TrimSpace(part)) == "idor_assist" {
+					hasIDOR = true
+					break
+				}
+			}
+		}
+	}
+	if !hasIDOR {
 		return
 	}
 
@@ -666,7 +710,6 @@ func (i *IDORAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 	targetLower := strings.ToLower(ev.Target)
 
-	// Flag 403/401 for bypass attempts
 	if v, ok := ev.Properties["status"]; ok {
 		if v == "403" || v == "401" {
 			addTag(insight, "manual-bypass")
@@ -676,7 +719,6 @@ func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		}
 	}
 
-	// Flag complex query strings (more than 3 parameters)
 	if strings.Contains(ev.Target, "?") {
 		parts := strings.Split(ev.Target, "&")
 		if len(parts) >= 3 {
@@ -687,7 +729,6 @@ func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		}
 	}
 
-	// Flag CORS misconfigurations
 	if v, ok := ev.Properties["cors"]; ok {
 		if v == "*" || strings.Contains(v, "null") {
 			addTag(insight, "cors-risk")
@@ -697,7 +738,6 @@ func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 		}
 	}
 
-	// Flag interesting JS patterns (already handled partially by JSAnalyzer, but we reinforce here)
 	if strings.HasSuffix(targetLower, ".js") {
 		interestingJS := []string{"config", "init", "auth", "api", "env", "secret"}
 		for _, pattern := range interestingJS {
@@ -712,10 +752,8 @@ func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 	}
 }
 
-// adjustPriority assigns a priority label using the normalized score (0-100)
-// blended with the independently-computed confidence value.
 func adjustPriority(insight *Insight) {
-	// Blend: 70% normalized score + 30% confidence.
+
 	blended := float64(insight.Score)*0.7 + float64(insight.Confidence)*0.3
 	if blended >= 60 {
 		insight.Priority = "high"
@@ -844,7 +882,6 @@ func extractHost(raw string) string {
 		return ip.String()
 	}
 
-	// Try parsing as URL first if it has a scheme
 	if strings.Contains(raw, "://") {
 		parsed, err := url.Parse(raw)
 		if err == nil && parsed.Host != "" {
@@ -852,7 +889,6 @@ func extractHost(raw string) string {
 		}
 	}
 
-	// Fallback for scheme-less like acme-corp.io or acme-corp.io:8080
 	if strings.Contains(raw, ":") {
 		host, _, err := net.SplitHostPort(raw)
 		if err == nil {
@@ -868,9 +904,6 @@ func extractHost(raw string) string {
 	return strings.ToLower(raw)
 }
 
-// normalizeScores maps raw additive scores into the 0–100 range using
-// log-scaling so that a target with 50,000 URLs doesn't blindly dominate
-// one with genuine findings but fewer data points.
 func normalizeScores(insights []Insight) {
 	if len(insights) == 0 {
 		return
@@ -900,8 +933,6 @@ func normalizeScores(insights []Insight) {
 	}
 }
 
-// consolidateParamReasons merges individual "High-risk parameter detected"
-// reasons into a single summary entry to prevent per-parameter score inflation.
 func consolidateParamReasons(insight *Insight) {
 	const prefix = "High-risk parameter detected (likely database input): "
 	var paramNames []string
@@ -934,7 +965,6 @@ func clusterSubdomainSiblings(insights []Insight) {
 			continue
 		}
 
-		// Cluster list elements by matching path or vulnerability tags
 		for i := 0; i < len(list); i++ {
 			for j := i + 1; j < len(list); j++ {
 				var matchedTags []string
@@ -983,7 +1013,7 @@ func getApexDomain(host string) string {
 	if len(parts) <= 2 {
 		return host
 	}
-	// Check for double extensions like co.uk, com.br
+
 	secondToLast := parts[len(parts)-2]
 	if secondToLast == "com" || secondToLast == "co" || secondToLast == "org" || secondToLast == "net" || secondToLast == "gov" || secondToLast == "edu" {
 		return strings.Join(parts[len(parts)-3:], ".")

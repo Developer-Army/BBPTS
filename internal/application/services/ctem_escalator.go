@@ -13,7 +13,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 )
 
-// Escalator manages periodic SLA and escalation checks for active findings.
 type Escalator struct {
 	store    *storage.Storage
 	interval time.Duration
@@ -23,7 +22,6 @@ type Escalator struct {
 	mu       sync.Mutex
 }
 
-// NewEscalator creates a new Escalator daemon.
 func NewEscalator(store *storage.Storage, checkInterval time.Duration) *Escalator {
 	if checkInterval <= 0 {
 		checkInterval = 1 * time.Hour
@@ -35,7 +33,6 @@ func NewEscalator(store *storage.Storage, checkInterval time.Duration) *Escalato
 	}
 }
 
-// Start runs the escalator ticker in a background goroutine.
 func (e *Escalator) Start(ctx context.Context) {
 	e.mu.Lock()
 	if e.running {
@@ -70,14 +67,12 @@ func (e *Escalator) Start(ctx context.Context) {
 	}()
 }
 
-// Stop stops the background escalator ticker.
 func (e *Escalator) Stop() {
 	e.stopOnce.Do(func() {
 		close(e.done)
 	})
 }
 
-// CheckAndEscalate queries overdue assignments, flags their statuses, and triggers matched escalation rules.
 func (e *Escalator) CheckAndEscalate(ctx context.Context) {
 	slog.Debug("Running CTEM Escalation evaluation")
 	overdue, err := e.store.GetOverdueAssignments()
@@ -87,14 +82,13 @@ func (e *Escalator) CheckAndEscalate(ctx context.Context) {
 	}
 
 	for _, oa := range overdue {
-		// 1. Mark status as overdue in db if not already marked/escalated
+
 		if oa.Status != "overdue" && !isEscalatedStatus(oa.Status) {
 			if err := e.store.UpdateAssignmentStatus(oa.AssignmentID, "overdue"); err != nil {
 				slog.Error("Failed to update status to overdue", "assignment_id", oa.AssignmentID, "error", err)
 			}
 		}
 
-		// 2. Fetch escalation rules for this policy severity
 		rules, err := e.store.GetEscalationRulesForSeverity(oa.Severity)
 		if err != nil {
 			slog.Error("Failed to fetch escalation rules", "severity", oa.Severity, "error", err)
@@ -107,7 +101,7 @@ func (e *Escalator) CheckAndEscalate(ctx context.Context) {
 		for _, rule := range rules {
 			requiredDelay := time.Duration(rule.DelayDays) * 24 * time.Hour
 			if overdueDuration >= requiredDelay {
-				// Check if we already ran this or a higher level of escalation
+
 				alreadyRun := false
 				var lastLvl int
 				if n, err := fmt.Sscanf(oa.Status, "escalated_lvl_%d", &lastLvl); err == nil && n == 1 {
@@ -120,10 +114,8 @@ func (e *Escalator) CheckAndEscalate(ctx context.Context) {
 					continue
 				}
 
-				// Trigger the rule!
 				e.dispatchEscalation(oa, rule)
 
-				// Update status to record that this escalation level ran
 				newStatus := fmt.Sprintf("escalated_lvl_%d", rule.DelayDays)
 				if err := e.store.UpdateAssignmentStatus(oa.AssignmentID, newStatus); err != nil {
 					slog.Error("Failed to update escalation status", "assignment_id", oa.AssignmentID, "status", newStatus, "error", err)
@@ -152,7 +144,6 @@ func (e *Escalator) dispatchEscalation(oa storage.OverdueAssignment, rule storag
 		"recipient_email", recipientEmail,
 	)
 
-	// Build the notification payload
 	message := fmt.Sprintf("⚠️ *SLA Breach Escalation (Level %d)*\n"+
 		"*Finding:* %s\n"+
 		"*Severity:* %s\n"+
@@ -229,11 +220,11 @@ func (e *Escalator) resolveEscalationRecipient(oa storage.OverdueAssignment, del
 
 	steps := 0
 	if delayDays >= 10 {
-		steps = 3 // Executive
+		steps = 3
 	} else if delayDays >= 5 {
-		steps = 2 // Director
+		steps = 2
 	} else if delayDays > 0 {
-		steps = 1 // Manager
+		steps = 1
 	}
 
 	recipient := currentOwner

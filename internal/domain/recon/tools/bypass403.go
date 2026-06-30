@@ -1,14 +1,15 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -49,7 +50,6 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			return http.ErrUseLastResponse
 		}
 
-		// Initial check
 		req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 		if err != nil {
 			return nil, nil
@@ -67,7 +67,7 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 		resp.Body.Close()
 
 		if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusUnauthorized {
-			return nil, nil // Only scan 403/401 endpoints
+			return nil, nil
 		}
 
 		parsed, err := url.Parse(target)
@@ -99,42 +99,48 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			}
 		}
 
-		// Helper to read and close response
-		checkBypassResponse := func(bypassResp *http.Response) bool {
-			defer bypassResp.Body.Close()
+		checkBypassResponse := func(bypassReq *http.Request, bypassResp *http.Response) (bool, string, string) {
+			reqDump, _ := httputil.DumpRequestOut(bypassReq, true)
+			respDump, _ := httputil.DumpResponse(bypassResp, false)
+
+			body, _ := io.ReadAll(io.LimitReader(bypassResp.Body, 4096))
+			bypassResp.Body.Close()
+
+			fullResp := string(respDump) + string(body)
 			if bypassResp.StatusCode != http.StatusOK {
-				return false
+				return false, string(reqDump), fullResp
 			}
-			bLen, bHash := getResponseFingerprint(bypassResp)
-			// A valid bypass must differ from the wildcard 200 canary response.
+			bLen := int64(len(body))
+			h := sha256.Sum256(body)
+			bHash := hex.EncodeToString(h[:])
+
 			if hasCanary200 && bLen == canaryLen && bHash == canaryHash {
-				return false
+				return false, string(reqDump), fullResp
 			}
-			// A valid bypass must differ from the initial 403/401 response.
+
 			if bLen == initialLen && bHash == initialHash {
-				return false
+				return false, string(reqDump), fullResp
 			}
-			return true
+			return true, string(reqDump), fullResp
 		}
 
-		// 1. Test Path Normalizations and encoding bypasses
 		path := parsed.Path
 		pathBypasses := []string{
-			// Trailing slash / dot
+
 			target + "/",
 			target + "/./",
 			target + "/.",
-			// Semicolon bypass (Tomcat/Spring)
+
 			target + "..;/",
 			parsed.Scheme + "://" + parsed.Host + "/..;" + path,
-			// Double slash in path
+
 			parsed.Scheme + "://" + parsed.Host + "//" + strings.TrimPrefix(path, "/"),
-			// Case variation (uppercase)
+
 			parsed.Scheme + "://" + parsed.Host + strings.ToUpper(path),
-			// URL-encoded space and tab
+
 			parsed.Scheme + "://" + parsed.Host + path + "%20",
 			parsed.Scheme + "://" + parsed.Host + path + "%09",
-			// Encoded slash prefix
+
 			parsed.Scheme + "://" + parsed.Host + "/%2f" + strings.TrimPrefix(path, "/"),
 		}
 
@@ -148,7 +154,7 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			}
 			bypassResp, err := client.Do(bypassReq)
 			if err == nil {
-				if checkBypassResponse(bypassResp) {
+				if ok, reqDump, respDump := checkBypassResponse(bypassReq, bypassResp); ok {
 					mu.Lock()
 					events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 						"vuln_name":   "403/401 Auth Bypass",
@@ -156,6 +162,8 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 						"bypass_type": "Path Normalization",
 						"url":         bypassURL,
 						"description": fmt.Sprintf("Bypassed forbidden page via path normalization: %s", bypassURL),
+						"request":     reqDump,
+						"response":    respDump,
 					}, "high"))
 					mu.Unlock()
 					slog.Warn("Found 403 bypass", "target", target, "url", bypassURL)
@@ -164,7 +172,6 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			}
 		}
 
-		// 2. Test Header Overrides
 		headerBypasses := []struct {
 			name  string
 			value string
@@ -187,7 +194,7 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			bypassReq.Header.Set(bypass.name, bypass.value)
 			bypassResp, err := client.Do(bypassReq)
 			if err == nil {
-				if checkBypassResponse(bypassResp) {
+				if ok, reqDump, respDump := checkBypassResponse(bypassReq, bypassResp); ok {
 					mu.Lock()
 					events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 						"vuln_name":   "403/401 Auth Bypass",
@@ -195,6 +202,8 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 						"bypass_type": "Header Override",
 						"header":      bypass.name,
 						"description": fmt.Sprintf("Bypassed restriction using header %s: %s", bypass.name, bypass.value),
+						"request":     reqDump,
+						"response":    respDump,
 					}, "high"))
 					mu.Unlock()
 					slog.Warn("Found 403 bypass", "target", target, "header", bypass.name)
@@ -203,7 +212,6 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			}
 		}
 
-		// 3. Test Method Overrides
 		methodReq, err := http.NewRequestWithContext(ctx, "POST", target, nil)
 		if err == nil {
 			for k, v := range headers {
@@ -212,13 +220,15 @@ func (t *Bypass403Tool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			methodReq.Header.Set("X-HTTP-Method-Override", "GET")
 			methodResp, err := client.Do(methodReq)
 			if err == nil {
-				if checkBypassResponse(methodResp) {
+				if ok, reqDump, respDump := checkBypassResponse(methodReq, methodResp); ok {
 					mu.Lock()
 					events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 						"vuln_name":   "403/401 Auth Bypass",
 						"severity":    "high",
 						"bypass_type": "Method Override",
 						"description": "Bypassed restriction using POST method override.",
+						"request":     reqDump,
+						"response":    respDump,
 					}, "high"))
 					mu.Unlock()
 					slog.Warn("Found 403 bypass", "target", target, "method", "POST override")

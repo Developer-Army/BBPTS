@@ -1,16 +1,17 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 type GithubVulnScanningTool struct{}
@@ -33,35 +34,20 @@ func (t *GithubVulnScanningTool) Run(ctx context.Context, scanCtx *recon.ScanCon
 		maxThreads = 3
 	}
 
-	events := []recon.Event{}
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, maxThreads)
-
-	for _, target := range targets {
-		target = strings.TrimSpace(target)
-		if target == "" {
-			continue
-		}
-
-		wg.Add(1)
-		go func(tgt string) {
-			defer wg.Done()
-			select {
-			case sem <- struct{}{}:
-				defer func() { <-sem }()
-			case <-ctx.Done():
-				return
-			}
-			evts, _ := t.scan(ctx, apiKey, tgt)
-			mu.Lock()
-			events = append(events, evts...)
-			mu.Unlock()
-		}(target)
+	rateLimit := ToolRateLimitFromCtx(ctx, t.Name())
+	if rateLimit <= 0 {
+		rateLimit = 3
 	}
 
-	wg.Wait()
-	return events, nil
+	pool := NewWorkerPool(maxThreads, rate.Limit(rateLimit))
+
+	return pool.Process(ctx, targets, func(ctx context.Context, target string) ([]recon.Event, error) {
+		target = strings.TrimSpace(target)
+		if target == "" {
+			return nil, nil
+		}
+		return t.scan(ctx, apiKey, target)
+	})
 }
 
 func (t *GithubVulnScanningTool) scan(ctx context.Context, apiKey, orgOrRepo string) ([]recon.Event, error) {
@@ -185,8 +171,8 @@ func (t *GithubVulnScanningTool) scanDependabot(ctx context.Context, apiKey, rep
 	}
 
 	var alerts []struct {
-		State string `json:"state"`
-		Severity string `json:"severity"`
+		State            string `json:"state"`
+		Severity         string `json:"severity"`
 		SecurityAdvisory struct {
 			Summary  string `json:"summary"`
 			Severity string `json:"severity"`
@@ -253,21 +239,19 @@ func (t *GithubVulnScanningTool) scanCodeQL(ctx context.Context, apiKey, repo st
 	}
 
 	var alerts []struct {
-		RuleID   string `json:"rule_id"`
-		Severity string `json:"severity"`
-		Message  struct {
-			Text string `json:"text"`
-		} `json:"message"`
-		Location struct {
-			PhysicalLocation struct {
-				ArtifactLocation struct {
-					URI string `json:"uri"`
-				} `json:"artifact_location"`
-				Region struct {
-					StartLine int `json:"start_line"`
-				} `json:"region"`
-			} `json:"physical_location"`
-		} `json:"location"`
+		Rule struct {
+			ID       string `json:"id"`
+			Severity string `json:"severity"`
+		} `json:"rule"`
+		MostRecentInstance struct {
+			Message struct {
+				Text string `json:"text"`
+			} `json:"message"`
+			Location struct {
+				Path      string `json:"path"`
+				StartLine int    `json:"start_line"`
+			} `json:"location"`
+		} `json:"most_recent_instance"`
 	}
 	if err := json.Unmarshal(body, &alerts); err != nil {
 		return nil
@@ -276,11 +260,11 @@ func (t *GithubVulnScanningTool) scanCodeQL(ctx context.Context, apiKey, repo st
 	for _, a := range alerts {
 		events = append(events, recon.NewEvent(repo, t.Name(), "vulnerability", map[string]string{
 			"source":      "codeql",
-			"rule_id":     a.RuleID,
-			"severity":    strings.ToLower(a.Severity),
-			"description": a.Message.Text,
-			"file":        a.Location.PhysicalLocation.ArtifactLocation.URI,
-			"line":        fmt.Sprintf("%d", a.Location.PhysicalLocation.Region.StartLine),
+			"rule_id":     a.Rule.ID,
+			"severity":    strings.ToLower(a.Rule.Severity),
+			"description": a.MostRecentInstance.Message.Text,
+			"file":        a.MostRecentInstance.Location.Path,
+			"line":        fmt.Sprintf("%d", a.MostRecentInstance.Location.StartLine),
 			"scan_type":   "github_vuln_scanning",
 		}))
 	}
@@ -323,10 +307,8 @@ func (t *GithubVulnScanningTool) scanSecretScanning(ctx context.Context, apiKey,
 	}
 
 	var alerts []struct {
-		State  string `json:"state"`
-		Pattern struct {
-			SecretType string `json:"secret_type"`
-		} `json:"pattern"`
+		State      string `json:"state"`
+		SecretType string `json:"secret_type"`
 	}
 	if err := json.Unmarshal(body, &alerts); err != nil {
 		return nil
@@ -337,12 +319,12 @@ func (t *GithubVulnScanningTool) scanSecretScanning(ctx context.Context, apiKey,
 			continue
 		}
 		sev := "high"
-		if strings.Contains(a.Pattern.SecretType, "token") || strings.Contains(a.Pattern.SecretType, "key") {
+		if strings.Contains(a.SecretType, "token") || strings.Contains(a.SecretType, "key") {
 			sev = "critical"
 		}
 		events = append(events, recon.NewEvent(repo, t.Name(), "secret_exposed", map[string]string{
 			"source":      "secret_scanning",
-			"secret_type": a.Pattern.SecretType,
+			"secret_type": a.SecretType,
 			"severity":    sev,
 			"scan_type":   "github_vuln_scanning",
 		}))

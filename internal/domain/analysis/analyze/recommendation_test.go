@@ -9,7 +9,7 @@ import (
 )
 
 func TestRecommendationEngine(t *testing.T) {
-	// Create some mock nodes
+
 	targetNode := storage.AssetNode{
 		ID:         "target_node_id",
 		NodeType:   "target",
@@ -44,7 +44,6 @@ func TestRecommendationEngine(t *testing.T) {
 
 	nodes := []storage.AssetNode{targetNode, endpointNode, vulnNode, serviceNode}
 
-	// Create some mock edges
 	edges := []storage.AssetEdge{
 		{
 			SourceID: "target_node_id",
@@ -63,7 +62,6 @@ func TestRecommendationEngine(t *testing.T) {
 		},
 	}
 
-	// 1. Test RecommendTargets
 	recs := RecommendTargets(nodes, edges)
 	if len(recs) == 0 {
 		t.Fatal("Expected at least one target recommendation")
@@ -92,7 +90,6 @@ func TestRecommendationEngine(t *testing.T) {
 		t.Error("Expected '✓ Critical CVE' justification")
 	}
 
-	// 2. Test GetAttackPaths & RankAttackPaths
 	paths := GetAttackPaths(nodes, edges)
 	if len(paths) == 0 {
 		t.Fatal("Expected at least one attack path")
@@ -107,7 +104,6 @@ func TestRecommendationEngine(t *testing.T) {
 		t.Errorf("Expected path score >= 50, got %f", ranked[0].Score)
 	}
 
-	// 3. Test CalculateBlastRadius
 	radius, err := CalculateBlastRadius("target_node_id", edges, nodes)
 	if err != nil {
 		t.Fatalf("Blast radius failed: %v", err)
@@ -119,21 +115,19 @@ func TestRecommendationEngine(t *testing.T) {
 }
 
 func TestRiskPropagation(t *testing.T) {
-	// Create API node (high risk / vulnerable - e.g., okta or payment value/type)
+
 	apiNode := storage.AssetNode{
 		ID:       "api_node",
 		NodeType: "target",
 		Value:    "api.example.com",
 	}
 
-	// Create Payment System node
 	paymentNode := storage.AssetNode{
 		ID:       "payment_node",
 		NodeType: "target",
 		Value:    "payment.example.com",
 	}
 
-	// Create Revenue System node (base score 20)
 	revenueNode := storage.AssetNode{
 		ID:       "revenue_node",
 		NodeType: "target",
@@ -142,9 +136,6 @@ func TestRiskPropagation(t *testing.T) {
 
 	nodes := []storage.AssetNode{apiNode, paymentNode, revenueNode}
 
-	// Create dependency edges: api_node -> payment_node -> revenue_node
-	// So risk should flow: api_node (60) -> payment_node (100) -> revenue_node (20)
-	// After propagation, revenue_node should inherit risk from payment_node: 100 * 0.7 = 70.
 	edges := []storage.AssetEdge{
 		{SourceID: "api_node", TargetID: "payment_node"},
 		{SourceID: "payment_node", TargetID: "revenue_node"},
@@ -152,23 +143,19 @@ func TestRiskPropagation(t *testing.T) {
 
 	riskMap := PropagateRisk(nodes, edges)
 
-	// Check api_node score (should be at least its base 60)
 	if riskMap["api_node"] < 60 {
 		t.Errorf("Expected api_node risk >= 60, got %f", riskMap["api_node"])
 	}
 
-	// Check payment_node score (should be at least its base 100)
 	if riskMap["payment_node"] < 100 {
 		t.Errorf("Expected payment_node risk >= 100, got %f", riskMap["payment_node"])
 	}
 
-	// Check revenue_node score (should inherit 100 * 0.7 = 70, which is > its base 20)
 	expectedPropagatedRisk := 70.0
 	if riskMap["revenue_node"] != expectedPropagatedRisk {
 		t.Errorf("Expected revenue_node risk to be propagated to %f, got %f", expectedPropagatedRisk, riskMap["revenue_node"])
 	}
 
-	// Verify RecommendTargets generates the propagated why reason for revenue node
 	recs := RecommendTargets(nodes, edges)
 	var revenueTarget *InvestigationTarget
 	for i := range recs {

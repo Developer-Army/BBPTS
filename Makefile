@@ -7,7 +7,6 @@ COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS=-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
-# Detect OS for binary extension
 ifeq ($(OS),Windows_NT)
  BINARY_EXT=.exe
 else
@@ -20,9 +19,6 @@ endif
 
 all: build
 
-# ─────────────────────────────────────────
-# Build Targets
-# ─────────────────────────────────────────
 
 build:
 	@echo " Building $(BINARY_NAME)$(BINARY_EXT)..."
@@ -47,7 +43,6 @@ build-release:
 	@mkdir -p $(BINARY_DIR)
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -trimpath -o $(BINARY_DIR)/$(BINARY_NAME)$(BINARY_EXT) $(CMD_PATH)
 
-# Cross-compile for all platforms → dist/
 dist:
 	@echo " Building all platform binaries → dist/"
 	@mkdir -p dist
@@ -69,9 +64,6 @@ dist:
 
 
 
-# ─────────────────────────────────────────
-# Test Targets
-# ─────────────────────────────────────────
 
 test:
 	@echo " Running all tests..."
@@ -96,9 +88,6 @@ bench:
 	go test -bench=. -benchmem -run=^$$ ./... | tee benchmark.txt
 	@echo " Benchmark results: benchmark.txt"
 
-# ─────────────────────────────────────────
-# Code Quality
-# ─────────────────────────────────────────
 
 lint:
 	@echo " Running linter..."
@@ -122,9 +111,6 @@ security:
 	@which govulncheck > /dev/null 2>&1 || (echo "Installing govulncheck..." && go install golang.org/x/vuln/cmd/govulncheck@latest)
 	govulncheck ./... || true
 
-# ─────────────────────────────────────────
-# Diagnostics
-# ─────────────────────────────────────────
 
 doctor: build
 	@echo " Running environment diagnostics..."
@@ -138,9 +124,6 @@ validate-framework: build
 	@echo " Running full deterministic validation framework..."
 	bash tests/test.sh
 
-# ─────────────────────────────────────────
-# Setup & Install
-# ─────────────────────────────────────────
 
 install: build setup
  ifeq ($(OS),Windows_NT)
@@ -191,18 +174,12 @@ setup:
 	@echo " Running cross-platform setup..."
 	bash scripts/setup.sh
 
-# ─────────────────────────────────────────
-# Docker
-# ─────────────────────────────────────────
 
 docker:
 	@echo " Building Docker image..."
 	docker build -t $(BINARY_NAME):$(VERSION) -t $(BINARY_NAME):latest .
 	@echo " Docker image built: $(BINARY_NAME):$(VERSION)"
 
-# ─────────────────────────────────────────
-# Cleanup
-# ─────────────────────────────────────────
 
 clean:
 	@echo " Cleaning up..."
@@ -210,9 +187,6 @@ clean:
 	go clean
 	@echo " Clean"
 
-# ─────────────────────────────────────────
-# Help
-# ─────────────────────────────────────────
 
 help:
 	@echo ""

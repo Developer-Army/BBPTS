@@ -51,7 +51,7 @@ func TestPropertyKeyName(t *testing.T) {
 }
 
 func TestWalkJSAST(t *testing.T) {
-	// Test that walkJSAST doesn't crash on simple code
+
 	code := `const x = 5;`
 	program, err := parser.ParseFile(nil, "test.js", code, 0)
 	if err != nil {
@@ -69,7 +69,7 @@ func TestWalkJSAST(t *testing.T) {
 }
 
 func TestWalkJSAST_Nil(t *testing.T) {
-	// Test that walkJSAST handles nil gracefully
+
 	walkJSAST(nil, func(node ast.Node) {
 		t.Error("should not call visitor on nil")
 	})

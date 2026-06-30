@@ -215,7 +215,7 @@ func calculateExposure(node storage.AssetNode) float64 {
 	return 100.0
 }
 
-func calculateAttackability(nodeID string, incoming, outgoing map[string][]string, nodeMap map[string]storage.AssetNode) (float64, []string) {
+func calculateAttackability(nodeID string, outgoing map[string][]string, nodeMap map[string]storage.AssetNode) (float64, []string) {
 	var score float64 = 30.0
 	var why []string
 
@@ -229,14 +229,14 @@ func calculateAttackability(nodeID string, incoming, outgoing map[string][]strin
 			var props map[string]interface{}
 			if err := json.Unmarshal(targetNode.Properties, &props); err == nil {
 				if sev, ok := props["severity"]; ok {
-					s := strings.ToLower(fmt.Sprintf("%v", sev))
-					if s == "critical" {
+					switch strings.ToLower(fmt.Sprintf("%v", sev)) {
+					case "critical":
 						score += 40
 						why = append(why, "✓ Critical CVE")
-					} else if s == "high" {
+					case "high":
 						score += 30
 						why = append(why, "✓ High Severity CVE")
-					} else {
+					default:
 						score += 15
 						why = append(why, "✓ Vulnerability Found")
 					}
@@ -272,7 +272,7 @@ func calculateAttackability(nodeID string, incoming, outgoing map[string][]strin
 	return score, why
 }
 
-func calculateNodePathRisk(nodeID string, incoming, outgoing map[string][]string, nodeMap map[string]storage.AssetNode) float64 {
+func calculateNodePathRisk(nodeID string, outgoing map[string][]string, nodeMap map[string]storage.AssetNode) float64 {
 	visited := make(map[string]bool)
 	var maxRisk float64 = 0
 
@@ -349,14 +349,14 @@ func RecommendTargets(nodes []storage.AssetNode, edges []storage.AssetEdge) []In
 		}
 
 		exposure := calculateExposure(node)
-		attackability, whyAttack := calculateAttackability(node.ID, incoming, outgoing, nodeMap)
+		attackability, whyAttack := calculateAttackability(node.ID, outgoing, nodeMap)
 		business := getBaseNodeScore(node)
 		confidence := node.Confidence * 100.0
 		if confidence == 0 {
 			confidence = 80.0
 		}
 
-		pathRisk := calculateNodePathRisk(node.ID, incoming, outgoing, nodeMap)
+		pathRisk := calculateNodePathRisk(node.ID, outgoing, nodeMap)
 
 		why := []string{}
 		if exposure >= 80 {

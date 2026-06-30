@@ -1,11 +1,13 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -47,13 +49,19 @@ func (t *SecretsTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targe
 		Name:      "Default",
 		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
-	client, _ := network.NewStealthClient(profile, proxy)
-	if client != nil {
-		client.SetCustomHeaders(scanCtx.Headers)
+	client, err := network.NewStealthClient(profile, proxy)
+	if err != nil || client == nil {
+		return nil, fmt.Errorf("failed to create stealth client: %w", err)
 	}
+	client.SetCustomHeaders(scanCtx.Headers)
 
 	for _, target := range targets {
-		if !strings.HasSuffix(target, ".js") && !strings.Contains(target, ".json") {
+		parsedTarget, err := url.Parse(target)
+		if err != nil {
+			continue
+		}
+		pathLower := strings.ToLower(parsedTarget.Path)
+		if !strings.HasSuffix(pathLower, ".js") && !strings.Contains(pathLower, ".json") {
 			continue
 		}
 

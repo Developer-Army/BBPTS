@@ -8,7 +8,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
-// BenchmarkBatchProcessorSmall benchmarks batch processing with a small target list.
 func BenchmarkBatchProcessorSmall(b *testing.B) {
 	bp := NewBatchProcessor(BatchConfig{BatchSize: 10, MaxConcurrentBatches: 2})
 	targets := makeTargets(20)
@@ -25,7 +24,6 @@ func BenchmarkBatchProcessorSmall(b *testing.B) {
 	}
 }
 
-// BenchmarkBatchProcessorLarge benchmarks batch processing with a large target list.
 func BenchmarkBatchProcessorLarge(b *testing.B) {
 	bp := NewBatchProcessor(BatchConfig{BatchSize: 50, MaxConcurrentBatches: 5})
 	targets := makeTargets(500)
@@ -42,7 +40,6 @@ func BenchmarkBatchProcessorLarge(b *testing.B) {
 	}
 }
 
-// BenchmarkCacheKeyGeneration benchmarks cache key generation.
 func BenchmarkCacheKeyGeneration(b *testing.B) {
 	targets := makeTargets(100)
 	b.ResetTimer()
@@ -51,7 +48,6 @@ func BenchmarkCacheKeyGeneration(b *testing.B) {
 	}
 }
 
-// BenchmarkNewEventsFromLines benchmarks event creation from raw output lines.
 func BenchmarkNewEventsFromLines(b *testing.B) {
 	lines := makeTargets(1000)
 	b.ResetTimer()
@@ -60,9 +56,8 @@ func BenchmarkNewEventsFromLines(b *testing.B) {
 	}
 }
 
-// BenchmarkParseOutputLines benchmarks raw output parsing and deduplication.
 func BenchmarkParseOutputLines(b *testing.B) {
-	// Generate output with duplicates
+
 	lines := make([]string, 2000)
 	for i := range lines {
 		lines[i] = fmt.Sprintf("target-%d.acme-corp.io", i%500)
@@ -78,7 +73,6 @@ func BenchmarkParseOutputLines(b *testing.B) {
 	}
 }
 
-// BenchmarkMockPipeline benchmarks full pipeline mock generation.
 func BenchmarkMockPipeline(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

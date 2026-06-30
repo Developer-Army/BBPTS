@@ -23,7 +23,6 @@ func TestEscalatorBreach(t *testing.T) {
 	}
 	defer store.Close()
 
-	// 1. Setup mock SLA policies, teams, owners
 	policyID, err := store.AddSLAPolicy("Critical Breach Policy", "critical", 2)
 	if err != nil {
 		t.Fatalf("AddSLAPolicy failed: %v", err)
@@ -32,10 +31,8 @@ func TestEscalatorBreach(t *testing.T) {
 	teamID, _ := store.AddTeam("Devops")
 	ownerID, _ := store.AddOwner("Bob", "bob@corp.com")
 
-	// Set asset owner
 	_ = store.SetAssetOwner("db.corp.com", &ownerID, &teamID, "Initial allocation")
 
-	// 2. Setup mock server to receive webhook escalation alert
 	receivedAlert := make(chan string, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -46,13 +43,11 @@ func TestEscalatorBreach(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// 3. Add escalation rule referencing the mock server URL
 	_, err = store.AddEscalationRule(policyID, 0, "slack", map[string]interface{}{"url": server.URL})
 	if err != nil {
 		t.Fatalf("AddEscalationRule failed: %v", err)
 	}
 
-	// 4. Create and assign finding
 	findingID, err := store.AddFindingForTest("Exposed DB Key", "Leaked credentials", "critical", "db.corp.com")
 	if err != nil {
 		t.Fatalf("AddFindingForTest failed: %v", err)
@@ -63,20 +58,17 @@ func TestEscalatorBreach(t *testing.T) {
 		t.Fatalf("AssignFinding failed: %v", err)
 	}
 
-	// Force assignment overdue
 	err = store.ForceAssignmentOverdueForTest(assignmentID, 1*time.Hour)
 	if err != nil {
 		t.Fatalf("ForceAssignmentOverdueForTest failed: %v", err)
 	}
 
-	// 5. Instantiate and start escalator
 	escalator := NewEscalator(store, 10*time.Millisecond)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	escalator.Start(ctx)
 
-	// 6. Wait for webhook to receive the alert
 	select {
 	case alertText := <-receivedAlert:
 		if !strings.Contains(alertText, "SLA Breach Escalation") {
@@ -112,7 +104,6 @@ func TestEscalatorHierarchicalRouting(t *testing.T) {
 	}
 	defer store.Close()
 
-	// 1. Setup reporting chain: Bob -> Alice -> Charlie -> David
 	davidID, _ := store.AddOwner("David (Exec)", "david@corp.com")
 	charlieID, _ := store.AddOwner("Charlie (Director)", "charlie@corp.com")
 	aliceID, _ := store.AddOwner("Alice (Manager)", "alice@corp.com")
@@ -125,10 +116,8 @@ func TestEscalatorHierarchicalRouting(t *testing.T) {
 	_, _ = store.AddSLAPolicy("Critical Policy", "critical", 2)
 	teamID, _ := store.AddTeam("Security")
 
-	// Create escalator instance
 	escalator := NewEscalator(store, 10*time.Millisecond)
 
-	// Test resolution at level 1 (delay 1 day -> Manager: Alice)
 	oa := storage.OverdueAssignment{
 		OwnerID:  &bobID,
 		TeamID:   &teamID,
@@ -139,13 +128,11 @@ func TestEscalatorHierarchicalRouting(t *testing.T) {
 		t.Errorf("Expected Level 1 to route to Alice, got %s (%s)", name, email)
 	}
 
-	// Test resolution at level 2 (delay 5 days -> Director: Charlie)
 	name, email = escalator.resolveEscalationRecipient(oa, 5)
 	if name != "Charlie (Director)" || email != "charlie@corp.com" {
 		t.Errorf("Expected Level 2 to route to Charlie, got %s (%s)", name, email)
 	}
 
-	// Test resolution at level 3 (delay 10 days -> Executive: David)
 	name, email = escalator.resolveEscalationRecipient(oa, 10)
 	if name != "David (Exec)" || email != "david@corp.com" {
 		t.Errorf("Expected Level 3 to route to David, got %s (%s)", name, email)

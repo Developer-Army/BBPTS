@@ -15,22 +15,17 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
-// TestFullPipelineIntegration is a comprehensive end-to-end test that validates
-// the entire BBPTS pipeline working together across all stages.
-// This catches errors that might not be caught by individual unit tests.
 func TestFullPipelineIntegration(t *testing.T) {
 	t.Setenv("BBPTS_ALLOW_LOCAL", "true")
-	// Create a temporary test input file with sample targets
+
 	tmpFile := createTempTargetsFile(t, []string{
 		"127.0.0.1",
 	})
 	defer os.Remove(tmpFile)
 
-	// Create temporary output files
 	outputFile := t.TempDir() + "/test_report.md"
 	summaryFile := t.TempDir() + "/test_summary.csv"
 
-	// Create a test configuration with minimal settings
 	cfg := &config.Config{
 		Threads:      2,
 		RateLimit:    10,
@@ -39,10 +34,9 @@ func TestFullPipelineIntegration(t *testing.T) {
 		Notify:       config.NotifyConfig{},
 	}
 
-	// Test options that run the full pipeline
 	opts := Options{
 		InputPath:   tmpFile,
-		Tools:       "crtsh,subfinder,chaos", // Safe passive tools for testing
+		Tools:       "crtsh,subfinder,chaos",
 		OutputPath:  outputFile,
 		SummaryPath: summaryFile,
 		Timeout:     10 * time.Second,
@@ -56,14 +50,11 @@ func TestFullPipelineIntegration(t *testing.T) {
 		RunDoctor:   false,
 	}
 
-	// Run the full pipeline
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Execute the pipeline - this should NOT panic or error out
 	Run(ctx, opts, cfg, nil, nil)
 
-	// Verify that output files were created and contain content
 	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
 		t.Errorf(" Output report file was not created: %s", outputFile)
 	} else {
@@ -90,11 +81,9 @@ func TestFullPipelineIntegration(t *testing.T) {
 		}
 	}
 
-	// If we reach here, the pipeline completed without crashing
 	t.Log("✓ Full pipeline executed successfully without crashes")
 }
 
-// TestPipelineWithMultipleStages validates that all pipeline stages work together.
 func TestPipelineWithMultipleStages(t *testing.T) {
 	tmpFile := createTempTargetsFile(t, []string{"acme-corp.io"})
 	defer os.Remove(tmpFile)
@@ -107,7 +96,7 @@ func TestPipelineWithMultipleStages(t *testing.T) {
 
 	opts := Options{
 		InputPath:   tmpFile,
-		Tools:       "uro,subfinder,dnsx,crtsh", // Tests stages 0, 1, 2 sequentially
+		Tools:       "uro,subfinder,dnsx,crtsh",
 		Timeout:     15 * time.Second,
 		Debug:       false,
 		Threads:     2,
@@ -119,7 +108,6 @@ func TestPipelineWithMultipleStages(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Execute and verify no panics occur
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("Pipeline panicked during multi-stage execution: %v", r)
@@ -130,9 +118,8 @@ func TestPipelineWithMultipleStages(t *testing.T) {
 	t.Log("✓ Multi-stage pipeline executed successfully")
 }
 
-// TestOrchestratorWithAllStagesSequential validates the stage ordering.
 func TestOrchestratorWithAllStagesSequential(t *testing.T) {
-	// Test that stages execute in the correct order: 0, 1, 2, 3, 4, 5
+
 	cfg := services.Config{
 		ToolNames:    []string{"uro", "subfinder", "dnsx", "katana", "ffuf", "nuclei"},
 		Threads:      2,
@@ -154,7 +141,6 @@ func TestOrchestratorWithAllStagesSequential(t *testing.T) {
 
 	targets := []string{"acme-corp.io"}
 
-	// Should complete without panicking
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("Orchestrator panicked during sequential stage execution: %v", r)
@@ -163,7 +149,6 @@ func TestOrchestratorWithAllStagesSequential(t *testing.T) {
 
 	events, err := orchestrator.Run(ctx, targets)
 
-	// Log results for debugging
 	t.Logf("Orchestrator completed: events=%d, error=%v", len(events), err)
 	if err != nil {
 		t.Logf("Warning: orchestrator returned error (tools may not be installed): %v", err)
@@ -172,7 +157,6 @@ func TestOrchestratorWithAllStagesSequential(t *testing.T) {
 	t.Log("✓ Sequential stage execution completed")
 }
 
-// TestInputParsingToReconFlow tests input parsing through reconnaissance pipeline.
 func TestInputParsingToReconFlow(t *testing.T) {
 	tmpFile := createTempTargetsFile(t, []string{
 		"acme-corp.io",
@@ -188,7 +172,7 @@ func TestInputParsingToReconFlow(t *testing.T) {
 
 	opts := Options{
 		InputPath:   tmpFile,
-		Tools:       "crtsh", // Simple passive tool
+		Tools:       "crtsh",
 		Timeout:     15 * time.Second,
 		Debug:       false,
 		Threads:     2,
@@ -199,7 +183,6 @@ func TestInputParsingToReconFlow(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Verify no crashes during the full flow
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("Input parsing to recon flow panicked: %v", r)
@@ -210,7 +193,6 @@ func TestInputParsingToReconFlow(t *testing.T) {
 	t.Log("✓ Input parsing to recon flow completed successfully")
 }
 
-// TestErrorHandlingAcrossStages validates error handling across pipeline stages.
 func TestErrorHandlingAcrossStages(t *testing.T) {
 	tmpFile := createTempTargetsFile(t, []string{"invalid...target...name"})
 	defer os.Remove(tmpFile)
@@ -234,7 +216,6 @@ func TestErrorHandlingAcrossStages(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	// Pipeline should handle invalid targets gracefully
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("Pipeline panicked on invalid targets: %v", r)
@@ -245,7 +226,6 @@ func TestErrorHandlingAcrossStages(t *testing.T) {
 	t.Log("✓ Error handling across stages completed successfully")
 }
 
-// TestContextTimeoutHandling validates that context timeouts are respected.
 func TestContextTimeoutHandling(t *testing.T) {
 	tmpFile := createTempTargetsFile(t, []string{"acme-corp.io"})
 	defer os.Remove(tmpFile)
@@ -259,7 +239,7 @@ func TestContextTimeoutHandling(t *testing.T) {
 	opts := Options{
 		InputPath:   tmpFile,
 		Tools:       "crtsh",
-		Timeout:     1 * time.Millisecond, // Very short timeout to trigger timeout handling
+		Timeout:     1 * time.Millisecond,
 		Debug:       false,
 		Threads:     2,
 		RateLimit:   10,
@@ -269,7 +249,6 @@ func TestContextTimeoutHandling(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Should handle timeout gracefully
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("Pipeline panicked on context timeout: %v", r)
@@ -280,7 +259,6 @@ func TestContextTimeoutHandling(t *testing.T) {
 	t.Log("✓ Context timeout handling completed successfully")
 }
 
-// TestPipelineWithNoInput validates behavior when no input is provided.
 func TestPipelineWithNoInput(t *testing.T) {
 	cfg := &config.Config{
 		Threads:   2,
@@ -289,7 +267,7 @@ func TestPipelineWithNoInput(t *testing.T) {
 	}
 
 	opts := Options{
-		InputPath:   "", // No input
+		InputPath:   "",
 		Tools:       "crtsh",
 		Timeout:     10 * time.Second,
 		Debug:       false,
@@ -299,7 +277,6 @@ func TestPipelineWithNoInput(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// Should handle no input gracefully
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("Pipeline panicked on no input: %v", r)
@@ -310,7 +287,6 @@ func TestPipelineWithNoInput(t *testing.T) {
 	t.Log("✓ No input handling completed successfully")
 }
 
-// TestToolRegistrationIntegration validates that all registered tools can be accessed.
 func TestToolRegistrationIntegration(t *testing.T) {
 	availableTools := services.AvailableToolNames()
 
@@ -320,7 +296,6 @@ func TestToolRegistrationIntegration(t *testing.T) {
 
 	t.Logf("Found %d registered tools: %v", len(availableTools), strings.Join(availableTools, ", "))
 
-	// Verify each tool can be retrieved
 	for _, toolName := range availableTools {
 		tool, ok := services.GetToolByName(toolName)
 		if !ok {
@@ -334,19 +309,16 @@ func TestToolRegistrationIntegration(t *testing.T) {
 	t.Logf("✓ All %d tools registered and accessible", len(availableTools))
 }
 
-// TestToolExecutionAndResults validates that the orchestrator can handle tool execution
-// and gracefully manages both successful and failed tool runs without crashing.
 func TestToolExecutionAndResults(t *testing.T) {
-	// Test with tools that might work or fail in test environment
+
 	cfg := services.Config{
-		ToolNames: []string{"crtsh", "subfinder"}, // Mix of tools that might work or fail
+		ToolNames: []string{"crtsh", "subfinder"},
 		Threads:   2,
 		RateLimit: 10,
 		Proxies:   []string{},
 		APIKeys:   map[string]string{},
 	}
 
-	// This should not panic even if tools fail
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf(" Orchestrator panicked during tool execution: %v", r)
@@ -366,23 +338,17 @@ func TestToolExecutionAndResults(t *testing.T) {
 
 	events, err := orchestrator.Run(ctx, targets)
 
-	// Log what happened for debugging
 	t.Logf("Orchestrator completed: events=%d, error=%v", len(events), err)
 
-	// In test environments, tools might fail due to network issues or not being installed
-	// The important thing is that the orchestrator doesn't crash
 	if err != nil {
 		t.Logf("️  Orchestrator returned error (tools may not be installed or network unavailable): %v", err)
 	}
 
-	// We don't require events to be generated in test environment
-	// The pipeline should complete gracefully regardless
 	if len(events) == 0 {
 		t.Log("️  No events generated - this is expected in test environment where tools may not be available")
 	} else {
 		t.Logf("✓ Generated %d events from tools", len(events))
 
-		// If we do get events, validate they have basic structure
 		validEvents := 0
 		for i, event := range events {
 			if event.Source == "" {
@@ -402,14 +368,11 @@ func TestToolExecutionAndResults(t *testing.T) {
 		}
 	}
 
-	// The key validation: pipeline completed without crashing
 	t.Log("✓ Tool execution pipeline completed successfully without crashes")
 }
 
-// TestOutputGenerationValidation ensures that the reporting phase works correctly
-// when given actual events from successful tool execution.
 func TestOutputGenerationValidation(t *testing.T) {
-	// Create mock insights from events
+
 	mockInsights := []analyze.Insight{
 		{
 			Host:          "acme-corp.io",
@@ -431,7 +394,6 @@ func TestOutputGenerationValidation(t *testing.T) {
 		},
 	}
 
-	// Test CSV summary generation
 	summaryFile := t.TempDir() + "/test_summary.csv"
 	err := analyze.WriteCSVSummary(summaryFile, mockInsights)
 	if err != nil {
@@ -447,7 +409,7 @@ func TestOutputGenerationValidation(t *testing.T) {
 				t.Errorf("Summary CSV is empty")
 			} else {
 				t.Logf("✓ Summary CSV generated (%d bytes)", len(content))
-				// Check that it contains expected content
+
 				contentStr := string(content)
 				if !strings.Contains(contentStr, "acme-corp.io") {
 					t.Errorf("Summary CSV does not contain expected host")
@@ -459,7 +421,6 @@ func TestOutputGenerationValidation(t *testing.T) {
 		}
 	}
 
-	// Test markdown report generation
 	reportFile := t.TempDir() + "/test_report.md"
 	err = analyze.WriteMarkdownReport(reportFile, mockInsights)
 	if err != nil {
@@ -475,7 +436,7 @@ func TestOutputGenerationValidation(t *testing.T) {
 				t.Errorf("Report is empty")
 			} else {
 				t.Logf("✓ Markdown report generated (%d bytes)", len(content))
-				// Check that it contains expected content
+
 				contentStr := string(content)
 				if !strings.Contains(contentStr, "# BBPTS") {
 					t.Errorf("Report does not contain expected header")
@@ -488,18 +449,16 @@ func TestOutputGenerationValidation(t *testing.T) {
 	}
 }
 
-// TestToolFailureDetection validates that the system properly detects and reports tool failures.
 func TestToolFailureDetection(t *testing.T) {
-	// Test with a tool that might not be installed
+
 	cfg := services.Config{
-		ToolNames: []string{"nonexistent_tool", "crtsh"}, // Mix of invalid and valid tools
+		ToolNames: []string{"nonexistent_tool", "crtsh"},
 		Threads:   2,
 		RateLimit: 10,
 		Proxies:   []string{},
 		APIKeys:   map[string]string{},
 	}
 
-	// This should handle the invalid tool gracefully
 	defer func() {
 		if r := recover(); r != nil {
 			t.Errorf(" Orchestrator panicked on invalid tool: %v", r)
@@ -523,12 +482,10 @@ func TestToolFailureDetection(t *testing.T) {
 
 	t.Logf("Completed with %d events, error: %v", len(events), err)
 
-	// Should not panic even with invalid tools
 	if err != nil {
 		t.Logf("️  Error returned (expected for invalid tools): %v", err)
 	}
 
-	// Should still produce some events from valid tools
 	if len(events) == 0 {
 		t.Log("️  No events generated - all tools may have failed")
 	} else {
@@ -536,7 +493,6 @@ func TestToolFailureDetection(t *testing.T) {
 	}
 }
 
-// TestStageAssignmentConsistency validates that tool-to-stage mappings are correct.
 func TestStageAssignmentConsistency(t *testing.T) {
 	expectedMappings := map[string]int{
 		"uro":       0,
@@ -550,7 +506,6 @@ func TestStageAssignmentConsistency(t *testing.T) {
 		"nuclei":    5,
 	}
 
-	// This test validates the stage assignments don't change unexpectedly
 	for toolName, expectedStage := range expectedMappings {
 		tool, ok := services.GetToolByName(toolName)
 		if !ok {
@@ -563,14 +518,12 @@ func TestStageAssignmentConsistency(t *testing.T) {
 			continue
 		}
 
-		// We can't directly get the stage from the tool, but we can verify it exists
 		t.Logf("✓ Tool '%s' expected at stage %d is available", toolName, expectedStage)
 	}
 
 	t.Log("✓ Stage assignment consistency validated")
 }
 
-// Helper function to create a temporary targets file
 func createTempTargetsFile(t *testing.T, targets []string) string {
 	tmpFile, err := os.CreateTemp("", "bbpts_test_targets_*.csv")
 	if err != nil {
@@ -578,7 +531,6 @@ func createTempTargetsFile(t *testing.T, targets []string) string {
 	}
 	defer tmpFile.Close()
 
-	// Write CSV header
 	content := "url\n"
 	for _, target := range targets {
 		content += fmt.Sprintf("%s\n", target)

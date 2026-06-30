@@ -12,12 +12,10 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
-// TestMockToolInterface verifies MockTool implements the Tool interface.
 func TestMockToolInterface(t *testing.T) {
 	var _ Tool = &tools.MockTool{} // compile-time check
 }
 
-// TestMockToolReturnsEvents verifies mock tools return configured events.
 func TestMockToolReturnsEvents(t *testing.T) {
 	tool := tools.GetMockTool("subfinder")
 	events, err := tool.Run(context.Background(), &recon.ScanContext{}, []string{"acme-corp.io"}, 10)
@@ -32,7 +30,6 @@ func TestMockToolReturnsEvents(t *testing.T) {
 	}
 }
 
-// TestFailingMockTool verifies error-returning mock tools.
 func TestFailingMockTool(t *testing.T) {
 	expectedErr := errors.New("tool binary not found")
 	tool := tools.NewFailingMockTool("broken-tool", expectedErr)
@@ -42,14 +39,12 @@ func TestFailingMockTool(t *testing.T) {
 	}
 }
 
-// TestMockPipelineFullFlow verifies NewMockPipeline produces realistic results.
 func TestMockPipelineFullFlow(t *testing.T) {
 	events := tools.NewMockPipeline("acme-corp.io")
 	if len(events) == 0 {
 		t.Fatal("expected pipeline events, got none")
 	}
 
-	// Check we have events from different stages
 	sources := make(map[string]int)
 	for _, ev := range events {
 		sources[ev.Source]++
@@ -63,18 +58,16 @@ func TestMockPipelineFullFlow(t *testing.T) {
 	}
 }
 
-// TestBatchProcessorSplit verifies batch splitting logic.
 func TestBatchProcessorSplit(t *testing.T) {
 	bp := NewBatchProcessor(BatchConfig{BatchSize: 3})
 
-	// Generate 10 targets
 	targets := make([]string, 10)
 	for i := range targets {
 		targets[i] = fmt.Sprintf("target-%d.acme-corp.io", i)
 	}
 
 	batches := bp.split(targets)
-	if len(batches) != 4 { // 3+3+3+1
+	if len(batches) != 4 {
 		t.Fatalf("expected 4 batches, got %d", len(batches))
 	}
 	if len(batches[3]) != 1 {
@@ -82,7 +75,6 @@ func TestBatchProcessorSplit(t *testing.T) {
 	}
 }
 
-// TestBatchProcessorProcess verifies end-to-end batch processing.
 func TestBatchProcessorProcess(t *testing.T) {
 	bp := NewBatchProcessor(BatchConfig{
 		BatchSize:            5,
@@ -111,12 +103,11 @@ func TestBatchProcessorProcess(t *testing.T) {
 	if len(events) != 12 {
 		t.Fatalf("expected 12 events, got %d", len(events))
 	}
-	if atomic.LoadInt32(&callCount) != 3 { // 5+5+2
+	if atomic.LoadInt32(&callCount) != 3 {
 		t.Fatalf("expected 3 batch calls, got %d", atomic.LoadInt32(&callCount))
 	}
 }
 
-// TestBatchProcessorSingleBatch verifies that a small target list bypasses batching.
 func TestBatchProcessorSingleBatch(t *testing.T) {
 	bp := NewBatchProcessor(BatchConfig{BatchSize: 100})
 	targets := []string{"a.com", "b.com"}
@@ -133,28 +124,23 @@ func TestBatchProcessorSingleBatch(t *testing.T) {
 	}
 }
 
-// TestToolRateLimiterDefaults verifies default rate limits for tools.
 func TestToolRateLimiterDefaults(t *testing.T) {
 	trl := NewToolRateLimiter()
 
-	// Aggressive tools should have limits
 	if limit := trl.GetLimit("ffuf"); limit == 0 {
 		t.Fatal("expected ffuf to have a rate limit")
 	}
 
-	// Unknown tools should return 0 (unlimited)
 	if limit := trl.GetLimit("unknown-tool"); limit != 0 {
 		t.Fatalf("expected unknown tool to have unlimited rate, got %d", limit)
 	}
 
-	// Custom limit
 	trl.SetLimit("custom-tool", 42)
 	if limit := trl.GetLimit("custom-tool"); limit != 42 {
 		t.Fatalf("expected custom limit 42, got %d", limit)
 	}
 }
 
-// TestCacheKeyDeterminism verifies cache keys are deterministic.
 func TestCacheKeyDeterminism(t *testing.T) {
 	targets := []string{"a.com", "b.com", "c.com"}
 
@@ -174,7 +160,6 @@ func TestCacheKeyDeterminism(t *testing.T) {
 	}
 }
 
-// TestGetAllMockTools verifies we get tools for all registered mock outputs.
 func TestGetAllMockTools(t *testing.T) {
 	mockToolsList := tools.GetAllMockTools()
 	if len(mockToolsList) == 0 {
@@ -185,7 +170,6 @@ func TestGetAllMockTools(t *testing.T) {
 	}
 }
 
-// TestMockToolTracksTargets verifies MockTool records what was passed.
 func TestMockToolTracksTargets(t *testing.T) {
 	tool := tools.GetMockTool("httpx")
 	targets := []string{"a.com", "b.com"}

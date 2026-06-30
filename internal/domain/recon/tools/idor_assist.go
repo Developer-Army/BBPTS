@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"net/url"
 	"regexp"
@@ -14,15 +14,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// IDORAssistTool identifies numeric/UUID parameters from crawled URLs,
-// clusters them by likely object type, and generates a structured manual testing checklist.
 type IDORAssistTool struct{}
 
 func (i *IDORAssistTool) Name() string {
 	return "idor_assist"
 }
 
-// paramPattern matches common ID-like values in URL parameters and path segments.
 var (
 	numericIDRe = regexp.MustCompile(`^\d{1,10}$`)
 	uuidRe      = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -30,7 +27,6 @@ var (
 	hexIDRe     = regexp.MustCompile(`^[0-9a-f]{12,64}$`)
 )
 
-// objectTypeKeywords maps URL path segments to likely business object types.
 var objectTypeKeywords = map[string]string{
 	"user":        "user",
 	"users":       "user",
@@ -73,7 +69,6 @@ var objectTypeKeywords = map[string]string{
 	"api":         "api",
 }
 
-// riskByObjectType maps object types to risk levels.
 var riskByObjectType = map[string]string{
 	"user":         "high",
 	"payment":      "critical",
@@ -92,16 +87,15 @@ var riskByObjectType = map[string]string{
 	"api":          "medium",
 }
 
-// idorCluster represents a group of URLs sharing the same endpoint pattern and parameter.
 type idorCluster struct {
-	Pattern     string   // Normalized endpoint pattern, e.g. /api/users/{id}
-	ParamName   string   // Parameter name carrying the ID
-	ParamType   string   // numeric, uuid, base64, hex
-	SampleIDs   []string // Sample ID values found
-	ObjectType  string   // Inferred object type
-	Risk        string   // Estimated risk level
-	SampleURLs  []string // Original URLs in this cluster
-	InPath      bool     // Whether the parameter is in the path vs query
+	Pattern    string   // Normalized endpoint pattern, e.g. /api/users/{id}
+	ParamName  string   // Parameter name carrying the ID
+	ParamType  string   // numeric, uuid, base64, hex
+	SampleIDs  []string // Sample ID values found
+	ObjectType string   // Inferred object type
+	Risk       string   // Estimated risk level
+	SampleURLs []string // Original URLs in this cluster
+	InPath     bool     // Whether the parameter is in the path vs query
 }
 
 func (i *IDORAssistTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
@@ -121,9 +115,8 @@ func (i *IDORAssistTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 	}
 
 	rateLimit := ToolRateLimitFromCtx(ctx, i.Name())
-	_ = rate.Limit(rateLimit) // IDOR assist is purely analytical, no HTTP requests needed
+	_ = rate.Limit(rateLimit)
 
-	// Phase 1: Extract parameters and cluster by endpoint pattern
 	clusters := i.extractAndCluster(httpURLs)
 	if len(clusters) == 0 {
 		return nil, nil
@@ -137,27 +130,25 @@ func (i *IDORAssistTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 			continue
 		}
 
-		// Build testing checklist
 		checklist := i.buildChecklist(cluster)
 
 		props := map[string]string{
-			"type":          "idor_checklist",
-			"pattern":       cluster.Pattern,
-			"param_name":    cluster.ParamName,
-			"param_type":    cluster.ParamType,
-			"object_type":   cluster.ObjectType,
-			"risk":          cluster.Risk,
-			"sample_ids":    strings.Join(truncateSlice(cluster.SampleIDs, 10), ", "),
-			"sample_count":  fmt.Sprintf("%d", len(cluster.SampleIDs)),
-			"url_count":     fmt.Sprintf("%d", len(cluster.SampleURLs)),
-			"checklist":     checklist,
-			"description":   fmt.Sprintf("IDOR testing candidate: %s parameter '%s' in %s (%d unique IDs across %d URLs)", cluster.ParamType, cluster.ParamName, cluster.Pattern, len(cluster.SampleIDs), len(cluster.SampleURLs)),
+			"type":         "idor_checklist",
+			"pattern":      cluster.Pattern,
+			"param_name":   cluster.ParamName,
+			"param_type":   cluster.ParamType,
+			"object_type":  cluster.ObjectType,
+			"risk":         cluster.Risk,
+			"sample_ids":   strings.Join(truncateSlice(cluster.SampleIDs, 10), ", "),
+			"sample_count": fmt.Sprintf("%d", len(cluster.SampleIDs)),
+			"url_count":    fmt.Sprintf("%d", len(cluster.SampleURLs)),
+			"checklist":    checklist,
+			"description":  fmt.Sprintf("IDOR testing candidate: %s parameter '%s' in %s (%d unique IDs across %d URLs)", cluster.ParamType, cluster.ParamName, cluster.Pattern, len(cluster.SampleIDs), len(cluster.SampleURLs)),
 		}
 
 		events = append(events, recon.NewEventWithSeverity(cluster.Pattern, i.Name(), "idor_checklist", props, cluster.Risk))
 	}
 
-	// Phase 3: Optional LLM enrichment if API key is available
 	llmEvents := i.enrichWithLLM(ctx, clusters)
 	events = append(events, llmEvents...)
 
@@ -168,7 +159,6 @@ func (i *IDORAssistTool) Run(ctx context.Context, scanCtx *recon.ScanContext, ta
 	return events, nil
 }
 
-// extractAndCluster parses all URLs, finds ID-like parameters, and clusters them.
 func (i *IDORAssistTool) extractAndCluster(urls []string) []idorCluster {
 	type clusterKey struct {
 		pattern   string
@@ -183,7 +173,6 @@ func (i *IDORAssistTool) extractAndCluster(urls []string) []idorCluster {
 			continue
 		}
 
-		// Check query parameters for IDs
 		for param, values := range parsed.Query() {
 			paramLower := strings.ToLower(param)
 			if !isIDLikeParamName(paramLower) {
@@ -195,7 +184,6 @@ func (i *IDORAssistTool) extractAndCluster(urls []string) []idorCluster {
 					continue
 				}
 
-				// Normalize pattern: scheme://host/path (without query)
 				pattern := fmt.Sprintf("%s://%s%s", parsed.Scheme, parsed.Host, normalizePath(parsed.Path))
 				key := clusterKey{pattern: pattern, paramName: param}
 
@@ -221,7 +209,6 @@ func (i *IDORAssistTool) extractAndCluster(urls []string) []idorCluster {
 			}
 		}
 
-		// Check path segments for IDs
 		pathSegments := strings.Split(strings.Trim(parsed.Path, "/"), "/")
 		for idx, segment := range pathSegments {
 			idType := classifyID(segment)
@@ -229,13 +216,11 @@ func (i *IDORAssistTool) extractAndCluster(urls []string) []idorCluster {
 				continue
 			}
 
-			// Build pattern with {id} placeholder
 			patternSegments := make([]string, len(pathSegments))
 			copy(patternSegments, pathSegments)
 			patternSegments[idx] = "{id}"
 			pattern := fmt.Sprintf("%s://%s/%s", parsed.Scheme, parsed.Host, strings.Join(patternSegments, "/"))
 
-			// Determine param name from preceding path segment
 			paramName := "path_id"
 			if idx > 0 {
 				paramName = pathSegments[idx-1]
@@ -265,15 +250,13 @@ func (i *IDORAssistTool) extractAndCluster(urls []string) []idorCluster {
 		}
 	}
 
-	// Convert map to sorted slice
 	clusters := make([]idorCluster, 0, len(clusterMap))
 	for _, c := range clusterMap {
-		if len(c.SampleIDs) >= 2 { // Only include clusters with 2+ distinct IDs
+		if len(c.SampleIDs) >= 2 {
 			clusters = append(clusters, *c)
 		}
 	}
 
-	// Sort by risk (critical > high > medium > low) then by ID count
 	riskOrder := map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3}
 	sort.Slice(clusters, func(a, b int) bool {
 		ra, rb := riskOrder[clusters[a].Risk], riskOrder[clusters[b].Risk]
@@ -286,7 +269,6 @@ func (i *IDORAssistTool) extractAndCluster(urls []string) []idorCluster {
 	return clusters
 }
 
-// buildChecklist generates a structured IDOR testing guide for a cluster.
 func (i *IDORAssistTool) buildChecklist(c idorCluster) string {
 	var b strings.Builder
 
@@ -333,14 +315,12 @@ func (i *IDORAssistTool) buildChecklist(c idorCluster) string {
 	return b.String()
 }
 
-// enrichWithLLM optionally sends cluster data to LLM for richer context analysis.
 func (i *IDORAssistTool) enrichWithLLM(ctx context.Context, clusters []idorCluster) []recon.Event {
 	provider, model, apiURL, apiKey := GetLLMConfig(ctx)
 	if apiKey == "" || len(clusters) == 0 {
 		return nil
 	}
 
-	// Only send top 10 clusters to avoid token limits
 	if len(clusters) > 10 {
 		clusters = clusters[:10]
 	}
@@ -409,8 +389,6 @@ Output as JSON array:
 	return events
 }
 
-// --- Helper functions ---
-
 func isIDLikeParamName(name string) bool {
 	idNames := []string{
 		"id", "uid", "user_id", "userid", "account_id", "accountid",
@@ -427,7 +405,7 @@ func isIDLikeParamName(name string) bool {
 			return true
 		}
 	}
-	// Also match params ending with _id or Id
+
 	if strings.HasSuffix(name, "_id") || strings.HasSuffix(name, "id") {
 		return true
 	}
@@ -458,7 +436,6 @@ func inferObjectType(path string) string {
 	pathLower := strings.ToLower(path)
 	segments := strings.Split(strings.Trim(pathLower, "/"), "/")
 
-	// Check segments from right to left, ignoring generic segments like "api"
 	for i := len(segments) - 1; i >= 0; i-- {
 		seg := segments[i]
 		if seg == "api" {
@@ -469,7 +446,6 @@ func inferObjectType(path string) string {
 		}
 	}
 
-	// Fallback: check if path contains any keywords (ignoring "api")
 	for keyword, objType := range objectTypeKeywords {
 		if keyword == "api" {
 			continue
@@ -490,7 +466,7 @@ func riskForObjectType(objectType string) string {
 }
 
 func normalizePath(path string) string {
-	// Remove trailing slash and query string artifacts
+
 	path = strings.TrimRight(path, "/")
 	if path == "" {
 		path = "/"

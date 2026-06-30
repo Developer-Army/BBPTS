@@ -12,7 +12,6 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 )
 
-// EventSubscriber listens to an event bus and asynchronously persists events to the SQLite database.
 type EventSubscriber struct {
 	storage  *Storage
 	bus      queue.EventBus
@@ -22,8 +21,6 @@ type EventSubscriber struct {
 	mu       sync.Mutex
 }
 
-// NewEventSubscriber creates a new background subscriber.
-// It subscribes to "discovery" events and any other custom types.
 func NewEventSubscriber(storage *Storage, b queue.EventBus) *EventSubscriber {
 	return &EventSubscriber{
 		storage: storage,
@@ -32,7 +29,6 @@ func NewEventSubscriber(storage *Storage, b queue.EventBus) *EventSubscriber {
 	}
 }
 
-// Start begins listening to the bus in a background goroutine.
 func (s *EventSubscriber) Start(ctx context.Context, eventTypes []string) {
 	s.mu.Lock()
 	if s.running {
@@ -58,10 +54,9 @@ func (s *EventSubscriber) consume(ctx context.Context, sub queue.Subscriber) {
 			return
 		case ev, ok := <-sub:
 			if !ok {
-				return // Channel closed
+				return
 			}
 
-			// Convert bus.Event back to recon.Event for storage
 			reconEv := recon.Event{
 				Target:     ev.Target,
 				Source:     ev.Source,
@@ -80,16 +75,13 @@ func (s *EventSubscriber) consume(ctx context.Context, sub queue.Subscriber) {
 }
 
 func (s *EventSubscriber) buildGraph(ev recon.Event) {
-	// Simple mapping from event types/sources to the asset graph
 
-	// Create base target node
 	targetID, err := s.storage.SaveNode("target", ev.Target, map[string]string{"source": ev.Source}, "", ev.Source, 1.0)
 	if err != nil {
 		slog.Debug("Failed to save graph node", "error", err)
 		return
 	}
 
-	// Link active owners and teams
 	owners, err := s.storage.GetAssetOwners(ev.Target)
 	if err == nil {
 		for _, o := range owners {
@@ -118,7 +110,7 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 
 	switch ev.Source {
 	case "httpx", "naabu":
-		// Linking service to target
+
 		serviceID, err := s.storage.SaveNode("service", ev.Target, ev.Properties, "", ev.Source, 1.0)
 		if err != nil {
 			slog.Warn("Failed to save service node", "error", err)
@@ -128,7 +120,7 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 			slog.Warn("Failed to link target to service", "error", err)
 		}
 	case "nuclei", "dalfox":
-		// Linking vulnerability to target
+
 		vulnID, err := s.storage.SaveNode("vulnerability", ev.Type, ev.Properties, "", ev.Source, 1.0)
 		if err != nil {
 			slog.Warn("Failed to save vulnerability node", "error", err)
@@ -138,7 +130,7 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 			slog.Warn("Failed to link target to vulnerability", "error", err)
 		}
 	case "graphql", "katana", "gau":
-		// Linking endpoint to target
+
 		endpointID, err := s.storage.SaveNode("endpoint", ev.Target, nil, "", ev.Source, 1.0)
 		if err != nil {
 			slog.Warn("Failed to save endpoint node", "error", err)
@@ -149,7 +141,6 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 		}
 	}
 
-	// Also support core event types directly (decoupled from tool names)
 	switch ev.Type {
 	case queue.EventHostAlive:
 		serviceID, err := s.storage.SaveNode("service", ev.Target, ev.Properties, "", ev.Source, 1.0)
@@ -164,7 +155,6 @@ func (s *EventSubscriber) buildGraph(ev recon.Event) {
 	}
 }
 
-// Stop halts the subscriber.
 func (s *EventSubscriber) Stop() {
 	s.stopOnce.Do(func() {
 		close(s.done)

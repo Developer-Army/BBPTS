@@ -13,7 +13,6 @@ import (
 	"strings"
 )
 
-// Target represents an enriched target with optional metadata
 type Target struct {
 	URL      string   // The target domain/URL
 	Scope    string   // Scope level: "in", "out", or "private"
@@ -22,8 +21,6 @@ type Target struct {
 	Notes    string   // Additional notes
 }
 
-// IsInScope reports whether the target should be included in active scanning.
-// Only explicit out-of-scope markers are excluded.
 func (t Target) IsInScope() bool {
 	switch strings.ToLower(strings.TrimSpace(t.Scope)) {
 	case "out", "oos", "out-of-scope", "outscope", "exclude", "excluded":
@@ -33,8 +30,6 @@ func (t Target) IsInScope() bool {
 	}
 }
 
-// validateURL checks if a URL is safe for scanning (prevents SSRF).
-// Allows only http/https schemes, no localhost/private IPs.
 func validateURL(rawURL string) bool {
 	rawURL = strings.TrimSpace(rawURL)
 	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
@@ -54,11 +49,11 @@ func validateURL(rawURL string) bool {
 	if os.Getenv("BBPTS_ALLOW_LOCAL") == "true" || os.Getenv("BBPTS_DEV") == "true" {
 		return true
 	}
-	// Check for localhost/loopback
+
 	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
 		return false
 	}
-	// Check private IPs
+
 	if ip := net.ParseIP(host); ip != nil {
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() {
 			return false
@@ -67,22 +62,12 @@ func validateURL(rawURL string) bool {
 	return true
 }
 
-// Parser handles reading and parsing input files containing bug bounty targets.
 type Parser struct{}
 
-// NewParser creates a new instance of a Parser.
 func NewParser() *Parser {
 	return &Parser{}
 }
 
-// ParseFile reads an input file (e.g., CSV or newline-separated domains) and
-// returns a slice of target strings. It automatically detects the file type
-// based on the extension.
-//
-// Supported formats:
-// - Simple list: one domain per line
-// - CSV with headers: url,scope,priority,tags,notes
-// - CSV without headers: treated as simple domains
 func (p *Parser) ParseFile(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -99,8 +84,6 @@ func (p *Parser) ParseFile(path string) ([]string, error) {
 	}
 }
 
-// ParseFileWithMetadata reads an input file and returns targets with metadata.
-// This provides richer information than ParseFile.
 func (p *Parser) ParseFileWithMetadata(path string) ([]Target, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -152,8 +135,6 @@ func (p *Parser) parseLines(r io.Reader) ([]string, error) {
 	return targets, nil
 }
 
-// parseCSVWithMetadata parses CSV with optional headers
-// Supports generic headers and bug bounty platform specific headers (HackerOne, Bugcrowd, etc)
 func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 	reader := csv.NewReader(r)
 	reader.TrimLeadingSpace = true
@@ -172,7 +153,6 @@ func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 	headerMap := make(map[string]int)
 	startRow := 0
 
-	// Common bug bounty platform headers
 	targetHeaders := []string{"url", "target", "identifier", "asset_identifier", "endpoint", "domain", "asset identifier"}
 	scopeHeaders := []string{"scope", "eligible_for_submission", "eligible_for_bounty", "in_scope", "eligible"}
 
@@ -182,7 +162,6 @@ func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 	for i, field := range firstRow {
 		cleanField := strings.ToLower(strings.TrimSpace(field))
 
-		// Check for target/URL column
 		for _, th := range targetHeaders {
 			if cleanField == th {
 				headerMap["url"] = i
@@ -191,7 +170,6 @@ func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 			}
 		}
 
-		// Check for scope/eligibility columns
 		for _, sh := range scopeHeaders {
 			if cleanField == sh {
 				headerMap[cleanField] = i
@@ -200,7 +178,6 @@ func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 			}
 		}
 
-		// Other metadata
 		if cleanField == "priority" || cleanField == "severity" || cleanField == "max_severity" {
 			headerMap["priority"] = i
 			isHeader = true
@@ -251,7 +228,7 @@ func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 				tagStr := strings.TrimSpace(record[idx])
 				if tagStr != "" {
 					target.Tags = strings.Split(tagStr, ";")
-					// Clean up tags
+
 					for j := range target.Tags {
 						target.Tags[j] = strings.TrimSpace(target.Tags[j])
 					}
@@ -263,7 +240,7 @@ func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 
 			targets = append(targets, target)
 		} else {
-			// If no headers, treat each field as a separate target
+
 			for _, field := range record {
 				url := strings.TrimSpace(field)
 				if url == "" || strings.HasPrefix(url, "#") {
@@ -285,14 +262,13 @@ func (p *Parser) parseCSVWithMetadata(r io.Reader) ([]Target, error) {
 }
 
 func rowIsEligible(record []string, headerMap map[string]int) bool {
-	// Explicit scope markers
+
 	if idx, ok := headerMap["scope"]; ok && idx < len(record) {
 		if isNegativeScopeValue(record[idx]) {
 			return false
 		}
 	}
 
-	// Any explicit "false/no/0/out" in these platform fields means out-of-scope.
 	for _, key := range []string{"eligible_for_submission", "eligible_for_bounty", "in_scope", "eligible"} {
 		idx, ok := headerMap[key]
 		if !ok || idx >= len(record) {
@@ -316,7 +292,6 @@ func isNegativeScopeValue(v string) bool {
 	}
 }
 
-// parseLinesToTargets converts simple newline-separated list to Target objects
 func (p *Parser) parseLinesToTargets(r io.Reader) ([]Target, error) {
 	scanner := bufio.NewScanner(r)
 	targets := []Target{}
@@ -327,7 +302,7 @@ func (p *Parser) parseLinesToTargets(r io.Reader) ([]Target, error) {
 			continue
 		}
 		if !validateURL(line) {
-			continue // Skip invalid URLs
+			continue
 		}
 		targets = append(targets, Target{
 			URL:      line,

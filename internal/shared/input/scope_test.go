@@ -43,7 +43,7 @@ exclude:prod.staging.example.com
 }
 
 func TestParseJSONScope(t *testing.T) {
-	// 1. HackerOne format
+
 	h1JSON := `{
 		"structured_scopes": [
 			{"asset_identifier": "*.h1allow.com", "asset_type": "URL", "eligible_for_submission": true},
@@ -61,7 +61,6 @@ func TestParseJSONScope(t *testing.T) {
 		t.Errorf("expected h1block.com to be excluded")
 	}
 
-	// 2. Bugcrowd format
 	bcJSON := `{
 		"target_groups": [
 			{
@@ -105,12 +104,12 @@ exclude:192.168.1.128/25
 		target string
 		want   bool
 	}{
-		{"192.168.1.10", true},   // in CIDR
-		{"192.168.1.50", false},  // excluded single IP
-		{"192.168.1.200", false}, // excluded CIDR 192.168.1.128/25
-		{"10.0.0.5", true},       // allowed single IP
-		{"10.0.0.6", false},      // outside CIDR/IP
-		{"192.168.2.1", false},   // outside CIDR/IP
+		{"192.168.1.10", true},
+		{"192.168.1.50", false},
+		{"192.168.1.200", false},
+		{"10.0.0.5", true},
+		{"10.0.0.6", false},
+		{"192.168.2.1", false},
 	}
 
 	for _, tt := range tests {
@@ -134,7 +133,7 @@ func TestNewScopeEngine(t *testing.T) {
 }
 
 func TestLoadScopeFile(t *testing.T) {
-	// Create a temporary scope file
+
 	tempFile, err := os.CreateTemp("", "bbpts-scope-*.txt")
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
@@ -183,4 +182,3 @@ func TestParseAlternateJSON(t *testing.T) {
 		t.Errorf("expected alt2.com to be excluded")
 	}
 }
-

@@ -8,14 +8,12 @@ import (
 	"github.com/dop251/goja/parser"
 )
 
-// SemanticAnalyzer performs deep AST parsing of JavaScript files to extract routes and logic.
 type SemanticAnalyzer struct{}
 
 func NewSemanticAnalyzer() *SemanticAnalyzer {
 	return &SemanticAnalyzer{}
 }
 
-// SemanticRoute represents an identified application state or endpoint.
 type SemanticRoute struct {
 	Path       string
 	Method     string
@@ -27,7 +25,6 @@ type SemanticRoute struct {
 	Signature  string
 }
 
-// AnalyzeAST takes raw JS code, builds an AST, and extracts semantic meaning.
 func (sa *SemanticAnalyzer) AnalyzeAST(sourceCode string) []SemanticRoute {
 	program, err := parser.ParseFile(nil, "bundle.js", sourceCode, 0, parser.WithDisableSourceMaps)
 	var routes []SemanticRoute
@@ -117,7 +114,6 @@ func (sa *SemanticAnalyzer) extract(program *ast.Program) []SemanticRoute {
 	return routes
 }
 
-// walkAST recursively visits all nodes in the AST.
 func (sa *SemanticAnalyzer) walkAST(node ast.Node, visitor func(ast.Node)) {
 	walkJSAST(node, visitor)
 }

@@ -14,18 +14,15 @@ import (
 	"github.com/Developer-Army/BBPTS/internal/domain/recon/tools"
 )
 
-// AITriageResult represents the LLM response.
 type AITriageResult struct {
 	Confidence  int    `json:"confidence"`
 	Explanation string `json:"explanation"`
 }
 
-// TriageFindingWithLLM sends the finding's request/response pair to the LLM and gets triage results.
 func TriageFindingWithLLM(ctx context.Context, f *DetailedFinding, provider, model, apiURL, apiKey string) (*AITriageResult, error) {
 	reqData := f.Request
 	respData := f.Response
 
-	// Fallback: If request/response pair is empty and it is an HTTP target, perform a quick GET request.
 	if (reqData == "" || respData == "") && strings.HasPrefix(f.Target, "http") {
 		slog.Info("Request/Response missing for AI triage, performing fallback request", "target", f.Target)
 		req, err := http.NewRequestWithContext(ctx, "GET", f.Target, nil)
@@ -54,7 +51,7 @@ func TriageFindingWithLLM(ctx context.Context, f *DetailedFinding, provider, mod
 	}
 
 	if reqData == "" && respData == "" {
-		// Use finding details as fallback
+
 		reqData = "Target: " + f.Target
 		respData = "Finding: " + f.Title + "\nDescription: " + f.Description
 	}
@@ -89,7 +86,7 @@ func parseTriageJSON(text string) (*AITriageResult, error) {
 	cleaned := tools.CleanLLMJSON(text)
 	var result AITriageResult
 	if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
-		// Attempt parsing by looking for JSON block
+
 		start := strings.Index(cleaned, "{")
 		end := strings.LastIndex(cleaned, "}")
 		if start != -1 && end != -1 && end > start {

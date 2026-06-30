@@ -9,14 +9,12 @@ import (
 	"os"
 )
 
-// HackerOneClient handles API submissions to HackerOne.
 type HackerOneClient struct {
 	Username string
 	Token    string
 	Program  string
 }
 
-// NewHackerOneClient creates a new client from environment variables.
 func NewHackerOneClient(program string) *HackerOneClient {
 	return &HackerOneClient{
 		Username: os.Getenv("BBPTS_H1_USER"),
@@ -25,12 +23,10 @@ func NewHackerOneClient(program string) *HackerOneClient {
 	}
 }
 
-// IsConfigured returns true if API credentials are provided.
 func (h *HackerOneClient) IsConfigured() bool {
 	return h.Username != "" && h.Token != "" && h.Program != ""
 }
 
-// SubmitReport creates a draft report on HackerOne.
 func (h *HackerOneClient) SubmitReport(title, description, severity string) error {
 	if !h.IsConfigured() {
 		return fmt.Errorf("hackerone credentials not configured")

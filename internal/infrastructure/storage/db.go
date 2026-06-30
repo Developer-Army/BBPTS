@@ -14,9 +14,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Open creates or opens a BBPTS database at the given path.
 func Open(dbPath string) (*Storage, error) {
-	// Ensure directory exists
+
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
@@ -26,7 +25,7 @@ func Open(dbPath string) (*Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	// Configure for concurrent access: 1 max open connection to avoid SQLite database locks, 1 idle, 5s busy timeout
+
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(5 * time.Minute)
@@ -46,7 +45,6 @@ func Open(dbPath string) (*Storage, error) {
 	return instance, nil
 }
 
-// migrate creates the schema and records the migration version.
 func (db *Storage) migrate(ctx context.Context) error {
 	migrations := []string{
 		`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);`,
@@ -192,7 +190,6 @@ func (db *Storage) migrate(ctx context.Context) error {
 	return nil
 }
 
-// StartScan creates a new scan record and returns its ID.
 func (db *Storage) StartScan(ctx context.Context, scope string) (int64, error) {
 	res, err := db.db.ExecContext(ctx, "INSERT INTO scans (scope, status) VALUES (?, ?)", scope, "running")
 	if err != nil {
@@ -201,13 +198,11 @@ func (db *Storage) StartScan(ctx context.Context, scope string) (int64, error) {
 	return res.LastInsertId()
 }
 
-// FinishScan updates a scan record as completed.
 func (db *Storage) FinishScan(ctx context.Context, scanID int64) error {
 	_, err := db.db.ExecContext(ctx, "UPDATE scans SET end_time = CURRENT_TIMESTAMP, status = ? WHERE id = ?", "completed", scanID)
 	return err
 }
 
-// SaveTargets bulk inserts target records.
 func (db *Storage) SaveTargets(ctx context.Context, scanID int64, targets []string) error {
 	tx, err := db.db.Begin()
 	if err != nil {
@@ -230,7 +225,6 @@ func (db *Storage) SaveTargets(ctx context.Context, scanID int64, targets []stri
 	return tx.Commit()
 }
 
-// EventRecord maps to the database event structure.
 type EventRecord struct {
 	Target     string
 	Source     string
@@ -238,7 +232,6 @@ type EventRecord struct {
 	Properties map[string]string
 }
 
-// SaveEvents bulk inserts event records.
 func (db *Storage) SaveEvents(ctx context.Context, scanID int64, events []EventRecord) error {
 	tx, err := db.db.Begin()
 	if err != nil {
@@ -262,7 +255,6 @@ func (db *Storage) SaveEvents(ctx context.Context, scanID int64, events []EventR
 	return tx.Commit()
 }
 
-// ScanRecord represents a scan in the database.
 type ScanRecord struct {
 	ID        int64      `json:"id"`
 	Scope     string     `json:"scope"`
@@ -271,7 +263,6 @@ type ScanRecord struct {
 	Status    string     `json:"status"`
 }
 
-// GetScans returns scans from the database with pagination.
 func (db *Storage) GetScans(ctx context.Context, limit, offset int) ([]ScanRecord, error) {
 	query := "SELECT id, scope, start_time, end_time, status FROM scans ORDER BY start_time DESC, id DESC"
 	if limit > 0 {
@@ -299,7 +290,6 @@ func (db *Storage) GetScans(ctx context.Context, limit, offset int) ([]ScanRecor
 	return scans, nil
 }
 
-// GetTargets returns targets for a given scan with pagination.
 func (db *Storage) GetTargets(ctx context.Context, scanID int64, limit, offset int) ([]string, error) {
 	query := "SELECT host FROM targets WHERE scan_id = ? ORDER BY id"
 	if limit > 0 {
@@ -325,7 +315,6 @@ func (db *Storage) GetTargets(ctx context.Context, scanID int64, limit, offset i
 	return targets, nil
 }
 
-// GetEvents returns events for a given scan with pagination.
 func (db *Storage) GetEvents(ctx context.Context, scanID int64, limit, offset int) ([]EventRecord, error) {
 	query := "SELECT target, source, type, properties FROM events WHERE scan_id = ?"
 	if limit > 0 {
@@ -355,7 +344,6 @@ func (db *Storage) GetEvents(ctx context.Context, scanID int64, limit, offset in
 	return events, nil
 }
 
-// GetLastScanID returns the ID of the most recent completed scan for a scope.
 func (db *Storage) GetLastScanID(ctx context.Context, scope string) (int64, error) {
 	var id int64
 	err := db.db.QueryRowContext(ctx, "SELECT id FROM scans WHERE scope = ? AND status = 'completed' ORDER BY start_time DESC, id DESC LIMIT 1", scope).Scan(&id)
@@ -365,21 +353,18 @@ func (db *Storage) GetLastScanID(ctx context.Context, scope string) (int64, erro
 	return id, err
 }
 
-// ScanDiff represents the difference between two scans.
 type ScanDiff struct {
 	NewTargets []string
 	NewEvents  []EventRecord
 }
 
-// GetScanDiff compares the current scan against the most recent previous completed scan
-// in the same scope.
 func (db *Storage) GetScanDiff(ctx context.Context, scope string, currentScanID int64) (*ScanDiff, error) {
 	var previousID int64
 	err := db.db.QueryRowContext(ctx,
 		"SELECT id FROM scans WHERE scope = ? AND status = 'completed' AND id < ? ORDER BY start_time DESC, id DESC LIMIT 1",
 		scope, currentScanID).Scan(&previousID)
 	if err == sql.ErrNoRows {
-		return nil, nil // No previous scan to diff against
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err
@@ -387,7 +372,6 @@ func (db *Storage) GetScanDiff(ctx context.Context, scope string, currentScanID 
 
 	diff := &ScanDiff{}
 
-	// Find new targets
 	rows, err := db.db.QueryContext(ctx, `
 		SELECT t1.host
 		FROM targets t1
@@ -404,7 +388,6 @@ func (db *Storage) GetScanDiff(ctx context.Context, scope string, currentScanID 
 		}
 	}
 
-	// Find new events
 	newEvents, err := db.GetNewFindings(ctx, scope, currentScanID)
 	if err == nil {
 		diff.NewEvents = newEvents
@@ -413,7 +396,6 @@ func (db *Storage) GetScanDiff(ctx context.Context, scope string, currentScanID 
 	return diff, nil
 }
 
-// GetNewFindings returns events from a scan that were not present in the previous scan.
 func (db *Storage) GetNewFindings(ctx context.Context, scope string, scanID int64) ([]EventRecord, error) {
 	var previousID int64
 	err := db.db.QueryRowContext(ctx,
@@ -454,7 +436,6 @@ func (db *Storage) GetNewFindings(ctx context.Context, scope string, scanID int6
 	return findings, nil
 }
 
-// Stats represents aggregate system statistics for the dashboard.
 type Stats struct {
 	TotalScans    int `json:"total_scans"`
 	TotalTargets  int `json:"total_targets"`
@@ -462,7 +443,6 @@ type Stats struct {
 	CriticalVulns int `json:"critical_vulns"`
 }
 
-// GetStats computes aggregate statistics from the database.
 func (db *Storage) GetStats(ctx context.Context) (Stats, error) {
 	var stats Stats
 
@@ -483,14 +463,13 @@ func (db *Storage) GetStats(ctx context.Context) (Stats, error) {
 
 	err = db.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM insights WHERE priority = 'critical'").Scan(&stats.CriticalVulns)
 	if err != nil {
-		// insights table might be empty, ignore error and set to 0
+
 		stats.CriticalVulns = 0
 	}
 
 	return stats, nil
 }
 
-// InsightRecord represents an insight record in the database.
 type InsightRecord struct {
 	Host     string   `json:"host"`
 	Priority string   `json:"priority"`
@@ -498,7 +477,6 @@ type InsightRecord struct {
 	Tags     []string `json:"tags"`
 }
 
-// SaveInsights bulk inserts insight records.
 func (db *Storage) SaveInsights(ctx context.Context, scanID int64, insights []InsightRecord) error {
 	tx, err := db.db.Begin()
 	if err != nil {
@@ -522,7 +500,6 @@ func (db *Storage) SaveInsights(ctx context.Context, scanID int64, insights []In
 	return tx.Commit()
 }
 
-// RiskHistoryRecord represents a host's risk score at a scan time.
 type RiskHistoryRecord struct {
 	Host     string    `json:"host"`
 	Score    int       `json:"score"`
@@ -530,7 +507,6 @@ type RiskHistoryRecord struct {
 	ScanTime time.Time `json:"scan_time"`
 }
 
-// GetRiskHistory returns risk history for a specific host.
 func (db *Storage) GetRiskHistory(ctx context.Context, host string, limit, offset int) ([]RiskHistoryRecord, error) {
 	query := `
 		SELECT i.host, i.score, i.priority, s.start_time
@@ -568,7 +544,6 @@ func (db *Storage) GetRiskHistory(ctx context.Context, host string, limit, offse
 	return history, nil
 }
 
-// GetRiskTrend returns the average and maximum risk scores for all scans in a scope.
 func (db *Storage) GetRiskTrend(ctx context.Context, scope string, limit, offset int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT s.id, s.start_time, AVG(i.score) as avg_score, MAX(i.score) as max_score, COUNT(i.id) as host_count
@@ -616,13 +591,11 @@ func (db *Storage) GetRiskTrend(ctx context.Context, scope string, limit, offset
 	return trend, nil
 }
 
-// TechHistoryRecord represents technology tag counts for a scan.
 type TechHistoryRecord struct {
 	ScanTime time.Time      `json:"scan_time"`
 	Techs    map[string]int `json:"techs"`
 }
 
-// GetTechTrend returns technology tag occurrence counts over time for a scope.
 func (db *Storage) GetTechTrend(ctx context.Context, scope string, limit, offset int) ([]TechHistoryRecord, error) {
 	query := `
 		SELECT s.start_time, i.tags
@@ -682,7 +655,6 @@ func (db *Storage) GetTechTrend(ctx context.Context, scope string, limit, offset
 	return trend, nil
 }
 
-// OwnershipHistoryRecord represents ownership history of an asset.
 type OwnershipHistoryRecord struct {
 	AssetID      string     `json:"asset_id"`
 	OwnerName    string     `json:"owner_name"`
@@ -693,7 +665,6 @@ type OwnershipHistoryRecord struct {
 	ChangeReason string     `json:"change_reason,omitempty"`
 }
 
-// GetOwnershipHistory returns ownership changes over time for an asset.
 func (db *Storage) GetOwnershipHistory(ctx context.Context, assetID string, limit, offset int) ([]OwnershipHistoryRecord, error) {
 	query := `
 		SELECT ao.asset_id, COALESCE(o.name, ''), COALESCE(o.email, ''), COALESCE(t.name, ''), ao.start_time, ao.end_time, COALESCE(ao.change_reason, '')
@@ -736,7 +707,6 @@ func (db *Storage) GetOwnershipHistory(ctx context.Context, assetID string, limi
 	return history, nil
 }
 
-// GetAssetHistory returns scan presence history for a specific asset.
 func (db *Storage) GetAssetHistory(ctx context.Context, host string, limit, offset int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT s.id, s.start_time, s.status
@@ -779,7 +749,6 @@ func (db *Storage) GetAssetHistory(ctx context.Context, host string, limit, offs
 	return history, nil
 }
 
-// GetFindingHistory returns historical scan observations of a specific finding.
 func (db *Storage) GetFindingHistory(ctx context.Context, target string, limit, offset int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT s.id, s.start_time, e.source, e.type

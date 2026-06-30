@@ -192,7 +192,6 @@ func TestIdempotencyManagerNilKV(t *testing.T) {
 		kv: nil,
 	}
 
-	// Methods should handle nil kv gracefully
 	err := im.Register(context.Background(), "task-123", "worker-1")
 	if err == nil {
 		t.Error("Expected error when kv is nil")
@@ -208,25 +207,21 @@ func TestTaskResultWithMockKV(t *testing.T) {
 		kv: mockKV,
 	}
 
-	// Test Register
 	err := im.Register(context.Background(), "task-123", "worker-1")
 	if err != nil {
 		t.Errorf("Register failed: %v", err)
 	}
 
-	// Test duplicate Register
 	err = im.Register(context.Background(), "task-123", "worker-2")
 	if err != ErrTaskAlreadyProcessed {
 		t.Errorf("Expected ErrTaskAlreadyProcessed, got %v", err)
 	}
 
-	// Test Complete
 	err = im.Complete("task-123", "worker-1", "success", 5, nil, nil)
 	if err != nil {
 		t.Errorf("Complete failed: %v", err)
 	}
 
-	// Test GetResult
 	result, err := im.GetResult("task-123")
 	if err != nil {
 		t.Errorf("GetResult failed: %v", err)
@@ -236,7 +231,6 @@ func TestTaskResultWithMockKV(t *testing.T) {
 		t.Errorf("Expected status 'success', got '%s'", result.Status)
 	}
 
-	// Test HasBeenProcessed
 	processed, err := im.HasBeenProcessed("task-123")
 	if err != nil {
 		t.Errorf("HasBeenProcessed failed: %v", err)
@@ -246,7 +240,6 @@ func TestTaskResultWithMockKV(t *testing.T) {
 		t.Error("Expected task to be processed")
 	}
 
-	// Test GetResult for non-existent task
 	_, err = im.GetResult("non-existent")
 	if err != ErrTaskNotFound {
 		t.Errorf("Expected ErrTaskNotFound, got %v", err)
@@ -262,13 +255,11 @@ func TestEventDeduperWithMockKV(t *testing.T) {
 		kv: mockKV,
 	}
 
-	// Test RecordEvent
 	err := ed.RecordEvent("acme-corp.io", "subfinder", "subdomain")
 	if err != nil {
 		t.Errorf("RecordEvent failed: %v", err)
 	}
 
-	// Test IsDuplicate
 	isDup, err := ed.IsDuplicate("acme-corp.io", "subfinder", "subdomain")
 	if err != nil {
 		t.Errorf("IsDuplicate failed: %v", err)
@@ -278,7 +269,6 @@ func TestEventDeduperWithMockKV(t *testing.T) {
 		t.Error("Expected event to be duplicate")
 	}
 
-	// Test IsDuplicate for non-existent event
 	isDup, err = ed.IsDuplicate("different.com", "subfinder", "subdomain")
 	if err != nil {
 		t.Errorf("IsDuplicate failed: %v", err)
@@ -298,13 +288,11 @@ func TestSessionReplayLogWithMockKV(t *testing.T) {
 		kv: mockKV,
 	}
 
-	// Test LogTaskInSession
 	err := srl.LogTaskInSession("session-123", "task-456", "success", 5)
 	if err != nil {
 		t.Errorf("LogTaskInSession failed: %v", err)
 	}
 
-	// Test GetSessionTasks
 	tasks, err := srl.GetSessionTasks("session-123")
 	if err != nil {
 		t.Errorf("GetSessionTasks failed: %v", err)

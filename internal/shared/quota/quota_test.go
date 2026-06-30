@@ -26,7 +26,6 @@ func TestQuotaGuard(t *testing.T) {
 		t.Errorf("expected github count to be 1")
 	}
 
-	// Load in a new instance and check persistence
 	qg2 := NewQuotaGuard(tmpDir)
 	usage := qg2.GetUsage()
 	if usage.ShodanCalls != 2 {

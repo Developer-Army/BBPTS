@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,23 +19,21 @@ import (
 
 	"github.com/Developer-Army/BBPTS/internal/application/services"
 	"github.com/Developer-Army/BBPTS/internal/domain/security"
+	"github.com/Developer-Army/BBPTS/internal/infrastructure/queue"
 	"github.com/Developer-Army/BBPTS/internal/infrastructure/storage"
 	"github.com/Developer-Army/BBPTS/internal/shared/config"
 )
 
-// API wraps the database and provides HTTP handlers.
 type API struct {
 	db           *storage.DB
 	configPath   string
 	masterDBPath string
 }
 
-// NewAPI creates a new API instance.
 func NewAPI(db *storage.DB, configPath, masterDBPath string) *API {
 	return &API{db: db, configPath: configPath, masterDBPath: masterDBPath}
 }
 
-// GetStats returns aggregate system statistics.
 func (a *API) GetStats(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
@@ -60,7 +60,6 @@ func getLimitOffset(r *http.Request) (int, int) {
 	return limit, offset
 }
 
-// GetScans returns a list of recent scans.
 func (a *API) GetScans(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
@@ -85,7 +84,6 @@ func (a *API) GetScans(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, scans)
 }
 
-// GetEvents returns findings for a specific scan.
 func (a *API) GetEvents(w http.ResponseWriter, r *http.Request) {
 	scanIDStr := r.URL.Query().Get("scan_id")
 	if scanIDStr == "" {
@@ -118,7 +116,6 @@ func (a *API) GetEvents(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, events)
 }
 
-// respondWithJSON is a helper to send JSON responses.
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, _ := json.Marshal(payload)
 	redacted := []byte(security.RedactSecrets(string(response)))
@@ -129,12 +126,10 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	}
 }
 
-// respondWithError is a helper to send error responses.
 func respondWithError(w http.ResponseWriter, code int, message string) {
 	respondWithJSON(w, code, map[string]string{"error": message})
 }
 
-// HandleConfig routes config GET and POST requests.
 func (a *API) HandleConfig(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -181,7 +176,6 @@ func redactConfig(cfg *config.Config) *config.Config {
 	return &redacted
 }
 
-// GetConfig reads and returns the JSON configuration file.
 func (a *API) GetConfig(w http.ResponseWriter, r *http.Request) {
 	if a.configPath == "" {
 		respondWithError(w, http.StatusBadRequest, "config path is not configured")
@@ -200,14 +194,12 @@ func (a *API) GetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// UpdateConfig updates the BBPTS configuration file on disk.
 func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	if a.configPath == "" {
 		respondWithError(w, http.StatusBadRequest, "config path is not configured")
 		return
 	}
 
-	// Limit request body size to 2 MB to prevent memory exhaustion attacks
 	r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
 
 	var incoming config.Config
@@ -216,14 +208,12 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load existing configuration
 	existing, err := config.LoadFromFile(a.configPath)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load existing config: %v", err))
 		return
 	}
 
-	// Validate and copy allowed fields
 	existing.ContainerMode = incoming.ContainerMode
 
 	if incoming.RateLimit >= 0 {
@@ -236,7 +226,6 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		existing.BatchSize = incoming.BatchSize
 	}
 
-	// Sanitize paths to prevent directory traversal
 	if incoming.WordlistsDir != "" {
 		if strings.Contains(incoming.WordlistsDir, "..") {
 			respondWithError(w, http.StatusBadRequest, "invalid wordlists directory (traversal detected)")
@@ -252,7 +241,6 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		existing.StateDir = incoming.StateDir
 	}
 
-	// Copy and validate wordlist files
 	if incoming.Wordlists.DNS != "" {
 		if strings.Contains(incoming.Wordlists.DNS, "..") {
 			respondWithError(w, http.StatusBadRequest, "invalid dns wordlist filename")
@@ -282,7 +270,6 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		existing.Wordlists.API = incoming.Wordlists.API
 	}
 
-	// Fleet settings
 	if incoming.Fleet.SyncToken != "" && incoming.Fleet.SyncToken != redactPlaceholder {
 		for _, r := range incoming.Fleet.SyncToken {
 			if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
@@ -293,7 +280,6 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		existing.Fleet.SyncToken = incoming.Fleet.SyncToken
 	}
 
-	// API Keys whitelist validation
 	allowedProviders := map[string]bool{
 		"shodan":         true,
 		"censys":         true,
@@ -317,7 +303,6 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Marshal validated configuration
 	data, err := json.MarshalIndent(existing, "", "  ")
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("failed to marshal JSON: %v", err))
@@ -332,7 +317,6 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "configuration updated successfully"})
 }
 
-// StreamLogs implements log streaming via Server-Sent Events (SSE).
 func (a *API) StreamLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -380,14 +364,12 @@ func (a *API) StreamLogs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleFleetSync merges target SQLite databases securely over HTTP.
 func (a *API) HandleFleetSync(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
-	// Limit request body size to 50 MB to prevent disk exhaustion attacks
 	r.Body = http.MaxBytesReader(w, r.Body, 50*1024*1024)
 
 	receivedToken := r.Header.Get("X-Sync-Token")
@@ -433,7 +415,6 @@ func (a *API) HandleFleetSync(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "database merged successfully"})
 }
 
-// GetRiskHistory returns risk history for a specific host, or a general risk trend.
 func (a *API) GetRiskHistory(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
@@ -476,7 +457,6 @@ func (a *API) GetRiskHistory(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, trend)
 }
 
-// GetTechTrend returns technology trend counts over time.
 func (a *API) GetTechTrend(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
@@ -503,7 +483,6 @@ func (a *API) GetTechTrend(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, trend)
 }
 
-// GetOwnershipHistory returns ownership changes over time.
 func (a *API) GetOwnershipHistory(w http.ResponseWriter, r *http.Request) {
 	assetID := r.URL.Query().Get("asset_id")
 	if assetID == "" {
@@ -531,7 +510,6 @@ func (a *API) GetOwnershipHistory(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, history)
 }
 
-// GetAssetHistory returns scan history for a specific asset.
 func (a *API) GetAssetHistory(w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Query().Get("host")
 	if host == "" {
@@ -559,7 +537,6 @@ func (a *API) GetAssetHistory(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, history)
 }
 
-// GetFindingHistory returns specific finding history for a target.
 func (a *API) GetFindingHistory(w http.ResponseWriter, r *http.Request) {
 	target := r.URL.Query().Get("target")
 	if target == "" {
@@ -587,7 +564,6 @@ func (a *API) GetFindingHistory(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, history)
 }
 
-// GetGraphNodes returns paged asset nodes.
 func (a *API) GetGraphNodes(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
@@ -610,7 +586,6 @@ func (a *API) GetGraphNodes(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, nodes)
 }
 
-// GetGraphEdges returns paged asset edges.
 func (a *API) GetGraphEdges(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
@@ -656,7 +631,6 @@ func isRateLimited(ip string) bool {
 	return false
 }
 
-// Authenticate verifies the user credentials and sets a secure session cookie.
 func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -677,7 +651,7 @@ func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
-	// Limit request body to 1KB to prevent resource exhaustion attacks
+
 	r.Body = http.MaxBytesReader(w, r.Body, 1024)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondWithError(w, http.StatusBadRequest, "invalid request payload")
@@ -721,7 +695,6 @@ func (a *API) Authenticate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Logout revokes the current session.
 func (a *API) Logout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -756,7 +729,6 @@ func (a *API) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Delete cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "bbpts_session",
 		Value:    "",
@@ -770,14 +742,12 @@ func (a *API) Logout(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-// GetSetupToken returns the setup token if no admin/user is registered and query is local.
 func (a *API) GetSetupToken(w http.ResponseWriter, r *http.Request) {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		ip = r.RemoteAddr
 	}
 
-	// Restrict strictly to localhost loopback
 	if ip != "127.0.0.1" && ip != "::1" && ip != "localhost" {
 		respondWithError(w, http.StatusForbidden, "forbidden: setup token is only accessible from localhost")
 		return
@@ -804,14 +774,12 @@ func (a *API) GetSetupToken(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"token": token})
 }
 
-// EnrollAdmin creates the initial admin user using a valid setup token.
 func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		ip = r.RemoteAddr
 	}
 
-	// Restrict strictly to localhost loopback
 	if ip != "127.0.0.1" && ip != "::1" && ip != "localhost" {
 		respondWithError(w, http.StatusForbidden, "forbidden: enrollment is only allowed from localhost")
 		return
@@ -887,7 +855,6 @@ func (a *API) EnrollAdmin(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
-// GetCurrentUser returns the username and role of the currently logged-in user.
 func (a *API) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	username, _ := r.Context().Value(UsernameKey).(string)
 	role, _ := r.Context().Value(RoleKey).(string)
@@ -904,7 +871,6 @@ func (a *API) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// UpdateFindingTriage updates a finding's severity and/or workflow state.
 func (a *API) UpdateFindingTriage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -943,7 +909,6 @@ func (a *API) UpdateFindingTriage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetStatus returns server connection info and config state for the frontend.
 func (a *API) GetStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -976,7 +941,6 @@ func (a *API) GetStatus(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, status)
 }
 
-// GetFindings returns all findings.
 func (a *API) GetFindings(w http.ResponseWriter, r *http.Request) {
 	if a.db == nil {
 		respondWithError(w, http.StatusInternalServerError, "database client is not initialized")
@@ -992,7 +956,6 @@ func (a *API) GetFindings(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, findings)
 }
 
-// StreamEventsv2 streams live scan events to the iOS companion app via SSE.
 func (a *API) StreamEventsv2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -1019,10 +982,9 @@ func (a *API) StreamEventsv2(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// HandleFindingsv2 routes findings-related actions like triage.
 func (a *API) HandleFindingsv2(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
-	// /api/v2/findings/{id}/triage
+
 	if len(parts) >= 6 && parts[5] == "triage" && r.Method == http.MethodPost {
 		id, err := strconv.ParseInt(parts[4], 10, 64)
 		if err != nil {
@@ -1047,7 +1009,6 @@ func (a *API) HandleFindingsv2(w http.ResponseWriter, r *http.Request) {
 	respondWithError(w, http.StatusNotFound, "not found")
 }
 
-// GetScanStatusv2 returns the current scan state.
 func (a *API) GetScanStatusv2(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{
 		"status":            "idle",
@@ -1058,7 +1019,6 @@ func (a *API) GetScanStatusv2(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, status)
 }
 
-// GetProgramsv2 returns the configured bug bounty programs.
 func (a *API) GetProgramsv2(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.LoadFromFile(a.configPath)
 	if err != nil {
@@ -1068,7 +1028,6 @@ func (a *API) GetProgramsv2(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, cfg.ProgramProfiles)
 }
 
-// StartScanv2 triggers a new scan preset from mobile.
 func (a *API) StartScanv2(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Target string `json:"target"`
@@ -1078,15 +1037,96 @@ func (a *API) StartScanv2(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	// Simulate scan start success
+
+	target := strings.TrimSpace(req.Target)
+	if target == "" {
+		respondWithError(w, http.StatusBadRequest, "target is required")
+		return
+	}
+
+	if a.db == nil || a.configPath == "" {
+		respondWithJSON(w, http.StatusOK, map[string]interface{}{
+			"status":  "success",
+			"message": fmt.Sprintf("Scan started successfully on %s using preset %s (simulation mode)", target, req.Preset),
+			"scan_id": time.Now().Unix(),
+		})
+		return
+	}
+
+	cfg, err := config.LoadFromFile(a.configPath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to load config: "+err.Error())
+		return
+	}
+
+	var toolNames []string
+	if pr, ok := cfg.ToolPresets[req.Preset]; ok && pr.Tools != "" {
+		toolNames = strings.Split(pr.Tools, ",")
+	} else if pr, ok := cfg.ToolPresets["default"]; ok && pr.Tools != "" {
+		toolNames = strings.Split(pr.Tools, ",")
+	} else {
+		toolNames = services.AvailableToolNames()
+	}
+
+	go func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		eventBus := queue.New()
+		defer eventBus.Close()
+
+		sub := storage.NewEventSubscriber(a.db, eventBus)
+		sub.Start(ctx, []string{
+			"graphql_endpoint", "cloud_bucket_open", "secret_exposed",
+			"port_open", "vulnerability", "discovery", "subdomain",
+			queue.EventAssetDiscovered,
+			queue.EventHostAlive,
+			queue.EventFindingCreated,
+			queue.EventFindingVerified,
+			queue.EventFindingClosed,
+			queue.EventRiskChanged,
+			queue.EventOwnerAssigned,
+		})
+
+		reconConfig := services.Config{
+			ToolNames:             toolNames,
+			Threads:               cfg.Threads,
+			RateLimit:             cfg.RateLimit,
+			ToolRateLimits:        cfg.ToolRateLimits,
+			AutoUpdate:            cfg.AutoUpdate,
+			Proxies:               cfg.Proxies,
+			APIKeys:               cfg.APIKeys,
+			WordlistsDir:          cfg.WordlistsDir,
+			TmpResultsDir:         filepath.Join(cfg.StateDir, "tmp"),
+			EventBus:              eventBus,
+			CacheEnabled:          true,
+			CacheDBPath:           a.masterDBPath,
+			ContainerMode:         cfg.ContainerMode,
+			DockerImages:          cfg.DockerImages,
+			InsecureSkipVerify:    cfg.InsecureSkipVerify,
+			FPConfidenceThreshold: cfg.FPConfidenceThreshold,
+			FPKeepSuppressed:      cfg.FPKeepSuppressed,
+		}
+
+		orchestrator := services.NewOrchestrator(reconConfig)
+		defer orchestrator.Close()
+
+		slog.Info("UI started background scan", "target", target, "preset", req.Preset, "tools", toolNames)
+		_, errRun := orchestrator.Run(ctx, []string{target})
+		if errRun != nil {
+			slog.Error("UI background scan finished with errors", "error", errRun)
+		} else {
+			slog.Info("UI background scan finished successfully", "target", target)
+		}
+	}()
+
 	respondWithJSON(w, http.StatusOK, map[string]interface{}{
 		"status":  "success",
-		"message": fmt.Sprintf("Scan started successfully on %s using preset %s", req.Target, req.Preset),
+		"message": fmt.Sprintf("Scan started successfully in background on %s using preset %s", target, req.Preset),
 		"scan_id": time.Now().Unix(),
 	})
 }
 
-// GetPendingNotificationsv2 returns unread/pending system notifications.
 func (a *API) GetPendingNotificationsv2(w http.ResponseWriter, r *http.Request) {
 	notifications := []map[string]interface{}{
 		{
@@ -1099,10 +1139,9 @@ func (a *API) GetPendingNotificationsv2(w http.ResponseWriter, r *http.Request) 
 	respondWithJSON(w, http.StatusOK, notifications)
 }
 
-// AckNotificationv2 marks a pending notification as read/acknowledged.
 func (a *API) AckNotificationv2(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
-	// /api/v2/notifications/ack/{id}
+
 	if len(parts) >= 5 {
 		respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "notification acknowledged"})
 		return
@@ -1110,7 +1149,6 @@ func (a *API) AckNotificationv2(w http.ResponseWriter, r *http.Request) {
 	respondWithError(w, http.StatusBadRequest, "invalid request")
 }
 
-// RegisterDeviceTokenv2 registers a mobile device token for push notifications.
 func (a *API) RegisterDeviceTokenv2(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
@@ -1131,7 +1169,6 @@ func (a *API) RegisterDeviceTokenv2(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// RevokeDeviceTokenv2 revokes a mobile authentication/device token.
 func (a *API) RevokeDeviceTokenv2(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "success", "message": "device token revoked"})
 }

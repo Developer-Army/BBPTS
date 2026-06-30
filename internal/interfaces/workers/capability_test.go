@@ -115,7 +115,6 @@ func TestNewWorkerWithDuplicateCapabilities(t *testing.T) {
 		CapSubdomainEnum,
 	})
 
-	// Should allow duplicates (it's just a slice)
 	if len(worker.Capabilities) != 2 {
 		t.Errorf("Expected 2 capabilities (with duplicate), got %d", len(worker.Capabilities))
 	}
@@ -131,7 +130,6 @@ func TestStart(t *testing.T) {
 		t.Errorf("Start failed: %v", err)
 	}
 
-	// Check that worker is marked as active
 	worker.mu.RLock()
 	isActive := worker.isActive
 	worker.mu.RUnlock()
@@ -150,7 +148,6 @@ func TestStartTwice(t *testing.T) {
 		t.Errorf("First Start failed: %v", err)
 	}
 
-	// Starting again should return error
 	err = worker.Start(ctx)
 	if err == nil {
 		t.Error("Expected error when starting already active worker")
@@ -166,13 +163,10 @@ func TestStartWithContextCancellation(t *testing.T) {
 		t.Errorf("Start failed: %v", err)
 	}
 
-	// Cancel context
 	cancel()
 
-	// Give heartbeat time to stop
 	time.Sleep(50 * time.Millisecond)
 
-	// Worker should still be marked as active (heartbeat goroutine exits)
 	worker.mu.RLock()
 	isActive := worker.isActive
 	worker.mu.RUnlock()
@@ -188,13 +182,10 @@ func TestHeartbeat(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	// Start heartbeat
 	go worker.heartbeat(ctx)
 
-	// Wait for context to timeout
 	time.Sleep(150 * time.Millisecond)
 
-	// Heartbeat should have exited
 }
 
 func TestHeartbeatWithNilStream(t *testing.T) {
@@ -203,7 +194,6 @@ func TestHeartbeatWithNilStream(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Should not panic even with nil stream
 	go worker.heartbeat(ctx)
 
 	time.Sleep(50 * time.Millisecond)
@@ -231,7 +221,6 @@ func TestWorkerStructure(t *testing.T) {
 func TestWorkerMutex(t *testing.T) {
 	worker := NewWorker("worker-1", nil, nil, []CapabilityType{CapSubdomainEnum})
 
-	// Test that mutex is properly initialized
 	worker.mu.Lock()
 	worker.isActive = true
 	worker.mu.Unlock()
@@ -274,15 +263,13 @@ func TestWorkerCapabilitiesOrder(t *testing.T) {
 		t.Errorf("Expected 3 capabilities, got %d", len(worker.Capabilities))
 	}
 
-	// Order should be preserved
 	if worker.Capabilities[0] != CapPortScan {
 		t.Errorf("Expected first capability '%s', got '%s'", CapPortScan, worker.Capabilities[0])
 	}
 }
 
 func TestWorkerWithMockStream(t *testing.T) {
-	// This would require mocking the StreamManager
-	// For now, just test that we can set it
+
 	worker := NewWorker("worker-1", nil, nil, []CapabilityType{CapSubdomainEnum})
 
 	if worker.Stream != nil {
@@ -291,8 +278,7 @@ func TestWorkerWithMockStream(t *testing.T) {
 }
 
 func TestWorkerWithMockLeaseMgr(t *testing.T) {
-	// This would require mocking the LeaseManager
-	// For now, just test that we can set it
+
 	worker := NewWorker("worker-1", nil, nil, []CapabilityType{CapSubdomainEnum})
 
 	if worker.LeaseMgr != nil {
@@ -301,8 +287,7 @@ func TestWorkerWithMockLeaseMgr(t *testing.T) {
 }
 
 func TestWorkerWithMockIdempotencyMgr(t *testing.T) {
-	// This would require mocking the IdempotencyManager
-	// For now, just test that we can set it
+
 	worker := NewWorker("worker-1", nil, nil, []CapabilityType{CapSubdomainEnum})
 
 	if worker.IdempotencyMgr != nil {

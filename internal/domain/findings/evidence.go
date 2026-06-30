@@ -2,7 +2,6 @@ package findings
 
 import "time"
 
-// Evidence represents collection proofs of exposure or vulnerability.
 type Evidence struct {
 	ID          string    `json:"id"`
 	AssetID     string    `json:"asset_id"`

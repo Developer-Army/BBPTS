@@ -2,6 +2,9 @@ let serverInfo = null;
 
 async function fetchAPI(url, options = {}) {
     const response = await fetch(url, options);
+    if (response.status === 401 && !url.includes('/api/auth')) {
+        showLoginOverlay();
+    }
     return response;
 }
 
@@ -40,7 +43,7 @@ function updateConnectionUI() {
     document.getElementById('connection-label').className = 'text-[10px] font-mono text-emerald-400 uppercase';
     document.getElementById('server-addr').textContent = fullUrl;
     document.getElementById('dashboard-url').textContent = fullUrl;
-    document.getElementById('cli-scan-cmd').textContent = 'bbpts -t <target> --web';
+    document.getElementById('cli-scan-cmd').textContent = 'bbpts -i <target> --web';
 }
 
 function switchTab(tabId) {
@@ -81,7 +84,7 @@ async function refreshData() {
 
         const tbody = document.getElementById('scan-history');
         if (!scans || scans.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-600 font-mono text-xs">No scans yet. Run <span class="text-cyan-400">bbpts -t &lt;target&gt;</span> to start.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-600 font-mono text-xs">No scans yet. Run <span class="text-cyan-400">bbpts -i &lt;target&gt;</span> to start.</td></tr>';
             document.getElementById('scan-count').textContent = '0 total';
         } else {
             document.getElementById('scan-count').textContent = scans.length + ' total';
@@ -262,6 +265,82 @@ async function saveConfig() {
     }
 }
 
+const remediationGuides = {
+    "introspection": {
+        impact: "Allows arbitrary users to view the entire GraphQL schema layout, query types, mutations, and field relationships, significantly easing vulnerability discovery.",
+        remediation: "Disable introspection in production environments. For Apollo Server:\nconst server = new ApolloServer({\n  typeDefs,\n  resolvers,\n  introspection: false,\n});\n\nFor graphql-go, omit the __schema field resolver.",
+        references: ["https://graphql.org/learn/security/", "https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/12-API_Testing/01-Testing_GraphQL"]
+    },
+    "batching": {
+        impact: "Allows multiple GraphQL queries to run in a single HTTP request, potentially bypassing traditional HTTP rate-limiting controls and enabling brute-force attacks.",
+        remediation: "Implement query batching limits or disable batching entirely. In Apollo Server, set allowBatchedHttpRequests: false. Otherwise, restrict the maximum number of batched operations (e.g. max 5-10 queries per request).",
+        references: ["https://www.apollographql.com/docs/apollo-server/performance/apq/", "https://crashtest-security.com/graphql-batch-limit/"]
+    },
+    "takeover": {
+        impact: "Enables an attacker to point their own resources to a dangling domain pointer (CNAME pointing to an unused Cloud/SaaS resource), hijacking traffic, stealing cookies, or launching phishing campaigns.",
+        remediation: "Remove the CNAME pointer or DNS record in your DNS zone manager (e.g. Cloudflare, AWS Route53) if the target service is no longer active, or register the service identifier on the third-party platform.",
+        references: ["https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeover", "https://github.com/EdOverflow/can-i-take-over-xyz"]
+    },
+    "cors": {
+        impact: "Allows cross-origin requests from arbitrary origins, letting malicious sites read sensitive session data or retrieve API payloads on behalf of authenticated users.",
+        remediation: "Do not set Access-Control-Allow-Origin: * concurrently with Access-Control-Allow-Credentials: true. Implement a strict whitelist of trusted origins and return dynamically generated headers only for whitelisted domains.",
+        references: ["https://portswigger.net/web-security/cors", "https://owasp.org/www-community/attacks/CORS_Origin_Validation_Bypass"]
+    },
+    "redirect": {
+        impact: "Allows attackers to construct links that redirect users to external malicious domains, facilitating high-credibility credential harvesting and phishing attacks.",
+        remediation: "Implement strict destination URL validation. Do not accept arbitrary URLs in parameter redirects. Whitelist target paths, or enforce an intermediate warning page if users are leaving the application domain.",
+        references: ["https://owasp.org/www-project-top-ten/2017/A10_2017-Insufficient_Logging_and_Monitoring"]
+    },
+    "403": {
+        impact: "Sensitive administrative directories or backend functions are exposed through HTTP proxy header overrides or rewrite bypass patterns.",
+        remediation: "Verify authorization checks are performed at the application layer rather than relying purely on WAF or web server routing rules. Ensure proxy headers (e.g., X-Original-URL, X-Forwarded-For) are stripped or validated at the gateway.",
+        references: ["https://portswigger.net/web-security/access-control"]
+    },
+    "jwt": {
+        impact: "Allows signatures to be forged or algorithm verification bypassed, enabling privilege escalation to administrator roles.",
+        remediation: "Do not support none algorithm in JWT verification. Ensure strong signing keys are used (e.g., HS256 with 256-bit secrets, or RS256/ES256 asymmetric keys). Validate the exp (expiration) and aud (audience) claims.",
+        references: ["https://jwt.io/introduction", "https://portswigger.net/web-security/jwt"]
+    },
+    "race": {
+        impact: "Enables transaction/limit bypasses or parallel state checks, letting attackers double-spend, reuse single-use gift cards, or duplicate votes.",
+        remediation: "Implement database transactions, optimistic locking, or distributed locks (e.g., Redis Redlock) to serialize access to state-changing operations.",
+        references: ["https://owasp.org/www-community/vulnerabilities/Race_Condition"]
+    },
+    "bypass": {
+        impact: "Bypasses rate limiting or application locks via client-side request manipulation (e.g., custom headers).",
+        remediation: "Enforce strict server-side rate limits using IP address + session identifier/API key tokens, rather than relying solely on HTTP headers.",
+        references: ["https://owasp.org/www-community/controls/Rate_Limiting"]
+    },
+    "secret": {
+        impact: "Exposes private API tokens, database passwords, private keys, or SSH credentials, potentially leading to complete infrastructure compromise.",
+        remediation: "Immediately revoke the exposed secret. Rotate all affected tokens or keys. Implement secret scanners in CI/CD pipelines (e.g. git-secrets, TruffleHog) to prevent future commits of raw secrets.",
+        references: ["https://owasp.org/www-community/vulnerabilities/Sensitive_Data_Exposure"]
+    },
+    "vulnerability": {
+        impact: "Indicates a software component has a known vulnerability or misconfiguration exposing it to remote execution or privilege escalation.",
+        remediation: "Ensure the package or server component is upgraded to the latest security patch. Follow standard secure configuration hardening procedures.",
+        references: ["https://nvd.nist.gov/", "https://owasp.org/www-project-top-ten/"]
+    }
+};
+
+function getRemediation(title, desc) {
+    const titleLower = (title || "").toLowerCase();
+    const descLower = (desc || "").toLowerCase();
+    for (const key in remediationGuides) {
+        if (titleLower.includes(key) || descLower.includes(key)) {
+            return remediationGuides[key];
+        }
+    }
+    return remediationGuides["vulnerability"];
+}
+
+function toggleRemediation(id) {
+    const el = document.getElementById(`remediation-tr-${id}`);
+    if (el) {
+        el.classList.toggle('expanded');
+    }
+}
+
 async function loadFindings() {
     try {
         const response = await fetchAPI('/api/findings');
@@ -275,12 +354,19 @@ async function loadFindings() {
         }
         findings.forEach(f => {
             const tr = document.createElement('tr');
-            tr.className = 'hover:bg-slate-800/30 transition-colors border-b border-slate-800/40';
+            tr.className = 'hover:bg-slate-800/30 transition-colors border-b border-slate-800/40 cursor-pointer';
+            tr.onclick = (e) => {
+                if (e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'OPTION') {
+                    return;
+                }
+                toggleRemediation(f.id);
+            };
             tr.innerHTML = `
                 <td class="py-4 pr-4 pl-2">
                     <p class="text-sm font-semibold text-slate-100 font-mono">${escapeHtml(f.target || 'N/A')}</p>
                     <p class="text-xs text-slate-400 mt-0.5 font-semibold">${escapeHtml(f.title || 'N/A')}</p>
                     <p class="text-[10px] text-slate-500 mt-1 font-mono">${escapeHtml(f.description || '')}</p>
+                    <p class="text-[9px] text-cyan-500/80 font-mono mt-2 uppercase tracking-wider font-semibold">▸ Click to expand remediation guide</p>
                 </td>
                 <td class="py-4">
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getSeverityClass(f.severity)}">
@@ -311,7 +397,35 @@ async function loadFindings() {
                     </div>
                 </td>
             `;
+
+            const detailTr = document.createElement('tr');
+            detailTr.id = `remediation-tr-${f.id}`;
+            detailTr.className = 'remediation-details border-b border-slate-800/40 bg-[#060814]/60';
+            
+            const guide = getRemediation(f.title, f.description);
+            const refLinks = (guide.references || []).map(link => `<a href="${link}" target="_blank" class="text-cyan-400 hover:underline mr-4 text-xs font-semibold font-mono">${escapeHtml(link)}</a>`).join('');
+
+            detailTr.innerHTML = `
+                <td colspan="4" class="p-6">
+                    <div class="glass p-5 rounded-lg border border-slate-800/80 space-y-4">
+                        <div>
+                            <h4 class="text-xs font-bold text-rose-400 uppercase tracking-widest font-mono">// Security Impact</h4>
+                            <p class="text-xs text-slate-300 mt-1">${escapeHtml(guide.impact)}</p>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-widest font-mono">// Remediation Steps</h4>
+                            <pre class="bg-[#02040a] p-4 rounded-lg border border-slate-900 text-xs font-mono text-emerald-400 whitespace-pre-wrap mt-1 leading-relaxed">${escapeHtml(guide.remediation)}</pre>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-purple-400 uppercase tracking-widest font-mono">// References</h4>
+                            <div class="mt-1 flex flex-wrap gap-2">${refLinks}</div>
+                        </div>
+                    </div>
+                </td>
+            `;
+
             tbody.appendChild(tr);
+            tbody.appendChild(detailTr);
         });
     } catch (e) {
         console.error('loadFindings error:', e);
@@ -350,8 +464,13 @@ async function overrideFindingTriage(id) {
     }
 }
 
-function startNewScan() {
-    showToast('Use the CLI: bbpts -t <target> --web', 'info');
+function openScanModal() {
+    document.getElementById('scan-modal').classList.remove('hidden');
+}
+
+function closeScanModal() {
+    document.getElementById('scan-modal').classList.add('hidden');
+    document.getElementById('scan-target').value = '';
 }
 
 function dismissQuickStart() {
@@ -359,10 +478,35 @@ function dismissQuickStart() {
     try { localStorage.setItem('bbpts_quickstart_dismissed', '1'); } catch (e) {}
 }
 
+async function triggerActiveScan() {
+    const target = document.getElementById('scan-target').value;
+    const preset = document.getElementById('scan-preset').value;
+    
+    closeScanModal();
+    showToast('Starting background scan task...', 'info');
+
+    try {
+        const response = await fetchAPI('/api/v2/scan/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target, preset })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            showToast('Background scan launched for ' + target);
+            refreshData();
+        } else {
+            showToast(result.error || 'Failed to start scan', 'error');
+        }
+    } catch (e) {
+        showToast('Error launching scan: ' + e.message, 'error');
+    }
+}
+
 function showToast(msg, type) {
     const toast = document.createElement('div');
     toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg text-xs font-mono font-bold shadow-xl transition-all duration-300 ' +
-        (type === 'error' ? 'bg-rose-600 text-white' : 'bg-cyan-600 text-white');
+        (type === 'error' ? 'bg-rose-600 text-white' : type === 'info' ? 'bg-amber-600 text-white' : 'bg-cyan-600 text-white');
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
@@ -386,3 +530,38 @@ window.onload = () => {
     });
 };
 setInterval(refreshData, 10000);
+
+function showLoginOverlay() {
+    document.getElementById('login-overlay').classList.remove('hidden');
+}
+
+function hideLoginOverlay() {
+    document.getElementById('login-overlay').classList.add('hidden');
+}
+
+async function submitLogin() {
+    const user = document.getElementById('login-username').value;
+    const pass = document.getElementById('login-password').value;
+    const errDiv = document.getElementById('login-error');
+    errDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            hideLoginOverlay();
+            showToast('Authenticated successfully');
+            refreshData();
+        } else {
+            errDiv.textContent = result.error || 'Authentication failed';
+            errDiv.classList.remove('hidden');
+        }
+    } catch (e) {
+        errDiv.textContent = 'Error: ' + e.message;
+        errDiv.classList.remove('hidden');
+    }
+}

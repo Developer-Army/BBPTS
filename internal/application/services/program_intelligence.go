@@ -9,25 +9,24 @@ import (
 	"time"
 )
 
-// ProgramIntelligence holds historical disclosure data and derived insights.
 type ProgramIntelligence struct {
-	Handle              string                    `json:"handle"`
-	Platform            string                    `json:"platform"`
-	DisclosedReports    []DisclosedReport          `json:"disclosed_reports"`
-	VulnCategoryWeights map[string]float64         `json:"vuln_category_weights"`
-	AvgPayoutBySeverity map[string]float64         `json:"avg_payout_by_severity"`
-	LastActivity        time.Time                  `json:"last_activity"`
-	RecentScopeChanges  []ScopeChange              `json:"recent_scope_changes"`
-	RecommendedTools    []string                  `json:"recommended_tools"`
+	Handle              string             `json:"handle"`
+	Platform            string             `json:"platform"`
+	DisclosedReports    []DisclosedReport  `json:"disclosed_reports"`
+	VulnCategoryWeights map[string]float64 `json:"vuln_category_weights"`
+	AvgPayoutBySeverity map[string]float64 `json:"avg_payout_by_severity"`
+	LastActivity        time.Time          `json:"last_activity"`
+	RecentScopeChanges  []ScopeChange      `json:"recent_scope_changes"`
+	RecommendedTools    []string           `json:"recommended_tools"`
 }
 
 type DisclosedReport struct {
-	ID              string    `json:"id"`
-	Title           string    `json:"title"`
-	VulnCategory    string    `json:"vuln_category"`
-	Severity        string    `json:"severity"`
-	BountyAwarded   float64   `json:"bounty_awarded"`
-	DisclosedAt     time.Time `json:"disclosed_at"`
+	ID            string    `json:"id"`
+	Title         string    `json:"title"`
+	VulnCategory  string    `json:"vuln_category"`
+	Severity      string    `json:"severity"`
+	BountyAwarded float64   `json:"bounty_awarded"`
+	DisclosedAt   time.Time `json:"disclosed_at"`
 }
 
 type ScopeChange struct {
@@ -36,13 +35,11 @@ type ScopeChange struct {
 	ChangedAt time.Time `json:"changed_at"`
 }
 
-// ProgramIntelligenceEngine fetches and analyzes program disclosure history.
 type ProgramIntelligenceEngine struct {
 	client *http.Client
 	h1Base string
 }
 
-// NewProgramIntelligenceEngine creates a new engine with H1 API credentials.
 func NewProgramIntelligenceEngine() *ProgramIntelligenceEngine {
 	return &ProgramIntelligenceEngine{
 		client: &http.Client{Timeout: 15 * time.Second},
@@ -50,7 +47,6 @@ func NewProgramIntelligenceEngine() *ProgramIntelligenceEngine {
 	}
 }
 
-// FetchDisclosedReports retrieves disclosed reports for a program from H1 API.
 func (pie *ProgramIntelligenceEngine) FetchDisclosedReports(handle, username, token string) ([]DisclosedReport, error) {
 	if username == "" || token == "" {
 		return nil, fmt.Errorf("hackerone credentials required for program intelligence")
@@ -80,11 +76,11 @@ func (pie *ProgramIntelligenceEngine) FetchDisclosedReports(handle, username, to
 		Data []struct {
 			ID         string `json:"id"`
 			Attributes struct {
-				Title            string  `json:"title"`
-				VulnerabilityInformation string `json:"vulnerability_information"`
-				SeverityRating   string  `json:"severity_rating"`
-				BountyAwarded    float64 `json:"bounty_awarded_amount"`
-				CreatedAt        string  `json:"created_at"`
+				Title                    string  `json:"title"`
+				VulnerabilityInformation string  `json:"vulnerability_information"`
+				SeverityRating           string  `json:"severity_rating"`
+				BountyAwarded            float64 `json:"bounty_awarded_amount"`
+				CreatedAt                string  `json:"created_at"`
 			} `json:"attributes"`
 		} `json:"data"`
 	}
@@ -111,7 +107,6 @@ func (pie *ProgramIntelligenceEngine) FetchDisclosedReports(handle, username, to
 	return reports, nil
 }
 
-// AnalyzeProgram builds intelligence from disclosed reports.
 func (pie *ProgramIntelligenceEngine) AnalyzeProgram(handle, platform string, reports []DisclosedReport) *ProgramIntelligence {
 	intel := &ProgramIntelligence{
 		Handle:              handle,
@@ -125,7 +120,6 @@ func (pie *ProgramIntelligenceEngine) AnalyzeProgram(handle, platform string, re
 		return intel
 	}
 
-	// Count categories
 	categoryCounts := make(map[string]int)
 	severityPayouts := make(map[string][]float64)
 	var lastActivity time.Time
@@ -138,13 +132,11 @@ func (pie *ProgramIntelligenceEngine) AnalyzeProgram(handle, platform string, re
 		}
 	}
 
-	// Calculate weights
 	total := float64(len(reports))
 	for cat, count := range categoryCounts {
 		intel.VulnCategoryWeights[cat] = float64(count) / total
 	}
 
-	// Calculate average payouts
 	for sev, payouts := range severityPayouts {
 		sum := 0.0
 		for _, p := range payouts {
@@ -155,7 +147,6 @@ func (pie *ProgramIntelligenceEngine) AnalyzeProgram(handle, platform string, re
 
 	intel.LastActivity = lastActivity
 
-	// Recommend tools based on vulnerability categories
 	intel.RecommendedTools = pie.recommendTools(intel.VulnCategoryWeights)
 
 	return intel

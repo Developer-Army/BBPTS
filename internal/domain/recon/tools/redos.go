@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -59,7 +59,6 @@ func (t *ReDoSTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 		client := NewSafeHTTPClient(30 * time.Second)
 		var events []recon.Event
 
-		// Get baseline response time
 		baseline := t.measureBaseline(ctx, client, target, scanCtx.Headers)
 		if baseline == 0 {
 			return nil, nil
@@ -91,7 +90,7 @@ func (t *ReDoSTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets
 					"description":  fmt.Sprintf("Server-side regex DoS: %s took %dms (baseline: %dms, threshold: %dms)", payload.Name, duration.Milliseconds(), baseline.Milliseconds(), threshold.Milliseconds()),
 				}, "medium"))
 				slog.Warn("ReDoS detected", "target", target, "test", payload.Name, "duration", duration, "baseline", baseline)
-				break // One ReDoS finding per endpoint is enough
+				break
 			}
 		}
 
@@ -123,7 +122,6 @@ func (t *ReDoSTool) sendPayload(ctx context.Context, client *http.Client, target
 		return 0, 0
 	}
 
-	// Try GET with query parameter
 	params := parsed.Query()
 	params.Set(payload.Field, payload.Payload)
 	parsed.RawQuery = params.Encode()

@@ -632,7 +632,6 @@ func TestPrioritizeFindings(t *testing.T) {
 		t.Errorf("Expected %d findings, got %d", len(findings), len(prioritized))
 	}
 
-	// Check that critical comes first
 	if prioritized[0].Severity != "critical" {
 		t.Errorf("Expected first finding to be critical, got %s", prioritized[0].Severity)
 	}
@@ -650,7 +649,6 @@ func TestFilterNoise(t *testing.T) {
 
 	actionable := te.FilterNoise(findings)
 
-	// Should filter out test subdomain and favicon
 	if len(actionable) >= len(findings) {
 		t.Error("Expected some findings to be filtered as noise")
 	}

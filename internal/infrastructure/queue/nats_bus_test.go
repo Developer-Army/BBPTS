@@ -8,7 +8,7 @@ import (
 )
 
 func TestNatsBusConnectionSkip(t *testing.T) {
-	// Attempt to connect to a local NATS instance. If not running, skip the test.
+
 	bus, err := NewNatsBus("nats://127.0.0.1:4222")
 	if err != nil {
 		t.Skip("Skipping NATS bus tests: no local NATS server running at nats://127.0.0.1:4222")
@@ -16,7 +16,6 @@ func TestNatsBusConnectionSkip(t *testing.T) {
 	}
 	defer bus.Close()
 
-	// If JetStream is not enabled/configured on the local NATS server, skip the test
 	natsBus, ok := bus.(*NatsBus)
 	if !ok {
 		t.Fatal("Expected bus to be of type *NatsBus")

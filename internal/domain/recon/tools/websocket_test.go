@@ -1,8 +1,8 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 func TestWebSocketTool(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Mock response to simulate a successful WebSocket handshake upgrade on Origin: http://evil.com
+
 		if r.Header.Get("Upgrade") == "websocket" && r.Header.Get("Origin") == "http://evil.com" {
 			w.Header().Set("Upgrade", "websocket")
 			w.Header().Set("Connection", "Upgrade")

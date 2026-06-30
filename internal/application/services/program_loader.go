@@ -13,7 +13,6 @@ import (
 	"time"
 )
 
-// ProgramProfile represents a program's metadata, in-scope, out-of-scope targets.
 type ProgramProfile struct {
 	Handle         string   `json:"program_handle"`
 	Platform       string   `json:"program_platform"`
@@ -27,14 +26,12 @@ type ProgramProfile struct {
 	SubmitPlatform string   `json:"submit_platform"`
 }
 
-// ProgramLoaderConfig holds API credentials for the program loader service.
 type ProgramLoaderConfig struct {
 	H1Username string
 	H1Token    string
 	BCToken    string
 }
 
-// ProgramLoader loads and caches HackerOne and Bugcrowd program profiles.
 type ProgramLoader struct {
 	cfg    ProgramLoaderConfig
 	client *http.Client
@@ -42,7 +39,6 @@ type ProgramLoader struct {
 	bcBase string
 }
 
-// NewProgramLoader initializes a ProgramLoader with production base URLs.
 func NewProgramLoader(cfg ProgramLoaderConfig) *ProgramLoader {
 	return &ProgramLoader{
 		cfg:    cfg,
@@ -52,16 +48,14 @@ func NewProgramLoader(cfg ProgramLoaderConfig) *ProgramLoader {
 	}
 }
 
-// shouldRefresh checks if the file at path does not exist or has exceeded cache TTL.
 func (pl *ProgramLoader) shouldRefresh(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
-		return true // File does not exist or cannot be accessed
+		return true
 	}
 	return time.Since(info.ModTime()) > 1*time.Hour
 }
 
-// Load fetches the program profile, prioritizing the local cache if fresh.
 func (pl *ProgramLoader) Load(handle string, refresh bool) (*ProgramProfile, error) {
 	platform, cleanHandle, err := parseHandle(handle)
 	if err != nil {
@@ -524,7 +518,6 @@ func uniqueStrings(slice []string) []string {
 	return list
 }
 
-// WriteScopeFile writes the profile scope to path.
 func (p *ProgramProfile) WriteScopeFile(path string) error {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# BBPTS scope file — %s (%s)\n", p.Name, p.Platform))
@@ -553,7 +546,6 @@ func (p *ProgramProfile) WriteScopeFile(path string) error {
 	return os.WriteFile(path, []byte(sb.String()), 0644)
 }
 
-// WriteTargetsFile writes bounty-eligible targets to path.
 func (p *ProgramProfile) WriteTargetsFile(path string) error {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# Targets: %s — %s\n", p.Handle, p.Platform))
@@ -568,7 +560,6 @@ func (p *ProgramProfile) WriteTargetsFile(path string) error {
 	return os.WriteFile(path, []byte(sb.String()), 0644)
 }
 
-// WriteConfigPatch writes the patch JSON file to path.
 func (p *ProgramProfile) WriteConfigPatch(path string) error {
 	data, err := json.MarshalIndent(p, "", "  ")
 	if err != nil {

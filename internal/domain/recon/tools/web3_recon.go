@@ -1,9 +1,9 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -48,7 +48,6 @@ func (t *Web3ReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 		client := NewSafeHTTPClient(5 * time.Second)
 		var events []recon.Event
 
-		// Test 1: Exposed JSON-RPC endpoint
 		rpcPayload := `{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":1}`
 		rpcURL := fmt.Sprintf("%s://%s/", parsed.Scheme, parsed.Host)
 
@@ -76,7 +75,6 @@ func (t *Web3ReconTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			}
 		}
 
-		// Test 2: Exposed Keystore / Wallet files
 		walletPaths := []string{
 			"/wallet.json",
 			"/.ethereum/keystore",

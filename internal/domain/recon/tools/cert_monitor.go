@@ -1,10 +1,10 @@
 package tools
 
 import (
-	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Developer-Army/BBPTS/internal/domain/recon"
 	"io"
 	"net/http"
 	"net/url"
@@ -52,7 +52,6 @@ func (t *CertMonitorTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 			}
 		}
 
-		// crt.sh query format is %.domain
 		client := NewSafeHTTPClient(15 * time.Second)
 		queryURL := fmt.Sprintf("%s/?q=%%.%s&output=json", crtshAPIURL, host)
 
@@ -76,7 +75,6 @@ func (t *CertMonitorTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 		var events []recon.Event
 		seenSubdomains := make(map[string]bool)
 
-		// Emit new subdomains as discovery events
 		for _, entry := range entries {
 			sub := strings.TrimSpace(entry.CommonName)
 			if sub != "" && !strings.Contains(sub, "*") && strings.HasSuffix(sub, host) {
