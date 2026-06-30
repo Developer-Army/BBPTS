@@ -16,10 +16,6 @@ import (
 
 type SupplyChainTool struct{}
 
-type npmPackage struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
 
 func (t *SupplyChainTool) Name() string {
 	return "supply_chain"

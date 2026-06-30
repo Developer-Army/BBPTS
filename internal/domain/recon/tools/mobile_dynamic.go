@@ -108,7 +108,7 @@ func (t *MobileDynamicTool) runFrida(ctx context.Context, target string) []recon
 		if err != nil {
 			continue
 		}
-		tmpFile.WriteString(s.Script)
+		_, _ = tmpFile.WriteString(s.Script)
 		tmpFile.Close()
 		defer os.Remove(tmpFile.Name())
 

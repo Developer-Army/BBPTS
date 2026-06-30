@@ -56,7 +56,7 @@ func (pg *PlaybookGenerator) Generate(target string, techStack []string, endpoin
 	return p
 }
 
-func (pg *PlaybookGenerator) authSession(target string, techStack []string, findings []string) PlaybookSession {
+func (pg *PlaybookGenerator) authSession(target string, techStack []string, _ []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Authentication Testing",
 		Duration: "30 min",
@@ -98,7 +98,7 @@ func (pg *PlaybookGenerator) authSession(target string, techStack []string, find
 	return session
 }
 
-func (pg *PlaybookGenerator) idorSession(target string, endpoints []string) PlaybookSession {
+func (pg *PlaybookGenerator) idorSession(_ string, endpoints []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "IDOR / Access Control Testing",
 		Duration: "45 min",
@@ -137,7 +137,7 @@ func (pg *PlaybookGenerator) idorSession(target string, endpoints []string) Play
 	return session
 }
 
-func (pg *PlaybookGenerator) injectionSession(target string, techStack []string) PlaybookSession {
+func (pg *PlaybookGenerator) injectionSession(_ string, techStack []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Injection Testing",
 		Duration: "30 min",
@@ -184,7 +184,7 @@ func (pg *PlaybookGenerator) injectionSession(target string, techStack []string)
 	return session
 }
 
-func (pg *PlaybookGenerator) businessLogicSession(target string, endpoints []string) PlaybookSession {
+func (pg *PlaybookGenerator) businessLogicSession(_ string, _ []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Business Logic Testing",
 		Duration: "20 min",
@@ -219,7 +219,7 @@ func (pg *PlaybookGenerator) businessLogicSession(target string, endpoints []str
 	return session
 }
 
-func (pg *PlaybookGenerator) misconfigSession(target string, techStack []string) PlaybookSession {
+func (pg *PlaybookGenerator) misconfigSession(_ string, techStack []string) PlaybookSession {
 	session := PlaybookSession{
 		Title:    "Configuration & Exposure Testing",
 		Duration: "15 min",

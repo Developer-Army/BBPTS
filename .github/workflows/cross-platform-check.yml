@@ -41,21 +41,11 @@ jobs:
       - name: Configure Safe Directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Cache Go Modules and Build Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            /tmp/go-cache
-            /tmp/go-path/pkg/mod
-          key: ${{ matrix.distro }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ matrix.distro }}-go-${{ matrix.go-version }}-
-
       - name: Setup Go
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ matrix.go-version }}
-          cache: false
+          cache: true
 
       - name: Validate Makefile Targets
         run: |

@@ -275,7 +275,7 @@ func parseVersionParts(v string) []int {
 			continue
 		}
 		var val int
-		fmt.Sscanf(p, "%d", &val)
+		_, _ = fmt.Sscanf(p, "%d", &val)
 		res = append(res, val)
 	}
 	return res

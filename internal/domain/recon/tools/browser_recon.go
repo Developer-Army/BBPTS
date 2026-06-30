@@ -111,7 +111,7 @@ func (b *BrowserRecon) Run(ctx context.Context, scanCtx *recon.ScanContext, targ
 	return allEvents, nil
 }
 
-func (b *BrowserRecon) analyzePage(ctx context.Context, scanCtx *recon.ScanContext, targetURL string) ([]recon.Event, error) {
+func (b *BrowserRecon) analyzePage(_ context.Context, scanCtx *recon.ScanContext, targetURL string) ([]recon.Event, error) {
 	// Determine domain for context reuse
 	domain := extractDomain(targetURL)
 

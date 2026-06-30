@@ -47,12 +47,7 @@ var mobileConfigPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(?:deeplink|app[_-]?link)\s*[:=]\s*["']([a-zA-Z0-9._:/-]+)["']`),
 }
 
-type mobileFinding struct {
-	Type     string `json:"type"`
-	Value    string `json:"value"`
-	File     string `json:"file"`
-	Severity string `json:"severity"`
-}
+
 
 func (t *MobileStaticTool) Run(ctx context.Context, scanCtx *recon.ScanContext, targets []string, threads int) ([]recon.Event, error) {
 	if len(targets) == 0 {
@@ -131,7 +126,7 @@ func (t *MobileStaticTool) analyzeTarget(ctx context.Context, scanCtx *recon.Sca
 	}
 }
 
-func (t *MobileStaticTool) analyzeLocalBinary(ctx context.Context, scanCtx *recon.ScanContext, path string) ([]recon.Event, error) {
+func (t *MobileStaticTool) analyzeLocalBinary(_ context.Context, scanCtx *recon.ScanContext, path string) ([]recon.Event, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext != ".ipa" && ext != ".apk" {
 		return nil, fmt.Errorf("unsupported: %s", ext)
@@ -216,7 +211,7 @@ func (t *MobileStaticTool) analyzeRemote(ctx context.Context, scanCtx *recon.Sca
 
 	buf := make([]byte, 4)
 	f, _ := os.Open(tmpFile)
-	f.Read(buf)
+	_, _ = f.Read(buf)
 	f.Close()
 
 	if bytes.Equal(buf, []byte("PK")) {
@@ -287,6 +282,10 @@ func (t *MobileStaticTool) analyzeRawStream(path string) ([]recon.Event, error) 
 				}))
 			}
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Error("mobile_static: raw stream scanner error", "error", err)
 	}
 
 	return events, nil
@@ -383,6 +382,9 @@ func (t *MobileStaticTool) scanExtractedDir(scanCtx *recon.ScanContext, dir, tar
 				}
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("mobile_static: directory file scanner error", "error", err)
+		}
 		return nil
 	})
 
@@ -425,7 +427,9 @@ func extractZipStream(r *zip.Reader, dest string) error {
 			continue
 		}
 		if f.FileInfo().IsDir() {
-			os.MkdirAll(fpath, 0700)
+			if err := os.MkdirAll(fpath, 0700); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(fpath), 0700); err != nil {
@@ -440,7 +444,11 @@ func extractZipStream(r *zip.Reader, dest string) error {
 			outFile.Close()
 			return err
 		}
-		io.Copy(outFile, rc)
+		if _, err := io.Copy(outFile, rc); err != nil {
+			rc.Close()
+			outFile.Close()
+			return err
+		}
 		rc.Close()
 		outFile.Close()
 	}

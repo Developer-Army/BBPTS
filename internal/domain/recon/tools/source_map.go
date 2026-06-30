@@ -129,6 +129,9 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 			}
 			bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024)) // limit to 10MB
 			resp.Body.Close()
+			if err != nil {
+				continue
+			}
 
 			if resp.StatusCode != http.StatusOK {
 				continue

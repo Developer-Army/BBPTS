@@ -326,7 +326,7 @@ func initStorage(ctx context.Context, cfg *config.Config, orchestrator *services
 }
 
 // executeReconScan runs the scan with batch/lowresource/normal modes.
-func executeReconScan(ctx context.Context, opts Options, orchestrator *services.Orchestrator, normalized []string, validationEvents []recon.Event, cp *utils.Checkpoint, reconThreads int) []recon.Event {
+func executeReconScan(ctx context.Context, opts Options, orchestrator *services.Orchestrator, normalized []string, validationEvents []recon.Event, cp *utils.Checkpoint, _ int) []recon.Event {
 	var events []recon.Event
 
 	if opts.LowResource && len(normalized) > 50 {

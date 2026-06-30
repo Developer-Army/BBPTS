@@ -136,7 +136,7 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 					"variant":      variant,
 					"baseline":     fmt.Sprintf("%d", baselineStatus),
 					"bypass_status": fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Rate limit bypassed by removing trailing slash"),
+					"description":  "Rate limit bypassed by removing trailing slash",
 				}, "high"))
 				return events, nil
 			}
@@ -183,7 +183,7 @@ func (t *RateLimitBypassTool) Run(ctx context.Context, scanCtx *recon.ScanContex
 					"variant":      variant,
 					"baseline":     fmt.Sprintf("%d", baselineStatus),
 					"bypass_status": fmt.Sprintf("%d", status),
-					"description":  fmt.Sprintf("Rate limit bypassed by appending null byte to path"),
+					"description":  "Rate limit bypassed by appending null byte to path",
 				}, "high"))
 				return events, nil
 			}

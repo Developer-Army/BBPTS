@@ -12,12 +12,12 @@ func TestCallLLM_OpenAI(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer test-api-key" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Missing/wrong Authorization header"))
+			_, _ = w.Write([]byte("Missing/wrong Authorization header"))
 			return
 		}
 		if r.Header.Get("Content-Type") != "application/json" {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Missing/wrong Content-Type header"))
+			_, _ = w.Write([]byte("Missing/wrong Content-Type header"))
 			return
 		}
 

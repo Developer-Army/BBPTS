@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -155,6 +156,10 @@ func (t *MobileAPIDiscoveryTool) scanURL(ctx context.Context, scanCtx *recon.Sca
 		}
 	}
 
+	if err := scanner.Err(); err != nil {
+		slog.Error("mobile_api_discovery: scanner error during url scan", "error", err)
+	}
+
 	return events
 }
 
@@ -225,6 +230,10 @@ func (t *MobileAPIDiscoveryTool) scanBinary(path string) []recon.Event {
 				}
 			}
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Error("mobile_api_discovery: scanner error during binary scan", "error", err)
 	}
 
 	return events
