@@ -166,8 +166,7 @@ func handleAwaitingInputKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
 }
 
 func handleScanActiveKey(m Model, msg tea.KeyMsg) (Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	if msg.String() == "esc" {
 		select {
 		case ScanAbortChan <- struct{}{}:
 		default:

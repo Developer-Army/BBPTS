@@ -108,7 +108,9 @@ func (bs *BaselineStore) AddFinding(source, ftype, target string) (bool, *Findin
 
 func (bs *BaselineStore) hashFinding(source, ftype, target string) string {
 	hasher := sha256.New()
-	hasher.Write([]byte(fmt.Sprintf("%s:%s:%s", source, ftype, target)))
+	if _, err := fmt.Fprintf(hasher, "%s:%s:%s", source, ftype, target); err != nil {
+		return ""
+	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 

@@ -79,7 +79,12 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	if cfg.TLSEnabled {
 		slog.Info("dashboard server starting with TLS", "addr", "https://"+addr)
 		if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
-			return http.ListenAndServeTLS(addr, cfg.TLSCertFile, cfg.TLSKeyFile, handler)
+			server := &http.Server{
+				Addr:              addr,
+				Handler:           handler,
+				ReadHeaderTimeout: 10 * time.Second,
+			}
+			return server.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
 		}
 
 		cert, err := generateSelfSignedCert()
@@ -99,6 +104,7 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 			TLSConfig: &tls.Config{
 				Certificates: []tls.Certificate{cert},
 			},
+			ReadHeaderTimeout: 10 * time.Second,
 		}
 		return server.ListenAndServeTLS("", "")
 	}
@@ -110,5 +116,10 @@ func Start(cfg Config, db *storage.DB, configPath string, masterDBPath string) e
 	fmt.Printf("\n")
 	fmt.Printf("  Open the URL above in your browser.\n")
 	fmt.Printf("  Press 'q' or Ctrl+C to stop.\n\n")
-	return http.ListenAndServe(addr, handler)
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	return server.ListenAndServe()
 }

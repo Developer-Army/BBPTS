@@ -15,7 +15,7 @@ func TestJSAnalyzerExposedSecrets(t *testing.T) {
 	jsContent := `
 // Exposed secrets test JS
 const awsKey = "AKIAIOSFODNN7EXAMPLE"; // AWS Key
-const slackToken = "` + strings.Replace("xoxb_12345678901_123456789012_123456789012345678901234", "_", "-", -1) + `";
+const slackToken = "` + strings.ReplaceAll("xoxb_12345678901_123456789012_123456789012345678901234", "_", "-") + `";
 `
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")

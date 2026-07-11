@@ -151,7 +151,7 @@ func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 				if t == "" {
 					continue
 				}
-				mockLines = append(mockLines, fmt.Sprintf(`{"template-id":"mock-vuln","info":{"severity":"medium"},"matched-at":"%s"}`, t))
+				mockLines = append(mockLines, fmt.Sprintf(`{"template-id":"mock-vuln","info":{"severity":"medium"},"matched-at":%q}`, t))
 			}
 		case "dalfox":
 			var inputTargets []string
@@ -163,7 +163,7 @@ func RunCommandStreamWithInput(ctx context.Context, stdin []byte, name string, a
 				if t == "" {
 					continue
 				}
-				mockLines = append(mockLines, fmt.Sprintf(`{"type":"vulnerability","url":"%s","payload":"<script>alert(1)</script>","severity":"medium"}`, t))
+				mockLines = append(mockLines, fmt.Sprintf(`{"type":"vulnerability","url":%q,"payload":"<script>alert(1)</script>","severity":"medium"}`, t))
 			}
 		}
 		return mockLines, nil

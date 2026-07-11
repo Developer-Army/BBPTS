@@ -41,12 +41,12 @@ func runWorkerNode(ctx context.Context, opts Options, cfg *config.Config) {
 		slog.Error("Failed to connect to event stream", "error", err)
 		os.Exit(1)
 	}
-	defer streamMgr.Close()
+	defer func() { _ = streamMgr.Close() }()
 
 	leaseMgr, err := queue.NewLeaseManager(streamMgr.JetStream(), "WORKER_LEASES")
 	if err != nil {
 		slog.Error("Failed to initialize lease manager", "error", err)
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic
 	}
 
 	idempotencyMgr, err := queue.NewIdempotencyManager(streamMgr.JetStream(), "TASK_IDEMPOTENCY")

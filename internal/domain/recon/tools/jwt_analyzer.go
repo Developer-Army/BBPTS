@@ -111,7 +111,7 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 			alg, _ := headerJSON["alg"].(string)
 
 			forgedNoneToken := t.forgeNoneToken(parts[1])
-			if accepted, evidence, reqDump, respDump := t.verifyForgedTokenAccepted(ctx, target, token, forgedNoneToken); accepted || (strings.ToLower(alg) == "none" && accepted) {
+			if accepted, evidence, reqDump, respDump := t.verifyForgedTokenAccepted(ctx, target, token, forgedNoneToken); accepted || (strings.EqualFold(alg, "none") && accepted) {
 				mu.Lock()
 				events = append(events, recon.NewEventWithSeverity(target, t.Name(), "vulnerability", map[string]string{
 					"vuln_name":   "JWT None Algorithm Allowed",
@@ -128,7 +128,7 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				continue
 			}
 
-			if strings.ToUpper(alg) == "HS256" {
+			if strings.EqualFold(alg, "HS256") {
 				weakSecrets := []string{"secret", "admin", "123456", "password", "jwt", "key", "root"}
 				for _, secret := range weakSecrets {
 					if t.verifyHS256(parts[0], parts[1], parts[2], secret) {
@@ -146,7 +146,7 @@ func (t *JWTAnalyzerTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 				}
 			}
 
-			if strings.ToUpper(alg) == "RS256" {
+			if strings.EqualFold(alg, "RS256") {
 				if pubKey, ok := headerJSON["x5c"]; ok {
 					if confused, evidence := t.testRS256toHS256Confusion(parts, pubKey); confused {
 						mu.Lock()

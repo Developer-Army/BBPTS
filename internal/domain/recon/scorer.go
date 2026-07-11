@@ -85,13 +85,14 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 	}
 
 	if len(lowerBody) > 0 {
-		if strings.Contains(lowerBody, "db_password") || strings.Contains(lowerBody, "aws_secret_access_key") || strings.Contains(lowerBody, "api_key") || strings.Contains(lowerBody, "private key") {
+		switch {
+		case strings.Contains(lowerBody, "db_password") || strings.Contains(lowerBody, "aws_secret_access_key") || strings.Contains(lowerBody, "api_key") || strings.Contains(lowerBody, "private key"):
 			evidenceQuality = 100
 			result.Justification = append(result.Justification, "Concrete evidence: credential leak exposed in response body")
-		} else if strings.Contains(lowerBody, "index of /") {
+		case strings.Contains(lowerBody, "index of /"):
 			evidenceQuality = 95
 			result.Justification = append(result.Justification, "Concrete evidence: directory listing exposed")
-		} else if strings.Contains(lowerBody, "cve-") {
+		case strings.Contains(lowerBody, "cve-"):
 			evidenceQuality = 90
 			result.Justification = append(result.Justification, "Concrete evidence: vulnerable version match (CVE reference)")
 		}
@@ -198,13 +199,14 @@ func (s *Scorer) ScoreEndpointAdvanced(url string, isAuthRequired bool, response
 
 	result.ConfidenceScore = confidence
 
-	if result.Score >= 80 {
+	switch {
+	case result.Score >= 80:
 		result.Severity = "CRITICAL"
-	} else if result.Score >= 50 {
+	case result.Score >= 50:
 		result.Severity = "HIGH"
-	} else if result.Score >= 25 {
+	case result.Score >= 25:
 		result.Severity = "MEDIUM"
-	} else {
+	default:
 		result.Severity = "LOW"
 	}
 
@@ -239,13 +241,14 @@ func (s *Scorer) AdjustScoreWithHistory(score *IntelligenceScore, historyCount i
 			score.Score = 100
 		}
 
-		if score.Score >= 80 {
+		switch {
+		case score.Score >= 80:
 			score.Severity = "CRITICAL"
-		} else if score.Score >= 50 {
+		case score.Score >= 50:
 			score.Severity = "HIGH"
-		} else if score.Score >= 25 {
+		case score.Score >= 25:
 			score.Severity = "MEDIUM"
-		} else {
+		default:
 			score.Severity = "LOW"
 		}
 	}

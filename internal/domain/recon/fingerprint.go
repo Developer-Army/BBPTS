@@ -142,12 +142,12 @@ func (f *Fingerprinter) Fingerprint(ctx context.Context, target string) Result {
 		},
 	)
 	if err == nil {
-		defer conn.Close()
 		if len(conn.ConnectionState().PeerCertificates) > 0 {
 			cert := conn.ConnectionState().PeerCertificates[0]
 			result.TLSIssuer = cert.Issuer.CommonName
 			result.TLSSubject = cert.Subject.CommonName
 		}
+		_ = conn.Close()
 	}
 
 	faviconURL := probeURL
@@ -176,11 +176,10 @@ func (f *Fingerprinter) jarmHash(ctx context.Context, pinnedAddr string, host st
 	}
 
 	h := fnv.New64a()
-loop:
 	for _, ver := range versions {
 		select {
 		case <-ctx.Done():
-			break loop
+			return hex.EncodeToString(h.Sum(nil))
 		default:
 		}
 		skipVerify := false
@@ -198,12 +197,17 @@ loop:
 		dialer := &net.Dialer{Timeout: 4 * time.Second}
 		conn, err := tls.DialWithDialer(dialer, "tcp", pinnedAddr, conf)
 		if err != nil {
-			fmt.Fprintf(h, "err_%d", ver)
+			if _, err := fmt.Fprintf(h, "err_%d", ver); err != nil {
+				return hex.EncodeToString(h.Sum(nil))
+			}
 			continue
 		}
 		cs := conn.ConnectionState()
-		fmt.Fprintf(h, "%d_%d_%v", ver, cs.CipherSuite, cs.NegotiatedProtocol)
-		conn.Close()
+		if _, err := fmt.Fprintf(h, "%d_%d_%v", ver, cs.CipherSuite, cs.NegotiatedProtocol); err != nil {
+			_ = conn.Close()
+			return hex.EncodeToString(h.Sum(nil))
+		}
+		_ = conn.Close()
 	}
 
 	raw := h.Sum(nil)
@@ -256,11 +260,4 @@ func ClusterByFavicon(results []Result) map[string][]Result {
 		clusters[r.FaviconHash] = append(clusters[r.FaviconHash], r)
 	}
 	return clusters
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

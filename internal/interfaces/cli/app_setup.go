@@ -116,7 +116,7 @@ func validateTargetsWithHTTPX(ctx context.Context, targets []string, threads int
 				cleanHost = cleanHost[:idx]
 			}
 			if idx := strings.LastIndex(cleanHost, ":"); idx != -1 {
-				if !(strings.Count(cleanHost, ":") > 1 && !strings.Contains(cleanHost, "]")) {
+				if strings.Count(cleanHost, ":") <= 1 || strings.Contains(cleanHost, "]") {
 					cleanHost = cleanHost[:idx]
 					cleanHost = strings.TrimPrefix(cleanHost, "[")
 					cleanHost = strings.TrimSuffix(cleanHost, "]")
@@ -449,7 +449,7 @@ func handlePersistence(opts Options, cfg *config.Config, normalized []string, ev
 		slog.Error("failed to open utils store", "error", err)
 		return nil, err
 	}
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	diff, err := store.ComputeDiff(opts.Scope, normalized, events)
 	if err != nil {
@@ -470,12 +470,7 @@ func handlePersistence(opts Options, cfg *config.Config, normalized []string, ev
 func convertServicesEventsToRecon(events []services.Event) []recon.Event {
 	out := make([]recon.Event, len(events))
 	for i, ev := range events {
-		out[i] = recon.Event{
-			Target:     ev.Target,
-			Source:     ev.Source,
-			Type:       ev.Type,
-			Properties: ev.Properties,
-		}
+		out[i] = recon.Event(ev)
 	}
 	return out
 }
@@ -558,7 +553,9 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 		var expanded []string
 		for _, target := range normalized {
 			target = strings.TrimSpace(target)
-			if strings.HasPrefix(strings.ToLower(target), "company:") {
+			targetLower := strings.ToLower(target)
+			switch {
+			case strings.HasPrefix(targetLower, "company:"):
 				comp := strings.TrimPrefix(target, "company:")
 				slog.Info("expanding company to ASN and IP ranges", "company", comp)
 				if cidrs, err := expandCompanyTargets(comp); err == nil && len(cidrs) > 0 {
@@ -568,7 +565,7 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 					slog.Warn("failed to expand company to CIDRs", "company", comp, "error", err)
 					expanded = append(expanded, target)
 				}
-			} else if strings.HasPrefix(strings.ToLower(target), "asn:") {
+			case strings.HasPrefix(targetLower, "asn:"):
 				asnStr := strings.TrimPrefix(target, "asn:")
 				var asn int
 				if _, err := fmt.Sscanf(asnStr, "%d", &asn); err == nil {
@@ -583,7 +580,7 @@ func parseAndValidateTargets(ctx context.Context, opts *Options, cfg *config.Con
 				} else {
 					expanded = append(expanded, target)
 				}
-			} else {
+			default:
 				expanded = append(expanded, target)
 			}
 		}

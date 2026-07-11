@@ -338,7 +338,7 @@ func (c *Config) LoadFromEnv() {
 		c.TmpResultsDir = val
 	}
 	if val := os.Getenv("BBPTS_INSECURE_SKIP_VERIFY"); val != "" {
-		c.InsecureSkipVerify = (strings.ToLower(val) == "true")
+		c.InsecureSkipVerify = strings.EqualFold(val, "true")
 	}
 
 	if val := os.Getenv("BBPTS_HEADERS"); val != "" {

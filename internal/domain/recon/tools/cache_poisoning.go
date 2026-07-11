@@ -74,9 +74,11 @@ func (t *CachePoisoningTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 			if err != nil {
 				continue
 			}
-			defer resp.Body.Close()
 
-			bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, 100*1024))
+			bodyBytes, err := func() ([]byte, error) {
+				defer resp.Body.Close()
+				return io.ReadAll(io.LimitReader(resp.Body, 100*1024))
+			}()
 			if err != nil {
 				continue
 			}

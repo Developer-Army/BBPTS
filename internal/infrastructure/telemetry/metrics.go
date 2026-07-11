@@ -224,7 +224,12 @@ func StartMetricsServer(addr string) {
 	mux.Handle("/metrics", promhttp.Handler())
 	go func() {
 		slog.Info("Starting Prometheus telemetry server", "addr", addr)
-		if err := http.ListenAndServe(addr, mux); err != nil {
+		server := &http.Server{
+			Addr:              addr,
+			Handler:           mux,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+		if err := server.ListenAndServe(); err != nil {
 			slog.Warn("Prometheus telemetry server stopped", "error", err)
 		}
 	}()

@@ -142,10 +142,10 @@ func (t *SupplyChainTool) checkTyposquats(ctx context.Context, client *http.Clie
 
 	typos := map[string][]string{
 		"lodash":     {"lodah", "lodas", "lodashs", "lodash-es", "_lodash"},
-		"express":    {"expresss", "expres", "expressjs"},
+		"express":    {"expresss", "expres", "expressjs"}, //nolint:misspell
 		"react":      {"reactt", "reacat", "raect"},
 		"axios":      {"axioos", "axiios", "axioss"},
-		"moment":     {"momment", "momnet", "moments"},
+		"moment":     {"momment", "momnet", "moments"}, //nolint:misspell
 		"webpack":    {"webackpack", "web pack", "webpackk"},
 		"typescript": {"typscript", "typescrip", "typescripts"},
 	}

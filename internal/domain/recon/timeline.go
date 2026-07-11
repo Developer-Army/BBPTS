@@ -39,6 +39,7 @@ type FingerprintTimeline struct {
 	baseDir string
 	mu      sync.RWMutex
 	history map[string][]FingerprintRecord // host → records (desc by timestamp)
+	wg      sync.WaitGroup
 }
 
 func NewFingerprintTimeline(baseDir string) (*FingerprintTimeline, error) {
@@ -77,7 +78,11 @@ func (ft *FingerprintTimeline) Record(sessionID string, result FingerprintResult
 		ft.history[result.Host] = ft.history[result.Host][:30]
 	}
 
-	go ft.persistRecord(result.Host, rec)
+	ft.wg.Add(1)
+	go func() {
+		defer ft.wg.Done()
+		ft.persistRecord(result.Host, rec)
+	}()
 
 	return nil
 }
@@ -277,4 +282,8 @@ func sanitizeHost(host string) string {
 		}
 	}
 	return strings.ToLower(host)
+}
+
+func (ft *FingerprintTimeline) Close() {
+	ft.wg.Wait()
 }

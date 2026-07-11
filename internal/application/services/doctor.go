@@ -354,21 +354,15 @@ func checkToolHealth(ctx context.Context, name string) ToolHealth {
 }
 
 func runDiagnostics(ctx context.Context) []DiagnosticCheck {
-	var checks []DiagnosticCheck
-
-	checks = append(checks, checkBinaryExists("git", "Git is required for version control and some tool integrations"))
-
-	checks = append(checks, checkBinaryExists("curl", "curl is used for API interactions"))
-
-	checks = append(checks, checkDNSResolution(ctx))
-
-	checks = append(checks, checkSystemResources())
-
-	checks = append(checks, checkBinaryExists("go", "Go compiler is needed for installing Go-based tools"))
-
-	checks = append(checks, checkBinaryExists("python3", "Python 3 is needed for some tools (uro, wafw00f)"))
-
-	checks = append(checks, checkPlaywrightBrowsers(ctx))
+	checks := []DiagnosticCheck{
+		checkBinaryExists("git", "Git is required for version control and some tool integrations"),
+		checkBinaryExists("curl", "curl is used for API interactions"),
+		checkDNSResolution(ctx),
+		checkSystemResources(),
+		checkBinaryExists("go", "Go compiler is needed for installing Go-based tools"),
+		checkBinaryExists("python3", "Python 3 is needed for some tools (uro, wafw00f)"),
+		checkPlaywrightBrowsers(ctx),
+	}
 
 	configPath := filepath.Join("configs", "config.json")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {

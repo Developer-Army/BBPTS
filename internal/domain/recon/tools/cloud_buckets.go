@@ -167,14 +167,19 @@ func (t *CloudBucketsTool) probeBucket(ctx context.Context, client *http.Client,
 		bodyStr := string(bodyBytes[:n])
 
 		isPublicList := false
-		if provider == "aws" && (strings.Contains(bodyStr, "ListBucketResult") || strings.Contains(bodyStr, "ListAllMyBucketsResult")) {
-			isPublicList = true
-		} else if provider == "gcs" && strings.Contains(bodyStr, "ListBucketResult") {
-			isPublicList = true
-		} else if provider == "azure" && (strings.Contains(bodyStr, "EnumerationResults") || resp.Header.Get("Content-Type") == "application/xml") {
-			isPublicList = true
-		} else if provider == "azure" && resp.StatusCode == 200 {
-			isPublicList = true
+		switch provider {
+		case "aws":
+			if strings.Contains(bodyStr, "ListBucketResult") || strings.Contains(bodyStr, "ListAllMyBucketsResult") {
+				isPublicList = true
+			}
+		case "gcs":
+			if strings.Contains(bodyStr, "ListBucketResult") {
+				isPublicList = true
+			}
+		case "azure":
+			if strings.Contains(bodyStr, "EnumerationResults") || resp.Header.Get("Content-Type") == "application/xml" || resp.StatusCode == 200 {
+				isPublicList = true
+			}
 		}
 
 		if isPublicList {

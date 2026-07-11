@@ -93,29 +93,31 @@ func (t *ShodanTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 
 			resp, errResp := client.Do(ctx, req)
 			if errResp == nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == 200 {
-					var shodanResp shodanResponse
-					if errDec := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&shodanResp); errDec == nil {
-						for _, match := range shodanResp.Matches {
-							matchTarget := fmt.Sprintf("%s:%d", match.IP, match.Port)
-							props := map[string]string{
-								"protocol": match.Protocol,
-								"product":  match.Product,
-								"version":  match.Version,
-								"title":    match.Title,
-								"org":      match.Org,
-								"country":  match.Country,
+				func() {
+					defer resp.Body.Close()
+					if resp.StatusCode == 200 {
+						var shodanResp shodanResponse
+						if errDec := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&shodanResp); errDec == nil {
+							for _, match := range shodanResp.Matches {
+								matchTarget := fmt.Sprintf("%s:%d", match.IP, match.Port)
+								props := map[string]string{
+									"protocol": match.Protocol,
+									"product":  match.Product,
+									"version":  match.Version,
+									"title":    match.Title,
+									"org":      match.Org,
+									"country":  match.Country,
+								}
+								if match.ISP != "" {
+									props["isp"] = match.ISP
+								}
+								events = append(events, recon.NewEvent(matchTarget, t.Name(), "service", props))
 							}
-							if match.ISP != "" {
-								props["isp"] = match.ISP
-							}
-							events = append(events, recon.NewEvent(matchTarget, t.Name(), "service", props))
 						}
+					} else {
+						_, _ = io.Copy(io.Discard, resp.Body)
 					}
-				} else {
-					_, _ = io.Copy(io.Discard, resp.Body)
-				}
+				}()
 			}
 		}
 
@@ -132,31 +134,33 @@ func (t *ShodanTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 			if errReq == nil {
 				respFav, errResp := client.Do(ctx, reqFav)
 				if errResp == nil {
-					defer respFav.Body.Close()
-					if respFav.StatusCode == 200 {
-						var shodanResp shodanResponse
-						if errDec := json.NewDecoder(io.LimitReader(respFav.Body, 10*1024*1024)).Decode(&shodanResp); errDec == nil {
-							slog.Info("Discovered assets via Shodan favicon correlation", "hash", hash, "count", len(shodanResp.Matches))
-							for _, match := range shodanResp.Matches {
-								matchTarget := fmt.Sprintf("%s:%d", match.IP, match.Port)
-								props := map[string]string{
-									"protocol":     match.Protocol,
-									"product":      match.Product,
-									"version":      match.Version,
-									"title":        match.Title,
-									"org":          match.Org,
-									"country":      match.Country,
-									"favicon_hash": fmt.Sprintf("%d", hash),
+					func() {
+						defer respFav.Body.Close()
+						if respFav.StatusCode == 200 {
+							var shodanResp shodanResponse
+							if errDec := json.NewDecoder(io.LimitReader(respFav.Body, 10*1024*1024)).Decode(&shodanResp); errDec == nil {
+								slog.Info("Discovered assets via Shodan favicon correlation", "hash", hash, "count", len(shodanResp.Matches))
+								for _, match := range shodanResp.Matches {
+									matchTarget := fmt.Sprintf("%s:%d", match.IP, match.Port)
+									props := map[string]string{
+										"protocol":     match.Protocol,
+										"product":      match.Product,
+										"version":      match.Version,
+										"title":        match.Title,
+										"org":          match.Org,
+										"country":      match.Country,
+										"favicon_hash": fmt.Sprintf("%d", hash),
+									}
+									if match.ISP != "" {
+										props["isp"] = match.ISP
+									}
+									events = append(events, recon.NewEvent(matchTarget, t.Name(), "service", props))
 								}
-								if match.ISP != "" {
-									props["isp"] = match.ISP
-								}
-								events = append(events, recon.NewEvent(matchTarget, t.Name(), "service", props))
 							}
+						} else {
+							_, _ = io.Copy(io.Discard, respFav.Body)
 						}
-					} else {
-						_, _ = io.Copy(io.Discard, respFav.Body)
-					}
+					}()
 				}
 			}
 		}

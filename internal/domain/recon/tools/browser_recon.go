@@ -123,7 +123,7 @@ func (b *BrowserRecon) analyzePage(_ context.Context, scanCtx *recon.ScanContext
 	if err != nil {
 		return nil, fmt.Errorf("failed to create page: %w", err)
 	}
-	defer page.Close()
+	defer func() { _ = page.Close() }()
 
 	var events []recon.Event
 	var mu sync.Mutex

@@ -26,7 +26,7 @@ func dorkQueries(domain string) []struct {
 	Query    string
 	Category string // secret, config, endpoint, infra
 } {
-	d := fmt.Sprintf(`"%s"`, domain)
+	d := fmt.Sprintf("%q", domain)
 	return []struct {
 		Query    string
 		Category string

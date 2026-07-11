@@ -446,7 +446,7 @@ func nativeTLSChecks(source, host string) []recon.Event {
 	if err != nil {
 		return nil
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	state := conn.ConnectionState()
 	var events []recon.Event
 	for _, cert := range state.PeerCertificates {

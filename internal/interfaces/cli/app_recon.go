@@ -379,10 +379,10 @@ func executeReconScan(ctx context.Context, opts Options, orchestrator *services.
 		if err := eg.Wait(); err != nil {
 			slog.Warn("batch parallelism completed with errors", "error", err)
 		}
-		events = append(validationEvents, convertServicesEventsToRecon(allEvents)...)
+		events = append(validationEvents, convertServicesEventsToRecon(allEvents)...) //nolint:gocritic
 	} else {
 		servicesEvents, err := orchestrator.Run(ctx, normalized)
-		events = append(validationEvents, convertServicesEventsToRecon(servicesEvents)...)
+		events = append(validationEvents, convertServicesEventsToRecon(servicesEvents)...) //nolint:gocritic
 		if err != nil {
 			slog.Warn("recon completed with tool errors", "error", err)
 		}

@@ -101,7 +101,9 @@ func WriteBurpLinks(path string, events []recon.Event) error {
 			continue
 		}
 		seen[ev.Target] = struct{}{}
-		fmt.Fprintln(file, ev.Target)
+		if _, err := fmt.Fprintln(file, ev.Target); err != nil {
+			return err
+		}
 	}
 	return nil
 }

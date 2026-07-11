@@ -41,7 +41,7 @@ func (t *DefaultCredsTool) Run(ctx context.Context, scanCtx *recon.ScanContext, 
 		var host string
 		var port int
 		var isHTTP bool
-		var scheme string = "http"
+		var scheme = "http"
 
 		if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
 			isHTTP = true
@@ -463,8 +463,10 @@ func (t *DefaultCredsTool) checkPhpMyAdmin(ctx context.Context, client *http.Cli
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		resp, err := client.Do(req)
 		if err == nil {
-			defer resp.Body.Close()
-			body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+			body, _ := func() ([]byte, error) {
+				defer resp.Body.Close()
+				return io.ReadAll(io.LimitReader(resp.Body, 1024))
+			}()
 			if resp.StatusCode == 200 && (strings.Contains(string(body), "db_structure.php") || strings.Contains(string(body), "token")) {
 				*events = append(*events, recon.NewEventWithSeverity(baseURL, t.Name(), "vulnerability", map[string]string{
 					"vuln_name":   "phpMyAdmin Default Credentials (root:root)",

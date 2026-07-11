@@ -683,7 +683,7 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 		}
 
 		targetURL := makeURL(finding.Target)
-		content += fmt.Sprintf("<details>\n<summary><b>%s<a href=\"%s\">%s</a></b> (Score: %d)</summary>\n\n",
+		content += fmt.Sprintf("<details>\n<summary><b>%s<a href=%q>%s</a></b> (Score: %d)</summary>\n\n",
 			severityPrefix, targetURL, finding.Target, finding.Score)
 
 		if finding.ExposureScore > 0 || finding.AttackabilityScore > 0 || finding.BusinessImpactScore > 0 || finding.ConfidenceScore > 0 || finding.PathScore > 0 {
@@ -737,7 +737,8 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 		if finding.Remediation != "" {
 			content += "### Remediation Guidance\n"
 			parts := strings.Split(finding.Remediation, "Suggested security tests: ")
-			if len(parts) > 1 {
+			switch {
+			case len(parts) > 1:
 				if strings.TrimSpace(parts[0]) != "" {
 					content += strings.TrimSpace(parts[0]) + "\n\n"
 				}
@@ -748,7 +749,7 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 						content += fmt.Sprintf("- [ ] %s\n", test)
 					}
 				}
-			} else if strings.HasPrefix(finding.Remediation, "Suggested security tests: ") {
+			case strings.HasPrefix(finding.Remediation, "Suggested security tests: "):
 				tests := strings.TrimPrefix(finding.Remediation, "Suggested security tests: ")
 				for _, test := range strings.Split(tests, "\x00") {
 					test = strings.TrimSpace(test)
@@ -756,7 +757,7 @@ func (rg *ReportGenerator) generateMarkdownReport(report *Report) error {
 						content += fmt.Sprintf("- [ ] %s\n", test)
 					}
 				}
-			} else {
+			default:
 				content += finding.Remediation + "\n"
 			}
 			content += "\n"
@@ -803,7 +804,7 @@ func makeURL(target string) string {
 }
 
 func enrichFindingDetails(f *DetailedFinding) {
-	title := f.Title
+	var title string
 	hasTag := func(t string) bool {
 		for _, tag := range f.Tags {
 			if strings.EqualFold(tag, t) {
@@ -819,62 +820,63 @@ func enrichFindingDetails(f *DetailedFinding) {
 	var impact, remediation string
 	var refs []string
 
-	if hasTag("git-leak") || containsReason("git repository") {
+	switch {
+	case hasTag("git-leak") || containsReason("git repository"):
 		title = fmt.Sprintf("Exposed Git Repository Configuration on %s", f.Target)
 		impact = "Exposing the .git directory allows attackers to download your entire source code history, including configuration files, sensitive business logic, and hardcoded API credentials."
 		remediation = "1. Delete the .git directory from your web root.\n2. Configure your web server (Nginx/Apache) to deny access to hidden directories:\n\nFor Nginx:\nlocation ~ /\\.git {\n    deny all;\n}"
 		refs = []string{"https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/04-Authentication_Testing/06-Testing_for_Weak_Lockout_Mechanism"}
-	} else if hasTag("secrets") || containsReason("exposed environment file") || containsReason(".env") {
+	case hasTag("secrets") || containsReason("exposed environment file") || containsReason(".env"):
 		title = fmt.Sprintf("Sensitive API Secret / Credential Leak on %s", f.Target)
 		impact = "Exposed credentials (.env, config keys) allow attackers to access external APIs, database servers, and cloud resources, potentially leading to unauthorized data access or billing exploits."
 		remediation = "1. Revoke the leaked API keys or passwords immediately.\n2. Add the affected file (e.g., .env) to your .gitignore.\n3. Configure your server to block access to env/config files."
 		refs = []string{"https://owasp.org/www-community/vulnerabilities/Sensitive_Data_Exposure"}
-	} else if hasTag("takeover") || containsReason("takeover") {
+	case hasTag("takeover") || containsReason("takeover"):
 		title = fmt.Sprintf("Subdomain Takeover Exposure on %s", f.Target)
 		impact = "An attacker can hijack this subdomain by registering it on the orphaned SaaS platform (e.g. AWS S3, GitHub Pages, Heroku), hosting malicious content, running phishing attacks, or stealing cookies."
 		remediation = "1. Access your DNS provider console.\n2. Identify the dangling CNAME/A record for this host.\n3. Delete the record if the SaaS platform resource is no longer in use."
 		refs = []string{"https://developer.mozilla.org/en-US/docs/Web/Security/Subdomain_takeover", "https://github.com/EdOverflow/can-i-take-over-xyz"}
-	} else if hasTag("cors-risk") || containsReason("cors") {
+	case hasTag("cors-risk") || containsReason("cors"):
 		title = fmt.Sprintf("Permissive CORS Policy Misconfiguration on %s", f.Target)
 		impact = "A wildcard or null origin in Cross-Origin Resource Sharing (CORS) headers allows unauthorized external websites to make authenticated API requests and retrieve sensitive user data."
 		remediation = "1. Do not set Access-Control-Allow-Origin: * when Access-Control-Allow-Credentials is true.\n2. Maintain a strict whitelist of allowed origins and validate the incoming Origin header against it."
 		refs = []string{"https://portswigger.net/web-security/cors"}
-	} else if containsReason("graphql") || containsReason("introspection") {
+	case containsReason("graphql") || containsReason("introspection"):
 		title = fmt.Sprintf("GraphQL Introspection Enabled on %s", f.Target)
 		impact = "Allows arbitrary clients to download the entire GraphQL schema definition (queries, mutations, types, fields), dramatically easing the task of locating hidden API entry points."
 		remediation = "Disable introspection queries in your GraphQL configuration for production environments.\n\nFor Apollo Server:\nconst server = new ApolloServer({\n  introspection: false\n});"
 		refs = []string{"https://graphql.org/learn/security/"}
-	} else if containsReason("directory listing") || hasTag("info-leak") {
+	case containsReason("directory listing") || hasTag("info-leak"):
 		title = fmt.Sprintf("Directory Listing Enabled / Information Leak on %s", f.Target)
 		impact = "Enables attackers to browse arbitrary files and directories on the server, potentially exposing source files, logs, database backups, or configurations."
 		remediation = "Disable directory listing (indexing) in your web server settings.\n\nFor Nginx (nginx.conf):\nautoindex off;\n\nFor Apache (.htaccess):\nOptions -Indexes"
 		refs = []string{"https://owasp.org/www-community/attacks/Information_Disclosure"}
-	} else if hasTag("phpmyadmin") {
+	case hasTag("phpmyadmin"):
 		title = fmt.Sprintf("Exposed phpMyAdmin Database Console on %s", f.Target)
 		impact = "An exposed database admin panel allows attackers to perform brute-force authentication attacks, potentially gaining full control over your relational database."
 		remediation = "1. Restrict phpMyAdmin access to trusted IPs only.\n2. Change the default login URL pathway from /phpmyadmin to a secure, obscure route."
 		refs = []string{"https://www.phpmyadmin.net/security/"}
-	} else if hasTag("monitoring") || containsReason("grafana") || containsReason("prometheus") {
+	case hasTag("monitoring") || containsReason("grafana") || containsReason("prometheus"):
 		title = fmt.Sprintf("Exposed Grafana / Prometheus Monitoring Interface on %s", f.Target)
 		impact = "Exposes operational telemetry, server metrics, user statistics, or system configurations, aiding attackers in mapping internal architecture."
 		remediation = "1. Configure strong authentication (OAuth, LDAP) for all monitoring portals.\n2. Put the interfaces behind a VPN or SSH tunnel."
 		refs = []string{"https://grafana.com/docs/grafana/latest/security/"}
-	} else if containsReason("bypass") || hasTag("manual-bypass") {
+	case containsReason("bypass") || hasTag("manual-bypass"):
 		title = fmt.Sprintf("Access Control / Potential Bypass Opportunity on %s", f.Target)
 		impact = "Protected folders or endpoints return access restriction codes (e.g. 403 Forbidden, 401 Unauthorized) but might be bypassable using custom proxy headers or request overrides."
 		remediation = "1. Validate access authorization checks strictly on the application server layer.\n2. Do not trust or parse custom client routing headers like X-Original-URL or X-Rewrite-URL."
 		refs = []string{"https://portswigger.net/web-security/access-control"}
-	} else if hasTag("ssrf-candidate") || containsReason("ssrf") {
+	case hasTag("ssrf-candidate") || containsReason("ssrf"):
 		title = fmt.Sprintf("Potential Server-Side Request Forgery (SSRF) on %s", f.Target)
 		impact = "SSRF allows attackers to force the backend server to make HTTP requests to arbitrary domains, potentially exposing internal-only systems (e.g., metadata APIs, local database ports)."
 		remediation = "1. Enforce strict destination IP/domain whitelists.\n2. Avoid passing raw URLs in user input parameters; use mapped keys instead.\n3. Run the backend service in an isolated network segment without direct access to internal network nodes."
 		refs = []string{"https://portswigger.net/web-security/ssrf"}
-	} else if hasTag("sqli-candidate") || containsReason("sqli") {
+	case hasTag("sqli-candidate") || containsReason("sqli"):
 		title = fmt.Sprintf("Potential SQL Injection (SQLi) Vulnerability on %s", f.Target)
 		impact = "Enables attackers to manipulate SQL commands executed by the backend database, potentially allowing them to bypass logins, read or write private database content, or execute system commands."
 		remediation = "1. Use parameterized queries (prepared statements) for all database operations.\n2. Never concatenate untrusted user input directly into SQL strings."
 		refs = []string{"https://owasp.org/www-community/attacks/SQL_Injection"}
-	} else {
+	default:
 		switch strings.ToLower(f.Severity) {
 		case "critical", "high":
 			title = fmt.Sprintf("High Risk Security Vulnerability / Exposure on %s", f.Target)
@@ -924,56 +926,57 @@ func beginnerNextSteps(f *DetailedFinding) string {
 	var steps []string
 	baseURL := getBaseURL(f)
 
-	if hasTag("git-leak") || containsReason("git repository") {
+	switch {
+	case hasTag("git-leak") || containsReason("git repository"):
 		steps = []string{
 			"Run this terminal command: `curl -I " + baseURL + "/.git/HEAD`",
 			"Check output: If you see status `200 OK` and a reference to `refs/heads/`, the history files are leaked!",
 			"Download code: Run this command to download the code: `git-dumper " + baseURL + "/.git/ output-dir` and look inside for credentials.",
 		}
-	} else if hasTag("secrets") || containsReason("exposed environment file") || containsReason(".env") {
+	case hasTag("secrets") || containsReason("exposed environment file") || containsReason(".env"):
 		steps = []string{
 			"Open this link in your browser: " + baseURL + "/.env (or run `curl -s " + baseURL + "/.env`)",
 			"Check output: Look for secret words like `AWS_ACCESS_KEY_ID`, `DB_PASSWORD`, or private keys.",
 		}
-	} else if hasTag("takeover") || containsReason("takeover") {
+	case hasTag("takeover") || containsReason("takeover"):
 		steps = []string{
 			"Run this command to check where the domain points: `dig CNAME " + f.Target + " +short`",
 			"Check target: If the returned domain points to a deleted SaaS page (like Heroku or AWS S3), anyone can register it!",
 			"Takeover target: Go to the SaaS provider page and try to claim/register that exact name.",
 		}
-	} else if hasTag("cors-risk") || containsReason("cors") {
+	case hasTag("cors-risk") || containsReason("cors"):
 		steps = []string{
 			"Run this test command: `curl -H \"Origin: https://evil.com\" -I " + baseURL + "`",
 			"Check output headers: If you see `Access-Control-Allow-Origin: https://evil.com` and `Access-Control-Allow-Credentials: true`, it is vulnerable!",
 		}
-	} else if containsReason("graphql") || containsReason("introspection") {
+	case containsReason("graphql") || containsReason("introspection"):
 		steps = []string{
-			"Run this command to download the API map: `curl -s -X POST -H \"Content-Type: application/json\" --data '{\"query\":\"{__schema{types{name}}}\"}' " + baseURL + "/graphql`",
+			"Run this command to download the API map: `curl -s -X POST -H \"Content-Type: application/json\" --data '{\"query\":\"{__schema{types{name}}}\"' " + baseURL + "/graphql`",
 			"Check output: If it prints a list of queries and types, introspection is enabled! Check them for admin endpoints.",
 		}
-	} else if containsReason("directory listing") || hasTag("info-leak") {
+	case containsReason("directory listing") || hasTag("info-leak"):
 		steps = []string{
 			"Open this link in your browser: " + baseURL + " (or run `curl -s " + baseURL + "`)",
 			"Check output: If you see a list of files/folders (Index of /), directory listing is enabled. Look for backups like `.zip` or `.sql` files!",
 		}
-	} else if hasTag("ssrf-candidate") || containsReason("ssrf") {
+	case hasTag("ssrf-candidate") || containsReason("ssrf"):
 		steps = []string{
 			"Find the URL parameter (like `?url=` or `?file=`) in the discovery links.",
 			"Run this callback test command: `curl -i \"" + baseURL + "/path?url=http://your-interactsh-id.oast.fun\"` (replace with your Interactsh listener host)",
 			"Check listener: If your listener receives a hit, the target server has connected to your listener host!",
 		}
-	} else if hasTag("sqli-candidate") || containsReason("sqli") {
+	case hasTag("sqli-candidate") || containsReason("sqli"):
 		steps = []string{
 			"Type a single quote `'` in the input parameter to see if the website crashes or shows database error codes.",
 			"Automate check: Run `sqlmap -u \"" + baseURL + "/path?param=val\" --batch`",
 		}
-	} else {
+	default:
 		switch strings.ToLower(f.Severity) {
 		case "critical", "high":
 			steps = []string{
 				"Open this link in your browser proxy: " + baseURL + ".",
 				"Fuzz inputs: Try typing bad characters (like `<script>` tags for XSS or path traversals `../../etc/passwd`) in text boxes.",
-				"Quick web check command: `curl -i \"" + baseURL + "\"`",
+				"Quick web check command: `curl -i \"" + baseURL + "\"``",
 			}
 		default:
 			steps = []string{
@@ -982,7 +985,6 @@ func beginnerNextSteps(f *DetailedFinding) string {
 			}
 		}
 	}
-
 	return strings.Join(steps, "\n")
 }
 
@@ -1149,7 +1151,7 @@ func callGeminiText(ctx context.Context, prompt, model, apiKey string) (string, 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Gemini API returned status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("gemini API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	type Candidate struct {

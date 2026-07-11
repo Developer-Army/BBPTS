@@ -315,11 +315,12 @@ func (t *GithubActionsTool) analyzeWorkflow(content, repo, name, path string) []
 			if p.MatchString(line) {
 				severity := "medium"
 				desc := "Workflow misconfiguration"
-				if strings.Contains(line, "pull_request_target") {
+				switch {
+				case strings.Contains(line, "pull_request_target"):
 					severity, desc = "high", "pull_request_target can execute code from forks"
-				} else if strings.Contains(line, "contents: write") || strings.Contains(line, "actions: write") {
+				case strings.Contains(line, "contents: write") || strings.Contains(line, "actions: write"):
 					severity, desc = "high", "Elevated permissions"
-				} else if strings.Contains(line, "${{") && strings.Contains(line, "run:") {
+				case strings.Contains(line, "${{") && strings.Contains(line, "run:"):
 					severity, desc = "high", "Expression injection in run step"
 				}
 				events = append(events, recon.NewEvent(repo, t.Name(), "vulnerability", map[string]string{

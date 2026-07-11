@@ -188,10 +188,11 @@ func (c *CAS) Retrieve(hashStr string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decompress: %w", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, gz); err != nil {
+	// Limit decompression to 256MB to prevent decompression bombs
+	if _, err := io.Copy(&buf, io.LimitReader(gz, 256*1024*1024)); err != nil {
 		return nil, fmt.Errorf("failed to read decompressed data: %w", err)
 	}
 

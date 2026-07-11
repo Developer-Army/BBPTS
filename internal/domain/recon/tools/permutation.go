@@ -57,12 +57,16 @@ func (t *PermutationTool) Run(ctx context.Context, scanCtx *recon.ScanContext, t
 		}
 
 		for _, p := range prefixes {
-			variants = append(variants, fmt.Sprintf("%s-%s", p, sub))
-			variants = append(variants, fmt.Sprintf("%s%s", p, sub))
+			variants = append(variants,
+				fmt.Sprintf("%s-%s", p, sub),
+				fmt.Sprintf("%s%s", p, sub),
+			)
 		}
 		for _, s := range suffixes {
-			variants = append(variants, fmt.Sprintf("%s-%s", sub, s))
-			variants = append(variants, fmt.Sprintf("%s%s", sub, s))
+			variants = append(variants,
+				fmt.Sprintf("%s-%s", sub, s),
+				fmt.Sprintf("%s%s", sub, s),
+			)
 		}
 
 		for _, v := range variants {

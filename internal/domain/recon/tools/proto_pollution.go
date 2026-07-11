@@ -125,7 +125,7 @@ func (t *ProtoPollutionTool) checkClientSide(ctx context.Context, target string)
 	if err != nil {
 		return nil, err
 	}
-	defer page.Close()
+	defer func() { _ = page.Close() }()
 
 	_, err = page.Goto(u.String(), playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,

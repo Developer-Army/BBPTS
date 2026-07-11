@@ -229,6 +229,8 @@ func Validate(cfg *Config) *ValidationResult {
 
 func ValidateAndPrint(w io.Writer, cfg *Config) bool {
 	result := Validate(cfg)
-	fmt.Fprint(w, result.FormatReport())
+	if _, err := fmt.Fprint(w, result.FormatReport()); err != nil {
+		return false
+	}
 	return result.IsValid()
 }

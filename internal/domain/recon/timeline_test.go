@@ -14,6 +14,7 @@ func TestNewFingerprintTimeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFingerprintTimeline failed: %v", err)
 	}
+	defer ft.Close()
 
 	if ft == nil {
 		t.Fatal("NewFingerprintTimeline returned nil")
@@ -36,6 +37,7 @@ func TestNewFingerprintTimeline_CreateDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFingerprintTimeline failed: %v", err)
 	}
+	defer ft.Close()
 
 	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
 		t.Error("baseDir was not created")
@@ -47,6 +49,7 @@ func TestNewFingerprintTimeline_CreateDir(t *testing.T) {
 func TestFingerprintTimeline_Record(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result := Result{
 		Host:        "acme-corp.io",
@@ -79,6 +82,7 @@ func TestFingerprintTimeline_Record(t *testing.T) {
 func TestFingerprintTimeline_Record_Prune(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result := Result{
 		Host:        "acme-corp.io",
@@ -105,6 +109,7 @@ func TestFingerprintTimeline_Record_Prune(t *testing.T) {
 func TestFingerprintTimeline_GetHistory(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result := Result{
 		Host:        "acme-corp.io",
@@ -129,6 +134,7 @@ func TestFingerprintTimeline_GetHistory(t *testing.T) {
 func TestFingerprintTimeline_GetHistory_WithLimit(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result := Result{
 		Host:        "acme-corp.io",
@@ -155,6 +161,7 @@ func TestFingerprintTimeline_GetHistory_WithLimit(t *testing.T) {
 func TestFingerprintTimeline_GetHistory_NonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	history := ft.GetHistory("nonexistent.com", 0)
 
@@ -166,6 +173,7 @@ func TestFingerprintTimeline_GetHistory_NonExistent(t *testing.T) {
 func TestFingerprintTimeline_GetChanges(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result1 := Result{
 		Host:        "acme-corp.io",
@@ -195,6 +203,7 @@ func TestFingerprintTimeline_GetChanges(t *testing.T) {
 func TestFingerprintTimeline_GetChanges_NoChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result := Result{
 		Host:        "acme-corp.io",
@@ -217,6 +226,7 @@ func TestFingerprintTimeline_GetChanges_NoChange(t *testing.T) {
 func TestFingerprintTimeline_GetChanges_InsufficientHistory(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result := Result{
 		Host:        "acme-corp.io",
@@ -237,6 +247,7 @@ func TestFingerprintTimeline_GetChanges_InsufficientHistory(t *testing.T) {
 func TestFingerprintTimeline_ClusterByInfrastructure(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result1 := Result{
 		Host:        "acme-corp.io",
@@ -273,6 +284,7 @@ func TestFingerprintTimeline_ClusterByInfrastructure(t *testing.T) {
 func TestFingerprintTimeline_ClusterByInfrastructure_EmptyFingerprints(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	result := Result{
 		Host:        "acme-corp.io",
@@ -341,6 +353,7 @@ func TestSafeHash(t *testing.T) {
 func TestFingerprintTimeline_computeRecordChecksum(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	rec := FingerprintRecord{
 		Host:        "acme-corp.io",
@@ -365,6 +378,7 @@ func TestFingerprintTimeline_computeRecordChecksum(t *testing.T) {
 func TestFingerprintTimeline_diffFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	prev := FingerprintRecord{
 		JARMHash:    "jarm123",
@@ -390,6 +404,7 @@ func TestFingerprintTimeline_diffFields(t *testing.T) {
 func TestFingerprintTimeline_diffFields_NoChange(t *testing.T) {
 	tmpDir := t.TempDir()
 	ft, _ := NewFingerprintTimeline(tmpDir)
+	defer ft.Close()
 
 	rec := FingerprintRecord{
 		JARMHash:    "jarm123",

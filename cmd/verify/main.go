@@ -235,14 +235,14 @@ func main() {
 				msg := fmt.Sprintf("Layer 1: Test name '%s' not found (case-insensitive)", tc.TestName)
 				fmt.Printf("  - %s\n", msg)
 				if failedLog != nil {
-					_, _ = failedLog.WriteString(fmt.Sprintf("FAIL: Test %s\n- %s\n", tc.ID, msg))
+					_, _ = fmt.Fprintf(failedLog, "FAIL: Test %s\n- %s\n", tc.ID, msg)
 				}
 			}
 			if !l2Passed {
 				msg := fmt.Sprintf("Layer 2: Target substring(s) not found (case-sensitive): %v", missing)
 				fmt.Printf("  - %s\n", msg)
 				if failedLog != nil {
-					_, _ = failedLog.WriteString(fmt.Sprintf("FAIL: Test %s\n- %s\n", tc.ID, msg))
+					_, _ = fmt.Fprintf(failedLog, "FAIL: Test %s\n- %s\n", tc.ID, msg)
 				}
 			}
 		}

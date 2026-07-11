@@ -122,7 +122,7 @@ func (t *BusinessLogicTool) testCouponAbuse(ctx context.Context, client *http.Cl
 	}
 
 	for _, coupon := range coupons {
-		payload := fmt.Sprintf(`{"coupon":"%s"}`, coupon)
+		payload := fmt.Sprintf(`{"coupon":%q}`, coupon)
 		status, body := t.doPOST(ctx, client, target, payload, "application/json", baseHeaders)
 		if status == 0 {
 			continue

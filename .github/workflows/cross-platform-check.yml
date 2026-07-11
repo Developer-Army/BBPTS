@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         distro: [ 'fedora:latest', 'archlinux:latest' ]
-        go-version: [ '1.23', '1.24' ]
+        go-version: [ '1.26.5' ]
     container:
       image: ${{ matrix.distro }}
     env:
@@ -96,6 +96,8 @@ jobs:
             sudo pkg install -y go bash git gmake sqlite3
             gmake build-full
             go test -v -coverprofile=coverage-freebsd.out ./...
+        env:
+          GOTOOLCHAIN: local
 
       - name: Build and Test on OpenBSD VM
         if: matrix.os == 'openbsd'
@@ -107,6 +109,8 @@ jobs:
             sudo pkg_add go git gmake sqlite3
             gmake build-full
             go test -v -coverprofile=coverage-openbsd.out ./...
+        env:
+          GOTOOLCHAIN: local
 
       - name: Upload BSD Coverage Report
         uses: actions/upload-artifact@v4

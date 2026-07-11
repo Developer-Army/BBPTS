@@ -109,9 +109,9 @@ func (t *WebSocketTool) checkCSWSH(ctx context.Context, u *url.URL, origin strin
 	host := u.Host
 	if !strings.Contains(host, ":") {
 		if u.Scheme == "wss" {
-			host = host + ":443"
+			host += ":443"
 		} else {
-			host = host + ":80"
+			host += ":80"
 		}
 	}
 
@@ -199,9 +199,9 @@ func (t *WebSocketTool) openWebSocket(ctx context.Context, u *url.URL, origin st
 	host := u.Host
 	if !strings.Contains(host, ":") {
 		if u.Scheme == "wss" {
-			host = host + ":443"
+			host += ":443"
 		} else {
-			host = host + ":80"
+			host += ":80"
 		}
 	}
 

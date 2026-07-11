@@ -32,7 +32,8 @@ func Run(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Brid
 		}()
 	}
 
-	if opts.UseTUI && tuiProgram != nil {
+	switch {
+	case opts.UseTUI && tuiProgram != nil:
 		go func() {
 			runLoop(ctx, opts, cfg, bridge)
 			if opts.CronInterval <= 0 && bridge != nil {
@@ -42,11 +43,11 @@ func Run(ctx context.Context, opts Options, cfg *config.Config, bridge *tui.Brid
 
 		if _, err := tuiProgram.Run(); err != nil {
 			slog.Error("BBPTS TUI error", "error", err)
-			os.Exit(1)
+			os.Exit(1) //nolint:gocritic
 		}
-	} else if opts.RunWorker {
+	case opts.RunWorker:
 		runWorkerNode(ctx, opts, cfg)
-	} else {
+	default:
 		runLoop(ctx, opts, cfg, bridge)
 	}
 }

@@ -71,16 +71,17 @@ func (t *CloudExposureTool) Run(ctx context.Context, scanCtx *recon.ScanContext,
 			resp, err := client.Do(req)
 			if err == nil {
 				bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				bodyStr := string(bodyBytes)
 
 				if resp.StatusCode == 200 {
 					isLeaked := false
-					if strings.Contains(bodyStr, "aws_access_key_id") || strings.Contains(bodyStr, "aws_secret_access_key") {
+					switch {
+					case strings.Contains(bodyStr, "aws_access_key_id") || strings.Contains(bodyStr, "aws_secret_access_key"):
 						isLeaked = true
-					} else if strings.Contains(bodyStr, "type") && strings.Contains(bodyStr, "project_id") && strings.Contains(bodyStr, "private_key") {
+					case strings.Contains(bodyStr, "type") && strings.Contains(bodyStr, "project_id") && strings.Contains(bodyStr, "private_key"):
 						isLeaked = true
-					} else if strings.Contains(bodyStr, "configuration") && strings.Contains(bodyStr, "core") {
+					case strings.Contains(bodyStr, "configuration") && strings.Contains(bodyStr, "core"):
 						isLeaked = true
 					}
 

@@ -294,11 +294,9 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 			resp.Body = io.NopCloser(bytes.NewReader(body))
 		}
 		if ab.ShouldBackoff(resp, body) {
-
-		} else {
-			if resp.StatusCode < 400 || (resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode != http.StatusServiceUnavailable && resp.StatusCode != http.StatusForbidden) {
-				ab.Reset()
-			}
+			ab.RecordBlock()
+		} else if resp.StatusCode < 400 || (resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode != http.StatusServiceUnavailable && resp.StatusCode != http.StatusForbidden) {
+			ab.Reset()
 		}
 	}
 

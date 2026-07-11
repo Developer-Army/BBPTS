@@ -3,6 +3,7 @@ package analyze
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -133,11 +134,9 @@ func WriteMarkdownReport(path string, insights []Insight) error {
 	}
 
 	funcMap := template.FuncMap{
-		"join":          strings.Join,
-		"reasonPreview": reasonPreview,
-		"recommendedTools": func(tags, reasons, sources []string) []string {
-			return recommendedTools(tags, reasons, sources)
-		},
+		"join":             strings.Join,
+		"reasonPreview":    reasonPreview,
+		"recommendedTools": recommendedTools,
 	}
 
 	tmpl, err := template.New("report").Funcs(funcMap).Parse(markdownTemplate)
@@ -337,20 +336,28 @@ func ExportToObsidian(dir string, insights []Insight) error {
 			continue
 		}
 
-		fmt.Fprintf(f, "---\n")
-		fmt.Fprintf(f, "tags: [bbpts, %s]\n", strings.Join(in.Tags, ", "))
-		fmt.Fprintf(f, "priority: %s\n", in.Priority)
-		fmt.Fprintf(f, "score: %d\n", in.Score)
-		fmt.Fprintf(f, "updated: %s\n", time.Now().Format("2006-01-02"))
-		fmt.Fprintf(f, "---\n\n")
-		fmt.Fprintf(f, "# %s\n\n", in.Host)
-		fmt.Fprintf(f, "## Findings\n")
+		_ = writeLines(f, []string{
+			"---",
+			fmt.Sprintf("tags: [bbpts, %s]", strings.Join(in.Tags, ", ")),
+			fmt.Sprintf("priority: %s", in.Priority),
+			fmt.Sprintf("score: %d", in.Score),
+			fmt.Sprintf("updated: %s", time.Now().Format("2006-01-02")),
+			"---\n",
+			fmt.Sprintf("# %s", in.Host),
+			"## Findings",
+		})
 		for _, r := range in.Reasons {
-			fmt.Fprintf(f, "- %s\n", r)
+			if _, err := fmt.Fprintf(f, "- %s\n", r); err != nil {
+				return err
+			}
 		}
-		fmt.Fprintf(f, "\n## Suggested Tests\n")
+		if _, err := fmt.Fprintf(f, "\n## Suggested Tests\n"); err != nil {
+			return err
+		}
 		for _, t := range in.SuggestedTests {
-			fmt.Fprintf(f, "- [ ] %s\n", t)
+			if _, err := fmt.Fprintf(f, "- [ ] %s\n", t); err != nil {
+				return err
+			}
 		}
 
 		hasIDOR := false
@@ -361,19 +368,33 @@ func ExportToObsidian(dir string, insights []Insight) error {
 			}
 		}
 		if hasIDOR {
-			fmt.Fprintf(f, "\n## IDOR Testing Checklist\n")
-			fmt.Fprintf(f, "- [ ] Sequential ID enumeration (id=1, id=2, id=3...)\n")
-			fmt.Fprintf(f, "- [ ] Cross-account object access (swap user IDs between sessions)\n")
-			fmt.Fprintf(f, "- [ ] UUID predictability testing\n")
-			fmt.Fprintf(f, "- [ ] Check for missing authorization checks on object endpoints\n")
+			if _, err := fmt.Fprintf(f, "\n## IDOR Testing Checklist\n"); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(f, "- [ ] Sequential ID enumeration (id=1, id=2, id=3...)\n"); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(f, "- [ ] Cross-account object access (swap user IDs between sessions)\n"); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(f, "- [ ] UUID predictability testing\n"); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(f, "- [ ] Check for missing authorization checks on object endpoints\n"); err != nil {
+				return err
+			}
 		}
 
-		fmt.Fprintf(f, "\n## Recommended Tools\n")
+		if _, err := fmt.Fprintf(f, "\n## Recommended Tools\n"); err != nil {
+			return err
+		}
 		for _, tool := range recommendedTools(in.Tags, in.Reasons, in.Sources) {
-			fmt.Fprintf(f, "- %s\n", tool)
+			if _, err := fmt.Fprintf(f, "- %s\n", tool); err != nil {
+				return err
+			}
 		}
 
-		f.Close()
+		return f.Close()
 	}
 
 	return nil
@@ -545,6 +566,15 @@ func ExportIDORNotes(vaultDir string, events []recon.Event) error {
 
 	if written > 0 {
 		fmt.Printf("  IDOR notes: %d written to %s\n", written, idorDir)
+	}
+	return nil
+}
+
+func writeLines(w io.Writer, lines []string) error {
+	for _, l := range lines {
+		if _, err := fmt.Fprintln(w, l); err != nil {
+			return err
+		}
 	}
 	return nil
 }

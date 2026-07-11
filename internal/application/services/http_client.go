@@ -154,11 +154,11 @@ func (sc *StealthClient) Do(req *http.Request) (*http.Response, error) {
 		if class == ClassWAFBlock || class == ClassCaptcha {
 
 			req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-			backoff = backoff * 2
+			backoff *= 2
 		}
 
 		if class == ClassRateLimited {
-			backoff = backoff * 3
+			backoff *= 3
 		}
 
 		if resp != nil && class != ClassSuccess {

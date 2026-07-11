@@ -237,7 +237,7 @@ func computeInsightConfidence(insight *Insight) int {
 	base := 22
 	corroboration := min(48, nSources*14)
 	evidenceDepth := min(30, insight.EvidenceCount*6)
-	scoreBoost := min(15, insight.Score/6)
+	scoreBoost := minInt(15, insight.Score/6)
 	conf := base + corroboration + evidenceDepth + scoreBoost
 	if conf > 100 {
 		return 100
@@ -245,7 +245,7 @@ func computeInsightConfidence(insight *Insight) int {
 	return conf
 }
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
@@ -755,11 +755,12 @@ func (m *ManualTestingAnalyzer) Analyze(ev recon.Event, insight *Insight) {
 func adjustPriority(insight *Insight) {
 
 	blended := float64(insight.Score)*0.7 + float64(insight.Confidence)*0.3
-	if blended >= 60 {
+	switch {
+	case blended >= 60:
 		insight.Priority = "high"
-	} else if blended >= 35 {
+	case blended >= 35:
 		insight.Priority = "medium"
-	} else {
+	default:
 		insight.Priority = "low"
 	}
 }

@@ -97,7 +97,7 @@ func RunWizard(path string) error {
 	input, _ = reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 	if input != "" {
-		cfg.Fleet.Enabled = (strings.ToLower(input) == "true" || strings.ToLower(input) == "t" || input == "1")
+		cfg.Fleet.Enabled = strings.EqualFold(input, "true") || strings.EqualFold(input, "t") || input == "1"
 	}
 
 	fmt.Printf("Fleet Name [%s]: ", cfg.Fleet.FleetName)

@@ -284,13 +284,14 @@ func (te *TriageEngine) analyzeVulnerability(f *Finding) {
 	cveRegex := regexp.MustCompile(`cve-\d{4}-\d{4,5}`)
 	if cveRegex.MatchString(target) {
 
-		if strings.Contains(target, "critical") || strings.Contains(target, "9.") {
+		switch {
+		case strings.Contains(target, "critical") || strings.Contains(target, "9."):
 			f.Severity = "critical"
 			f.Confidence = 0.95
-		} else if strings.Contains(target, "high") || strings.Contains(target, "8.") {
+		case strings.Contains(target, "high") || strings.Contains(target, "8."):
 			f.Severity = "high"
 			f.Confidence = 0.9
-		} else {
+		default:
 			f.Severity = "medium"
 			f.Confidence = 0.8
 		}

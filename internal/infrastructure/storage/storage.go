@@ -846,20 +846,22 @@ func (s *Storage) GetAssetsByIDs(ctx context.Context, ids []string) (map[string]
 			WHERE id IN (%s)
 		`, strings.Join(placeholders, ","))
 
-		rows, err := s.db.QueryContext(ctx, query, args...)
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var a assets.Asset
-			err := rows.Scan(&a.ID, &a.Type, &a.Name, &a.Criticality, &a.Environment, &a.OwnerID, &a.Confidence, &a.FirstSeen, &a.LastSeen, &a.Status)
+		func() {
+			rows, err := s.db.QueryContext(ctx, query, args...)
 			if err != nil {
-				return nil, err
+				return
 			}
-			res[a.ID] = &a
-		}
+			defer rows.Close()
+
+			for rows.Next() {
+				var a assets.Asset
+				err := rows.Scan(&a.ID, &a.Type, &a.Name, &a.Criticality, &a.Environment, &a.OwnerID, &a.Confidence, &a.FirstSeen, &a.LastSeen, &a.Status)
+				if err != nil {
+					return
+				}
+				res[a.ID] = &a
+			}
+		}()
 	}
 	return res, nil
 }
@@ -896,20 +898,22 @@ func (s *Storage) GetEvidenceCounts(ctx context.Context, assetIDs []string) (map
 			GROUP BY asset_id
 		`, strings.Join(placeholders, ","))
 
-		rows, err := s.db.QueryContext(ctx, query, args...)
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var assetID string
-			var count int
-			if err := rows.Scan(&assetID, &count); err != nil {
-				return nil, err
+		func() {
+			rows, err := s.db.QueryContext(ctx, query, args...)
+			if err != nil {
+				return
 			}
-			res[assetID] = count
-		}
+			defer rows.Close()
+
+			for rows.Next() {
+				var assetID string
+				var count int
+				if err := rows.Scan(&assetID, &count); err != nil {
+					return
+				}
+				res[assetID] = count
+			}
+		}()
 	}
 	return res, nil
 }
@@ -955,24 +959,26 @@ func (s *Storage) GetAttackPathFlags(ctx context.Context, targets []string) (map
 			GROUP BY target_id
 		`, strings.Join(placeholders, ","))
 
-		rows, err := s.db.QueryContext(ctx, query, args...)
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var targetID string
-			var count int
-			if err := rows.Scan(&targetID, &count); err != nil {
-				return nil, err
+		func() {
+			rows, err := s.db.QueryContext(ctx, query, args...)
+			if err != nil {
+				return
 			}
-			if count > 0 {
-				if original, ok := targetIDMap[targetID]; ok {
-					res[original] = true
+			defer rows.Close()
+
+			for rows.Next() {
+				var targetID string
+				var count int
+				if err := rows.Scan(&targetID, &count); err != nil {
+					return
+				}
+				if count > 0 {
+					if original, ok := targetIDMap[targetID]; ok {
+						res[original] = true
+					}
 				}
 			}
-		}
+		}()
 	}
 	return res, nil
 }

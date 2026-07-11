@@ -163,11 +163,6 @@ func (pl *ProgramLoader) fetchHackerOne(handle string) (*ProgramProfile, error) 
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("hackerone api structured scopes request returned status %d", resp.StatusCode)
-		}
 
 		var scopeResp struct {
 			Data []struct {
@@ -184,8 +179,10 @@ func (pl *ProgramLoader) fetchHackerOne(handle string) (*ProgramProfile, error) 
 		}
 
 		if err := json.NewDecoder(resp.Body).Decode(&scopeResp); err != nil {
+			_ = resp.Body.Close()
 			return nil, err
 		}
+		_ = resp.Body.Close()
 
 		for _, item := range scopeResp.Data {
 			assetType := strings.ToUpper(item.Attributes.AssetType)

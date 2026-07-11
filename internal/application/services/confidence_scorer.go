@@ -60,7 +60,6 @@ func ScoreEvent(ev Event) int {
 				case "low":
 					score += 5
 				}
-
 			}
 		}
 	case "gau":
@@ -143,11 +142,12 @@ func ScoreEvent(ev Event) int {
 				}
 			}
 
-			if corroborationWeight >= 3 {
+			switch {
+			case corroborationWeight >= 3:
 				score += 20
-			} else if corroborationWeight >= 2 {
+			case corroborationWeight >= 2:
 				score += 12
-			} else if corroborationWeight >= 1 {
+			case corroborationWeight >= 1:
 				score += 5
 			}
 		} else {
@@ -158,10 +158,10 @@ func ScoreEvent(ev Event) int {
 	}
 
 	if ev.Properties != nil {
-		if ncVal, ok := ev.Properties["nuclei_confidence"]; ok && strings.ToLower(ncVal) == "confirmed" {
+		if ncVal, ok := ev.Properties["nuclei_confidence"]; ok && strings.EqualFold(ncVal, "confirmed") {
 			score += 15
 		}
-		if nsVal, ok := ev.Properties["nuclei_severity"]; ok && strings.ToLower(nsVal) == "info" {
+		if nsVal, ok := ev.Properties["nuclei_severity"]; ok && strings.EqualFold(nsVal, "info") {
 			score += -10
 		}
 	}

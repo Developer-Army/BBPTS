@@ -165,7 +165,7 @@ func callAnthropicRaw(ctx context.Context, prompt, model, apiURL, apiKey string)
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Anthropic API returned status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("anthropic API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var parsed struct {
@@ -246,7 +246,7 @@ func callGeminiRaw(ctx context.Context, prompt, model, apiKey string) (string, e
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Gemini API returned status %d: %s", resp.StatusCode, string(body))
+		return "", fmt.Errorf("gemini API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	type Candidate struct {

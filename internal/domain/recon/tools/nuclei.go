@@ -286,7 +286,7 @@ http:
           - "default password"
           - "admin"
           - "%s"
-`, slug, strings.Title(tech), slug, tech)
+`, slug, strings.ToUpper(tech[:1])+tech[1:], slug, tech)
 		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			continue
 		}

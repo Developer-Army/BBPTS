@@ -67,9 +67,10 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 		}
 		pathLower := strings.ToLower(parsedTarget.Path)
 		var mapURLs []string
-		if strings.HasSuffix(pathLower, ".map") {
+		switch {
+		case strings.HasSuffix(pathLower, ".map"):
 			mapURLs = append(mapURLs, target)
-		} else if strings.HasSuffix(pathLower, ".js") {
+		case strings.HasSuffix(pathLower, ".js"):
 
 			mapURLObj := *parsedTarget
 			mapURLObj.Path = parsedTarget.Path + ".map"
@@ -104,8 +105,7 @@ func (t *SourceMapTool) Run(ctx context.Context, scanCtx *recon.ScanContext, tar
 					}
 				}
 			}
-		} else {
-
+		default:
 			return nil, nil
 		}
 

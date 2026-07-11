@@ -219,11 +219,12 @@ func (e *Escalator) resolveEscalationRecipient(oa storage.OverdueAssignment, del
 	}
 
 	steps := 0
-	if delayDays >= 10 {
+	switch {
+	case delayDays >= 10:
 		steps = 3
-	} else if delayDays >= 5 {
+	case delayDays >= 5:
 		steps = 2
-	} else if delayDays > 0 {
+	case delayDays > 0:
 		steps = 1
 	}
 

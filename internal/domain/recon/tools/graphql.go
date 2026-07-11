@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httputil"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -255,7 +256,7 @@ func (g *GraphQLScanner) testEndpoint(ctx context.Context, url string) (bool, *I
 		method  string
 		payload string
 	}{
-		{"standard_post", http.MethodPost, fmt.Sprintf(`{"query":"%s"}`, introspectionQuery)},
+		{"standard_post", http.MethodPost, fmt.Sprintf(`{"query":%s}`, strconv.Quote(introspectionQuery))},
 		{"suggestion_probe", http.MethodPost, suggestionProbe},
 		{"alias_bypass", http.MethodPost, aliasBypassQuery},
 		{"get_introspection", http.MethodGet, ""},
@@ -547,9 +548,12 @@ func (g *GraphQLScanner) checkIDOR(ctx context.Context, endpoint string, queryTy
 		if err != nil {
 			return false, "", err
 		}
-		defer resp.Body.Close()
 
-		respBody, err := io.ReadAll(io.LimitReader(resp.Body, 100*1024))
+		var respBody []byte
+		func() {
+			defer resp.Body.Close()
+			respBody, err = io.ReadAll(io.LimitReader(resp.Body, 100*1024))
+		}()
 		if err != nil {
 			return false, "", err
 		}
@@ -561,7 +565,7 @@ func (g *GraphQLScanner) checkIDOR(ctx context.Context, endpoint string, queryTy
 			} `json:"errors"`
 		}
 		if err := json.Unmarshal(respBody, &respJSON); err != nil {
-			continue
+			return false, "", err
 		}
 
 		hasAuthError := false

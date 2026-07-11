@@ -216,7 +216,7 @@ func calculateExposure(node storage.AssetNode) float64 {
 }
 
 func calculateAttackability(nodeID string, outgoing map[string][]string, nodeMap map[string]storage.AssetNode) (float64, []string) {
-	var score float64 = 30.0
+	var score = 30.0
 	var why []string
 
 	for _, targetID := range outgoing[nodeID] {

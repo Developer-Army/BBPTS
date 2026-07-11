@@ -272,7 +272,7 @@ func (a *API) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 
 	if incoming.Fleet.SyncToken != "" && incoming.Fleet.SyncToken != redactPlaceholder {
 		for _, r := range incoming.Fleet.SyncToken {
-			if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+			if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' && r != '_' {
 				respondWithError(w, http.StatusBadRequest, "invalid characters in fleet sync token")
 				return
 			}
@@ -355,10 +355,14 @@ func (a *API) StreamLogs(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case logLine := <-logChan:
-			fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(logLine, "\n", "\ndata: "))
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", strings.ReplaceAll(logLine, "\n", "\ndata: ")); err != nil {
+				return
+			}
 			flusher.Flush()
 		case <-ticker.C:
-			fmt.Fprintf(w, ": keepalive\n\n")
+			if _, err := fmt.Fprintf(w, ": keepalive\n\n"); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}
@@ -976,7 +980,9 @@ func (a *API) StreamEventsv2(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-ticker.C:
-			fmt.Fprintf(w, "event: scan_event\ndata: {\"type\":\"log\",\"message\":\"SSE live feed heartbeat\"}\n\n")
+			if _, err := fmt.Fprintf(w, "event: scan_event\ndata: {\"type\":\"log\",\"message\":\"SSE live feed heartbeat\"}\n\n"); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}

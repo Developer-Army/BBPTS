@@ -25,7 +25,7 @@ var SecretPatterns = []SecretPattern{
 	{Name: "AWS Secret Access Key", Severity: "critical", Pattern: regexp.MustCompile(`(?i)(?:aws_secret_access_key|aws_secret|secret_key)\s*[=:]\s*['"]?([A-Za-z0-9/+=]{40})['"]?`)},
 
 	{Name: "Google API Key", Severity: "high", Pattern: regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`)},
-	{Name: "Google OAuth Client Secret", Severity: "high", Pattern: regexp.MustCompile(`(?i)client_secret.*?['"]([\\w\\-]+)['"]`)},
+	{Name: "Google OAuth Client Secret", Severity: "high", Pattern: regexp.MustCompile(`(?i)client_secret.*?['"]([\w\-]+)['"]`)},
 
 	{Name: "GitHub Personal Access Token", Severity: "critical", Pattern: regexp.MustCompile(`ghp_[0-9a-zA-Z]{36}`)},
 	{Name: "GitHub OAuth Access Token", Severity: "critical", Pattern: regexp.MustCompile(`gho_[0-9a-zA-Z]{36}`)},

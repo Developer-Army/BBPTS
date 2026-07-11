@@ -53,7 +53,8 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 		}
 
 		if attempt < 3 {
-			time.Sleep(time.Duration(1<<uint(attempt-1)) * 250 * time.Millisecond)
+			delays := []time.Duration{250 * time.Millisecond, 500 * time.Millisecond}
+			time.Sleep(delays[attempt-1])
 		}
 	}
 	return nil, lastErr

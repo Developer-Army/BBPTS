@@ -49,12 +49,12 @@ func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int)
 	debug.SetGCPercent(finalGCPercent)
 
 	var limitBytes int64
-	if maxMemoryMB > 0 {
+	switch {
+	case maxMemoryMB > 0:
 		limitBytes = int64(maxMemoryMB) * 1024 * 1024
 		debug.SetMemoryLimit(limitBytes)
 		slog.Info("Resource Guard: set Go soft memory limit", "limit_mb", maxMemoryMB, "gc_percent", finalGCPercent)
-	} else if totalMemory > 0 {
-
+	case totalMemory > 0:
 		limitBytes = int64(float64(totalMemory) * 0.85)
 		twoGB := int64(2 * 1024 * 1024 * 1024)
 		if limitBytes > twoGB {
@@ -62,8 +62,7 @@ func ApplyResourceLimits(maxCPUPercent, maxCPUCores, maxMemoryMB, gcPercent int)
 		}
 		debug.SetMemoryLimit(limitBytes)
 		slog.Info("Resource Guard: set Go soft memory limit", "limit_mb", limitBytes/(1024*1024), "gc_percent", finalGCPercent)
-	} else {
-
+	default:
 		limitBytes = 2 * 1024 * 1024 * 1024
 		debug.SetMemoryLimit(limitBytes)
 		slog.Info("Resource Guard: set fallback Go soft memory limit to 2GB", "gc_percent", finalGCPercent)

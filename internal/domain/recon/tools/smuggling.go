@@ -75,9 +75,9 @@ func (t *SmugglingTool) sendRaw(ctx context.Context, u *url.URL, payload string,
 	host := u.Host
 	if !strings.Contains(host, ":") {
 		if u.Scheme == "https" {
-			host = host + ":443"
+			host += ":443"
 		} else {
-			host = host + ":80"
+			host += ":80"
 		}
 	}
 

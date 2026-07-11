@@ -182,11 +182,12 @@ func ParseMixedNotationIP(host string) (net.IP, bool) {
 		var val uint64
 		var err error
 		partLower := strings.ToLower(part)
-		if strings.HasPrefix(partLower, "0x") {
+		switch {
+		case strings.HasPrefix(partLower, "0x"):
 			val, err = strconv.ParseUint(part[2:], 16, 64)
-		} else if strings.HasPrefix(part, "0") && len(part) > 1 {
+		case strings.HasPrefix(part, "0") && len(part) > 1:
 			val, err = strconv.ParseUint(part, 8, 64)
-		} else {
+		default:
 			val, err = strconv.ParseUint(part, 10, 64)
 		}
 		if err != nil {
@@ -443,7 +444,7 @@ func isInternalURL(urlStr string) bool {
 	}
 
 	host := parsed.Hostname()
-	if strings.ToLower(host) == "localhost" {
+	if strings.EqualFold(host, "localhost") {
 		return true
 	}
 

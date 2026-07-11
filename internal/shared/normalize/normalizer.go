@@ -69,7 +69,7 @@ func IsValidDomain(host string) bool {
 			return false
 		}
 		for _, char := range part {
-			if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-') {
+			if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') && (char < '0' || char > '9') && char != '-' {
 				return false
 			}
 		}

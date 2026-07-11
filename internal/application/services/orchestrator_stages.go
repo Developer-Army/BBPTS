@@ -131,7 +131,8 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 				})
 			}()
 
-			if o.config.Fleet.WorkerMesh && o.bus != nil {
+			switch {
+			case o.config.Fleet.WorkerMesh && o.bus != nil:
 				capability := stageCapability(GetToolStage(tool.Name()))
 				if capability != "" {
 					slog.Debug("dispatching stage task via NATS worker mesh", "stage", GetToolStage(tool.Name()), "capability", capability, "targets", len(toolTargets))
@@ -140,7 +141,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 					slog.Debug("executing tool via NATS worker mesh", "tool", tool.Name(), "targets", len(toolTargets))
 					events, err = o.dispatchToWorkerMesh(toolCtx, tool.Name(), toolTargets, toolThreads)
 				}
-			} else if o.fleetRunner != nil {
+			case o.fleetRunner != nil:
 				slog.Debug("executing tool via axiom fleet", "tool", tool.Name(), "targets", len(toolTargets))
 				lines, runErr := o.fleetRunner.RunTool(toolCtx, tool.Name(), toolTargets, nil)
 				if runErr != nil {
@@ -148,7 +149,7 @@ func (o *Orchestrator) runStage(ctx context.Context, tools []Tool, targets []str
 				} else {
 					events = NewEventsFromLines(lines, tool.Name(), nil)
 				}
-			} else {
+			default:
 				if o.cache != nil && !recon.DryRunFromCtx(toolCtx) {
 					if entry, ok := o.cache.Get(tool.Name(), toolTargets, toolThreads); ok {
 						slog.Debug("cache hit", "tool", tool.Name(), "events", len(entry.Events))

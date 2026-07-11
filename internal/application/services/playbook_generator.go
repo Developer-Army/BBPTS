@@ -40,11 +40,13 @@ func (pg *PlaybookGenerator) Generate(target string, techStack []string, endpoin
 		TechStack:   techStack,
 	}
 
-	p.Sessions = append(p.Sessions, pg.authSession(target, techStack, findings))
-	p.Sessions = append(p.Sessions, pg.idorSession(target, endpoints))
-	p.Sessions = append(p.Sessions, pg.injectionSession(target, techStack))
-	p.Sessions = append(p.Sessions, pg.businessLogicSession(target, endpoints))
-	p.Sessions = append(p.Sessions, pg.misconfigSession(target, techStack))
+	p.Sessions = append(p.Sessions,
+		pg.authSession(target, techStack, findings),
+		pg.idorSession(target, endpoints),
+		pg.injectionSession(target, techStack),
+		pg.businessLogicSession(target, endpoints),
+		pg.misconfigSession(target, techStack),
+	)
 
 	p.Summary = pg.generateSummary(p)
 	return p
@@ -56,38 +58,52 @@ func (pg *PlaybookGenerator) authSession(target string, techStack []string, _ []
 		Duration: "30 min",
 	}
 
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   fmt.Sprintf("Test JWT configuration on %s/api/auth/me", target),
-		Tool:     "jwt_analyzer",
-		Expected: "401 if properly validated, 200 with weak config",
-		Priority: "high",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test for alg:none JWT bypass",
-		Expected: "Token accepted with none algorithm = critical finding",
-		Priority: "high",
-	})
+	session.Steps = append(session.Steps,
+		PlaybookStep{
+			Action:   fmt.Sprintf("Test JWT configuration on %s/api/auth/me", target),
+			Tool:     "jwt_analyzer",
+			Expected: "401 if properly validated, 200 with weak config",
+			Priority: "high",
+		},
+		PlaybookStep{
+			Action:   "Test for alg:none JWT bypass",
+			Expected: "Token accepted with none algorithm = critical finding",
+			Priority: "high",
+		},
+	)
 
 	if containsTech(techStack, "oauth") || containsTech(techStack, "cognito") {
-		session.Steps = append(session.Steps, PlaybookStep{
-			Action:   "Test OAuth state parameter bypass",
-			Expected: "CSRF on account linking if state not validated",
-			Priority: "high",
-		})
+		session.Steps = append(session.Steps,
+			PlaybookStep{
+				Action:   "Test OAuth state parameter bypass",
+				Expected: "CSRF on account linking if state not validated",
+				Priority: "high",
+			},
+			PlaybookStep{
+				Action:   "Test password reset flow for account enumeration",
+				Expected: "Different responses for valid vs invalid emails",
+				Priority: "medium",
+			},
+			PlaybookStep{
+				Action:   "Test session fixation - does session ID change after login?",
+				Expected: "New session ID after authentication",
+				Priority: "medium",
+			},
+		)
+	} else {
+		session.Steps = append(session.Steps,
+			PlaybookStep{
+				Action:   "Test password reset flow for account enumeration",
+				Expected: "Different responses for valid vs invalid emails",
+				Priority: "medium",
+			},
+			PlaybookStep{
+				Action:   "Test session fixation - does session ID change after login?",
+				Expected: "New session ID after authentication",
+				Priority: "medium",
+			},
+		)
 	}
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test password reset flow for account enumeration",
-		Expected: "Different responses for valid vs invalid emails",
-		Priority: "medium",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test session fixation - does session ID change after login?",
-		Expected: "New session ID after authentication",
-		Priority: "medium",
-	})
 
 	return session
 }
@@ -115,17 +131,18 @@ func (pg *PlaybookGenerator) idorSession(_ string, endpoints []string) PlaybookS
 		}
 	}
 
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test IDOR via UUID/sequential ID manipulation",
-		Expected: "Increment IDs: /api/users/1001 -> /api/users/1002",
-		Priority: "high",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test horizontal privilege escalation on admin endpoints",
-		Expected: "Non-admin accessing /admin/* paths",
-		Priority: "high",
-	})
+	session.Steps = append(session.Steps,
+		PlaybookStep{
+			Action:   "Test IDOR via UUID/sequential ID manipulation",
+			Expected: "Increment IDs: /api/users/1001 -> /api/users/1002",
+			Priority: "high",
+		},
+		PlaybookStep{
+			Action:   "Test horizontal privilege escalation on admin endpoints",
+			Expected: "Non-admin accessing /admin/* paths",
+			Priority: "high",
+		},
+	)
 
 	return session
 }
@@ -136,43 +153,26 @@ func (pg *PlaybookGenerator) injectionSession(_ string, techStack []string) Play
 		Duration: "30 min",
 	}
 
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test all input fields for reflected XSS",
-		Tool:     "dalfox",
-		Expected: "Payload reflected in response without sanitization",
-		Priority: "high",
-	})
-
-	if containsTech(techStack, "mongodb") || containsTech(techStack, "nosql") {
-		session.Steps = append(session.Steps, PlaybookStep{
-			Action:   "Test NoSQL injection on all POST endpoints",
-			Expected: `{"$gt":""} bypasses authentication`,
+	session.Steps = append(session.Steps,
+		PlaybookStep{
+			Action:   "Test all input fields for reflected XSS",
+			Tool:     "dalfox",
+			Expected: "Payload reflected in response without sanitization",
 			Priority: "high",
-		})
-	}
-
-	if containsTech(techStack, "mysql") || containsTech(techStack, "postgresql") {
-		session.Steps = append(session.Steps, PlaybookStep{
-			Action:   "Test SQL injection on search/query parameters",
-			Tool:     "sqlmap",
-			Expected: "Time-based blind: waitfor delay '0:0:5'--",
+		},
+		PlaybookStep{
+			Action:   "Test SSTI on any template rendering endpoints",
+			Tool:     "blind_inject",
+			Expected: "{{7*7}} renders as 49 = SSTI confirmed",
+			Priority: "medium",
+		},
+		PlaybookStep{
+			Action:   "Test SSRF via URL parameters and webhooks",
+			Tool:     "ssrf",
+			Expected: "Internal service access via crafted URL",
 			Priority: "high",
-		})
-	}
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test SSTI on any template rendering endpoints",
-		Tool:     "blind_inject",
-		Expected: "{{7*7}} renders as 49 = SSTI confirmed",
-		Priority: "medium",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test SSRF via URL parameters and webhooks",
-		Tool:     "ssrf",
-		Expected: "Internal service access via crafted URL",
-		Priority: "high",
-	})
+		},
+	)
 
 	return session
 }
@@ -183,31 +183,30 @@ func (pg *PlaybookGenerator) businessLogicSession(_ string, _ []string) Playbook
 		Duration: "20 min",
 	}
 
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test negative quantity/amount on payment endpoints",
-		Tool:     "business_logic",
-		Expected: "Negative values should be rejected",
-		Priority: "high",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test coupon reuse in parallel requests",
-		Tool:     "race",
-		Expected: "Single-use coupon applied twice = race condition",
-		Priority: "high",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test step skipping in multi-step flows",
-		Expected: "Access /checkout without completing /cart",
-		Priority: "medium",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test price manipulation in checkout",
-		Expected: "Modified price accepted = critical logic flaw",
-		Priority: "high",
-	})
+	session.Steps = append(session.Steps,
+		PlaybookStep{
+			Action:   "Test negative quantity/amount on payment endpoints",
+			Tool:     "business_logic",
+			Expected: "Negative values should be rejected",
+			Priority: "high",
+		},
+		PlaybookStep{
+			Action:   "Test coupon reuse in parallel requests",
+			Tool:     "race",
+			Expected: "Single-use coupon applied twice = race condition",
+			Priority: "high",
+		},
+		PlaybookStep{
+			Action:   "Test step skipping in multi-step flows",
+			Expected: "Access /checkout without completing /cart",
+			Priority: "medium",
+		},
+		PlaybookStep{
+			Action:   "Test price manipulation in checkout",
+			Expected: "Modified price accepted = critical logic flaw",
+			Priority: "high",
+		},
+	)
 
 	return session
 }
@@ -218,18 +217,19 @@ func (pg *PlaybookGenerator) misconfigSession(_ string, techStack []string) Play
 		Duration: "15 min",
 	}
 
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Check for exposed admin panels",
-		Tool:     "nuclei",
-		Expected: "/admin, /dashboard accessible without auth",
-		Priority: "high",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Check for exposed debug/stack traces",
-		Expected: "Debug mode enabled in production",
-		Priority: "medium",
-	})
+	session.Steps = append(session.Steps,
+		PlaybookStep{
+			Action:   "Check for exposed admin panels",
+			Tool:     "nuclei",
+			Expected: "/admin, /dashboard accessible without auth",
+			Priority: "high",
+		},
+		PlaybookStep{
+			Action:   "Check for exposed debug/stack traces",
+			Expected: "Debug mode enabled in production",
+			Priority: "medium",
+		},
+	)
 
 	if containsTech(techStack, "spring") {
 		session.Steps = append(session.Steps, PlaybookStep{
@@ -239,19 +239,20 @@ func (pg *PlaybookGenerator) misconfigSession(_ string, techStack []string) Play
 		})
 	}
 
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Test CORS configuration",
-		Tool:     "cors",
-		Expected: "Origin reflection with credentials = medium",
-		Priority: "medium",
-	})
-
-	session.Steps = append(session.Steps, PlaybookStep{
-		Action:   "Check for exposed .env and config files",
-		Tool:     "nuclei",
-		Expected: "Credentials in .env or config files",
-		Priority: "high",
-	})
+	session.Steps = append(session.Steps,
+		PlaybookStep{
+			Action:   "Test CORS configuration",
+			Tool:     "cors",
+			Expected: "Origin reflection with credentials = medium",
+			Priority: "medium",
+		},
+		PlaybookStep{
+			Action:   "Check for exposed .env and config files",
+			Tool:     "nuclei",
+			Expected: "Credentials in .env or config files",
+			Priority: "high",
+		},
+	)
 
 	return session
 }

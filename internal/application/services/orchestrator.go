@@ -231,8 +231,8 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 	if o.config.LoginURL != "" {
 		if session := o.performLogin(o.config.LoginURL, o.config.LoginUser, o.config.LoginPass, o.config.LoginFormUser, o.config.LoginFormPass); session != nil {
 			existing := recon.AuthSessionsFromCtx(ctx)
-			sessions := append(existing, *session)
-			ctx = recon.WithAuthSessions(ctx, sessions)
+			existing = append(existing, *session)
+			ctx = recon.WithAuthSessions(ctx, existing)
 		}
 	}
 
@@ -278,12 +278,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			currentTargets = o.config.Checkpoint.CurrentTargets
 		}
 		for _, ev := range o.config.Checkpoint.Events {
-			allEvents = append(allEvents, Event{
-				Target:     ev.Target,
-				Source:     ev.Source,
-				Type:       ev.Type,
-				Properties: ev.Properties,
-			})
+			allEvents = append(allEvents, Event(ev))
 		}
 		slog.Info("Resuming orchestrator execution from checkpoint",
 			"completed_stages", o.config.Checkpoint.CompletedStages,
@@ -394,8 +389,8 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			}
 		}
 
-		nextTargets := append(currentTargets, extractTargets(events)...)
-		normalizedTargets := normalize.DeduplicateAndPreserveURLs(nextTargets)
+		currentTargets = append(currentTargets, extractTargets(events)...)
+		normalizedTargets := normalize.DeduplicateAndPreserveURLs(currentTargets)
 		currentTargets = scopeGuard.Filter(normalizedTargets)
 
 		if stageNum == 2 {
@@ -502,12 +497,7 @@ func (o *Orchestrator) Run(ctx context.Context, initialTargets []string) ([]Even
 			o.config.Checkpoint.CurrentTargets = currentTargets
 			checkpointEvents := make([]recon.Event, len(allEvents))
 			for idx, ev := range allEvents {
-				checkpointEvents[idx] = recon.Event{
-					Target:     ev.Target,
-					Source:     ev.Source,
-					Type:       ev.Type,
-					Properties: ev.Properties,
-				}
+				checkpointEvents[idx] = recon.Event(ev)
 			}
 			o.config.Checkpoint.Events = checkpointEvents
 			o.config.Checkpoint.Mu.Unlock()

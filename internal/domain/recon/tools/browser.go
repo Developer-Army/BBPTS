@@ -63,7 +63,7 @@ func NewStealthBrowser(proxy string) (*StealthBrowser, error) {
 
 func (sb *StealthBrowser) Close() error {
 	if sb.browser != nil {
-		sb.browser.Close()
+		_ = sb.browser.Close()
 	}
 	if sb.pw != nil {
 		return sb.pw.Stop()
@@ -132,7 +132,7 @@ func (sb *StealthBrowser) NewPage() (playwright.Page, playwright.BrowserContext,
 
 	page, err := context.NewPage()
 	if err != nil {
-		context.Close()
+		_ = context.Close()
 		return nil, nil, fmt.Errorf("could not create page: %w", err)
 	}
 

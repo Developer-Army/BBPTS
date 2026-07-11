@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -109,7 +110,7 @@ func TestProgramLoader_HackerOne(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read scope file: %v", err)
 	}
-	if !filepath.HasPrefix(string(scopeData), "# BBPTS scope file") {
+	if !strings.HasPrefix(string(scopeData), "# BBPTS scope file") {
 		t.Errorf("scope file has invalid prefix")
 	}
 }

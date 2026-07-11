@@ -150,22 +150,23 @@ func mapSubject(subject string) string {
 	}
 
 	var mapped string
-	if subject == "system.worker.heartbeat" {
+	switch {
+	case subject == "system.worker.heartbeat":
 		mapped = "worker.heartbeat"
-	} else if subject == "task.complete" {
+	case subject == "task.complete":
 		mapped = "worker.complete"
-	} else if strings.HasPrefix(subject, "task.") {
+	case strings.HasPrefix(subject, "task."):
 		mapped = "worker." + strings.TrimPrefix(subject, "task.")
-	} else if strings.HasPrefix(subject, "system.") {
+	case strings.HasPrefix(subject, "system."):
 		mapped = "worker." + strings.TrimPrefix(subject, "system.")
-	} else if strings.HasPrefix(subject, "event.") {
+	case strings.HasPrefix(subject, "event."):
 		toolName := strings.TrimPrefix(subject, "event.")
 		if toolName == "nuclei" || toolName == "dalfox" || toolName == "vuln" {
 			mapped = "scan." + toolName
 		} else {
 			mapped = "recon." + toolName
 		}
-	} else {
+	default:
 		cleanSubject := strings.ReplaceAll(subject, ".", "_")
 		mapped = "recon." + cleanSubject
 	}

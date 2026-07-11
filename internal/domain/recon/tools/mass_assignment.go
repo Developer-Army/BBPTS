@@ -86,17 +86,18 @@ func (t *MassAssignmentTool) Run(ctx context.Context, scanCtx *recon.ScanContext
 		injectedValues := make(map[string]interface{})
 		for _, key := range testKeys {
 			if _, exists := data[key]; !exists {
-
-				if strings.Contains(strings.ToLower(key), "admin") || strings.Contains(strings.ToLower(key), "verified") {
+				keyLower := strings.ToLower(key)
+				switch {
+				case strings.Contains(keyLower, "admin") || strings.Contains(keyLower, "verified"):
 					payload[key] = true
 					injectedValues[key] = true
-				} else if strings.Contains(strings.ToLower(key), "role") {
+				case strings.Contains(keyLower, "role"):
 					payload[key] = "admin"
 					injectedValues[key] = "admin"
-				} else if strings.Contains(strings.ToLower(key), "balance") || strings.Contains(strings.ToLower(key), "credits") {
+				case strings.Contains(keyLower, "balance") || strings.Contains(keyLower, "credits"):
 					payload[key] = 99999
 					injectedValues[key] = 99999
-				} else if strings.Contains(strings.ToLower(key), "tier") {
+				case strings.Contains(keyLower, "tier"):
 					payload[key] = "premium"
 					injectedValues[key] = "premium"
 				}

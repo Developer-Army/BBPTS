@@ -1,0 +1,113 @@
+version: "2"
+
+run:
+  timeout: 10m
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gocritic
+    - misspell
+    - gosec
+
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (*os.File).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (io.Closer).Close
+        - (net.Conn).Close
+        - (io.ReadCloser).Close
+        - os.Remove
+        - os.RemoveAll
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+    gosec:
+      excludes:
+        - G104 # Unhandled errors (covered by errcheck with exclusions)
+        - G304 # File inclusion via variable: all dynamic file reads are intentional
+        - G107 # HTTP request with variable URL: tool purpose requires dynamic URLs
+        - G402 # TLS InsecureSkipVerify: intentional for proxy/recon mode
+        - G404 # Weak RNG: math/rand used only for non-crypto jitter/load balancing
+        - G301 # Dir permissions 0755: output directories need to be readable
+        - G302 # File permissions 0644: log/output files need to be readable
+        - G306 # WriteFile permissions 0644: output files need to be readable
+        - G201 # SQL string formatting: uses only safe placeholder interpolation
+        - G501 # MD5 import: used only for screenshot filename hashing, not security
+        - G401 # MD5 use: used only for screenshot filename hashing, not security
+        - G101 # Potential hardcoded credentials: all are fake test fixtures
+        - G204 # Subprocess with variable: required for recon tool runner
+        - G305 # Zip traversal: guarded by filepath.Clean path prefix check
+        - G115 # Integer overflow: safe conversions in browser/hash utilities
+    govet:
+      enable-all: false
+      enable:
+        - asmdecl
+        - assign
+        - atomic
+        - bools
+        - buildtag
+        - cgocall
+        - composites
+        - copylocks
+        - defers
+        - directive
+        - errorsas
+        - framepointer
+        - httpresponse
+        - ifaceassert
+        - loopclosure
+        - lostcancel
+        - nilfunc
+        - printf
+        - shift
+        - sigchanyzer
+        - slog
+        - stdmethods
+        - stringintconv
+        - structtag
+        - testinggoroutine
+        - tests
+        - timeformat
+        - unmarshal
+        - unreachable
+        - unsafeptr
+        - unusedresult
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gocritic
+          - govet
+      - path: cmd/
+        linters:
+          - gocritic
+      - path: scripts/
+        linters:
+          - gocritic
+          - govet
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

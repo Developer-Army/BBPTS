@@ -173,7 +173,7 @@ func (pb *PooledBrowser) ReleaseContext(domain string, ctx playwright.BrowserCon
 
 	if totalContexts >= pb.maxPoolSize {
 
-		ctx.Close()
+		_ = ctx.Close()
 		slog.Debug("Closed context (pool full)", "domain", domain)
 		return
 	}
@@ -208,7 +208,7 @@ func (pb *PooledBrowser) cleanupLoop() {
 				if len(active) < 1 {
 					active = append(active, ctx)
 				} else {
-					ctx.Close()
+					_ = ctx.Close()
 				}
 			}
 			pb.contextPool[domain] = active
@@ -244,17 +244,17 @@ func (pb *PooledBrowser) Close() error {
 
 		for domain, list := range pb.contextPool {
 			for _, ctx := range list {
-				ctx.Close()
+				_ = ctx.Close()
 			}
 			delete(pb.contextPool, domain)
 		}
 		for _, ctx := range pb.globalPool {
-			ctx.Close()
+			_ = ctx.Close()
 		}
 		pb.globalPool = nil
 
 		for _, bi := range pb.browsers {
-			bi.browser.Close()
+			_ = bi.browser.Close()
 		}
 		pb.browsers = nil
 

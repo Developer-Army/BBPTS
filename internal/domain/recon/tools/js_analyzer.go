@@ -147,15 +147,16 @@ func (j *JSAnalyzer) analyzeJS(ctx context.Context, client *network.StealthClien
 			}
 			vulnName := "Exposed " + f.Name
 			nameLower := strings.ToLower(f.Name)
-			if strings.Contains(nameLower, "aws") {
+			switch {
+			case strings.Contains(nameLower, "aws"):
 				vulnName += " (aws_key)"
-			} else if strings.Contains(nameLower, "slack") {
+			case strings.Contains(nameLower, "slack"):
 				vulnName += " (slack_token)"
-			} else if strings.Contains(nameLower, "google") {
+			case strings.Contains(nameLower, "google"):
 				vulnName += " (google_api)"
-			} else if strings.Contains(nameLower, "github") {
+			case strings.Contains(nameLower, "github"):
 				vulnName += " (github_token)"
-			} else if strings.Contains(nameLower, "stripe") {
+			case strings.Contains(nameLower, "stripe"):
 				vulnName += " (stripe_key)"
 			}
 			events = append(events, recon.NewEvent(url, j.Name(), "vulnerability", map[string]string{

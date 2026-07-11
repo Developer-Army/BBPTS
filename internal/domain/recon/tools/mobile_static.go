@@ -215,7 +215,7 @@ func (t *MobileStaticTool) analyzeRemote(ctx context.Context, scanCtx *recon.Sca
 	if bytes.Equal(buf, []byte("PK")) {
 		r, err := zip.OpenReader(tmpFile)
 		if err == nil {
-			defer r.Close()
+			defer func() { _ = r.Close() }()
 			if err := extractZipStream(&r.Reader, tmpDir); err == nil {
 				return t.scanExtractedDir(scanCtx, tmpDir, appURL)
 			}
@@ -442,7 +442,8 @@ func extractZipStream(r *zip.Reader, dest string) error {
 			outFile.Close()
 			return err
 		}
-		if _, err := io.Copy(outFile, rc); err != nil {
+		// Limit decompression to 50MB per file to prevent decompression bombs
+		if _, err := io.Copy(outFile, io.LimitReader(rc, 50*1024*1024)); err != nil {
 			rc.Close()
 			outFile.Close()
 			return err

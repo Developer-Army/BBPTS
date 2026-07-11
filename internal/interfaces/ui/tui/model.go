@@ -811,22 +811,26 @@ func (m Model) View() string {
 					configuredKeys++
 				}
 			}
-			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Git Status"), StyleGreen.Render("READY")))
-			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Playwright"), StyleGreen.Render("READY")))
-			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("API Keys"), StyleWhite.Render(fmt.Sprintf("%d / %d Loaded", configuredKeys, len(m.cfg.APIKeys)))))
-			diagLines = append(diagLines, fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Integrations"), StyleWhite.Render("Active")))
+			diagLines = append(diagLines,
+				fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Git Status"), StyleGreen.Render("READY")),
+				fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Playwright"), StyleGreen.Render("READY")),
+				fmt.Sprintf("  %-16s : %s", StyleCyan.Render("API Keys"), StyleWhite.Render(fmt.Sprintf("%d / %d Loaded", configuredKeys, len(m.cfg.APIKeys)))),
+				fmt.Sprintf("  %-16s : %s", StyleCyan.Render("Integrations"), StyleWhite.Render("Active")),
+			)
 			diagBox := renderBox("ENGINE DIAGNOSTICS", padContentLines(diagLines, 6), rightWidth, 6, ColorBorder, activeAccentColor, true)
 
 			// Help Box
 			var helpLines []string
-			helpLines = append(helpLines, "  "+StyleWhite.Bold(true).Render("Console Commands:"))
-			helpLines = append(helpLines, "    "+StyleCyan.Render("/configure")+" - Edit API keys")
-			helpLines = append(helpLines, "    "+StyleCyan.Render("/modes")+"     - Toggle presets")
-			helpLines = append(helpLines, "    "+StyleCyan.Render("/info")+"      - Engine specs")
-			helpLines = append(helpLines, "    "+StyleCyan.Render("/clear")+"     - Clear prompt")
-			helpLines = append(helpLines, "    "+StyleCyan.Render("/help")+"      - Help index")
-			helpLines = append(helpLines, "")
-			helpLines = append(helpLines, "  "+StyleComment.Render("Type target & press Enter"))
+			helpLines = append(helpLines,
+				"  "+StyleWhite.Bold(true).Render("Console Commands:"),
+				"    "+StyleCyan.Render("/configure")+" - Edit API keys",
+				"    "+StyleCyan.Render("/modes")+"     - Toggle presets",
+				"    "+StyleCyan.Render("/info")+"      - Engine specs",
+				"    "+StyleCyan.Render("/clear")+"     - Clear prompt",
+				"    "+StyleCyan.Render("/help")+"      - Help index",
+				"",
+				"  "+StyleComment.Render("Type target & press Enter"),
+			)
 			helpBox := renderBox("COMMAND DIRECTORY", padContentLines(helpLines, bodyHeight-6), rightWidth, bodyHeight-6, ColorBorder, activeAccentColor, true)
 
 			rightColumn = lipgloss.JoinVertical(lipgloss.Left, diagBox, helpBox)
@@ -834,12 +838,13 @@ func (m Model) View() string {
 
 		// Create Left Column content (Active View & Metrics)
 		var leftColumn string
-		var viewActive bool = m.configView || m.modesView || m.helpView || m.infoView
+		viewActive := m.configView || m.modesView || m.helpView || m.infoView
 
 		if viewActive {
 			// Active View occupies full height of left column
 			var innerLines []string
-			if m.configView {
+			switch {
+			case m.configView:
 				if m.configEditKey != "" {
 					var label string
 					for _, f := range configFields {
@@ -848,15 +853,19 @@ func (m Model) View() string {
 							break
 						}
 					}
-					innerLines = append(innerLines, "  "+StyleOrange.Bold(true).Render("Editing: "+label))
-					innerLines = append(innerLines, "  Enter new value (masked in display):")
-					innerLines = append(innerLines, "  "+m.textInput.View())
-					innerLines = append(innerLines, "")
-					innerLines = append(innerLines, "  "+StyleComment.Render("press Enter to confirm, Esc to go back"))
+					innerLines = append(innerLines,
+						"  "+StyleOrange.Bold(true).Render("Editing: "+label),
+						"  Enter new value (masked in display):",
+						"  "+m.textInput.View(),
+						"",
+						"  "+StyleComment.Render("press Enter to confirm, Esc to go back"),
+					)
 				} else {
-					innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Configuration Editor"))
-					innerLines = append(innerLines, "  "+StyleComment.Render("Config path: "+m.configPath))
-					innerLines = append(innerLines, "")
+					innerLines = append(innerLines,
+						"  "+StyleCyan.Bold(true).Render("BBPTS Configuration Editor"),
+						"  "+StyleComment.Render("Config path: "+m.configPath),
+						"",
+					)
 
 					for i, field := range configFields {
 						var val string
@@ -882,59 +891,68 @@ func (m Model) View() string {
 						}
 						innerLines = append(innerLines, fmt.Sprintf("  %2d. %-24s : %s", i+1, StyleCyan.Render(field.Label), StyleWhite.Render(masked)))
 					}
-					innerLines = append(innerLines, "")
-					innerLines = append(innerLines, "  "+m.textInput.View())
-					innerLines = append(innerLines, "")
-					innerLines = append(innerLines, "  "+StyleComment.Render(fmt.Sprintf("commands: save | back | enter 1-%d to edit", len(configFields))))
+					innerLines = append(innerLines,
+						"",
+						"  "+m.textInput.View(),
+						"",
+						"  "+StyleComment.Render(fmt.Sprintf("commands: save | back | enter 1-%d to edit", len(configFields))),
+					)
 				}
-			} else if m.modesView {
-				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Scan Mode Configuration"))
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  Choose a reconnaissance intensity level:")
-				innerLines = append(innerLines, "    1. NORMAL MODE - Comprehensive active scan (all enabled tools)")
-				innerLines = append(innerLines, "    2. LIGHT MODE  - Fast stealthy scan (passive only, skips active fuzzing)")
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  Current Selection: "+activeAccentStyle.Bold(true).Render(strings.ToUpper(m.targetMode)))
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  "+StyleComment.Render("Type 1 or 2 to select, 'back' to return"))
-			} else if m.helpView {
-				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Help & Command Directory"))
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  Available CLI commands:")
-				innerLines = append(innerLines, "    /configure  - Edit API keys and webhook settings")
-				innerLines = append(innerLines, "    /modes      - Configure scanning mode (Normal / Light)")
-				innerLines = append(innerLines, "    /info       - Show engine information and settings status")
-				innerLines = append(innerLines, "    /clear      - Clear prompt history")
-				innerLines = append(innerLines, "    /help       - Display this help directory")
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  "+StyleComment.Render("Type 'back' or press Esc to return to target input"))
-			} else if m.infoView {
+			case m.modesView:
+				innerLines = append(innerLines,
+					"  "+StyleCyan.Bold(true).Render("BBPTS Scan Mode Configuration"),
+					"",
+					"  Choose a reconnaissance intensity level:",
+					"    1. NORMAL MODE - Comprehensive active scan (all enabled tools)",
+					"    2. LIGHT MODE  - Fast stealthy scan (passive only, skips active fuzzing)",
+					"",
+					"  Current Selection: "+activeAccentStyle.Bold(true).Render(strings.ToUpper(m.targetMode)),
+					"",
+					"  "+StyleComment.Render("Type 1 or 2 to select, 'back' to return"),
+				)
+			case m.helpView:
+				innerLines = append(innerLines,
+					"  "+StyleCyan.Bold(true).Render("BBPTS Help & Command Directory"),
+					"",
+					"  Available CLI commands:",
+					"    /configure  - Edit API keys and webhook settings",
+					"    /modes      - Configure scanning mode (Normal / Light)",
+					"    /info       - Show engine information and settings status",
+					"    /clear      - Clear prompt history",
+					"    /help       - Display this help directory",
+					"",
+					"  "+StyleComment.Render("Type 'back' or press Esc to return to target input"),
+				)
+			case m.infoView:
 				configuredKeys := 0
 				for _, key := range m.cfg.APIKeys {
 					if key != "" {
 						configuredKeys++
 					}
 				}
-				innerLines = append(innerLines, "  "+StyleCyan.Bold(true).Render("BBPTS Engine Specifications"))
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "    Version:         v1.5.0 (Go 1.26.0)")
-				innerLines = append(innerLines, "    Preset Profile:  medium (default)")
-				innerLines = append(innerLines, fmt.Sprintf("    API Keys:        %d / %d configured", configuredKeys, len(m.cfg.APIKeys)))
-				innerLines = append(innerLines, fmt.Sprintf("    CPU Alloc Limit: %d%% cap", m.cfg.ResourceLimits.MaxCPUPercent))
-				innerLines = append(innerLines, fmt.Sprintf("    Memory Limit:    %d MB cap", m.cfg.ResourceLimits.MaxMemoryMB))
-				innerLines = append(innerLines, "    Database State:  Active (SQLite)")
-				innerLines = append(innerLines, "")
-				innerLines = append(innerLines, "  "+StyleComment.Render("Type 'back' or press Esc to return"))
+				innerLines = append(innerLines,
+					"  "+StyleCyan.Bold(true).Render("BBPTS Engine Specifications"),
+					"",
+					"    Version:         v1.5.0 (Go 1.26.0)",
+					"    Preset Profile:  medium (default)",
+					fmt.Sprintf("    API Keys:        %d / %d configured", configuredKeys, len(m.cfg.APIKeys)),
+					fmt.Sprintf("    CPU Alloc Limit: %d%% cap", m.cfg.ResourceLimits.MaxCPUPercent),
+					fmt.Sprintf("    Memory Limit:    %d MB cap", m.cfg.ResourceLimits.MaxMemoryMB),
+					"    Database State:  Active (SQLite)",
+					"",
+					"  "+StyleComment.Render("Type 'back' or press Esc to return"),
+				)
 			}
 
 			consoleBox := renderBox("ACTIVE VIEW CONSOLE", padContentLines(innerLines, bodyHeight), leftWidth, bodyHeight, ColorBorder, activeAccentColor, true)
 			leftColumn = consoleBox
 		} else {
 			// Normal input box and system metrics stacked
-			var inputLines []string
-			inputLines = append(inputLines, "")
-			inputLines = append(inputLines, "  "+StyleWhite.Bold(true).Render("ENTER SCAN TARGET (Domain, IP, CIDR, or File):"))
-			inputLines = append(inputLines, "  "+m.textInput.View())
+			inputLines := []string{
+				"",
+				"  " + StyleWhite.Bold(true).Render("ENTER SCAN TARGET (Domain, IP, CIDR, or File):"),
+				"  " + m.textInput.View(),
+			}
 			if m.inputErrorMessage != "" {
 				inputLines = append(inputLines, "  "+StyleRed.Render(m.inputErrorMessage))
 			}
@@ -954,8 +972,7 @@ func (m Model) View() string {
 			}
 			consoleBox := renderBox("COMMAND & TARGET CONSOLE", padContentLines(inputLines, inputBoxHeight), leftWidth, inputBoxHeight, ColorBorder, activeAccentColor, true)
 
-			var metricsLines []string
-			metricsLines = append(metricsLines, "")
+			metricsLines := []string{""}
 			padLabel := func(label string, value string, valueStyle lipgloss.Style) string {
 				padding := 20 - len(label)
 				if padding < 0 {
@@ -963,10 +980,12 @@ func (m Model) View() string {
 				}
 				return fmt.Sprintf(" %s%s%s", label, strings.Repeat(" ", padding), valueStyle.Render(value))
 			}
-			metricsLines = append(metricsLines, padLabel("CPU SOFT CAP:", fmt.Sprintf("%d%% (%d Cores)", m.cfg.ResourceLimits.MaxCPUPercent, m.cfg.ResourceLimits.MaxCPUCores), StyleWhite))
-			metricsLines = append(metricsLines, padLabel("RAM ALLOC CAP:", fmt.Sprintf("%d MB Soft Limit", m.cfg.ResourceLimits.MaxMemoryMB), StyleWhite))
-			metricsLines = append(metricsLines, padLabel("DATABASE STATE:", "SQLite 3 (Connected)", StyleWhite))
-			metricsLines = append(metricsLines, padLabel("ENGINE TUNING:", "Optimal thread scheduling", StyleWhite))
+			metricsLines = append(metricsLines,
+				padLabel("CPU SOFT CAP:", fmt.Sprintf("%d%% (%d Cores)", m.cfg.ResourceLimits.MaxCPUPercent, m.cfg.ResourceLimits.MaxCPUCores), StyleWhite),
+				padLabel("RAM ALLOC CAP:", fmt.Sprintf("%d MB Soft Limit", m.cfg.ResourceLimits.MaxMemoryMB), StyleWhite),
+				padLabel("DATABASE STATE:", "SQLite 3 (Connected)", StyleWhite),
+				padLabel("ENGINE TUNING:", "Optimal thread scheduling", StyleWhite),
+			)
 
 			metricsBox := renderBox("SYSTEM RUNTIME METRICS & SPECIFICATIONS", padContentLines(metricsLines, bodyHeight-6), leftWidth, bodyHeight-6, ColorBorder, activeAccentColor, true)
 
@@ -1002,14 +1021,8 @@ func (m Model) View() string {
 		availWidth = 80
 	}
 
-	var leftWidth, rightWidth int
-	if m.width >= 80 {
-		leftWidth = (m.width - 2) / 2
-		rightWidth = (m.width - 2) - leftWidth
-	} else {
-		leftWidth = (m.width - 2) / 2
-		rightWidth = (m.width - 2) - leftWidth
-	}
+	leftWidth := (m.width - 2) / 2
+	rightWidth := (m.width - 2) - leftWidth
 
 	usableHeight := m.height - 2
 	if usableHeight < 10 {
@@ -1019,7 +1032,8 @@ func (m Model) View() string {
 	var topBoxHeight, middleBoxHeight, logBoxHeight int
 	var showTargets, showLogs bool
 
-	if m.height < 18 {
+	switch {
+	case m.height < 18:
 		showTargets = false
 		showLogs = false
 		if m.width >= 80 {
@@ -1029,7 +1043,7 @@ func (m Model) View() string {
 		}
 		middleBoxHeight = 0
 		logBoxHeight = 0
-	} else if m.height < 28 {
+	case m.height < 28:
 		showTargets = true
 		showLogs = false
 		if m.width >= 80 {
@@ -1040,7 +1054,7 @@ func (m Model) View() string {
 			middleBoxHeight = usableHeight - (topBoxHeight * 2)
 		}
 		logBoxHeight = 0
-	} else {
+	default:
 		showTargets = true
 		showLogs = true
 		if m.width >= 80 {
@@ -1155,10 +1169,12 @@ func (m Model) View() string {
 
 	// Create Resource Limits Widget lines
 	var resourceLines []string
-	resourceLines = append(resourceLines, padLabel("CPU UTILIZATION CAP:", fmt.Sprintf("%d%% Max limit", m.cfg.ResourceLimits.MaxCPUPercent), StyleWhite))
-	resourceLines = append(resourceLines, padLabel("GOMAXPROCS CAP:", fmt.Sprintf("%d Cores", m.cfg.ResourceLimits.MaxCPUCores), StyleWhite))
-	resourceLines = append(resourceLines, padLabel("SOFT MEMORY LIMIT:", fmt.Sprintf("%d MB", m.cfg.ResourceLimits.MaxMemoryMB), StyleWhite))
-	resourceLines = append(resourceLines, padLabel("GC TARGET METRIC:", fmt.Sprintf("%d%%", m.cfg.ResourceLimits.GCPercent), StyleWhite))
+	resourceLines = append(resourceLines,
+		padLabel("CPU UTILIZATION CAP:", fmt.Sprintf("%d%% Max limit", m.cfg.ResourceLimits.MaxCPUPercent), StyleWhite),
+		padLabel("GOMAXPROCS CAP:", fmt.Sprintf("%d Cores", m.cfg.ResourceLimits.MaxCPUCores), StyleWhite),
+		padLabel("SOFT MEMORY LIMIT:", fmt.Sprintf("%d MB", m.cfg.ResourceLimits.MaxMemoryMB), StyleWhite),
+		padLabel("GC TARGET METRIC:", fmt.Sprintf("%d%%", m.cfg.ResourceLimits.GCPercent), StyleWhite),
+	)
 	resourceContent := strings.Join(resourceLines, "\n")
 
 	var statsBox string
@@ -1196,19 +1212,20 @@ func (m Model) View() string {
 			prog = m.stages[s.num].progress
 			statusStr = fmt.Sprintf("%3d%%", int(prog*100))
 		} else {
-			if m.scanComplete {
+			switch {
+			case m.scanComplete:
 				prog = 1.0
 				statusStr = "100%"
-			} else if m.currentStage > s.num {
+			case m.currentStage > s.num:
 				prog = 1.0
 				statusStr = "100%"
-			} else if m.currentStage == s.num {
+			case m.currentStage == s.num:
 				prog = m.calculateProgress()
 				if prog > 0.99 {
 					prog = 0.99
 				}
 				statusStr = fmt.Sprintf("%3d%%", int(prog*100))
-			} else {
+			default:
 				prog = 0.0
 				statusStr = "  0%"
 			}
@@ -1277,11 +1294,12 @@ func (m Model) View() string {
 		var sum float64
 		for s := 0; s <= 4; s++ {
 			var sp float64
-			if m.scanComplete {
+			switch {
+			case m.scanComplete:
 				sp = 1.0
-			} else if m.currentStage > s {
+			case m.currentStage > s:
 				sp = 1.0
-			} else if m.currentStage == s {
+			case m.currentStage == s:
 				sp = m.calculateProgress()
 			}
 			sum += sp
@@ -1499,7 +1517,7 @@ func validateTargetCmd(targetVal string) tea.Cmd {
 			cleanHost = cleanHost[:idx]
 		}
 		if idx := strings.LastIndex(cleanHost, ":"); idx != -1 {
-			if !(strings.Count(cleanHost, ":") > 1 && !strings.Contains(cleanHost, "]")) {
+			if strings.Count(cleanHost, ":") <= 1 || strings.Contains(cleanHost, "]") {
 				cleanHost = cleanHost[:idx]
 				cleanHost = strings.TrimPrefix(cleanHost, "[")
 				cleanHost = strings.TrimSuffix(cleanHost, "]")

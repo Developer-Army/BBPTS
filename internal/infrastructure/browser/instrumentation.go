@@ -144,7 +144,7 @@ func (i *Instrumenter) ExtractSurface(ctx context.Context, targetURL, sessionID 
 			return nil, fmt.Errorf("context creation retry failed: %w", err)
 		}
 	}
-	defer bCtx.Close()
+	defer func() { _ = bCtx.Close() }()
 
 	err = bCtx.AddInitScript(playwright.Script{
 		Content: playwright.String(`

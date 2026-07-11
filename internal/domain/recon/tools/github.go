@@ -81,7 +81,7 @@ func (t *GithubTool) Run(ctx context.Context, scanCtx *recon.ScanContext, target
 			}
 			client := NewSafeHTTPClient(15 * time.Second)
 
-			query := fmt.Sprintf(`"%s"`, dom)
+			query := fmt.Sprintf("%q", dom)
 			apiURL := fmt.Sprintf("https://api.github.com/search/code?q=%s&per_page=50", url.QueryEscape(query))
 
 			var resp *http.Response

@@ -83,7 +83,7 @@ func uploadToDefectDojo(ctx context.Context, ddURL, token, productID, filePath s
 	_ = writer.WriteField("verified", "true")
 	_ = writer.WriteField("minimum_severity", "Info")
 
-	if err = writer.Close(); err != nil {
+	if err := writer.Close(); err != nil {
 		return err
 	}
 
@@ -221,7 +221,7 @@ func GenerateDynamicExecutiveSummary(findings []DetailedFinding) ExecutiveSummar
 	}
 
 	riskLevel := "Low"
-	if critical > 0 {
+	if critical > 0 { //nolint:gocritic
 		riskLevel = "Critical"
 		immediateActions = append(immediateActions, "Remediate critical infrastructure exposures immediately", "Revoke any leaked API keys or credentials found")
 	} else if high > 0 {

@@ -24,7 +24,7 @@ func FindVulnerabilityChains(nodes []storage.AssetNode, edges []storage.AssetEdg
 
 	targetVulns := make(map[string][]storage.AssetNode)
 	for _, edge := range edges {
-		if strings.ToLower(edge.Relation) == "is_vulnerable_to" || strings.ToLower(edge.Relation) == "has_finding" {
+		if strings.EqualFold(edge.Relation, "is_vulnerable_to") || strings.EqualFold(edge.Relation, "has_finding") {
 			targetNode, okT := nodeMap[edge.SourceID]
 			vulnNode, okV := nodeMap[edge.TargetID]
 			if okT && okV {
